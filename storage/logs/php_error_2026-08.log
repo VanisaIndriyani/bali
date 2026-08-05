@@ -1,0 +1,10 @@
+[04-Aug-2026 18:02:40 Europe/Berlin] PHP Warning:  session_start(): open(D:\APLIKASI\xampp\tmp\sess_ptv79erkrn02akbr558eud4phs, O_RDWR) failed: Permission denied (13) in D:\APLIKASI\laragon\www\AGUSTUS\regist_bali\config\config.php on line 74
+[04-Aug-2026 18:02:40 Europe/Berlin] PHP Warning:  session_start(): Failed to read session data: files (path: D:\APLIKASI\xampp\tmp) in D:\APLIKASI\laragon\www\AGUSTUS\regist_bali\config\config.php on line 74
+[04-Aug-2026 18:02:41 Europe/Berlin] PHP Fatal error:  Uncaught Error: Call to undefined method Database::getPdo() in D:\APLIKASI\laragon\www\AGUSTUS\regist_bali\install\apply_migration_20260804.php:17
+Stack trace:
+#0 {main}
+  thrown in D:\APLIKASI\laragon\www\AGUSTUS\regist_bali\install\apply_migration_20260804.php on line 17
+[04-Aug-2026 18:07:52 Europe/Berlin] PHP Fatal error:  Uncaught Error: Call to undefined method Database::getPdo() in D:\APLIKASI\laragon\www\AGUSTUS\regist_bali\install\apply_migration_20260804.php:17
+Stack trace:
+#0 {main}
+  thrown in D:\APLIKASI\laragon\www\AGUSTUS\regist_bali\install\apply_migration_20260804.php on line 17

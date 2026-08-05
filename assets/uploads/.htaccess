@@ -1,0 +1,11 @@
+# St. Regis Bali - Daily Log Security
+Options -Indexes -Multiviews
+<FilesMatch "\.(php|phtml|phar|pl|py|jsp|asp|sh|cgi)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+<FilesMatch "\.(jpg|jpeg|png|gif|webp|pdf|xls|xlsx)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+php_flag engine 0
