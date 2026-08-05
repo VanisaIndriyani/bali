@@ -145,3 +145,54 @@ function hasRoleAccess($requiredRoles) {
     if (!isLoggedIn()) return false;
     return in_array($_SESSION['user_role'], (array)$requiredRoles);
 }
+
+function formatCurrency($num, $prefix = '') {
+    $num = (float)$num;
+    $negative = $num < 0;
+    $formatted = number_format(abs($num), 2, ',', '.');
+    return ($negative ? '-' : '') . $prefix . $formatted;
+}
+
+function getOrderStatusBadgeClass($status) {
+    switch ($status) {
+        case 'draft': return 'bg-gray-100 text-gray-700 border-gray-200';
+        case 'pending_supervisor': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
+        case 'pending_manager': return 'bg-blue-50 text-blue-700 border-blue-200';
+        case 'approved': return 'bg-green-50 text-green-700 border-green-200';
+        case 'rejected': return 'bg-red-50 text-red-700 border-red-200';
+        case 'completed': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        default: return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+}
+
+function getOrderStatusText($status) {
+    switch ($status) {
+        case 'draft': return T('order_status_draft', 'Draft');
+        case 'pending_supervisor': return T('order_status_pending_spv', 'Menunggu Supervisor');
+        case 'pending_manager': return T('order_status_pending_mgr', 'Menunggu Manager');
+        case 'approved': return T('order_status_approved', 'Disetujui');
+        case 'rejected': return T('order_status_rejected', 'Ditolak');
+        case 'completed': return T('order_status_completed', 'Selesai');
+        default: return $status;
+    }
+}
+
+function generateOrderNo($db, $prefix = 'PR') {
+    $ym = date('Ym');
+    $sql = "SELECT MAX(CAST(SUBSTRING_INDEX(order_no, '-', -1) AS UNSIGNED)) as no_max FROM orders WHERE order_no LIKE ?";
+    $row = $db->fetchOne($sql, ["{$prefix}-{$ym}-%"]);
+    $next = (int)($row['no_max'] ?? 0) + 1;
+    return sprintf('%s-%s-%04d', $prefix, $ym, $next);
+}
+
+function addOrderApproval($db, $orderId, $userId, $role, $action, $notes = null) {
+    try {
+        $db->query(
+            "INSERT INTO order_approvals (order_id, user_id, role, action, notes) VALUES (?,?,?,?,?)",
+            [(int)$orderId, (int)$userId, (string)$role, (string)$action, $notes]
+        );
+        return true;
+    } catch (Throwable $e) {
+        return false;
+    }
+}

@@ -6,19 +6,32 @@ $displayEmail = (string)($user['email'] ?? '');
 $initial = strtoupper(mb_substr($displayName, 0, 1) ?: 'U');
 $isEngineer = $user['role'] === 'engineer';
 $isSupervisor = $user['role'] === 'supervisor';
+$isManager = $user['role'] === 'manager';
+$isManagerOrSpv = $isManager || $isSupervisor;
 $currentFile = basename($_SERVER['PHP_SELF']);
 $currentDir = basename(dirname($_SERVER['PHP_SELF']));
 
-$isDashboard = $currentFile === 'index.php' && !in_array($currentDir, ['users','engineer','supervisor','reports','profile']);
+$isDashboard = $currentFile === 'index.php' && !in_array($currentDir, ['users','engineer','supervisor','manager','reports','profile','orders']);
 $isDailyLog = $currentDir === 'engineer' && in_array($currentFile, ['select_date.php', 'daily_log_form.php']);
 $isReview = $currentDir === 'supervisor' && in_array($currentFile, ['review.php', 'review_detail.php']);
 $isHistory = $currentFile === 'history.php';
-$isManageUsers = $currentDir === 'users' && in_array($currentFile, ['index.php', 'create.php', 'edit.php']);
+$isManageUsers = $currentDir === 'supervisor' && $currentFile === 'users' && in_array($currentFile, ['index.php', 'create.php', 'edit.php']);
+if ($currentDir !== 'supervisor') $isManageUsers = $currentDir === 'users' && in_array($currentFile, ['index.php', 'create.php', 'edit.php']);
+
+$isOrderIndex = $currentDir === 'orders' && $currentFile === 'index.php';
+$isOrderCreate = $currentDir === 'orders' && $currentFile === 'create.php';
+$isOrderDetail = $currentDir === 'orders' && $currentFile === 'detail.php';
+$isOrderApprove = $currentDir === 'orders' && in_array($currentFile, ['approve.php']);
 
 $db = Database::getInstance();
 $pendingCount = 0;
+$pendingOrderCount = 0;
 if ($isSupervisor) {
     $pendingCount = (int)($db->fetchOne("SELECT COUNT(*) as cnt FROM daily_logs WHERE status = 'pending'")['cnt'] ?? 0);
+    $pendingOrderCount = (int)($db->fetchOne("SELECT COUNT(*) as cnt FROM orders WHERE status = 'pending_supervisor'")['cnt'] ?? 0);
+}
+if ($isManager) {
+    $pendingOrderCount = (int)($db->fetchOne("SELECT COUNT(*) as cnt FROM orders WHERE status = 'pending_manager'")['cnt'] ?? 0);
 }
 ?>
 <div class="app-layout is-sidebar-expanded" id="appLayout">
@@ -57,6 +70,22 @@ if ($isSupervisor) {
                 <span class="nav-label"><?= T('nav_fill_daily_log', 'Isi Daily Log') ?></span>
             </a>
             <?php endif; ?>
+
+            <div class="nav-section"><span>Order / PR</span></div>
+            <?php if ($isEngineer || $isSupervisor): ?>
+            <a href="<?= BASE_URL ?>orders/create.php" class="nav-item <?= $isOrderCreate ? 'nav-item-active' : '' ?>">
+                <span class="nav-icon"><i class="fas fa-file-circle-plus"></i></span>
+                <span class="nav-label"><?= T('nav_order_create', 'Buat Order Request') ?></span>
+            </a>
+            <?php endif; ?>
+            <a href="<?= BASE_URL ?>orders/index.php" class="nav-item <?= $isOrderIndex ? 'nav-item-active' : '' ?>">
+                <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
+                <span class="nav-label"><?= T('nav_order_list', 'Daftar Order / PR') ?>
+                    <?php if ($pendingOrderCount > 0): ?>
+                        <span class="ml-auto badge-pill"><?= $pendingOrderCount > 99 ? '99+' : $pendingOrderCount ?></span>
+                    <?php endif; ?>
+                </span>
+            </a>
 
             <?php if ($isSupervisor): ?>
                 <div class="nav-section"><span>Approval</span></div>

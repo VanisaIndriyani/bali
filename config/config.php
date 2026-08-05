@@ -40,7 +40,15 @@ if ($isLocalhost) {
     define('ENVIRONMENT', 'PRODUCTION');
 }
 if (!defined('BASE_URL')) {
-    define('BASE_URL', $autoBaseUrl);
+    $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
+    $scriptName = (string)($_SERVER['SCRIPT_NAME'] ?? '');
+    if ($host === 'engineeringdept.my.id' || $host === 'www.engineeringdept.my.id') {
+        define('BASE_URL', '/');
+    } elseif (stripos($scriptName, '/AGUSTUS/regist_bali/') !== false) {
+        define('BASE_URL', '/AGUSTUS/regist_bali/');
+    } else {
+        define('BASE_URL', $autoBaseUrl);
+    }
 }
 $cookieBasePath = rtrim(BASE_URL, '/') ?: '/';
 

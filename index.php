@@ -11,15 +11,126 @@ $userId = (int)($user['id']      ?? 0);
 
 $today = date('Y-m-d');
 $monthStart = date('Y-m-01');
+$lastYear = date('Y', strtotime('-1 year'));
+$currentYear = date('Y');
+$sameDayLastYear = date('Y-m-d', strtotime('-1 year'));
 
 $statusWhere = $userRole === 'engineer' ? "AND engineer_id = $userId" : "";
+$approvedWhere = "status = 'approved' $statusWhere";
 
 $totalLogs = $db->fetchOne("SELECT COUNT(*) as cnt FROM daily_logs WHERE 1=1 $statusWhere")['cnt'];
 $pendingLogs = $db->fetchOne("SELECT COUNT(*) as cnt FROM daily_logs WHERE status = 'pending' $statusWhere")['cnt'];
 $approvedLogs = $db->fetchOne("SELECT COUNT(*) as cnt FROM daily_logs WHERE status = 'approved' $statusWhere")['cnt'];
 $rejectedLogs = $db->fetchOne("SELECT COUNT(*) as cnt FROM daily_logs WHERE status = 'rejected' $statusWhere")['cnt'];
 
+// Order counters
+$orderWhere = $userRole === 'engineer' ? "WHERE requested_by = $userId" : "";
+$orderCounts = ['all'=>0,'pending_supervisor'=>0,'pending_manager'=>0,'approved'=>0,'rejected'=>0];
+if (in_array($userRole, ['supervisor','engineer','manager','admin'], true)) {
+    $orderSQL = "SELECT status, COUNT(*) as cnt FROM orders $orderWhere GROUP BY status";
+    foreach ($db->fetchAll($orderSQL) as $row) {
+        $orderCounts[$row['status']] = (int)$row['cnt'];
+        $orderCounts['all'] += (int)$row['cnt'];
+    }
+    if ($userRole === 'manager') {
+        $orderCounts['my_pending'] = (int)$orderCounts['pending_manager'];
+    } elseif ($userRole === 'supervisor') {
+        $orderCounts['my_pending'] = (int)$orderCounts['pending_supervisor'];
+    }
+}
+if ($userRole === 'manager') {
+    $orderCounts['my_pending'] = (int)($orderCounts['my_pending'] ?? $orderCounts['pending_manager']);
+} elseif ($userRole === 'supervisor') {
+    $orderCounts['my_pending'] = (int)($orderCounts['my_pending'] ?? $orderCounts['pending_supervisor']);
+}
+
 $todayData = $db->fetchOne("SELECT * FROM daily_logs WHERE log_date = ? $statusWhere LIMIT 1", [$today]);
+
+// ============ ① UTILITY REPORT - LY (Last Year) vs TODAY ============
+$utilLY = $db->fetchOne("SELECT
+    COALESCE(SUM(total_electricity),0) as elec,
+    COALESCE(SUM(total_water),0) as water,
+    COALESCE(SUM(total_gas),0) as gas,
+    COALESCE(SUM(total_fuel),0) as fuel,
+    COUNT(*) as log_count
+FROM daily_logs WHERE YEAR(log_date) = ? AND $approvedWhere", [$lastYear]);
+
+$utilToday = $db->fetchOne("SELECT
+    COALESCE(SUM(total_electricity),0) as elec,
+    COALESCE(SUM(total_water),0) as water,
+    COALESCE(SUM(total_gas),0) as gas,
+    COALESCE(SUM(total_fuel),0) as fuel,
+    COUNT(*) as log_count
+FROM daily_logs WHERE YEAR(log_date) = ? AND $approvedWhere", [$currentYear]);
+
+$utilTodaySingle = $db->fetchOne("SELECT * FROM daily_logs WHERE log_date = ? AND status = 'approved' $statusWhere LIMIT 1", [$today]);
+
+$occLY = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND $approvedWhere AND occ_rate > 0", [$lastYear]);
+$occToday = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND $approvedWhere AND occ_rate > 0", [$currentYear]);
+
+$defaultTargetOcc = 80;
+$defaultLyOcc = 70;
+$lyOcc = ($occLY['cnt'] > 0) ? round((float)$occLY['avg_occ'], 0) : $defaultLyOcc;
+$thisMonthOcc = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE log_date >= ? AND $approvedWhere AND occ_rate > 0", [$monthStart]);
+$todayOccVal = (float)($utilTodaySingle['occ_rate'] ?? 0);
+if ($todayOccVal > 0) {
+    $targetOcc = round($todayOccVal, 0);
+} elseif ($thisMonthOcc['cnt'] > 0) {
+    $targetOcc = round((float)$thisMonthOcc['avg_occ'], 0);
+} elseif ($occToday['cnt'] > 0) {
+    $targetOcc = round((float)$occToday['avg_occ'], 0);
+} else {
+    $targetOcc = $defaultTargetOcc;
+}
+$thisYearDays = date('z') + 1;
+$lastYearDays = 365;
+
+$lyElecAvg = $utilLY['log_count'] > 0 ? $utilLY['elec'] / max(1, $utilLY['log_count']) : 0;
+$lyWaterAvg = $utilLY['log_count'] > 0 ? $utilLY['water'] / max(1, $utilLY['log_count']) : 0;
+$lyGasAvg = $utilLY['log_count'] > 0 ? $utilLY['gas'] / max(1, $utilLY['log_count']) : 0;
+$lyFuelAvg = $utilLY['log_count'] > 0 ? $utilLY['fuel'] / max(1, $utilLY['log_count']) : 0;
+
+$todayElec = (float)($utilTodaySingle['total_electricity'] ?? 0);
+$todayWater = (float)($utilTodaySingle['total_water'] ?? 0);
+$todayGas = (float)($utilTodaySingle['total_gas'] ?? 0);
+$todayFuel = (float)($utilTodaySingle['total_fuel'] ?? 0);
+
+// ============ ② ENG ACTIVITY - Counters bulan ini ============
+// Catatan: Counter OTOMATIS dihitung dari child table daily_log_activities (baris per aktivitas), BUKAN dari parent counter column manual
+function buildActCount($db, $dateFrom, $dateTo, $statusWhere, $userRole, $userId, $forceParent = false)
+{
+    if ($forceParent) {
+        return $db->fetchOne("SELECT
+            COALESCE(SUM(activity_operation),0) as op,
+            COALESCE(SUM(activity_maintenance),0) as maint,
+            COALESCE(SUM(activity_project),0) as proj,
+            COALESCE(SUM(activity_landscape),0) as land
+        FROM daily_logs WHERE log_date BETWEEN ? AND ? AND status = 'approved' $statusWhere", [$dateFrom, $dateTo]);
+    }
+    $roleJoin = '';
+    $params = [$dateFrom, $dateTo];
+    if ($userRole === 'engineer') {
+        $roleJoin = " AND dl.engineer_id = ?";
+        $params[] = $userId;
+    }
+    // Hitung aktivitas per kategori dari CHILD TABLE (1 baris = 1 pekerjaan, paling akurat!)
+    $sql = "SELECT
+        COALESCE(SUM(CASE WHEN dla.category='operation' THEN 1 ELSE 0 END),0) as op,
+        COALESCE(SUM(CASE WHEN dla.category='maintenance' THEN 1 ELSE 0 END),0) as maint,
+        COALESCE(SUM(CASE WHEN dla.category='project' THEN 1 ELSE 0 END),0) as proj,
+        COALESCE(SUM(CASE WHEN dla.category='landscape' THEN 1 ELSE 0 END),0) as land
+    FROM daily_log_activities dla
+        INNER JOIN daily_logs dl ON dl.id = dla.daily_log_id
+    WHERE dl.log_date BETWEEN ? AND ? AND dl.status = 'approved' $roleJoin";
+    $row = $db->fetchOne($sql, $params);
+    if (!$row || ( ((int)($row['op'])+(int)($row['maint'])+(int)($row['proj'])+(int)($row['land'])) === 0)) {
+        // Fallback backward compat: kalau child table kosong (log lama), pakai parent counter kolom
+        return buildActCount($db, $dateFrom, $dateTo, $statusWhere, $userRole, $userId, true);
+    }
+    return $row;
+}
+$activitySum = buildActCount($db, $monthStart, $today, $statusWhere, $userRole, $userId);
+$todayAct    = buildActCount($db, $today,      $today, $statusWhere, $userRole, $userId);
 
 $monthlyElectricity = $db->fetchOne("SELECT COALESCE(SUM(total_electricity),0) as total FROM daily_logs WHERE log_date >= ? AND status = 'approved' $statusWhere", [$monthStart])['total'];
 $monthlyWater = $db->fetchOne("SELECT COALESCE(SUM(total_water),0) as total FROM daily_logs WHERE log_date >= ? AND status = 'approved' $statusWhere", [$monthStart])['total'];
@@ -109,6 +220,77 @@ $swroDetailData = buildModalQuery($db, $userRole, $userId, 'dl.swro_watermeter, 
 $bottlingDetailData = buildModalQuery($db, $userRole, $userId, 'dl.bottling_kwh, dl.bottling_watermeter', $monthStart, $today);
 $chillerDetailData = buildModalQuery($db, $userRole, $userId, 'dl.chiller_water_ph, dl.chiller_water_tds, dl.chiller_temp, dl.chiller_1_on, dl.chiller_2_on, dl.chiller_3_on', $monthStart, $today);
 
+// Detail modal baru: FUEL dan 4 ACTIVITY
+$fuelDetailData = buildModalQuery($db, $userRole, $userId, 'dl.total_fuel', $monthStart, $today);
+$activityOpDetailData = buildModalQuery($db, $userRole, $userId, 'dl.activity_operation', $monthStart, $today);
+$activityMaintDetailData = buildModalQuery($db, $userRole, $userId, 'dl.activity_maintenance', $monthStart, $today);
+$activityProjDetailData = buildModalQuery($db, $userRole, $userId, 'dl.activity_project', $monthStart, $today);
+$activityLandDetailData = buildModalQuery($db, $userRole, $userId, 'dl.activity_landscape', $monthStart, $today);
+
+// ============ ②+ LIST DETAIL TEKS AKTIVITAS PEKERJAAN PER KATEGORI (ditampilkan di MODAL) ============
+function buildActivityListQuery($db, $userRole, $userId, $category, $dateFrom, $dateTo, $limit = 100) {
+    $baseWhere = "WHERE dla.category = ? AND dl.status = 'approved' AND dl.log_date BETWEEN ? AND ?";
+    $params = [$category, $dateFrom, $dateTo];
+    if ($userRole === 'engineer') {
+        $baseWhere .= " AND dl.engineer_id = ?";
+        $params[] = $userId;
+    }
+    $sql = "SELECT dla.id, dla.activity_title, DATE(dl.log_date) as log_date, u.name as engineer_name
+            FROM daily_log_activities dla
+            INNER JOIN daily_logs dl ON dl.id = dla.daily_log_id
+            LEFT JOIN users u ON u.id = dl.engineer_id
+            $baseWhere
+            ORDER BY dl.log_date DESC, dla.sort_order ASC, dla.id DESC
+            LIMIT $limit";
+    return $db->fetchAll($sql, $params);
+}
+$actListOp    = buildActivityListQuery($db, $userRole, $userId, 'operation',   $monthStart, $today);
+$actListMaint = buildActivityListQuery($db, $userRole, $userId, 'maintenance', $monthStart, $today);
+$actListProj  = buildActivityListQuery($db, $userRole, $userId, 'project',     $monthStart, $today);
+$actListLand  = buildActivityListQuery($db, $userRole, $userId, 'landscape',   $monthStart, $today);
+
+// --- Reusable: render TABLE DAFTAR AKTIVITAS PEKERJAAN (untuk ditempel di bawah chart modal) ---
+function renderActivityTable($list, $themeClass, $iconName, $emptyMsg, $labelSingular) {
+    $html = '';
+    if (is_array($list) && count($list) > 0) {
+        $html .= '<div class="mt-8 rounded-2xl border border-gray-100 shadow-sm overflow-hidden">';
+        $html .=   '<div class="px-5 py-3.5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex items-center justify-between gap-3">';
+        $html .=       '<h3 class="font-bold text-primary flex items-center gap-2"><i class="fas fa-list-ul ' . htmlspecialchars($themeClass) . '"></i> DAFTAR ' . strtoupper($labelSingular) . ' PEKERJAAN BULAN INI</h3>';
+        $html .=       '<span class="px-3 py-1 rounded-full text-[11px] font-black ' . htmlspecialchars($themeClass) . ' bg-white/90 border border-gray-200 shadow-sm">TOTAL ' . count($list) . '</span>';
+        $html .=   '</div>';
+        $html .=   '<div class="overflow-x-auto">';
+        $html .=     '<table class="w-full text-sm">';
+        $html .=       '<thead class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wide">';
+        $html .=         '<tr><th class="px-4 py-3 text-left w-14">NO</th><th class="px-4 py-3 text-left">TANGGAL</th><th class="px-4 py-3 text-left">NAMA PEKERJAAN / AKTIVITAS</th><th class="px-4 py-3 text-left">ENGINEER YANG MENGERJAKAN</th></tr>';
+        $html .=       '</thead>';
+        $html .=       '<tbody class="divide-y divide-gray-100">';
+        $n = 0;
+        foreach ($list as $row) { $n++;
+            $tgl = $row['log_date'] ?? '';
+            if ($tgl) $tgl = (new DateTime($tgl))->format('d M Y');
+            $nama = cleanInput((string)($row['activity_title'] ?? ''));
+            $eng  = cleanInput((string)($row['engineer_name'] ?? '-'));
+            $html .= '<tr class="hover:bg-amber-50/30 transition-colors align-top">';
+            $html .=   '<td class="px-4 py-3 text-gray-500 font-bold text-xs">' . $n . '.</td>';
+            $html .=   '<td class="px-4 py-3 whitespace-nowrap"><span class="px-2.5 py-1 rounded-md bg-gray-50 text-gray-700 text-[11px] font-semibold border border-gray-200"><i class="far fa-calendar mr-1 text-gray-400"></i> ' . htmlspecialchars($tgl) . '</span></td>';
+            $html .=   '<td class="px-4 py-3 text-primary font-semibold leading-relaxed">' . htmlspecialchars($nama) . '</td>';
+            $html .=   '<td class="px-4 py-3"><span class="px-2.5 py-1 rounded-md ' . htmlspecialchars($themeClass) . ' text-[11px] font-bold bg-white border border-gray-200"><i class="fas ' . htmlspecialchars($iconName) . ' mr-1"></i> ' . htmlspecialchars($eng) . '</span></td>';
+            $html .= '</tr>';
+        }
+        $html .=       '</tbody>';
+        $html .=     '</table>';
+        $html .=   '</div>';
+        $html .= '</div>';
+    } else {
+        $html .= '<div class="mt-8 p-8 rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 text-center">';
+        $html .=   '<i class="fas fa-inbox text-5xl text-gray-300 mb-3"></i>';
+        $html .=   '<p class="text-sm font-semibold text-gray-500">' . htmlspecialchars($emptyMsg) . '</p>';
+        $html .=   '<p class="text-[11px] text-gray-400 mt-1">Belum ada daily log ' . htmlspecialchars(strtolower($labelSingular)) . ' yang di-approve untuk bulan ini.</p>';
+        $html .= '</div>';
+    }
+    return $html;
+}
+
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/navbar.php';
 ?>
@@ -123,183 +305,389 @@ require_once __DIR__ . '/includes/navbar.php';
                 <h1 class="font-display text-2xl lg:text-3xl font-bold text-primary mb-1">
                     <?= T('wel_back', 'Selamat Datang') ?>, <?= $userRole === 'engineer' ? T('wel_role_engineer_brand', 'Engineering Department') : cleanInput($userName) ?> <span class="text-accent">👋</span>
                 </h1>
-                <p class="text-secondary"><?= $userRole === 'engineer' ? T('wel_role_engineer', 'Dashboard Engineering Staff') : T('wel_role_supervisor', 'Dashboard Engineering Supervisor') ?></p>
+                <p class="text-secondary">
+                    <?php
+                    if ($userRole === 'engineer') echo T('wel_role_engineer', 'Dashboard Engineering Staff');
+                    elseif ($userRole === 'manager') echo T('wel_role_manager', 'Dashboard Engineering Manager');
+                    else echo T('wel_role_supervisor', 'Dashboard Engineering Supervisor');
+                    ?>
+                </p>
             </div>
-            <?php if ($userRole === 'engineer' || $userRole === 'supervisor'): ?>
+            <?php if ($userRole === 'engineer' || $userRole === 'supervisor' || $userRole === 'manager'): ?>
+                <?php if ($userRole !== 'manager'): ?>
                 <?php $todayLogHref = BASE_URL . 'engineer/daily_log_form.php?date=' . urlencode($today); ?>
                 <a href="<?= $todayLogHref ?>" class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-white font-bold text-sm shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 hover:-translate-y-0.5 transition-all duration-300">
                     <i class="fas fa-pen-ruler"></i>
                     <span><?= $todayData ? T('wel_edit_log', 'Edit Daily Log Hari Ini') : T('wel_fill_log', '✍️ Isi Daily Log Hari Ini') ?></span>
                 </a>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>
 
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-8">
-        <div class="stat-card animate-slide-up" style="animation-delay: 0ms">
-            <div class="flex items-start justify-between mb-4">
-                <div class="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <i class="fas fa-file-lines text-lg text-primary"></i>
-                </div>
-                <span class="text-xs font-semibold text-secondary uppercase tracking-wider"><?= T('stat_label_total', 'Total') ?></span>
-            </div>
-            <h3 class="text-3xl font-bold text-primary mb-1"><?= formatNumber($totalLogs) ?></h3>
-            <p class="text-sm text-secondary"><?= T('stat_total_log', 'Total Daily Log') ?></p>
-        </div>
+    <?php if (in_array($userRole, ['supervisor','manager','admin'])): ?>
+    <!-- ORDER STATUS SUDAH DIPINDAH KE SECTION LOGISTIC PALING BAWAH (SEBELUM RECENT DAILY LOGS) -->
+    <?php endif; ?>
 
-        <div class="stat-card animate-slide-up" style="animation-delay: 60ms">
-            <div class="flex items-start justify-between mb-4">
-                <div class="w-11 h-11 rounded-xl bg-yellow-100 flex items-center justify-center">
-                    <i class="fas fa-clock text-lg text-yellow-600"></i>
+    <!-- ============ ① UTILITY / ENERGY REPORT (PALING ATAS SESUAI CATATAN KERTAS!) ============ -->
+    <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden mb-8 animate-slide-up">
+        <div class="px-5 lg:px-6 py-4 border-b border-border bg-gradient-to-r from-white via-amber-50/40 to-white">
+            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                <div>
+                    <p class="text-[11px] font-black uppercase tracking-[0.25em] text-accent mb-1">ENG. DEPT.</p>
+                    <h2 class="font-display text-xl lg:text-2xl font-black text-primary flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-md shadow-amber-500/25 text-sm">①</span>
+                        <?= T('dash_util_title', 'Utility Report') ?>
+                    </h2>
                 </div>
-                <span class="text-xs font-semibold text-yellow-600 uppercase tracking-wider"><?= T('stat_label_pending', 'Pending') ?></span>
+                <div class="flex flex-wrap items-center gap-4 lg:gap-6">
+                    <div class="flex items-center gap-2 bg-amber-50/80 border border-amber-200 rounded-2xl px-4 py-2.5 shadow-sm">
+                        <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white text-[10px] font-black shadow">LY</span>
+                        <div class="leading-tight">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary/80"><?= T('dash_util_lastyear', 'LY (Tahun Lalu)') ?> • <?= $lastYear ?></p>
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="text-[11px] font-black text-amber-700 uppercase tracking-wider">OCC</span>
+                                <span class="text-2xl lg:text-3xl font-black text-accent drop-shadow-sm"><?= $lyOcc ?></span>
+                                <span class="text-sm font-black text-accent">%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-accent/40 text-2xl font-black hidden sm:block">VS</div>
+                    <div class="flex items-center gap-2 bg-emerald-50/80 border border-emerald-200 rounded-2xl px-4 py-2.5 shadow-sm">
+                        <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-[10px] font-black shadow">NOW</span>
+                        <div class="leading-tight">
+                            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary/80"><?= T('dash_util_today', 'Today (Hari Ini)') ?> • <?= formatDate($today) ?></p>
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="text-[11px] font-black text-emerald-700 uppercase tracking-wider">OCC</span>
+                                <span class="text-2xl lg:text-3xl font-black text-emerald-700 drop-shadow-sm"><?= $targetOcc ?></span>
+                                <span class="text-sm font-black text-emerald-700">%</span>
+                                <?php if ($targetOcc > $lyOcc): ?>
+                                    <span class="ml-1 text-[10px] font-black inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200"><i class="fas fa-arrow-trend-up text-[9px]"></i><?= ($targetOcc - $lyOcc) ?>%</span>
+                                <?php elseif ($targetOcc < $lyOcc): ?>
+                                    <span class="ml-1 text-[10px] font-black inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200"><i class="fas fa-arrow-trend-down text-[9px]"></i><?= ($lyOcc - $targetOcc) ?>%</span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <h3 class="text-3xl font-bold text-yellow-600 mb-1"><?= formatNumber($pendingLogs) ?></h3>
-            <p class="text-sm text-secondary"><?= T('stat_pending', 'Menunggu Approval') ?></p>
         </div>
-
-        <div class="stat-card animate-slide-up" style="animation-delay: 120ms">
-            <div class="flex items-start justify-between mb-4">
-                <div class="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center">
-                    <i class="fas fa-circle-check text-lg text-green-600"></i>
+        <div class="p-5 lg:p-6">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
+                <?php
+                $utilCards = [
+                    ['elec', 'electricity', T('dash_util_electricity', 'Electricity'), '⚡', 'from-amber-400 to-amber-600', 'bg-amber-50', 'border-amber-200', 'text-amber-700', $lyElecAvg, $todayElec, 'kWh'],
+                    ['water', 'water', T('dash_util_water', 'Water'), '💧', 'from-blue-400 to-blue-600', 'bg-blue-50', 'border-blue-200', 'text-blue-700', $lyWaterAvg, $todayWater, 'm³'],
+                    ['gas', 'gas', T('dash_util_gas', 'Gas'), '🔥', 'from-orange-400 to-orange-600', 'bg-orange-50', 'border-orange-200', 'text-orange-700', $lyGasAvg, $todayGas, 'kg'],
+                    ['fuel', 'fuel', T('dash_util_fuel', 'Fuel'), '⛽', 'from-rose-400 to-red-600', 'bg-rose-50', 'border-rose-200', 'text-rose-700', $lyFuelAvg, $todayFuel, 'L'],
+                ];
+                foreach ($utilCards as $uc) {
+                    [$key, $modalId, $label, $icon, $grad, $bg, $bor, $col, $lyVal, $todayVal, $unit] = $uc;
+                    $diff = $todayVal - $lyVal;
+                    $diffPct = $lyVal > 0 ? (($todayVal - $lyVal) / $lyVal) * 100 : 0;
+                    $up = $diff >= 0;
+                    $lyDisp = $lyVal > 0 ? formatNumber($lyVal, 1) : '-';
+                    $todayDisp = $todayVal > 0 ? formatNumber($todayVal, 1) : '-';
+                    $diffColor = $up ? 'text-green-600' : 'text-red-600';
+                    $diffIcon = $up ? '▲' : '▼';
+                    $diffStr = $lyVal > 0 ? "{$diffIcon} " . number_format(abs($diffPct), 1) . '%' : '';
+                    $diffHtml = $diffStr ? "<span class=\"text-[11px] font-black {$diffColor} shrink-0\">{$diffStr}</span>" : '';
+                    echo <<<HTML
+                <div class="rounded-2xl border {$bor} {$bg}/50 p-4 sm:p-5 shadow-sm hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1 hover:scale-[1.02] cursor-pointer transition-all duration-300" onclick="openModal('{$modalId}')">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-9 h-9 rounded-xl bg-gradient-to-br {$grad} flex items-center justify-center text-white shadow-md">
+                            <span class="text-sm">{$icon}</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-black text-primary uppercase tracking-wide text-sm">{$label}</p>
+                        </div>
+                        <i class="fas fa-chevron-right {$col} text-xs opacity-70"></i>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="pb-3 border-b border-dashed {$bor}/60">
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-secondary mb-1">LY • Avg/Day</p>
+                            <div class="flex items-baseline gap-1.5">
+                                <p class="text-2xl lg:text-3xl font-black text-primary">{$lyDisp}</p>
+                                <span class="text-xs font-bold text-secondary">{$unit}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-accent mb-1">TODAY</p>
+                            <div class="flex items-baseline justify-between gap-2">
+                                <div class="flex items-baseline gap-1.5">
+                                    <p class="text-2xl lg:text-3xl font-black text-primary">{$todayDisp}</p>
+                                    <span class="text-xs font-bold text-secondary">{$unit}</span>
+                                </div>
+                                {$diffHtml}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <span class="text-xs font-semibold text-green-600 uppercase tracking-wider"><?= T('stat_label_approved', 'Approved') ?></span>
+HTML;
+                }
+                ?>
             </div>
-            <h3 class="text-3xl font-bold text-green-600 mb-1"><?= formatNumber($approvedLogs) ?></h3>
-            <p class="text-sm text-secondary"><?= T('stat_approved', 'Sudah Disetujui') ?></p>
-        </div>
-
-        <div class="stat-card animate-slide-up" style="animation-delay: 180ms">
-            <div class="flex items-start justify-between mb-4">
-                <div class="w-11 h-11 rounded-xl bg-red-100 flex items-center justify-center">
-                    <i class="fas fa-circle-xmark text-lg text-red-600"></i>
-                </div>
-                <span class="text-xs font-semibold text-red-600 uppercase tracking-wider"><?= T('stat_label_rejected', 'Rejected') ?></span>
-            </div>
-            <h3 class="text-3xl font-bold text-red-600 mb-1"><?= formatNumber($rejectedLogs) ?></h3>
-            <p class="text-sm text-secondary"><?= T('stat_rejected', 'Ditolak') ?></p>
         </div>
     </div>
 
-    <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5 mb-8">
-        <div class="consumption-card animate-slide-up cursor-pointer hover:scale-[1.02] hover:shadow-xl hover:-translate-y-1 transition-all duration-300" style="animation-delay: 240ms" onclick="openModal('electricity')">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                    <i class="fas fa-bolt text-amber-600"></i>
+    <!-- ============ ② CHILLER SYSTEM PERFORMANCE ============ -->
+    <div class="bg-surface rounded-premium border border-cyan-200/70 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 40ms">
+        <div class="px-5 lg:px-6 py-4 border-b border-cyan-100 bg-gradient-to-r from-white via-cyan-50/50 to-white">
+            <div class="flex items-end justify-between gap-3">
+                <div>
+                    <p class="text-[11px] font-black uppercase tracking-[0.25em] text-cyan-700 mb-1">HVAC SYSTEM</p>
+                    <h2 class="font-display text-xl lg:text-2xl font-black text-primary flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-cyan-700 flex items-center justify-center text-white shadow-md shadow-cyan-500/25 text-sm">②</span>
+                        <?= T('dash_chiller_title', 'Chiller System') ?>
+                    </h2>
                 </div>
-                <div class="flex-1">
-                    <p class="text-xs text-secondary uppercase tracking-wider font-semibold"><?= T('card_this_month', 'Bulan Ini') ?></p>
-                    <h3 class="font-bold text-primary"><?= T('card_electricity', 'Listrik') ?></h3>
-                </div>
-                <i class="fas fa-chevron-right text-amber-500 text-sm opacity-60 hover:opacity-100 transition-opacity"></i>
-            </div>
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-bold text-primary"><?= formatNumber($monthlyElectricity) ?></span>
-                <span class="text-sm text-secondary">kWh</span>
-            </div>
-            <div class="mt-3 pt-3 border-t border-border flex items-center gap-1.5 text-xs text-amber-600 font-semibold">
-                <i class="fas fa-chart-line"></i><span><?= T('card_cta_electricity', 'Lihat rincian WBP / LWBP →') ?></span>
             </div>
         </div>
-
-        <div class="consumption-card animate-slide-up cursor-pointer hover:scale-[1.02] hover:shadow-xl hover:-translate-y-1 transition-all duration-300" style="animation-delay: 280ms" onclick="openModal('water')">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                    <i class="fas fa-droplet text-blue-600"></i>
-                </div>
-                <div class="flex-1">
-                    <p class="text-xs text-secondary uppercase tracking-wider font-semibold"><?= T('card_this_month', 'Bulan Ini') ?></p>
-                    <h3 class="font-bold text-primary"><?= T('card_water', 'Air') ?></h3>
-                </div>
-                <i class="fas fa-chevron-right text-blue-500 text-sm opacity-60 hover:opacity-100 transition-opacity"></i>
-            </div>
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-bold text-primary"><?= formatNumber($monthlyWater) ?></span>
-                <span class="text-sm text-secondary">m³</span>
-            </div>
-            <div class="mt-3 pt-3 border-t border-border flex items-center gap-1.5 text-xs text-blue-600 font-semibold">
-                <i class="fas fa-layer-group"></i><span><?= T('card_cta_water', 'Lihat 9 rincian sumber air →') ?></span>
-            </div>
-        </div>
-
-        <div class="consumption-card animate-slide-up cursor-pointer hover:scale-[1.02] hover:shadow-xl hover:-translate-y-1 transition-all duration-300" style="animation-delay: 320ms" onclick="openModal('gas')">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-                    <i class="fas fa-fire text-orange-600"></i>
-                </div>
-                <div class="flex-1">
-                    <p class="text-xs text-secondary uppercase tracking-wider font-semibold"><?= T('card_this_month', 'Bulan Ini') ?></p>
-                    <h3 class="font-bold text-primary"><?= T('card_gas', 'Gas') ?></h3>
-                </div>
-                <i class="fas fa-chevron-right text-orange-500 text-sm opacity-60 hover:opacity-100 transition-opacity"></i>
-            </div>
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-bold text-primary"><?= formatNumber($monthlyGas) ?></span>
-                <span class="text-sm text-secondary">kg</span>
-            </div>
-            <div class="mt-3 pt-3 border-t border-border flex items-center gap-1.5 text-xs text-orange-600 font-semibold">
-                <i class="fas fa-chart-column"></i><span><?= T('card_cta_gas', 'Lihat rincian LPG / LNG →') ?></span>
-            </div>
-        </div>
-
-        <div class="consumption-card animate-slide-up cursor-pointer hover:scale-[1.02] hover:shadow-xl hover:-translate-y-1 transition-all duration-300" style="animation-delay: 360ms" onclick="openModal('swro')">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-lg bg-cyan-100 flex items-center justify-center">
-                    <i class="fas fa-water text-cyan-600"></i>
-                </div>
-                <div class="flex-1">
-                    <p class="text-xs text-secondary uppercase tracking-wider font-semibold"><?= T('card_this_month', 'Bulan Ini') ?></p>
-                    <h3 class="font-bold text-primary"><?= T('card_swro', 'SWRO System') ?></h3>
-                </div>
-                <i class="fas fa-chevron-right text-cyan-500 text-sm opacity-60 hover:opacity-100 transition-opacity"></i>
-            </div>
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-bold text-primary"><?= formatNumber($monthlySwro) ?></span>
-                <span class="text-sm text-secondary">m³</span>
-            </div>
-            <div class="mt-3 pt-3 border-t border-border flex items-center gap-1.5 text-xs text-cyan-600 font-semibold">
-                <i class="fas fa-gauge-high"></i><span><?= T('card_cta_swro', 'Lihat rincian Watermeter & TDS →') ?></span>
+        <div class="p-5 lg:p-6">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <?php
+                $chillerMonthlyAvg = $db->fetchOne("SELECT
+                    COALESCE(AVG(NULLIF(chiller_water_ph,0)),0) as avg_ph,
+                    COALESCE(AVG(NULLIF(chiller_water_tds,0)),0) as avg_tds,
+                    COALESCE(AVG(NULLIF(chiller_temp,0)),0) as avg_temp,
+                    COALESCE(COUNT(CASE WHEN (chiller_1_on=1 OR chiller_2_on=1 OR chiller_3_on=1) THEN 1 END),0) as days_active
+                FROM daily_logs dl WHERE dl.log_date BETWEEN ? AND ? AND dl.status='approved' $statusWhere", [$monthStart, $today]);
+                $chToday = $utilTodaySingle ? [
+                    'ch1' => (int)($utilTodaySingle['chiller_1_on'] ?? 0),
+                    'ch2' => (int)($utilTodaySingle['chiller_2_on'] ?? 0),
+                    'ch3' => (int)($utilTodaySingle['chiller_3_on'] ?? 0),
+                    'ph' => (float)($utilTodaySingle['chiller_water_ph'] ?? 0),
+                    'tds' => (float)($utilTodaySingle['chiller_water_tds'] ?? 0),
+                    'temp' => (float)($utilTodaySingle['chiller_temp'] ?? 0),
+                ] : ['ch1'=>0,'ch2'=>0,'ch3'=>0,'ph'=>0,'tds'=>0,'temp'=>0];
+                $chTodayOn = $chToday['ch1'] + $chToday['ch2'] + $chToday['ch3'];
+                $chillerCards = [
+                    [T('dash_ch_on', 'Unit ON Today'), "{$chTodayOn} / 3", '❄️', 'from-cyan-400 to-cyan-600', 'bg-cyan-50', 'border-cyan-200', 'text-cyan-700', (string)(int)($chillerMonthlyAvg['days_active'] ?? 0).' hari', 'chiller'],
+                    [T('dash_ch_ph', 'pH Level'), $chToday['ph'] > 0 ? formatNumber($chToday['ph'], 2) : '-', '🧪', 'from-indigo-400 to-indigo-600', 'bg-indigo-50', 'border-indigo-200', 'text-indigo-700', (float)($chillerMonthlyAvg['avg_ph'] ?? 0) > 0 ? formatNumber($chillerMonthlyAvg['avg_ph'], 2).' avg' : '-', 'chiller'],
+                    [T('dash_ch_tds', 'TDS (ppm)'), $chToday['tds'] > 0 ? formatNumber($chToday['tds'], 0) : '-', '💧', 'from-teal-400 to-teal-600', 'bg-teal-50', 'border-teal-200', 'text-teal-700', (float)($chillerMonthlyAvg['avg_tds'] ?? 0) > 0 ? formatNumber($chillerMonthlyAvg['avg_tds'], 0).' ppm' : '-', 'chiller'],
+                    [T('dash_ch_temp', 'Temperature (°C)'), $chToday['temp'] > 0 ? formatNumber($chToday['temp'], 1) : '-', '🌡️', 'from-rose-400 to-pink-600', 'bg-rose-50', 'border-rose-200', 'text-rose-700', (float)($chillerMonthlyAvg['avg_temp'] ?? 0) > 0 ? formatNumber($chillerMonthlyAvg['avg_temp'], 1).'°C' : '-', 'chiller'],
+                ];
+                foreach ($chillerCards as $i => $cc) {
+                    [$lbl, $todayVal, $icon, $grad, $bg, $bor, $col, $monthVal, $modal] = $cc;
+                ?>
+                    <div class="rounded-2xl border <?= $bor ?> <?= $bg ?>/40 p-4 sm:p-5 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.01] cursor-pointer transition-all" onclick="openModal('<?= $modal ?>')">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-9 h-9 rounded-xl bg-gradient-to-br <?= $grad ?> flex items-center justify-center text-white shadow">
+                                <span class="text-sm"><?= $icon ?></span>
+                            </div>
+                            <p class="font-bold text-primary text-xs sm:text-sm uppercase tracking-wide"><?= $lbl ?></p>
+                        </div>
+                        <p class="text-2xl lg:text-3xl font-black text-primary leading-none mb-1"><?= $todayVal ?></p>
+                        <p class="text-[11px] font-bold <?= $col ?>"><i class="far fa-calendar-alt mr-1"></i> Bulan Ini: <?= $monthVal ?></p>
+                    </div>
+                <?php } ?>
             </div>
         </div>
+    </div>
 
-        <div class="consumption-card animate-slide-up cursor-pointer hover:scale-[1.02] hover:shadow-xl hover:-translate-y-1 transition-all duration-300" style="animation-delay: 400ms" onclick="openModal('bottling')">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-lg bg-violet-100 flex items-center justify-center">
-                    <i class="fas fa-industry text-violet-600"></i>
+    <!-- ============ ③ SWRO SYSTEM ============ -->
+    <div class="bg-surface rounded-premium border border-sky-200/70 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 60ms">
+        <div class="px-5 lg:px-6 py-4 border-b border-sky-100 bg-gradient-to-r from-white via-sky-50/50 to-white">
+            <div class="flex items-end justify-between gap-3">
+                <div>
+                    <p class="text-[11px] font-black uppercase tracking-[0.25em] text-sky-700 mb-1">WATER TREATMENT</p>
+                    <h2 class="font-display text-xl lg:text-2xl font-black text-primary flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-blue-700 flex items-center justify-center text-white shadow-md shadow-sky-500/25 text-sm">③</span>
+                        <?= T('dash_swro_title', 'SWRO (Reverse Osmosis)') ?>
+                    </h2>
                 </div>
-                <div class="flex-1">
-                    <p class="text-xs text-secondary uppercase tracking-wider font-semibold"><?= T('card_this_month', 'Bulan Ini') ?></p>
-                    <h3 class="font-bold text-primary"><?= T('card_bottling', 'Bottling Plant') ?></h3>
-                </div>
-                <i class="fas fa-chevron-right text-violet-500 text-sm opacity-60 hover:opacity-100 transition-opacity"></i>
-            </div>
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-bold text-primary"><?= formatNumber($monthlyBottling) ?></span>
-                <span class="text-sm text-secondary">m³</span>
-            </div>
-            <div class="mt-3 pt-3 border-t border-border flex items-center gap-1.5 text-xs text-violet-600 font-semibold">
-                <i class="fas fa-industry"></i><span><?= T('card_cta_bottling', 'Lihat rincian Watermeter & kWh →') ?></span>
             </div>
         </div>
+        <div class="p-5 lg:p-6">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <?php
+                $swMonthly = $db->fetchOne("SELECT COALESCE(SUM(swro_watermeter),0) as wm, COALESCE(SUM(swro_kwh),0) as kwh, COALESCE(AVG(NULLIF(swro_tds,0)),0) as tds FROM daily_logs WHERE log_date BETWEEN ? AND ? AND status='approved' $statusWhere", [$monthStart, $today]);
+                $swToday = $utilTodaySingle ? [
+                    'wm' => (float)($utilTodaySingle['swro_watermeter'] ?? 0),
+                    'kwh' => (float)($utilTodaySingle['swro_kwh'] ?? 0),
+                    'tds' => (float)($utilTodaySingle['swro_tds'] ?? 0),
+                ] : ['wm'=>0,'kwh'=>0,'tds'=>0];
+                $swCards = [
+                    [T('dash_sw_wm', 'Watermeter (m³)'), $swToday['wm'] > 0 ? formatNumber($swToday['wm'], 1) : '-', '💧', 'from-sky-400 to-sky-600', 'bg-sky-50', 'border-sky-200', 'text-sky-700', formatNumber($swMonthly['wm'] ?? 0, 1).' m³'],
+                    [T('dash_sw_kwh', 'Konsumsi Listrik (kWh)'), $swToday['kwh'] > 0 ? formatNumber($swToday['kwh'], 1) : '-', '⚡', 'from-yellow-400 to-amber-600', 'bg-amber-50', 'border-amber-200', 'text-amber-700', formatNumber($swMonthly['kwh'] ?? 0, 1).' kWh'],
+                    [T('dash_sw_tds', 'TDS Outlet (ppm)'), $swToday['tds'] > 0 ? formatNumber($swToday['tds'], 0) : '-', '🧪', 'from-slate-400 to-slate-700', 'bg-slate-50', 'border-slate-200', 'text-slate-700', (float)($swMonthly['tds'] ?? 0) > 0 ? formatNumber($swMonthly['tds'], 0).' ppm avg' : '-'],
+                ];
+                foreach ($swCards as $sc) {
+                    [$lbl, $todayVal, $icon, $grad, $bg, $bor, $col, $monthVal] = $sc;
+                ?>
+                    <div class="rounded-2xl border <?= $bor ?> <?= $bg ?>/40 p-4 sm:p-5 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.01] cursor-pointer transition-all" onclick="openModal('swro')">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-9 h-9 rounded-xl bg-gradient-to-br <?= $grad ?> flex items-center justify-center text-white shadow">
+                                <span class="text-sm"><?= $icon ?></span>
+                            </div>
+                            <p class="font-bold text-primary text-xs sm:text-sm uppercase tracking-wide"><?= $lbl ?></p>
+                        </div>
+                        <p class="text-2xl lg:text-3xl font-black text-primary leading-none mb-1"><?= $todayVal ?></p>
+                        <p class="text-[11px] font-bold <?= $col ?>"><i class="far fa-calendar-alt mr-1"></i> Bulan Ini: <?= $monthVal ?></p>
+                    </div>
+                <?php } ?>
+            </div>
+        </div>
+    </div>
 
-        <div class="consumption-card animate-slide-up cursor-pointer hover:scale-[1.02] hover:shadow-xl hover:-translate-y-1 transition-all duration-300" style="animation-delay: 440ms" onclick="openModal('chiller')">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                    <i class="fas fa-snowflake text-emerald-600"></i>
+    <!-- ============ ④ BOTTLING PLANT ============ -->
+    <div class="bg-surface rounded-premium border border-violet-200/70 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 100ms">
+        <div class="px-5 lg:px-6 py-4 border-b border-violet-100 bg-gradient-to-r from-white via-violet-50/50 to-white">
+            <div class="flex items-end justify-between gap-3">
+                <div>
+                    <p class="text-[11px] font-black uppercase tracking-[0.25em] text-violet-700 mb-1">MINERAL WATER PRODUCTION</p>
+                    <h2 class="font-display text-xl lg:text-2xl font-black text-primary flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-violet-700 flex items-center justify-center text-white shadow-md shadow-violet-500/25 text-sm">④</span>
+                        <?= T('dash_bottling_title', 'Bottling Plant') ?>
+                    </h2>
                 </div>
-                <div class="flex-1">
-                    <p class="text-xs text-secondary uppercase tracking-wider font-semibold"><?= T('card_this_month', 'Bulan Ini') ?></p>
-                    <h3 class="font-bold text-primary"><?= T('card_chiller', 'Chiller System') ?></h3>
+            </div>
+        </div>
+        <div class="p-5 lg:p-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <?php
+                $botMonthly = $db->fetchOne("SELECT COALESCE(SUM(bottling_watermeter),0) as wm, COALESCE(SUM(bottling_kwh),0) as kwh FROM daily_logs WHERE log_date BETWEEN ? AND ? AND status='approved' $statusWhere", [$monthStart, $today]);
+                $botToday = $utilTodaySingle ? [
+                    'wm' => (float)($utilTodaySingle['bottling_watermeter'] ?? 0),
+                    'kwh' => (float)($utilTodaySingle['bottling_kwh'] ?? 0),
+                ] : ['wm'=>0,'kwh'=>0];
+                $botCards = [
+                    [T('dash_bt_wm', 'Produksi Air (m³)'), $botToday['wm'] > 0 ? formatNumber($botToday['wm'], 1) : '-', '🥤', 'from-purple-400 to-violet-700', 'bg-violet-50', 'border-violet-200', 'text-violet-700', formatNumber($botMonthly['wm'] ?? 0, 1).' m³ bulan ini'],
+                    [T('dash_bt_kwh', 'Konsumsi Listrik (kWh)'), $botToday['kwh'] > 0 ? formatNumber($botToday['kwh'], 1) : '-', '⚡', 'from-amber-400 to-orange-600', 'bg-orange-50', 'border-orange-200', 'text-orange-700', formatNumber($botMonthly['kwh'] ?? 0, 1).' kWh bulan ini'],
+                ];
+                foreach ($botCards as $bc) {
+                    [$lbl, $todayVal, $icon, $grad, $bg, $bor, $col, $monthVal] = $bc;
+                ?>
+                    <div class="rounded-2xl border <?= $bor ?> <?= $bg ?>/40 p-4 sm:p-5 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.01] cursor-pointer transition-all" onclick="openModal('bottling')">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-9 h-9 rounded-xl bg-gradient-to-br <?= $grad ?> flex items-center justify-center text-white shadow">
+                                <span class="text-sm"><?= $icon ?></span>
+                            </div>
+                            <p class="font-bold text-primary text-xs sm:text-sm uppercase tracking-wide"><?= $lbl ?></p>
+                        </div>
+                        <p class="text-2xl lg:text-3xl font-black text-primary leading-none mb-1"><?= $todayVal ?></p>
+                        <p class="text-[11px] font-bold <?= $col ?>"><i class="far fa-calendar-alt mr-1"></i> <?= $monthVal ?></p>
+                    </div>
+                <?php } ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ ⑥ ENG ACTIVITY (URUTAN PINDAH SESUAI CATATAN KERTAS) ============ -->
+    <div class="bg-surface rounded-premium border border-accent/20 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 120ms">
+        <div class="px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-white via-amber-50/30 to-white">
+            <div class="flex items-end justify-between gap-3">
+                <div>
+                    <p class="text-[11px] font-black uppercase tracking-[0.25em] text-accent mb-1"><?= T('dash_act_subtitle', 'Staff') ?></p>
+                    <h2 class="font-display text-xl lg:text-2xl font-black text-primary flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-gray-800 flex items-center justify-center text-white shadow-md text-sm">⑤</span>
+                        <?= T('dash_act_title', 'ENG ACTIVITY') ?>
+                    </h2>
                 </div>
-                <i class="fas fa-chevron-right text-emerald-500 text-sm opacity-60 hover:opacity-100 transition-opacity"></i>
             </div>
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-bold text-primary"><?= formatNumber($monthlyChiller) ?></span>
-                <span class="text-sm text-secondary"><?= T('chiller_hari_aktif', 'hari aktif') ?></span>
+        </div>
+        <div class="p-5 lg:p-6 space-y-3 sm:space-y-4">
+            <?php
+            $actCards = [
+                [
+                    'operation',
+                    T('dash_act_operation', 'OPERATION'),
+                    'fas fa-gears',
+                    'from-blue-400 to-blue-600',
+                    'bg-blue-50',
+                    'border-blue-200',
+                    'text-blue-700',
+                    (int)($todayAct['op'] ?? 0),
+                    (int)($activitySum['op'] ?? 0),
+                    true
+                ],
+                [
+                    'maintenance',
+                    T('dash_act_maintenance', 'MAINTENANCE'),
+                    'fas fa-wrench',
+                    'from-emerald-400 to-emerald-600',
+                    'bg-emerald-50',
+                    'border-emerald-200',
+                    'text-emerald-700',
+                    (int)($todayAct['maint'] ?? 0),
+                    (int)($activitySum['maint'] ?? 0),
+                    false
+                ],
+                [
+                    'project',
+                    T('dash_act_project', 'PROJECT'),
+                    'fas fa-diagram-project',
+                    'from-violet-400 to-violet-600',
+                    'bg-violet-50',
+                    'border-violet-200',
+                    'text-violet-700',
+                    (int)($todayAct['proj'] ?? 0),
+                    (int)($activitySum['proj'] ?? 0),
+                    false
+                ],
+                [
+                    'landscape',
+                    T('dash_act_landscape', 'LANDSCAPE'),
+                    'fas fa-leaf',
+                    'from-teal-400 to-teal-600',
+                    'bg-teal-50',
+                    'border-teal-200',
+                    'text-teal-700',
+                    (int)($todayAct['land'] ?? 0),
+                    (int)($activitySum['land'] ?? 0),
+                    false
+                ],
+            ];
+            $actCountLabel = T('dash_act_count', 'aktivitas');
+            foreach ($actCards as $ac) {
+                [$modalId, $label, $icon, $grad, $bg, $bor, $col, $todayCnt, $monthCnt, $isFirst] = $ac;
+                echo <<<HTML
+            <div class="rounded-2xl border {$bor} {$bg}/40 p-4 sm:p-5 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-0.5 hover:scale-[1.005] cursor-pointer transition-all duration-300" onclick="openModal('{$modalId}')">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div class="flex items-center gap-3 sm:w-64 shrink-0">
+                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br {$grad} flex items-center justify-center text-white shadow-md shrink-0">
+                            <i class="{$icon}"></i>
+                        </div>
+                        <div>
+                            <p class="font-black text-primary uppercase tracking-wider text-sm">{$label}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-secondary">This Month</p>
+                        </div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-end justify-between gap-4">
+                            <div class="flex items-baseline gap-3">
+                                <div class="flex items-baseline gap-1.5">
+                                    <p class="text-xs text-secondary font-bold uppercase tracking-wide">Today</p>
+                                    <p class="text-3xl lg:text-4xl font-black text-primary leading-none">{$todayCnt}</p>
+                                    <span class="text-[11px] font-bold text-secondary mb-1">{$actCountLabel}</span>
+                                </div>
+                                <div class="w-px h-8 bg-border shrink-0 hidden sm:block"></div>
+                                <div class="flex items-baseline gap-1.5">
+                                    <p class="text-xs text-secondary font-bold uppercase tracking-wide">Month</p>
+                                    <p class="text-2xl lg:text-3xl font-black text-primary/70 leading-none">{$monthCnt}</p>
+                                    <span class="text-[11px] font-bold text-secondary mb-1">total</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1 shrink-0">
+                                <i class="fas fa-chevron-right {$col} text-sm opacity-70"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 h-2 w-full bg-white/60 rounded-full overflow-hidden border {$bor}/40">
+HTML;
+                $todayBar = $todayCnt > 0 ? min(100, max(5, ($todayCnt / max(1, max($todayCnt, $monthCnt, 10))) * 100)) : 0;
+                $monthBar = $monthCnt > 0 ? min(100, max(5, ($monthCnt / max(1, max($todayCnt, $monthCnt, 10))) * 100)) : 0;
+                echo <<<HTML
+                            <div class="h-full w-full relative">
+                                <div class="absolute inset-y-0 left-0 bg-gradient-to-r {$grad} opacity-20 rounded-full" style="width: {$monthBar}%"></div>
+                                <div class="absolute inset-y-0 left-0 bg-gradient-to-r {$grad} rounded-full shadow-sm" style="width: {$todayBar}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="mt-3 pt-3 border-t border-border flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
-                <i class="fas fa-temperature-half"></i><span><?= T('card_cta_chiller', 'Lihat pH, TDS & unit ON →') ?></span>
-            </div>
+HTML;
+            }
+            ?>
         </div>
     </div>
 
@@ -496,6 +884,62 @@ require_once __DIR__ . '/includes/navbar.php';
 
     <?php endif; ?>
 
+    <!-- ============ ⑧ LOGISTIC - ORDER REQUEST & STATUS (PALING BAWAH SESUAI CATATAN KERTAS!) ============ -->
+    <?php if (in_array($userRole, ['supervisor','manager','admin'])): ?>
+    <div class="bg-surface rounded-premium border border-amber-200/70 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 180ms">
+        <div class="px-5 lg:px-6 py-4 border-b border-amber-100 bg-gradient-to-r from-white via-amber-50/40 to-white">
+            <div class="flex items-end justify-between gap-3">
+                <div>
+                    <p class="text-[11px] font-black uppercase tracking-[0.25em] text-amber-700 mb-1">PROCUREMENT • LOGISTIC</p>
+                    <h2 class="font-display text-xl lg:text-2xl font-black text-primary flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-600 to-amber-900 flex items-center justify-center text-white shadow-md shadow-amber-500/25 text-sm">⑧</span>
+                        <?= T('dash_logistic_title', 'Logistik & Order Request') ?>
+                    </h2>
+                </div>
+                <a href="<?= BASE_URL ?>orders/index.php" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-white text-xs font-bold shadow hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                    <i class="fas fa-clipboard-list"></i> <?= T('order_menu_all', 'Semua Order') ?>
+                </a>
+            </div>
+        </div>
+        <div class="p-5 lg:p-6">
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                <?php
+                $allOrder = (int)($orderCounts['all'] ?? 0);
+                $pendingMine = (int)($orderCounts['my_pending'] ?? 0);
+                $spvPen = (int)($orderCounts['pending_supervisor'] ?? 0);
+                $mgrPen = (int)($orderCounts['pending_manager'] ?? 0);
+                $approve = (int)($orderCounts['approved'] ?? 0);
+                $reject = (int)($orderCounts['rejected'] ?? 0);
+
+                $orderBadge = [
+                    [T('stat_label_total', 'Total'), $allOrder, T('order_stat_all', 'Total Order / PR'), 'from-slate-100 to-slate-200', 'bg-slate-50', 'border-slate-200', 'text-slate-600', 'text-slate-800', 'fa-clipboard-list', BASE_URL . 'orders/index.php?filter=all'],
+                    [$userRole === 'manager' ? T('order_stat_pending_mgr', 'Perlu Approve Mgr') : T('order_stat_pending_spv', 'Perlu Approve Spv'), $pendingMine, T('order_stat_pending', 'Belum di-proses saya'), 'from-amber-100 to-yellow-200', 'bg-yellow-50', 'border-yellow-200', 'text-amber-700', 'text-amber-800', 'fa-clock', BASE_URL . 'orders/index.php?filter=my_pending'],
+                    [T('order_stat_pending_spv', 'Spv Queue'), $spvPen, T('order_stat_wait_spv', 'Menunggu Supervisor'), 'from-orange-100 to-orange-200', 'bg-orange-50', 'border-orange-200', 'text-orange-700', 'text-orange-800', 'fa-hourglass-half', BASE_URL . 'orders/index.php?filter=pending_supervisor'],
+                    [T('order_stat_pending_mgr', 'Mgr Queue'), $mgrPen, T('order_stat_wait_mgr', 'Menunggu Manager'), 'from-blue-100 to-blue-200', 'bg-blue-50', 'border-blue-200', 'text-blue-700', 'text-blue-800', 'fa-hourglass-start', BASE_URL . 'orders/index.php?filter=pending_manager'],
+                    [T('stat_label_approved', 'Approved'), $approve, T('order_stat_approved', 'Sudah Final Approval'), 'from-emerald-100 to-emerald-200', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-700', 'text-emerald-800', 'fa-circle-check', BASE_URL . 'orders/index.php?filter=approved'],
+                ];
+                if ($userRole !== 'manager' && $userRole !== 'supervisor') {
+                    $orderBadge[1] = [T('order_stat_rejected', 'Ditolak'), $reject, T('order_stat_rejected_sub', 'Order Ditolak'), 'from-red-100 to-red-200', 'bg-red-50', 'border-red-200', 'text-red-700', 'text-red-800', 'fa-circle-xmark', BASE_URL . 'orders/index.php?filter=rejected'];
+                }
+                foreach ($orderBadge as $ob) {
+                    [$topLbl, $num, $botLbl, $iconBg, $bg, $bor, $col, $colNum, $icon, $href] = $ob;
+                ?>
+                    <a href="<?= $href ?>" class="rounded-2xl border <?= $bor ?> <?= $bg ?> p-4 sm:p-5 shadow-sm hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1 hover:scale-[1.02] cursor-pointer transition-all duration-300 block">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="w-11 h-11 rounded-xl bg-gradient-to-br <?= $iconBg ?> flex items-center justify-center shadow-md">
+                                <i class="fas <?= $icon ?> text-white text-xl"></i>
+                            </div>
+                            <p class="text-[10px] font-black uppercase tracking-wider <?= $col ?>"><?= $topLbl ?></p>
+                        </div>
+                        <p class="text-3xl lg:text-4xl font-black <?= $colNum ?> leading-none mb-2"><?= $num ?></p>
+                        <p class="text-[11px] text-secondary font-semibold leading-snug"><?= $botLbl ?></p>
+                    </a>
+                <?php } ?>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <?php
     $historyColSpan = $userRole === 'supervisor' ? 6 : 5;
     ?>
@@ -689,8 +1133,180 @@ require_once __DIR__ . '/includes/navbar.php';
             <div class="h-72 sm:h-80 lg:h-96 w-full"><canvas id="modalChillerChart"></canvas></div>
         </div>
     </div>
+
+    <!-- FUEL MODAL -->
+    <div id="modal-fuel" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-gradient-to-r from-rose-500 to-red-600 p-5 sm:p-6 flex items-center gap-4 relative">
+            <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
+                <i class="fas fa-gas-pump text-white text-2xl"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_fuel_title', 'Rincian Konsumsi Fuel / Solar') ?></h2>
+                <p class="text-rose-50/90 text-sm"><?= T('modal_fuel_sub', 'Total Liter Per Hari Bulan Ini - Kumulatif') ?></p>
+            </div>
+            <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+        <div class="p-5 sm:p-6 overflow-y-auto" style="max-height: calc(90vh - 90px)">
+            <?php $fuelTot = array_sum(array_column($fuelDetailData, 'total_fuel')); $fuelDays = count($fuelDetailData); ?>
+            <div class="mb-5 grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div class="p-4 rounded-xl bg-rose-50 border border-rose-100 text-center">
+                    <p class="text-xs text-rose-700 font-semibold mb-1"><?= T('modal_fuel_total', 'Total Bulan Ini') ?></p>
+                    <p class="text-2xl font-bold text-rose-800"><?= formatNumber($fuelTot, 1) ?> <span class="text-sm">L</span></p>
+                </div>
+                <div class="p-4 rounded-xl bg-rose-50 border border-rose-100 text-center">
+                    <p class="text-xs text-rose-700 font-semibold mb-1"><?= T('modal_fuel_avg', 'Rata-Rata / Hari') ?></p>
+                    <p class="text-2xl font-bold text-rose-800"><?= $fuelDays>0 ? formatNumber($fuelTot/$fuelDays, 1) : 0 ?> <span class="text-sm">L</span></p>
+                </div>
+                <div class="p-4 rounded-xl bg-rose-50 border border-rose-100 text-center col-span-2 md:col-span-1">
+                    <p class="text-xs text-rose-700 font-semibold mb-1"><?= T('modal_fuel_days', 'Hari Tercatat') ?></p>
+                    <p class="text-2xl font-bold text-rose-800"><?= $fuelDays ?> <span class="text-sm">hari</span></p>
+                </div>
+            </div>
+            <div class="h-72 sm:h-80 lg:h-96 w-full"><canvas id="modalFuelChart"></canvas></div>
+        </div>
+    </div>
+
+    <!-- OPERATION MODAL -->
+    <div id="modal-operation" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 p-5 sm:p-6 flex items-center gap-4 relative">
+            <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
+                <i class="fas fa-gears text-white text-2xl"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_act_op_title', 'Rincian Aktivitas OPERATION') ?></h2>
+                <p class="text-blue-50/90 text-sm"><?= T('modal_act_op_sub', 'Jumlah aktivitas operasional per hari bulan ini') ?></p>
+            </div>
+            <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+        <div class="p-5 sm:p-6 overflow-y-auto" style="max-height: calc(90vh - 90px)">
+            <?php $opTot = array_sum(array_column($activityOpDetailData, 'activity_operation')); $opDays = count($activityOpDetailData); ?>
+            <div class="mb-5 grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div class="p-4 rounded-xl bg-blue-50 border border-blue-100 text-center">
+                    <p class="text-xs text-blue-700 font-semibold mb-1"><?= T('modal_act_total_month', 'Total Bulan Ini') ?></p>
+                    <p class="text-2xl font-bold text-blue-800"><?= $opTot ?> <span class="text-sm"><?= T('dash_act_count', 'aktivitas') ?></span></p>
+                </div>
+                <div class="p-4 rounded-xl bg-blue-50 border border-blue-100 text-center">
+                    <p class="text-xs text-blue-700 font-semibold mb-1"><?= T('modal_act_avg_day', 'Rata-Rata / Hari') ?></p>
+                    <p class="text-2xl font-bold text-blue-800"><?= $opDays>0 ? number_format($opTot/$opDays, 1) : '0' ?></p>
+                </div>
+                <div class="p-4 rounded-xl bg-blue-50 border border-blue-100 text-center col-span-2 md:col-span-1">
+                    <p class="text-xs text-blue-700 font-semibold mb-1"><?= T('modal_act_days', 'Hari Tercatat') ?></p>
+                    <p class="text-2xl font-bold text-blue-800"><?= $opDays ?> <span class="text-sm">hari</span></p>
+                </div>
+            </div>
+            <div class="h-72 sm:h-80 lg:h-96 w-full"><canvas id="modalOperationChart"></canvas></div>
+            <?= renderActivityTable($actListOp, 'text-blue-700', 'fa-user-tie', 'Belum ada daftar pekerjaan OPERATION untuk bulan ini.', 'OPERATION'); ?>
+        </div>
+    </div>
+    <div id="modal-maintenance" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-gradient-to-r from-emerald-500 to-emerald-600 p-5 sm:p-6 flex items-center gap-4 relative">
+            <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
+                <i class="fas fa-wrench text-white text-2xl"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_act_maint_title', 'Rincian Aktivitas MAINTENANCE') ?></h2>
+                <p class="text-emerald-50/90 text-sm"><?= T('modal_act_maint_sub', 'Jumlah perawatan & perbaikan per hari bulan ini') ?></p>
+            </div>
+            <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+        <div class="p-5 sm:p-6 overflow-y-auto" style="max-height: calc(90vh - 90px)">
+            <?php $maintTot = array_sum(array_column($activityMaintDetailData, 'activity_maintenance')); $maintDays = count($activityMaintDetailData); ?>
+            <div class="mb-5 grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
+                    <p class="text-xs text-emerald-700 font-semibold mb-1"><?= T('modal_act_total_month', 'Total Bulan Ini') ?></p>
+                    <p class="text-2xl font-bold text-emerald-800"><?= $maintTot ?> <span class="text-sm"><?= T('dash_act_count', 'aktivitas') ?></span></p>
+                </div>
+                <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
+                    <p class="text-xs text-emerald-700 font-semibold mb-1"><?= T('modal_act_avg_day', 'Rata-Rata / Hari') ?></p>
+                    <p class="text-2xl font-bold text-emerald-800"><?= $maintDays>0 ? number_format($maintTot/$maintDays, 1) : '0' ?></p>
+                </div>
+                <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-center col-span-2 md:col-span-1">
+                    <p class="text-xs text-emerald-700 font-semibold mb-1"><?= T('modal_act_days', 'Hari Tercatat') ?></p>
+                    <p class="text-2xl font-bold text-emerald-800"><?= $maintDays ?> <span class="text-sm">hari</span></p>
+                </div>
+            </div>
+            <div class="h-72 sm:h-80 lg:h-96 w-full"><canvas id="modalMaintenanceChart"></canvas></div>
+            <?= renderActivityTable($actListMaint, 'text-emerald-700', 'fa-user-helmet-safety', 'Belum ada daftar pekerjaan MAINTENANCE untuk bulan ini.', 'MAINTENANCE'); ?>
+        </div>
+    </div>
+
+    <!-- PROJECT MODAL -->
+    <div id="modal-project" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-gradient-to-r from-violet-500 to-violet-600 p-5 sm:p-6 flex items-center gap-4 relative">
+            <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
+                <i class="fas fa-diagram-project text-white text-2xl"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_act_proj_title', 'Rincian Aktivitas PROJECT') ?></h2>
+                <p class="text-violet-50/90 text-sm"><?= T('modal_act_proj_sub', 'Progress proyek khusus per hari bulan ini') ?></p>
+            </div>
+            <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+        <div class="p-5 sm:p-6 overflow-y-auto" style="max-height: calc(90vh - 90px)">
+            <?php $projTot = array_sum(array_column($activityProjDetailData, 'activity_project')); $projDays = count($activityProjDetailData); ?>
+            <div class="mb-5 grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div class="p-4 rounded-xl bg-violet-50 border border-violet-100 text-center">
+                    <p class="text-xs text-violet-700 font-semibold mb-1"><?= T('modal_act_total_month', 'Total Bulan Ini') ?></p>
+                    <p class="text-2xl font-bold text-violet-800"><?= $projTot ?> <span class="text-sm"><?= T('dash_act_count', 'aktivitas') ?></span></p>
+                </div>
+                <div class="p-4 rounded-xl bg-violet-50 border border-violet-100 text-center">
+                    <p class="text-xs text-violet-700 font-semibold mb-1"><?= T('modal_act_avg_day', 'Rata-Rata / Hari') ?></p>
+                    <p class="text-2xl font-bold text-violet-800"><?= $projDays>0 ? number_format($projTot/$projDays, 1) : '0' ?></p>
+                </div>
+                <div class="p-4 rounded-xl bg-violet-50 border border-violet-100 text-center col-span-2 md:col-span-1">
+                    <p class="text-xs text-violet-700 font-semibold mb-1"><?= T('modal_act_days', 'Hari Tercatat') ?></p>
+                    <p class="text-2xl font-bold text-violet-800"><?= $projDays ?> <span class="text-sm">hari</span></p>
+                </div>
+            </div>
+            <div class="h-72 sm:h-80 lg:h-96 w-full"><canvas id="modalProjectChart"></canvas></div>
+            <?= renderActivityTable($actListProj, 'text-violet-700', 'fa-user-pen', 'Belum ada daftar Project untuk bulan ini.', 'PROJECT'); ?>
+        </div>
+    </div>
+
+    <!-- LANDSCAPE MODAL -->
+    <div id="modal-landscape" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-gradient-to-r from-teal-500 to-teal-600 p-5 sm:p-6 flex items-center gap-4 relative">
+            <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
+                <i class="fas fa-leaf text-white text-2xl"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_act_land_title', 'Rincian Aktivitas LANDSCAPE') ?></h2>
+                <p class="text-teal-50/90 text-sm"><?= T('modal_act_land_sub', 'Perawatan taman & lingkungan per hari bulan ini') ?></p>
+            </div>
+            <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+        <div class="p-5 sm:p-6 overflow-y-auto" style="max-height: calc(90vh - 90px)">
+            <?php $landTot = array_sum(array_column($activityLandDetailData, 'activity_landscape')); $landDays = count($activityLandDetailData); ?>
+            <div class="mb-5 grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div class="p-4 rounded-xl bg-teal-50 border border-teal-100 text-center">
+                    <p class="text-xs text-teal-700 font-semibold mb-1"><?= T('modal_act_total_month', 'Total Bulan Ini') ?></p>
+                    <p class="text-2xl font-bold text-teal-800"><?= $landTot ?> <span class="text-sm"><?= T('dash_act_count', 'aktivitas') ?></span></p>
+                </div>
+                <div class="p-4 rounded-xl bg-teal-50 border border-teal-100 text-center">
+                    <p class="text-xs text-teal-700 font-semibold mb-1"><?= T('modal_act_avg_day', 'Rata-Rata / Hari') ?></p>
+                    <p class="text-2xl font-bold text-teal-800"><?= $landDays>0 ? number_format($landTot/$landDays, 1) : '0' ?></p>
+                </div>
+                <div class="p-4 rounded-xl bg-teal-50 border border-teal-100 text-center col-span-2 md:col-span-1">
+                    <p class="text-xs text-teal-700 font-semibold mb-1"><?= T('modal_act_days', 'Hari Tercatat') ?></p>
+                    <p class="text-2xl font-bold text-teal-800"><?= $landDays ?> <span class="text-sm">hari</span></p>
+                </div>
+            </div>
+            <div class="h-72 sm:h-80 lg:h-96 w-full"><canvas id="modalLandscapeChart"></canvas></div>
+            <?= renderActivityTable($actListLand, 'text-teal-700', 'fa-user-nurse', 'Belum ada daftar pekerjaan LANDSCAPE untuk bulan ini.', 'LANDSCAPE'); ?>
+        </div>
+    </div>
 </div>
-<!-- ============ END 6 MODAL GRAFIK ============ -->
+<!-- ============ END 6+5 = 11 MODAL GRAFIK ============ -->
 
 <?php if ($userRole === 'supervisor'): ?>
 <script>
@@ -790,6 +1406,11 @@ const modalGasData = <?= json_encode($gasDetailData) ?>;
 const modalSwroData = <?= json_encode($swroDetailData) ?>;
 const modalBottlingData = <?= json_encode($bottlingDetailData) ?>;
 const modalChillerData = <?= json_encode($chillerDetailData) ?>;
+const modalFuelData = <?= json_encode($fuelDetailData) ?>;
+const modalActOpData = <?= json_encode($activityOpDetailData) ?>;
+const modalActMaintData = <?= json_encode($activityMaintDetailData) ?>;
+const modalActProjData = <?= json_encode($activityProjDetailData) ?>;
+const modalActLandData = <?= json_encode($activityLandDetailData) ?>;
 
 let modalChartInstances = {};
 
@@ -970,6 +1591,76 @@ function renderModalChart(name) {
                         y2: { type: 'linear', display: false, beginAtZero: true }
                     }
                 }
+            });
+            break;
+        }
+        case 'fuel': {
+            const labelsF = fmtLabels(modalFuelData);
+            modalChartInstances[name] = new Chart(document.getElementById('modalFuelChart'), {
+                type: 'bar',
+                data: {
+                    labels: labelsF,
+                    datasets: [
+                        { label: 'Fuel (Liter)', data: toCumulative(extract(modalFuelData, 'total_fuel')), backgroundColor: 'rgba(244,63,94,0.85)', borderColor: '#e11d48', borderWidth: 2, borderRadius: 8, borderSkipped: false }
+                    ]
+                },
+                options: { ...modalChartOpts('Liter'), scales: { x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b', maxRotation: 45 } }, y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#64748b' } } } }
+            });
+            break;
+        }
+        case 'operation': {
+            const labelsOp = fmtLabels(modalActOpData);
+            modalChartInstances[name] = new Chart(document.getElementById('modalOperationChart'), {
+                type: 'bar',
+                data: {
+                    labels: labelsOp,
+                    datasets: [
+                        { label: 'Operation', data: extract(modalActOpData, 'activity_operation'), backgroundColor: 'rgba(37,99,235,0.82)', borderColor: '#2563eb', borderWidth: 2, borderRadius: 10, borderSkipped: false }
+                    ]
+                },
+                options: { ...modalChartOpts('Aktivitas', false), scales: { x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b', maxRotation: 45 } }, y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1, font: { size: 11 }, color: '#64748b' } } } }
+            });
+            break;
+        }
+        case 'maintenance': {
+            const labelsMaint = fmtLabels(modalActMaintData);
+            modalChartInstances[name] = new Chart(document.getElementById('modalMaintenanceChart'), {
+                type: 'bar',
+                data: {
+                    labels: labelsMaint,
+                    datasets: [
+                        { label: 'Maintenance', data: extract(modalActMaintData, 'activity_maintenance'), backgroundColor: 'rgba(16,185,129,0.82)', borderColor: '#059669', borderWidth: 2, borderRadius: 10, borderSkipped: false }
+                    ]
+                },
+                options: { ...modalChartOpts('Aktivitas', false), scales: { x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b', maxRotation: 45 } }, y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1, font: { size: 11 }, color: '#64748b' } } } }
+            });
+            break;
+        }
+        case 'project': {
+            const labelsProj = fmtLabels(modalActProjData);
+            modalChartInstances[name] = new Chart(document.getElementById('modalProjectChart'), {
+                type: 'bar',
+                data: {
+                    labels: labelsProj,
+                    datasets: [
+                        { label: 'Project', data: extract(modalActProjData, 'activity_project'), backgroundColor: 'rgba(124,58,237,0.82)', borderColor: '#7c3aed', borderWidth: 2, borderRadius: 10, borderSkipped: false }
+                    ]
+                },
+                options: { ...modalChartOpts('Aktivitas', false), scales: { x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b', maxRotation: 45 } }, y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1, font: { size: 11 }, color: '#64748b' } } } }
+            });
+            break;
+        }
+        case 'landscape': {
+            const labelsLand = fmtLabels(modalActLandData);
+            modalChartInstances[name] = new Chart(document.getElementById('modalLandscapeChart'), {
+                type: 'bar',
+                data: {
+                    labels: labelsLand,
+                    datasets: [
+                        { label: 'Landscape', data: extract(modalActLandData, 'activity_landscape'), backgroundColor: 'rgba(13,148,136,0.82)', borderColor: '#0d9488', borderWidth: 2, borderRadius: 10, borderSkipped: false }
+                    ]
+                },
+                options: { ...modalChartOpts('Aktivitas', false), scales: { x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b', maxRotation: 45 } }, y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1, font: { size: 11 }, color: '#64748b' } } } }
             });
             break;
         }

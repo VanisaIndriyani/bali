@@ -59,7 +59,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $chChwp = (float)($_POST['chiller_pressure_chwp'] ?? 0);
     $chCwp = (float)($_POST['chiller_pressure_cwp'] ?? 0);
 
+    // ⑦ Fuel
+    $fuel = (float)($_POST['total_fuel'] ?? 0);
+
+    // ⑧ Occupancy Rate (OCC %)
+    $occRate = (float)($_POST['occ_rate'] ?? 0);
+    if ($occRate < 0) $occRate = 0;
+    if ($occRate > 100) $occRate = 100;
+
+    // ⑨ Activity Counters
+    // -- Baru: Counter OTOMATIS dari Dynamic Activity Rows (bukan input manual lagi)
+    $actCats = ['operation','maintenance','project','landscape'];
+    $actOp = $actMaint = $actProj = $actLand = 0;
     $activities = trim($_POST['work_activities'] ?? '');
+    $actItems = $_POST['act'] ?? [];
+    if (!is_array($actItems)) $actItems = [];
+    $parsedActLines = [];
+    $actRows = [];
+    foreach ($actItems as $idx => $row) {
+        $cat = $actCats[array_search($row['cat'] ?? '', $actCats, true)] ?? 'operation';
+        $title = trim((string)($row['t'] ?? ''));
+        if (strlen($title) < 1) continue;
+        $actRows[] = ['cat' => $cat, 'title' => $title, 'sort' => (int)$idx];
+        if ($cat === 'operation') $actOp++;
+        elseif ($cat === 'maintenance') $actMaint++;
+        elseif ($cat === 'project') $actProj++;
+        elseif ($cat === 'landscape') $actLand++;
+        $parsedActLines[] = "[".strtoupper($cat)."] ".$title;
+    }
+    if (count($parsedActLines) > 0) {
+        $activities = implode("\n", $parsedActLines);
+    } elseif (strlen($activities) < 2) {
+        $activities = '';
+    }
     $obstacles = trim($_POST['obstacles'] ?? '');
     $solutions = trim($_POST['solutions'] ?? '');
 
@@ -119,6 +151,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'chiller_temp' => $chTemp,
             'chiller_pressure_chwp' => $chChwp,
             'chiller_pressure_cwp' => $chCwp,
+            // ⑦ Fuel
+            'total_fuel' => $fuel,
+            // ⑧ Occupancy Rate
+            'occ_rate' => $occRate,
+            // ⑨ Activity Counters
+            'activity_operation' => $actOp,
+            'activity_maintenance' => $actMaint,
+            'activity_project' => $actProj,
+            'activity_landscape' => $actLand,
             // Standard content
             'work_activities' => $activities,
             'obstacles' => $obstacles,
@@ -136,13 +177,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data['supervisor_signature'] = null;
             $data['approved_at'] = null;
             $db->update('daily_logs', $data, 'id = :id', ['id' => $log['id']]);
-            setFlash('success', T('form_success_update', 'Daily Log berhasil diperbarui dan menunggu approval'));
+            $logId = (int)$log['id'];
         } else {
             $data['log_date'] = $date;
             $data['engineer_id'] = $user['id'];
             $db->insert('daily_logs', $data);
-            setFlash('success', T('form_success_save', 'Daily Log berhasil disimpan dan menunggu approval'));
+            $logId = (int)$db->lastInsertId();
         }
+        // -- Simpan Child Activity Rows (replace all)
+        if ($logId > 0) {
+            $pdoC = $db->getConnection();
+            $pdoC->exec("DELETE FROM daily_log_activities WHERE daily_log_id = " . $logId);
+            if (count($actRows) > 0) {
+                $stmt = $pdoC->prepare("INSERT INTO daily_log_activities (daily_log_id, category, activity_title, sort_order) VALUES (?,?,?,?)");
+                foreach ($actRows as $ar) {
+                    $stmt->execute([$logId, $ar['cat'], $ar['title'], $ar['sort']]);
+                }
+            }
+        }
+        setFlash('success', $log ? T('form_success_update', 'Daily Log berhasil diperbarui dan menunggu approval') : T('form_success_save', 'Daily Log berhasil disimpan dan menunggu approval'));
         redirect('engineer/select_date.php');
     }
 }
@@ -151,6 +204,11 @@ $log = $db->fetchOne(
     "SELECT * FROM daily_logs WHERE engineer_id = ? AND log_date = ?",
     [$user['id'], $date]
 );
+
+$existingActivities = [];
+if ($log && !empty($log['id'])) {
+    $existingActivities = $db->fetchAll("SELECT id, category, activity_title FROM daily_log_activities WHERE daily_log_id = ? ORDER BY sort_order ASC, id ASC", [(int)$log['id']]);
+}
 
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/navbar.php';
@@ -482,26 +540,144 @@ HTML;
             </div>
         </div>
 
-        <script>
-        function calcTotals() {
-            // Total Listrik = sum all js-sum-electric
-            let e = 0;
-            document.querySelectorAll('.js-sum-electric').forEach(el => e += parseFloat(el.value || 0));
-            document.getElementById('totalElectricity').value = e.toFixed(2);
-            // Total Water = sum 9 js-sum-water
-            let w = 0;
-            document.querySelectorAll('.js-sum-water').forEach(el => w += parseFloat(el.value || 0));
-            document.getElementById('totalWater').value = w.toFixed(2);
-            // Total Gas = sum 2 js-sum-gas
-            let g = 0;
-            document.querySelectorAll('.js-sum-gas').forEach(el => g += parseFloat(el.value || 0));
-            document.getElementById('totalGas').value = g.toFixed(2);
-        }
-        // Initialize totals saat page load (jika ada data dari DB yang sudah di set ke input field hidden tapi sumnya update)
-        document.addEventListener('DOMContentLoaded', calcTotals);
-        </script>
+        <!-- ⑦ FUEL -->
+        <div class="bg-surface rounded-premium border border-rose-200/70 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 290ms">
+            <div class="px-5 lg:px-6 py-4 border-b border-rose-100/80 bg-gradient-to-r from-rose-50/90 via-pink-50/60 to-red-50/70">
+                <h3 class="font-bold text-primary flex items-center gap-2">
+                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-400 to-red-600 flex items-center justify-center text-white shadow-md shadow-rose-500/30"><i class="fas fa-gas-pump text-sm"></i></span>
+                    <?= T('form_fuel_title', '⑦ Fuel - Konsumsi Solar / Bahan Bakar (Liter)') ?>
+                </h3>
+                <p class="text-xs text-secondary mt-0.5"><?= T('form_fuel_sub', 'Isi total konsumsi bahan bakar kendaraan / genset hari ini') ?></p>
+            </div>
+            <div class="p-5 lg:p-6">
+                <div class="max-w-sm mx-auto sm:mx-0">
+                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><i class="far fa-circle-dot mr-1 text-rose-600"></i><?= T('form_fuel_total', 'Total Fuel (Liter)') ?></label>
+                    <div class="relative">
+                        <input type="number" step="0.01" min="0" name="total_fuel"
+                            value="<?= $log['total_fuel'] ?? '0.00' ?>"
+                            class="w-full pl-4 pr-16 py-3.5 rounded-card border border-rose-200 bg-rose-50/60 text-lg font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 focus:bg-white transition-all">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-rose-700 font-bold bg-rose-100 px-2 py-0.5 rounded-full">L</span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 100ms">
+        <!-- ⑧ OCCUPANCY RATE (OCC %) -->
+        <div class="bg-surface rounded-premium border border-accent/40 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 310ms">
+            <div class="px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-100/60">
+                <h3 class="font-bold text-primary flex items-center gap-2">
+                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 via-yellow-500 to-amber-700 flex items-center justify-center text-white shadow-md shadow-amber-500/30"><i class="fas fa-bed text-sm"></i></span>
+                    <?= T('form_occ_title', '⑧ Occupancy Rate (OCC %) • Tingkat Hunian Kamar') ?>
+                </h3>
+                <p class="text-xs text-secondary mt-0.5"><?= T('form_occ_sub', 'Isi persentase kamar terisi hari ini (0 - 100%) • Data acuan compare utility consumption') ?></p>
+            </div>
+            <div class="p-5 lg:p-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <div class="md:col-span-1">
+                        <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><i class="fas fa-percentage mr-1 text-amber-600"></i><?= T('form_occ_label', 'Occupancy Rate Hari Ini') ?></label>
+                        <div class="relative">
+                            <input type="number" id="occRate" step="0.01" min="0" max="100" name="occ_rate"
+                                value="<?= $log['occ_rate'] ?? '0.00' ?>"
+                                oninput="occVisual(this.value)"
+                                class="w-full pl-4 pr-14 py-3.5 rounded-card border border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 text-2xl font-black text-primary placeholder-secondary/60 focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/15 focus:bg-white transition-all">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-lg text-amber-700 font-black bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full">%</span>
+                        </div>
+                        <div class="mt-3 flex gap-2 flex-wrap">
+                            <button type="button" onclick="setOcc(50)" class="px-3 py-1 rounded-lg text-xs font-bold border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition">50%</button>
+                            <button type="button" onclick="setOcc(65)" class="px-3 py-1 rounded-lg text-xs font-bold border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition">65%</button>
+                            <button type="button" onclick="setOcc(70)" class="px-3 py-1 rounded-lg text-xs font-bold border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition">70%</button>
+                            <button type="button" onclick="setOcc(80)" class="px-3 py-1 rounded-lg text-xs font-bold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">80%</button>
+                            <button type="button" onclick="setOcc(90)" class="px-3 py-1 rounded-lg text-xs font-bold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">90%</button>
+                            <button type="button" onclick="setOcc(100)" class="px-3 py-1 rounded-lg text-xs font-bold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">Full 100%</button>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-black uppercase tracking-[0.18em] text-secondary mb-2"><?= T('form_occ_visual', 'Visual Bar') ?></label>
+                        <div class="relative h-10 rounded-premium overflow-hidden bg-gray-100 border border-gray-200 shadow-inner">
+                            <div id="occBar" class="absolute inset-y-0 left-0 h-full rounded-premium transition-all duration-700 ease-out bg-gradient-to-r from-amber-400 via-yellow-400 to-emerald-500" style="width: 0%"></div>
+                            <div class="absolute inset-0 flex items-center justify-center text-sm font-black text-primary drop-shadow-[0_1px_0_rgba(255,255,255,0.7)]"><span id="occLabelText">0%</span> • <span id="occLabelTextDesc"><?= T('form_occ_empty', 'Kosong') ?></span></div>
+                        </div>
+                        <script>
+                            function occVisual(v) {
+                                let val = parseFloat(v) || 0;
+                                if (val < 0) val = 0;
+                                if (val > 100) val = 100;
+                                const bar = document.getElementById('occBar');
+                                const label = document.getElementById('occLabelText');
+                                const desc = document.getElementById('occLabelTextDesc');
+                                if (bar) bar.style.width = val + '%';
+                                if (label) label.textContent = val.toFixed(2) + '%';
+                                if (desc) {
+                                    if (val <= 0) desc.textContent = '<?= T('form_occ_empty', 'Kosong') ?>';
+                                    else if (val < 40) desc.textContent = '<?= T('form_occ_low', 'Low Season • Sepi') ?>';
+                                    else if (val < 65) desc.textContent = '<?= T('form_occ_mid', 'Mid Season • Normal') ?>';
+                                    else if (val < 85) desc.textContent = '<?= T('form_occ_high', 'High Season • Ramai') ?>';
+                                    else desc.textContent = '<?= T('form_occ_full', 'Peak Season • Penuh!') ?>';
+                                }
+                            }
+                            function setOcc(p) { const el = document.getElementById('occRate'); if (el) { el.value = p; occVisual(p); } }
+                            document.addEventListener('DOMContentLoaded', function() { const el = document.getElementById('occRate'); if (el) occVisual(el.value); });
+                        </script>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ⑨ ENG ACTIVITY COUNTERS (OTOMATIS DIHITUNG DARI LIST DINAMIS DI BAWAH) -->
+        <div class="bg-surface rounded-premium border border-accent/30 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 330ms">
+            <div class="px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-amber-50/90 via-yellow-50/60 to-amber-50/70">
+                <h3 class="font-bold text-primary flex items-center gap-2">
+                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-md shadow-amber-500/30"><i class="fas fa-list-ol text-sm"></i></span>
+                    <?= T('form_activity_title', '⑨ Engineering Activity Counter — OTOMATIS') ?>
+                </h3>
+                <p class="text-xs text-secondary mt-0.5"><?= T('form_activity_sub', 'Jumlah dihitung OTOMATIS berdasarkan daftar pekerjaan yang kamu buat di bawah!') ?></p>
+            </div>
+            <div class="p-5 lg:p-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <?php
+                $actFields = [
+                    ['activity_operation', T('form_activity_operation', 'Operation (Operasional)'), 'from-blue-400 to-blue-600', 'bg-blue-50/60', 'border-blue-200', 'text-blue-700', 'fas fa-gears', 'act_count_op'],
+                    ['activity_maintenance', T('form_activity_maintenance', 'Maintenance (Perawatan)'), 'from-emerald-400 to-emerald-600', 'bg-emerald-50/60', 'border-emerald-200', 'text-emerald-700', 'fas fa-wrench', 'act_count_maint'],
+                    ['activity_project', T('form_activity_project', 'Project (Proyek)'), 'from-violet-400 to-violet-600', 'bg-violet-50/60', 'border-violet-200', 'text-violet-700', 'fas fa-diagram-project', 'act_count_proj'],
+                    ['activity_landscape', T('form_activity_landscape', 'Landscape (Taman & Lingkungan)'), 'from-teal-400 to-teal-600', 'bg-teal-50/60', 'border-teal-200', 'text-teal-700', 'fas fa-leaf', 'act_count_land'],
+                ];
+                foreach ($actFields as $af) {
+                    [$fname, $flabel, $fg, $fbg, $fbor, $fcol, $ficon, $fjs] = $af;
+                    $fval = $log[$fname] ?? '0';
+                    echo <<<HTML
+                <div>
+                    <label class="block text-[11px] font-black text-primary mb-2 tracking-wide uppercase flex items-center gap-1.5"><i class="{$ficon} {$fcol}"></i>{$flabel}</label>
+                    <div class="relative">
+                        <input type="hidden" name="{$fname}" id="{$fname}" value="{$fval}">
+                        <div id="{$fjs}" class="w-full pl-3 pr-4 py-3 rounded-card border {$fbor} {$fbg} text-3xl font-black text-primary text-center shadow-inner">{$fval}</div>
+                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] {$fcol} font-black bg-white/90 border {$fbor} px-2 py-1 rounded-full shadow-sm"><i class="fas fa-bolt"></i> AUTO</span>
+                    </div>
+                </div>
+HTML;
+                }
+                ?>
+            </div>
+        </div>
+
+        <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 370ms">
+            <div class="px-5 lg:px-6 py-4 border-b border-border bg-muted/30">
+                <h3 class="font-bold text-primary flex items-center gap-2">
+                    <i class="fas fa-list-check text-green-600"></i><?= T('form_work_activities', '⑨ Aktivitas Pekerjaan (Per Baris)') ?> <span class="text-red-500">*</span>
+                </h3>
+                <p class="text-xs text-secondary mt-0.5">Kategori pekerjaan OTOMATIS hitung Counter di atas! Tambah baris untuk setiap aktivitas.</p>
+            </div>
+            <div class="p-5 lg:p-6 space-y-4">
+                <div id="actList" class="space-y-3">
+                    <!-- Dynamic Rows diisi JS dari existingActivities JSON -->
+                </div>
+                <button type="button" onclick="addActRow()" class="w-full py-3 rounded-xl border-2 border-dashed border-green-300 bg-green-50/70 hover:bg-green-50 hover:border-green-500 text-green-700 font-semibold transition-all">
+                    <i class="fas fa-plus-circle mr-2 text-lg"></i> TAMBAH BARIS PEKERJAAN BARU
+                </button>
+                <input type="hidden" id="hidden_work_activities" name="work_activities" value="">
+                <p class="text-[11px] text-secondary mt-1.5"><i class="fas fa-info-circle mr-1"></i><?= T('form_work_activities_min', 'Minimal 10 karakter • Total per baris dikumpulkan') ?></p>
+            </div>
+        </div>
+
+        <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 410ms">
             <div class="px-5 lg:px-6 py-4 border-b border-border bg-muted/30">
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <i class="fas fa-camera text-accent"></i><?= T('form_photo_title', 'Dokumentasi Foto') ?>
@@ -533,23 +709,14 @@ HTML;
             </div>
         </div>
 
-        <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 150ms">
+        <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 450ms">
             <div class="px-5 lg:px-6 py-4 border-b border-border bg-muted/30">
                 <h3 class="font-bold text-primary flex items-center gap-2">
-                    <i class="fas fa-clipboard-list text-accent"></i><?= T('form_work_title', 'Detail Pekerjaan') ?>
+                    <i class="fas fa-clipboard-list text-accent"></i><?= T('form_work_title', 'Catatan Kendala & Solusi') ?>
                 </h3>
-                <p class="text-xs text-secondary mt-0.5"><?= T('form_work_sub', 'Isi aktivitas, kendala, dan solusi') ?></p>
+                <p class="text-xs text-secondary mt-0.5">Isi kendala yang dihadapi dan solusi tindak lanjutnya</p>
             </div>
             <div class="p-5 lg:p-6 space-y-5">
-                <div>
-                    <label class="block text-sm font-semibold text-primary mb-2">
-                        <i class="fas fa-list-check mr-1.5 text-green-600"></i><?= T('form_work_activities', 'Aktivitas Pekerjaan') ?> <span class="text-red-500">*</span>
-                    </label>
-                    <textarea name="work_activities" required rows="4"
-                        class="w-full px-4 py-3 rounded-card border border-border bg-muted/50 text-primary placeholder-secondary/60 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 focus:bg-surface transition-all resize-none"
-                        placeholder="<?= T('form_work_activities_ph', 'Deskripsikan pekerjaan yang dilakukan hari ini secara detail...') ?>"><?= cleanInput($log['work_activities'] ?? '') ?></textarea>
-                    <p class="text-[11px] text-secondary mt-1.5"><i class="fas fa-info-circle mr-1"></i><?= T('form_work_activities_min', 'Minimal 10 karakter') ?></p>
-                </div>
                 <div>
                     <label class="block text-sm font-semibold text-primary mb-2">
                         <i class="fas fa-triangle-exclamation mr-1.5 text-yellow-600"></i><?= T('form_work_obstacles', 'Kendala') ?>
@@ -568,6 +735,96 @@ HTML;
                 </div>
             </div>
         </div>
+
+        <script>
+        // --- DYNAMIC ACTIVITY ROWS (OTOMATIS HITUNG COUNTER DI ATAS) ---
+        const ACT_EXISTING = <?= json_encode($existingActivities ?: []) ?>;
+        const ACT_FIELDS = [
+            { v: 'operation',   c: 'Operation / Operasional', col: 'blue',    icon: 'fa-gears',          countEl: 'act_count_op',    hiddenEl: 'activity_operation' },
+            { v: 'maintenance', c: 'Maintenance / Perawatan', col: 'emerald', icon: 'fa-wrench',         countEl: 'act_count_maint', hiddenEl: 'activity_maintenance' },
+            { v: 'project',     c: 'Project / Proyek',        col: 'violet',  icon: 'fa-diagram-project',countEl: 'act_count_proj',  hiddenEl: 'activity_project' },
+            { v: 'landscape',   c: 'Landscape / Taman',       col: 'teal',    icon: 'fa-leaf',           countEl: 'act_count_land',  hiddenEl: 'activity_landscape' },
+        ];
+        const COL_MAP = {
+            blue:    { s: 'bg-blue-50 border-blue-200 text-blue-700',   b: 'border-blue-300',   i: 'bg-gradient-to-br from-blue-400 to-blue-600 text-white' },
+            emerald: { s: 'bg-emerald-50 border-emerald-200 text-emerald-700', b: 'border-emerald-300', i: 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white' },
+            violet:  { s: 'bg-violet-50 border-violet-200 text-violet-700',   b: 'border-violet-300',  i: 'bg-gradient-to-br from-violet-400 to-violet-600 text-white' },
+            teal:    { s: 'bg-teal-50 border-teal-200 text-teal-700',         b: 'border-teal-300',    i: 'bg-gradient-to-br from-teal-400 to-teal-600 text-white' },
+        };
+        let actRowCounter = 0;
+        function colOf(cat) { const f = ACT_FIELDS.find(x=>x.v===cat)||ACT_FIELDS[0]; return f; }
+        function addActRow(cat='operation', title='') {
+            const list = document.getElementById('actList');
+            const idx = actRowCounter++;
+            const row = document.createElement('div');
+            row.className = 'actRow flex flex-col sm:flex-row gap-2 sm:items-stretch rounded-xl border-2 border-amber-200/50 bg-amber-50/40 p-2 hover:border-amber-300 hover:bg-amber-50/60 transition-all animate-slide-up';
+            row.innerHTML = `
+                <div class="sm:w-60">
+                    <select class="actCat w-full h-12 px-3 rounded-lg bg-white border border-amber-200 font-bold text-sm" name="act[${idx}][cat]" onchange="onActChanged(this)">
+                        ${ACT_FIELDS.map(f => `<option value="${f.v}" ${cat===f.v?'selected':''}><i class="fas ${f.icon}"></i> ${f.c}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="flex-1 flex gap-2">
+                    <input type="text" class="actTitle flex-1 h-12 px-4 rounded-lg bg-white border border-amber-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all text-primary"
+                        name="act[${idx}][t]" placeholder="👉 Tulis nama pekerjaan disini..." value="${title.replace(/"/g,'&quot;')}" oninput="onActChanged(this)">
+                    <button type="button" onclick="this.closest('.actRow').remove(); recalcAct();" class="h-12 px-4 rounded-lg bg-red-50 border border-red-200 text-red-600 font-bold hover:bg-red-100 transition-all">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            list.appendChild(row);
+            recalcAct();
+        }
+        function onActChanged() { recalcAct(); }
+        function recalcAct() {
+            const counts = { operation:0, maintenance:0, project:0, landscape:0 };
+            const lines = [];
+            document.querySelectorAll('.actRow').forEach(row => {
+                const cat = row.querySelector('.actCat').value;
+                const t = (row.querySelector('.actTitle').value || '').trim();
+                if (t.length > 0) {
+                    counts[cat] = (counts[cat]||0) + 1;
+                    lines.push('['+cat.toUpperCase()+'] '+t);
+                }
+            });
+            ACT_FIELDS.forEach(f => {
+                const n = counts[f.v] || 0;
+                const ce = document.getElementById(f.countEl);
+                const he = document.getElementById(f.hiddenEl);
+                if (ce) { ce.textContent = String(n); if (n>0) { ce.classList.add('scale-110'); setTimeout(()=>ce.classList.remove('scale-110'),260); } }
+                if (he) he.value = String(n);
+            });
+            document.getElementById('hidden_work_activities').value = lines.join('\n');
+        }
+        // init: tambahkan baris dari DB atau minimal 1 kosong
+        document.addEventListener('DOMContentLoaded', () => {
+            if (ACT_EXISTING && ACT_EXISTING.length) {
+                ACT_EXISTING.forEach(a => addActRow(a.category || 'operation', a.activity_title || ''));
+            }
+            if (document.getElementById('actList').children.length === 0) {
+                addActRow('operation',''); addActRow('maintenance','');
+            }
+        });
+        </script>
+
+        <script>
+        function calcTotals() {
+            // Total Listrik = sum all js-sum-electric
+            let e = 0;
+            document.querySelectorAll('.js-sum-electric').forEach(el => e += parseFloat(el.value || 0));
+            document.getElementById('totalElectricity').value = e.toFixed(2);
+            // Total Water = sum 9 js-sum-water
+            let w = 0;
+            document.querySelectorAll('.js-sum-water').forEach(el => w += parseFloat(el.value || 0));
+            document.getElementById('totalWater').value = w.toFixed(2);
+            // Total Gas = sum 2 js-sum-gas
+            let g = 0;
+            document.querySelectorAll('.js-sum-gas').forEach(el => g += parseFloat(el.value || 0));
+            document.getElementById('totalGas').value = g.toFixed(2);
+        }
+        // Initialize totals saat page load (jika ada data dari DB yang sudah di set ke input field hidden tapi sumnya update)
+        document.addEventListener('DOMContentLoaded', calcTotals);
+        </script>
 
         <div class="flex flex-col sm:flex-row sm:justify-end gap-3 pt-2 animate-slide-up" style="animation-delay: 200ms">
             <a href="<?= BASE_URL ?>engineer/select_date.php"
