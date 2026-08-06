@@ -50,8 +50,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
                 'approved_at' => date('Y-m-d H:i:s'),
             ];
             $db->update('daily_logs', $dataUpdate, 'id = :id', ['id' => (int)$exist['id']]);
-            addTimeline($db, 'daily_log', (int)$exist['id'], $userId, 'manager', 'update_activity',
-                'Manager ('.$userName.') update counters: O='.$actOp.' M='.$actMt.' P='.$actPr.' L='.$actLa);
             setFlash('success', 'Counters Activity berhasil di-update untuk '.$engRow['name'].' ('.$logDate.') ID: '.$exist['id']);
         } else {
             $dataInsert = [
@@ -101,8 +99,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
             ];
             $db->insert('daily_logs', $dataInsert);
             $newId = (int)$db->getConnection()->lastInsertId();
-            addTimeline($db, 'daily_log', $newId, $userId, 'manager', 'create_activity',
-                'Manager ('.$userName.') buat counters baru: O='.$actOp.' M='.$actMt.' P='.$actPr.' L='.$actLa);
             setFlash('success', 'Counters Activity berhasil disimpan baru untuk '.$engRow['name'].' ('.$logDate.') ID: '.$newId);
         }
     } catch (Throwable $e) {
