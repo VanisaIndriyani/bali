@@ -34,12 +34,14 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                         <i class="fas fa-edit mr-2 text-accent"></i>Daily Log
                     </a>
                     <?php endif; ?>
-                    <a href="<?= BASE_URL ?>orders/create.php" class="nav-link !bg-gradient-to-r !from-amber-50/80 !via-orange-50/70 !to-amber-50/80 !text-amber-900 !ring-1 !ring-amber-200 hover:!from-amber-100 hover:!to-orange-100 <?= in_array($currentPage, ['create.php']) ? 'nav-link-active' : '' ?>">
-                        <i class="fas fa-file-circle-plus mr-2 text-amber-700"></i>Buat Order <span class="ml-1 text-[10px] font-black bg-gradient-to-br from-amber-500 to-orange-600 text-white px-1.5 py-0.5 rounded-full shadow-sm">LOGISTIC</span>
+                    <?php if ($isSupervisor || $isManager): ?>
+                    <a href="<?= BASE_URL ?>orders/index.php" class="nav-link !bg-gradient-to-r !from-amber-50/80 !via-orange-50/70 !to-amber-50/80 !text-amber-900 !ring-1 !ring-amber-200 hover:!from-amber-100 hover:!to-orange-100 <?= (in_array($currentPage, ['create.php','index.php','detail.php']) && (dirname($_SERVER['PHP_SELF']) === '/orders' || basename(dirname($_SERVER['PHP_SELF'])) === 'orders')) ? 'nav-link-active' : '' ?>">
+                        <i class="fas fa-boxes-stacked mr-2 text-amber-700"></i>📦 Logistik <span class="ml-1 text-[10px] font-black bg-gradient-to-br from-amber-500 to-orange-600 text-white px-1.5 py-0.5 rounded-full shadow-sm">Order/PR</span>
                     </a>
-                    <a href="<?= BASE_URL ?>orders/index.php" class="nav-link <?= in_array($currentPage, ['index.php','detail.php']) && (dirname($_SERVER['PHP_SELF']) === '/orders' || basename(dirname($_SERVER['PHP_SELF'])) === 'orders') ? 'nav-link-active' : '' ?>">
+                    <a href="<?= BASE_URL ?>orders/index.php" class="nav-link <?= (in_array($currentPage, ['index.php','detail.php']) && (dirname($_SERVER['PHP_SELF']) === '/orders' || basename(dirname($_SERVER['PHP_SELF'])) === 'orders')) ? 'nav-link-active' : '' ?>">
                         <i class="fas fa-clipboard-list mr-2 text-accent"></i>Daftar Order
                     </a>
+                    <?php endif; ?>
                     <a href="<?= BASE_URL ?>history.php" class="nav-link <?= $currentPage === 'history.php' ? 'nav-link-active' : '' ?>">
                         <i class="fas fa-clock-rotate-left mr-2 text-accent"></i>Riwayat
                     </a>
@@ -93,12 +95,14 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                     <i class="fas fa-edit mr-1.5"></i>Daily Log
                 </a>
                 <?php endif; ?>
-                <a href="<?= BASE_URL ?>orders/create.php" class="nav-link-mobile !bg-gradient-to-r !from-amber-50/90 !to-orange-50/90 !text-amber-950 !font-black !ring-2 !ring-amber-300/60 <?= in_array($currentPage, ['create.php']) ? 'nav-link-mobile-active' : '' ?>">
+                <?php if ($isSupervisor || $isManager): ?>
+                <a href="<?= BASE_URL ?>orders/index.php" class="nav-link-mobile !bg-gradient-to-r !from-amber-50/90 !to-orange-50/90 !text-amber-950 !font-black !ring-2 !ring-amber-300/60 <?= (in_array($currentPage, ['create.php','index.php','detail.php']) && (dirname($_SERVER['PHP_SELF']) === '/orders' || basename(dirname($_SERVER['PHP_SELF'])) === 'orders')) ? 'nav-link-mobile-active' : '' ?>">
                     <i class="fas fa-boxes-stacked mr-1.5 text-amber-700"></i>📦 Logistik
                 </a>
-                <a href="<?= BASE_URL ?>orders/index.php" class="nav-link-mobile <?= in_array($currentPage, ['index.php','detail.php']) && (dirname($_SERVER['PHP_SELF']) === '/orders' || basename(dirname($_SERVER['PHP_SELF'])) === 'orders') ? 'nav-link-mobile-active' : '' ?>">
+                <a href="<?= BASE_URL ?>orders/index.php" class="nav-link-mobile <?= (in_array($currentPage, ['index.php','detail.php']) && (dirname($_SERVER['PHP_SELF']) === '/orders' || basename(dirname($_SERVER['PHP_SELF'])) === 'orders')) ? 'nav-link-mobile-active' : '' ?>">
                     <i class="fas fa-clipboard-list mr-1.5"></i>Daftar Order
                 </a>
+                <?php endif; ?>
                 <a href="<?= BASE_URL ?>history.php" class="nav-link-mobile <?= $currentPage === 'history.php' ? 'nav-link-mobile-active' : '' ?>">
                     <i class="fas fa-clock-rotate-left mr-1.5"></i>Riwayat
                 </a>

@@ -1,11 +1,15 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 $pageTitle = T('order_detail_title', 'Detail Order Request');
-requireRole(['engineer', 'supervisor', 'manager', 'admin']);
+requireRole(['supervisor', 'manager']);
 
 $db = Database::getInstance();
 $user = currentUser();
-$role = (string)$user['role'];
+$role = (string)($user['role'] ?? '');
+if ($role !== 'supervisor' && $role !== 'manager') {
+    header('Location: ' . BASE_URL . 'index.php', true, 302);
+    exit();
+}
 
 $id = (int)($_GET['id'] ?? 0);
 if ($id <= 0) { setFlash('danger', T('order_not_found', 'Order tidak ditemukan')); redirect('orders/index.php'); }

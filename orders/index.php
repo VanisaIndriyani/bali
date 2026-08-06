@@ -1,10 +1,15 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 $pageTitle = T('order_page_title', 'Daftar Order / Purchase Request');
-requireRole(['engineer', 'supervisor', 'manager', 'admin']);
+requireRole(['supervisor', 'manager']);
 
 $db = Database::getInstance();
 $user = currentUser();
+$role = (string)($user['role'] ?? '');
+if ($role !== 'supervisor' && $role !== 'manager') {
+    header('Location: ' . BASE_URL . 'index.php', true, 302);
+    exit();
+}
 
 $filter = $_GET['filter'] ?? 'all';
 $search = cleanInput($_GET['search'] ?? '');
