@@ -1220,7 +1220,7 @@ HTML;
 
     <!-- ============ ⑧ LOGISTIC - ORDER REQUEST & STATUS (PALING BAWAH SESUAI CATATAN KERTAS!) ============ -->
     <?php if (in_array($userRole, ['supervisor','manager','admin'])): ?>
-    <div class="bg-surface rounded-premium border border-amber-200/70 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 180ms">
+    <div id="section_logistic" class="bg-surface rounded-premium border border-amber-200/70 shadow-sm overflow-hidden mb-8 animate-slide-up scroll-mt-[90px]" style="animation-delay: 180ms">
         <div class="px-5 lg:px-6 py-4 border-b border-amber-100 bg-gradient-to-r from-white via-amber-50/40 to-white">
             <div class="flex items-end justify-between gap-3">
                 <div>
