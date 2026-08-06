@@ -286,35 +286,42 @@ require_once __DIR__ . '/../includes/navbar.php';
     </div>
 
     <div class="card-premium p-5 sm:p-8 bg-white animate-slide-up" style="animation-delay: 90ms">
-        <div class="mb-6">
-            <table class="w-full border-collapse">
-                <thead>
-                    <tr class="border-b border-slate-200">
-                        <th scope="col" class="text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500 pb-3 pl-3 w-1/2"><?= $deptLabel ?></th>
-                        <th scope="col" class="text-left text-xs font-black uppercase tracking-[0.18em] text-slate-500 pb-3 pl-3 w-1/2"><?= $actDetailLabel ?></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    <?php foreach ($colLeft as $idx => $c): ?>
-                        <tr class="transition-colors hover:bg-slate-50/70">
-                            <td class="py-4 sm:py-5 pl-3 pr-4">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-11 h-11 rounded-xl bg-gradient-to-br <?= $c['iconBox'] ?> flex items-center justify-center text-white shadow-md ring-2 <?= $c['ring'] ?> shrink-0">
-                                        <i class="<?= $c['icon'] ?>"></i>
-                                    </div>
-                                    <div>
-                                        <p class="font-black uppercase tracking-wider text-sm text-primary leading-tight"><?= $c['label'] ?></p>
-                                        <p class="text-[10px] font-bold uppercase tracking-widest text-secondary/70 mt-0.5">This Month • <?= date('M Y') ?></p>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="py-4 sm:py-5 pl-3 pr-4">
-                                <?= $colRight[$idx] ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+        <div class="mb-6 pb-4 border-b border-slate-100">
+            <div class="flex items-center justify-between gap-3">
+                <div>
+                    <p class="text-[11px] font-black uppercase tracking-[0.25em] text-slate-500 mb-1.5 pl-1">4 DIVISI ENGINEERING</p>
+                    <h3 class="font-display text-xl lg:text-2xl font-black text-primary flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-700 to-primary flex items-center justify-center text-white shadow-md text-sm">
+                            <i class="fas fa-layer-group text-xs"></i>
+                        </span>
+                        Rekap Aktivitas Bulan Ini
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="flex flex-col gap-4 sm:gap-5 mb-6">
+            <?php foreach ($colLeft as $idx => $c): ?>
+            <div class="rounded-2xl border-2 <?= $c['border'] ?> <?= $c['bg'] ?>/40 p-4 sm:p-5 hover:shadow-xl hover:-translate-y-0.5 hover:scale-[1.005] transition-all duration-300">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex items-center gap-3 sm:gap-4 shrink-0 sm:w-56">
+                        <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br <?= $c['iconBox'] ?> flex items-center justify-center text-white shadow-lg ring-2 <?= $c['ring'] ?> shrink-0">
+                            <i class="<?= $c['icon'] ?> text-xl sm:text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1"><?= $deptLabel ?></p>
+                            <p class="font-black uppercase tracking-wider text-base sm:text-lg text-primary leading-tight"><?= $c['label'] ?></p>
+                            <p class="text-[11px] font-bold uppercase tracking-widest text-secondary/70 mt-0.5">This Month • <?= date('M Y') ?></p>
+                        </div>
+                    </div>
+                    <div class="flex-1 min-w-0 pl-0 sm:pl-8 sm:border-l sm:border-dashed sm:border-slate-300">
+                        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1.5"><?= $actDetailLabel ?></p>
+                        <div class="text-sm">
+                            <?= $colRight[$idx] ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
         </div>
 
         <div class="pt-6 sm:pt-8 border-t border-dashed border-slate-200">
