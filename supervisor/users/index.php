@@ -125,7 +125,11 @@ require_once __DIR__ . '/../../includes/navbar.php';
                             <td class="px-4 sm:px-5 py-4 text-center"><span class="inline-flex items-center justify-center px-3 py-1 rounded-full bg-green-50 border border-green-200 text-green-700 font-bold"><?= (int)$u['total_approved'] ?></span></td>
                             <td class="px-4 sm:px-5 py-4">
                                 <div class="flex gap-2 justify-end flex-wrap">
-                                    <button type="button" onclick="confirmDelete(<?= (int)$u['id'] ?>, <?= json_encode(cleanInput($u['name'])) ?>)"
+                                    <?php
+                                        $nameSafeJs = json_encode((string)cleanInput($u['name']), JSON_UNESCAPED_UNICODE);
+                                        $nameSafeAttr = htmlspecialchars($nameSafeJs, ENT_QUOTES, 'UTF-8');
+                                    ?>
+                                    <button type="button" onclick='confirmDelete(<?= (int)$u['id'] ?>, <?= $nameSafeAttr ?>)'
                                         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 hover:-translate-y-0.5 transition-all">
                                         <i class="fas fa-trash"></i> Hapus
                                     </button>

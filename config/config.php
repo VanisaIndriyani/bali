@@ -42,7 +42,8 @@ if ($isLocalhost) {
 if (!defined('BASE_URL')) {
     $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
     $scriptName = (string)($_SERVER['SCRIPT_NAME'] ?? '');
-    if ($host === 'engineeringdept.my.id' || $host === 'www.engineeringdept.my.id') {
+    if ($host === 'engineeringdept.my.id' || $host === 'www.engineeringdept.my.id'
+        || $host === 'registengengineering.com' || $host === 'www.registengengineering.com') {
         define('BASE_URL', '/');
     } elseif (stripos($scriptName, '/AGUSTUS/regist_bali/') !== false) {
         define('BASE_URL', '/AGUSTUS/regist_bali/');
