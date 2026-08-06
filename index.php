@@ -479,75 +479,266 @@ require_once __DIR__ . '/includes/navbar.php';
                 </div>
             </section>
 
-            <!-- ─────────────── ② UTILITY USAGE SUMMARY TABLE ─────────────── -->
-            <section>
-                <h2 class="font-display text-xl lg:text-2xl font-black text-gray-900 mb-4 flex items-center gap-2.5">
-                    <span class="w-8 h-8 rounded-md bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white text-sm shadow-md shadow-amber-500/30">2</span>
-                    UTILITY USAGE <span class="text-gray-400 font-bold text-lg">SUMMARY</span>
-                </h2>
-                <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 text-gray-800 text-xs uppercase tracking-[0.12em] font-black">
-                                <th class="px-5 py-4 text-left font-black w-52">UTILITIY</th>
-                                <th class="px-5 py-4 text-center font-black border-l border-gray-300 w-36">PERIOD</th>
-                                <th class="px-5 py-4 text-center font-black border-l border-gray-300">USAGE</th>
-                                <th class="px-5 py-4 text-right font-black border-l border-gray-300">COST <span class="font-bold normal-case tracking-normal text-gray-600">(Rp.)</span></th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            <?php
-                            $utilRows = [
-                                ['ELECTRICITY', '⚡', 'text-amber-700', 'bg-amber-50/50', $elecLY, $elecToday, 'kWh', $costElecLY, $costElecToday],
-                                ['WATER',       '💧', 'text-blue-700',  'bg-blue-50/50',  $waterLY,$waterToday,'m³',  $costWaterLY,$costWaterToday],
-                                ['GAS',         '🔥', 'text-orange-700','bg-orange-50/50',$gasLY,  $gasToday,  'kg',  $costGasLY,  $costGasToday],
-                                ['FUEL',        '⛽', 'text-rose-700',  'bg-rose-50/50',  $fuelLY, $fuelToday, 'liter',$costFuelLY,$costFuelToday],
-                            ];
-                            foreach ($utilRows as $ur):
-                                [$label, $icon, $col, $bg, $lyVal, $nowVal, $unit, $costLY, $costNow] = $ur;
-                            ?>
-                            <tr class="hover:bg-amber-50/40 transition-colors align-middle">
-                                <td rowspan="2" class="px-5 py-5 font-black text-gray-900 text-lg border-r border-gray-100 align-middle <?= $bg ?>">
-                                    <div class="flex items-center gap-2.5">
-                                        <span class="w-10 h-10 rounded-lg bg-white shadow-sm border border-gray-200 flex items-center justify-center text-lg"><?= $icon ?></span>
-                                        <span class="tracking-wide"><?= $label ?></span>
+            <!-- ─────────────── ② UTILITY REPORT (FOTO 1 CARD COLLAPSIBLE) — WA CUSTOMER 18.16 s/d 18.21 ─────────────── -->
+            <section id="sec_utility">
+                <!-- HEADER CLICKABLE COLLAPSIBLE (sesuai WA 18.21: "bisa disembunyikan kalo di klik baru muncul") -->
+                <button type="button" onclick="toggleDashSection('utility')"
+                        class="w-full text-left mb-4 p-0 bg-transparent hover:bg-slate-50/80 -mx-3 px-3 py-2 rounded-xl transition group">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center flex-wrap gap-x-4 gap-y-1.5">
+                            <span class="w-8 h-8 rounded-md bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white text-sm shadow-md shadow-amber-500/30 shrink-0">2</span>
+                            <span class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.22em] text-amber-700 hidden sm:inline-flex items-center gap-1 pl-3 border-l border-slate-200 h-6"><i class="fas fa-screwdriver-wrench"></i> Eng. Dept.</span>
+                            <h2 class="font-display text-xl lg:text-2xl font-black text-gray-900 tracking-wide">
+                                Utility <span class="text-slate-400 font-black">Report</span>
+                            </h2>
+                            <span class="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full ml-1 hidden md:inline-flex items-center gap-1">
+                                <i class="fas fa-hand-pointer text-[9px]"></i> Klik header untuk sembunyikan
+                            </span>
+                        </div>
+                        <i id="utility_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-sm group-hover:text-slate-600"></i>
+                    </div>
+                </button>
+
+                <!-- CONTENT (BISA DISHIDDEN / DITAMPILKAN) -->
+                <div id="utility_group" class="transition-all duration-200 overflow-hidden">
+                    <!-- 1) 2 BADGE OCCUPANCY (FOTO 1 ATAS: LY • 2025  +  TODAY • 06/08/2026) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6 animate-slide-up">
+                        <!-- BADGE LY TAHUN LALU 2025 (FOTO 1: Background krem badge) -->
+                        <div class="rounded-2xl border-2 border-amber-100 bg-amber-50/60 p-4 sm:p-5 flex items-center justify-between gap-4 shadow-sm">
+                            <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                                <span class="w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white flex items-center justify-center text-base sm:text-lg font-black shadow-md shadow-amber-500/25">LY</span>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-amber-700 leading-tight">Last Year <span class="text-amber-600">(Tahun Lalu)</span> • <?= $lastYear ?></p>
+                                    <p class="text-xs text-amber-600/80 font-bold mt-0.5">Occupancy Rate rata-rata</p>
+                                </div>
+                            </div>
+                            <div class="shrink-0 text-right">
+                                <p class="font-display text-3xl sm:text-4xl font-black text-amber-700 leading-none tracking-wide"><?= $occLYDisp ?></p>
+                            </div>
+                        </div>
+                        <!-- BADGE TODAY HARI INI (FOTO 1: Background hijau mint) -->
+                        <div class="rounded-2xl border-2 border-emerald-200 bg-emerald-50/70 p-4 sm:p-5 flex items-center justify-between gap-4 shadow-sm">
+                            <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                                <span class="w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center text-base sm:text-lg font-black shadow-md shadow-emerald-500/25">NOW</span>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-emerald-700 leading-tight">Today <span class="text-emerald-600">(Hari Ini)</span> • <?= date('d/m/Y') ?></p>
+                                    <p class="text-xs text-emerald-700/80 font-bold mt-0.5">Occupancy Rate realtime</p>
+                                </div>
+                            </div>
+                            <div class="shrink-0 text-right">
+                                <p class="font-display text-3xl sm:text-4xl font-black text-emerald-700 leading-none tracking-wide mb-1"><?= $occNowDisp ?></p>
+                                <?php if (($targetOcc > 0) && ($lyOcc > 0) && ($targetOcc != $lyOcc)):
+                                    $up = $targetOcc > $lyOcc;
+                                ?>
+                                <div class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white border border-emerald-200 text-[10px] font-black <?= $up ? 'text-emerald-700' : 'text-rose-700' ?>">
+                                    <i class="fas fa-arrow-<?= $up ? 'up-right' : 'down-right' ?> text-[9px]"></i>
+                                    <?= $up ? '+' : '-' ?><?= abs($targetOcc - $lyOcc) ?>%
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2) 4 CARD USAGE 2x2 GRID (FOTO 1 TENGAH: Electricity / Water / Gas / Fuel — compare LY AVG vs TODAY) -->
+                    <?php
+                    // Define variable & structure (REUSE variable existing yang tadinya ada di table lama: $elecLY $elecToday dll)
+                    if (!isset($utilRows) || !is_array($utilRows)) {
+                        $utilRows = [
+                            ['ELECTRICITY', '⚡', 'text-amber-600', 'from-amber-400 to-amber-600', $elecLY,    $elecToday,    'kWh',   $costElecLY,    $costElecToday,    $currentYear > 2024 ? 1850 : 1850],
+                            ['WATER',       '💧', 'text-sky-600',   'from-sky-400 to-sky-600',     $waterLY,   $waterToday,   'm³',    $costWaterLY,   $costWaterToday,   9600],
+                            ['GAS',         '🔥', 'text-orange-600','from-orange-400 to-orange-600',$gasLY,     $gasToday,     'kg',    $costGasLY,     $costGasToday,     24500],
+                            ['FUEL',        '⛽', 'text-rose-600',  'from-rose-400 to-rose-600',   $fuelLY,    $fuelToday,    'Liter', $costFuelLY,    $costFuelToday,    17450],
+                        ];
+                    }
+                    ?>
+                    <p class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.22em] text-slate-500 mb-3 flex items-center gap-2">
+                        <i class="fas fa-gauge-high"></i> Usage Konsumsi <span class="text-slate-400">(LY vs TODAY)</span>
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-7">
+                    <?php foreach ($utilRows as $idx => $ur):
+                        // Normalize panjang variable: kadang utilRows dari atas cuma 9 kolom, tanpa tarif.
+                        [$label, $icon, $col, $iconBg, $lyVal, $nowVal, $unit, $costLY, $costNow] = array_pad(array_slice($ur, 0, 9), 9, 0);
+                        $lyDisp = uUsage($lyVal, $unit, 0);
+                        $nowDisp = uUsage($nowVal, $unit, 0);
+                        $delta = 0;
+                        if ((float)$lyVal > 0) $delta = round((((float)$nowVal - (float)$lyVal) / (float)$lyVal) * 100, 1);
+                        $deltaUp = $delta > 0;
+                    ?>
+                        <!-- CARD UTILITY (Background PUTIH BORDER SLATE sesuai request user "dominan putih") -->
+                        <div class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
+                            <div class="flex items-start justify-between gap-3 mb-4">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <span class="w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-gradient-to-br <?= $iconBg ?> text-white flex items-center justify-center text-lg shadow-md">
+                                        <span class="drop-shadow-sm"><?= $icon ?></span>
+                                    </span>
+                                    <div class="min-w-0 flex-1">
+                                        <h3 class="font-black text-lg lg:text-xl text-gray-900 tracking-wide leading-tight"><?= $label ?></h3>
+                                        <p class="text-[10px] text-slate-500 font-semibold mt-0.5">Unit: <strong class="text-slate-700"><?= $unit ?></strong></p>
                                     </div>
-                                </td>
-                                <td class="px-5 py-3 text-center border-l border-gray-100">
-                                    <span class="inline-block px-3 py-1 rounded-full bg-gray-100 border border-gray-300 text-[11px] font-black text-gray-700 tracking-widest">(LY)</span>
-                                </td>
-                                <td class="px-5 py-3 text-center border-l border-gray-100 text-lg font-black text-gray-800">
-                                    <?= uUsage($lyVal, $unit, 0) ?>
-                                </td>
-                                <td class="px-5 py-3 text-right border-l border-gray-100 text-lg font-black text-gray-700 tabular-nums">
-                                    <?= fmtRupiah($costLY) ?>
-                                </td>
-                            </tr>
-                            <tr class="hover:bg-amber-50/40 transition-colors align-middle <?= $bg ?>">
-                                <td class="px-5 py-3 text-center border-l border-gray-100">
-                                    <span class="inline-block px-3 py-1 rounded-full bg-emerald-100 border border-emerald-200 text-[11px] font-black text-emerald-800 tracking-widest">(TODAY)</span>
-                                </td>
-                                <td class="px-5 py-3 text-center border-l border-gray-100 text-xl font-black <?= $col ?>">
-                                    <?= uUsage($nowVal, $unit, 0) ?>
-                                </td>
-                                <td class="px-5 py-3 text-right border-l border-gray-100 text-xl font-black <?= $col ?> tabular-nums">
-                                    Rp <?= fmtRupiah($costNow) ?>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                                </div>
+                                <!-- Panah ke kanan (link ke Energy Dashboard) -->
+                                <a href="<?= BASE_URL ?>energy.php" class="shrink-0 w-9 h-9 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-400 hover:text-slate-700 flex items-center justify-center transition shadow-sm" title="Buka halaman Energy Dashboard detail">
+                                    <i class="fas fa-chevron-right text-xs"></i>
+                                </a>
+                            </div>
+
+                            <!-- LY AVG DAY -->
+                            <div class="mb-2">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">LY <span class="font-bold normal-case tracking-normal">• Avg/Day</span></p>
+                                </div>
+                                <p class="font-mono font-black text-xl sm:text-2xl text-slate-700 leading-none">
+                                    <?= $lyDisp ?>
+                                    <span class="text-xs font-bold text-slate-400 ml-0.5"><?= $unit ?></span>
+                                </p>
+                            </div>
+
+                            <!-- DIVIDER DASHED -->
+                            <div class="border-t border-dashed border-slate-200 my-3.5"></div>
+
+                            <!-- TODAY -->
+                            <div>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-amber-600">TODAY</p>
+                                    <span class="text-[10px] font-black px-2 py-0.5 rounded-full <?= $deltaUp ? 'bg-rose-50 border border-rose-200 text-rose-700' : 'bg-emerald-50 border border-emerald-200 text-emerald-700' ?>">
+                                        <?php if ((float)$lyVal > 0):
+                                            echo ($deltaUp ? '▲ +' : '▼ ') . $delta . '%';
+                                        else: echo '—'; endif; ?>
+                                    </span>
+                                </div>
+                                <p class="font-mono font-black text-2xl sm:text-3xl leading-none <?= $col ?> tracking-tight">
+                                    <?= $nowDisp ?>
+                                    <span class="text-xs font-bold opacity-70 ml-0.5"><?= $unit ?></span>
+                                </p>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                    </div>
+
+                    <!-- 3) 4 CARD TOTAL BIAYA RUPIAH (WA 18.21: "ini langsung isi rupiahnya") -->
+                    <p class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.22em] text-slate-500 mb-3 flex items-center gap-2">
+                        <i class="fas fa-coins"></i> Total Biaya <span class="text-slate-400">(Rupiah • auto hitung tarif standar)</span>
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                        <?php foreach ($utilRows as $ur):
+                            [$label, $icon, $col, $iconBg, $lyVal, $nowVal, $unit, $costLY, $costNow] = array_pad(array_slice($ur, 0, 9), 9, 0);
+                            // Short name (IF ELSE untuk PHP 7.4+ COMPATIBLE, jangan pakai match expression!)
+                            $shortName = $label;
+                            if ($label === 'ELECTRICITY') $shortName = 'Listrik PLN';
+                            elseif ($label === 'WATER') $shortName = 'Air PDAM';
+                            elseif ($label === 'GAS') $shortName = 'Gas LPG';
+                            elseif ($label === 'FUEL') $shortName = 'Solar BBM';
+                            $costDiff = (float)$costNow - (float)$costLY;
+                            $diffClass = $costDiff > 0 ? 'text-rose-600' : 'text-emerald-600';
+                            $diffSign = $costDiff > 0 ? '+ Rp ' : ($costDiff < 0 ? '- Rp ' : 'Rp ');
+                            $diffAbs = abs($costDiff);
+                        ?>
+                        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                                    <span><?= $icon ?></span>
+                                    <?= $shortName ?>
+                                </span>
+                                <span class="text-[9px] font-black text-slate-400 uppercase">HARI INI</span>
+                            </div>
+                            <p class="font-mono font-black text-2xl sm:text-[28px] text-slate-900 leading-none tracking-tight mb-2">Rp</p>
+                            <p class="font-mono font-black text-xl sm:text-2xl text-primary leading-none tracking-tight"><?= fmtRupiah($costNow) ?></p>
+                            <div class="mt-3 pt-3 border-t border-dashed border-slate-200 flex items-center justify-between">
+                                <span class="text-[10px] text-slate-500 font-semibold">LY Same Day</span>
+                                <span class="text-[10px] font-bold text-slate-600 font-mono">Rp <?= fmtRupiah($costLY) ?></span>
+                            </div>
+                            <div class="flex items-center justify-between mt-1">
+                                <span class="text-[10px] text-slate-500 font-semibold">Selisih</span>
+                                <span class="text-[10px] font-black <?= $diffClass ?> font-mono">
+                                    <?= $diffSign . fmtRupiah($diffAbs) ?>
+                                </span>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <!-- FOOTER INFO: TARIF STANDAR (SUDAH ADA dari table lama FOTO 2 footer) -->
+                    <p class="text-[11px] text-gray-500 bg-slate-50 rounded-xl p-3 border border-slate-200">
+                        <i class="fas fa-circle-info text-gray-400 mr-1"></i>
+                        Cost dihitung otomatis dengan tarif standar (PLN Industri <strong class="text-slate-700">Rp 1.850/kWh</strong>, PDAM <strong class="text-slate-700">Rp 9.600/m³</strong>, LPG <strong class="text-slate-700">Rp 24.500/kg</strong>, Solar <strong class="text-slate-700">Rp 17.450/Liter</strong>) — bisa disesuaikan nanti.
+                    </p>
                 </div>
-                <p class="mt-2 text-[11px] text-gray-500">
-                    <i class="fas fa-circle-info text-gray-400 mr-1"></i>
-                    Cost dihitung otomatis dengan tarif standar (PLN Industri Rp 1.850/kWh, PDAM Rp 9.600/m³, LPG Rp 24.500/kg, Solar Rp 17.450/L) — bisa disesuaikan nanti.
-                </p>
             </section>
 
-            <!-- ─────────────── ③ ENGINEERING ACTIVITIES TABLE ─────────────── -->
+            <!-- ─────────────── ③ HVAC SYSTEM • Chiller System (FOTO 1 BAWAH terpotong — PLACEHOLDER COLLAPSIBLE) ─────────────── -->
+            <section id="sec_chiller">
+                <button type="button" onclick="toggleDashSection('chiller')"
+                        class="w-full text-left mb-4 p-0 bg-transparent hover:bg-slate-50/80 -mx-3 px-3 py-2 rounded-xl transition group">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center flex-wrap gap-x-4 gap-y-1.5">
+                            <span class="w-8 h-8 rounded-md bg-gradient-to-br from-sky-500 to-cyan-600 flex items-center justify-center text-white text-sm shadow-md shadow-sky-500/30 shrink-0">3</span>
+                            <span class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.22em] text-sky-700 hidden sm:inline-flex items-center gap-1 pl-3 border-l border-slate-200 h-6"><i class="fas fa-temperature-arrow-down"></i> Hvac System</span>
+                            <h2 class="font-display text-xl lg:text-2xl font-black text-gray-900 tracking-wide">
+                                Chiller <span class="text-slate-400 font-black">System</span>
+                            </h2>
+                            <span class="text-[10px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full ml-1 inline-flex items-center gap-1">
+                                <i class="fas fa-hourglass-half text-[9px]"></i> Coming Soon
+                            </span>
+                        </div>
+                        <i id="chiller_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-sm group-hover:text-slate-600 -rotate-90"></i>
+                    </div>
+                </button>
+                <div id="chiller_group" class="transition-all duration-200 overflow-hidden hidden">
+                    <div class="rounded-2xl border-2 border-dashed border-sky-200 bg-sky-50/40 p-8 sm:p-12 text-center animate-fade-in">
+                        <div class="w-20 h-20 mx-auto mb-4 rounded-3xl bg-white border-2 border-sky-200 text-sky-500 flex items-center justify-center shadow-sm">
+                            <i class="fas fa-snowflake text-4xl"></i>
+                        </div>
+                        <h3 class="font-black text-2xl text-sky-800 mb-2">Data Chiller System Segera Hadir!</h3>
+                        <p class="text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
+                            Section ini akan menampilkan suhu supply/return air, running hours kompresor chiller #1-#4, konsumsi listrik, pressure refrigerant, &amp; maintenance schedule sesuai Standard Operating Procedure Eng. Dept.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- JS: TOGGLE COLLAPSE SECTION UTILITY & CHILLER (state simpan localStorage) -->
+            <script>
+            (function(){
+                const SECTIONS = ['utility','chiller'];
+                // Default: utility OPEN (terbuka), chiller CLOSED (sesuai FOTO "bisa disembunyikan kalo di klik")
+                const DEFAULTS = { utility: true, chiller: false };
+                function apply(key, open){
+                    const grp = document.getElementById(key + '_group');
+                    const chv = document.getElementById(key + '_chev');
+                    if (!grp || !chv) return;
+                    const LS_KEY = 'dash_collapse_' + key;
+                    if (open) {
+                        grp.classList.remove('hidden');
+                        chv.classList.remove('-rotate-90');
+                        try { localStorage.setItem(LS_KEY, '1'); } catch(e){}
+                    } else {
+                        grp.classList.add('hidden');
+                        chv.classList.add('-rotate-90');
+                        try { localStorage.setItem(LS_KEY, '0'); } catch(e){}
+                    }
+                }
+                // Initialize each: localStorage > DEFAULTS
+                SECTIONS.forEach(k => {
+                    let open = DEFAULTS[k];
+                    try {
+                        const saved = localStorage.getItem('dash_collapse_' + k);
+                        if (saved !== null) open = saved === '1';
+                    } catch(e){}
+                    apply(k, open);
+                });
+                // Expose global function untuk onclick button header
+                window.toggleDashSection = function(key){
+                    const grp = document.getElementById(key + '_group');
+                    if (!grp) return;
+                    apply(key, grp.classList.contains('hidden'));
+                };
+            })();
+            </script>
+
+            <!-- ─────────────── ④ ENGINEERING ACTIVITIES TABLE (DULU nomor ③) ─────────────── -->
             <section>
                 <h2 class="font-display text-xl lg:text-2xl font-black text-gray-900 mb-4 flex items-center gap-2.5">
-                    <span class="w-8 h-8 rounded-md bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white text-sm shadow-md shadow-sky-500/30">3</span>
+                    <span class="w-8 h-8 rounded-md bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white text-sm shadow-md shadow-sky-500/30">4</span>
                     ENGINEERING <span class="text-gray-400 font-bold text-lg">ACTIVITIES</span>
                 </h2>
                 <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
