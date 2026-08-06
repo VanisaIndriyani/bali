@@ -96,6 +96,9 @@ if ($isEngineer) {
             </a>
             <?php endif; ?>
 
+<?php
+// ⛔ CATATAN PENTING: Menu Kelola Staff Engineer (Daftar Akun) SEKARANG PINDAH KHUSUS KE MANAGER AREA! Supervisor TIDAK BOLEH akses kelola akun sesuai request user WA 17.56.
+?>
             <?php if ($isSupervisor): ?>
                 <div class="nav-section"><span>Approval</span></div>
                 <a href="<?= BASE_URL ?>supervisor/review.php" class="nav-item <?= $isReview ? 'nav-item-active' : '' ?>">
@@ -108,15 +111,16 @@ if ($isEngineer) {
                         <?php endif; ?>
                     </span>
                 </a>
-                <div class="nav-section"><span>Manajemen</span></div>
-                <a href="<?= BASE_URL ?>supervisor/users/index.php" class="nav-item <?= $isManageUsers ? 'nav-item-active' : '' ?>">
-                    <span class="nav-icon"><i class="fas fa-users-gear"></i></span>
-                    <span class="nav-label"><?= T('nav_manage_staff', 'Kelola Staff Engineer') ?></span>
-                </a>
             <?php endif; ?>
 
-            <?php if ($isManager): ?>
+            <?php
+            $isUsersPage = ($currentDir === 'manager' && $currentFile === 'users.php');
+            if ($isManager): ?>
                 <div class="nav-section !mt-5"><span>Manager Area</span></div>
+                <a href="<?= BASE_URL ?>manager/users.php" class="nav-item !border-l-4 <?= ($isUsersPage) ? '!border-l-purple-500 nav-item-active !bg-purple-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
+                    <span class="nav-icon <?= ($isUsersPage) ? '!text-purple-600 !bg-purple-100 !ring-2 !ring-purple-200' : 'text-purple-600' ?>"><i class="fas fa-users-gear"></i></span>
+                    <span class="nav-label">📚 Daftar Akun</span>
+                </a>
                 <a href="<?= BASE_URL ?>manager/activities.php" class="nav-item !border-l-4 <?= ($isEngActivities) ? '!border-l-indigo-500 nav-item-active !bg-indigo-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
                     <span class="nav-icon <?= ($isEngActivities) ? '!text-indigo-600 !bg-indigo-100 !ring-2 !ring-indigo-200' : 'text-indigo-600' ?>"><i class="fas fa-layer-group"></i></span>
                     <span class="nav-label">Engineering Activities</span>
