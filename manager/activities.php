@@ -12,6 +12,65 @@ $userId = (int)($user['id']    ?? 0);
 $monthStart = date('Y-m-01');
 $today = date('Y-m-d');
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_activity_counters') {
+    $logDate = !empty($_POST['log_date']) ? (string)$_POST['log_date'] : $today;
+    $engId = (int)($_POST['engineer_id'] ?? 0);
+    $actOp = max(0, (int)($_POST['activity_operation'] ?? 0));
+    $actMt = max(0, (int)($_POST['activity_maintenance'] ?? 0));
+    $actPr = max(0, (int)($_POST['activity_project'] ?? 0));
+    $actLa = max(0, (int)($_POST['activity_landscape'] ?? 0));
+    $ok = [];
+
+    if (!preg_match('/^20\d{2}-\d{2}-\d{2}$/', $logDate)) {
+        setFlash('danger', 'Format tanggal salah');
+        redirect('manager/activities.php');
+    }
+    if ($engId <= 0) {
+        setFlash('danger', 'Pilih Engineer terlebih dahulu');
+        redirect('manager/activities.php');
+    }
+
+    $engRow = $db->fetchOne("SELECT id, name FROM users WHERE id = ? AND role = 'engineer' LIMIT 1", [$engId]);
+    if (!$engRow) {
+        setFlash('danger', 'Engineer tidak ditemukan');
+        redirect('manager/activities.php');
+    }
+    try {
+        $exist = $db->fetchOne("SELECT id, log_no FROM daily_logs WHERE engineer_id = ? AND log_date = ? LIMIT 1", [$engId, $logDate]);
+        if ($exist) {
+            $db->query(
+                "UPDATE daily_logs SET activity_operation = ?, activity_maintenance = ?, activity_project = ?, activity_landscape = ? WHERE id = ?",
+                [$actOp, $actMt, $actPr, $actLa, (int)$exist['id']]
+            );
+            addTimeline($db, 'daily_log', (int)$exist['id'], $userId, 'manager', 'update_activity',
+                'Manager ('.$userName.') update counters: O='.$actOp.' M='.$actMt.' P='.$actPr.' L='.$actLa);
+            setFlash('success', 'Counters Activity berhasil di-update untuk '.$engRow['name'].' ('.$logDate.')');
+        } else {
+            $ym = date('Ym', strtotime($logDate));
+            $seq = 1;
+            $lr = $db->fetchOne("SELECT MAX(CAST(SUBSTRING(log_no, -4) AS UNSIGNED)) AS s FROM daily_logs WHERE log_no LIKE ?", ['DL-'.$ym.'-%']);
+            if ($lr) $seq = (int)($lr['s'] ?? 0) + 1;
+            $logNo = sprintf('DL-%s-%04d', $ym, $seq);
+            $notes = 'Diisi langsung oleh Manager';
+            $status = 'pending_supervisor';
+            $db->query(
+                "INSERT INTO daily_logs (log_no, log_date, engineer_id, shift, status, notes, activity_operation, activity_maintenance, activity_project, activity_landscape, created_by, updated_by)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                [$logNo, $logDate, $engId, 'Day', $status, $notes, $actOp, $actMt, $actPr, $actLa, $userId, $userId]
+            );
+            $newId = (int)$db->lastInsertId();
+            addTimeline($db, 'daily_log', $newId, $userId, 'manager', 'create_activity',
+                'Manager ('.$userName.') buat counters baru: O='.$actOp.' M='.$actMt.' P='.$actPr.' L='.$actLa);
+            setFlash('success', 'Counters Activity berhasil disimpan baru untuk '.$engRow['name'].' ('.$logDate.') No: '.$logNo);
+        }
+    } catch (Throwable $e) {
+        setFlash('danger', 'Gagal menyimpan: '.$e->getMessage());
+    }
+    redirect('manager/activities.php');
+}
+
+$engineers = $db->fetchAll("SELECT id, name, role, department FROM users WHERE role = 'engineer' AND (status = 'active' OR status IS NULL OR status = '') ORDER BY name ASC");
+
 function buildActCnt($db, $from, $to, $cat, $userId, $userRole) {
     $col = match($cat) {
         'operation'   => 'activity_operation',
@@ -129,6 +188,101 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <i class="fas fa-arrow-left"></i> <?= T('btn_back_dash', 'Kembali ke Dashboard') ?>
             </a>
         </div>
+    </div>
+
+    <div class="card-premium p-5 sm:p-7 bg-white mb-8 animate-slide-up" style="animation-delay: 60ms">
+        <div class="mb-5 pb-4 border-b border-slate-100">
+            <div class="flex items-center gap-3 mb-1.5">
+                <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-white shadow-md shadow-amber-500/30">
+                    <i class="fas fa-pen-to-square"></i>
+                </span>
+                <div>
+                    <h2 class="font-display text-xl font-black text-primary"><?= T('eng_act_input_title', 'Manager Isi Activity Counters') ?></h2>
+                    <p class="text-xs text-secondary mt-0.5"><?= T('eng_act_input_sub', 'Pilih tanggal dan engineer, lalu isi jumlah aktivitas per 4 divisi di bawah. Data akan masuk ke Daily Log otomatis.') ?></p>
+                </div>
+            </div>
+        </div>
+
+        <form method="POST" action="<?= BASE_URL ?>manager/activities.php" novalidate>
+            <input type="hidden" name="action" value="save_activity_counters">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label class="block text-[11px] font-black uppercase tracking-wider text-primary mb-2">
+                        <i class="far fa-calendar-day text-orange-600 mr-1"></i> <?= T('eng_act_field_date', 'Tanggal Aktivitas') ?>
+                    </label>
+                    <input type="date" name="log_date" id="log_date_activity" value="<?= htmlspecialchars($today) ?>"
+                           class="w-full px-3.5 py-3 rounded-card border border-slate-300 bg-white text-primary font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 transition">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-black uppercase tracking-wider text-primary mb-2">
+                        <i class="fas fa-user-hard-hat text-blue-600 mr-1"></i> <?= T('eng_act_field_eng', 'Pilih Engineer / Staff') ?>
+                    </label>
+                    <select name="engineer_id" id="engineer_id_activity"
+                            class="w-full px-3.5 py-3 rounded-card border border-slate-300 bg-white text-primary font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition appearance-none pr-10">
+                        <option value="">-- Pilih Staff Engineer --</option>
+                        <?php foreach ($engineers as $e): ?>
+                            <option value="<?= (int)$e['id'] ?>"><?= htmlspecialchars($e['name']) ?><?= !empty($e['department']) ? ' ('.htmlspecialchars($e['department']).')' : '' ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+
+            <p class="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500 mb-3 pl-1 flex items-center gap-2">
+                <i class="fas fa-layer-group"></i> <?= T('eng_act_field_counters', 'Counters Aktivitas 4 Divisi') ?>
+            </p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="rounded-2xl border border-blue-200 bg-blue-50/50 p-4 hover:shadow-lg transition">
+                    <label class="flex items-center gap-2 mb-2">
+                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow">
+                            <i class="fas fa-gears text-sm"></i>
+                        </span>
+                        <span class="font-black text-primary tracking-wide text-xs uppercase">Operation</span>
+                    </label>
+                    <input type="number" min="0" step="1" name="activity_operation" value="0"
+                           class="w-full px-3 py-2.5 rounded-xl border border-blue-200 bg-white text-lg font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-500">
+                </div>
+                <div class="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 hover:shadow-lg transition">
+                    <label class="flex items-center gap-2 mb-2">
+                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white shadow">
+                            <i class="fas fa-wrench text-sm"></i>
+                        </span>
+                        <span class="font-black text-primary tracking-wide text-xs uppercase">Maintenance</span>
+                    </label>
+                    <input type="number" min="0" step="1" name="activity_maintenance" value="0"
+                           class="w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-lg font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-500">
+                </div>
+                <div class="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 hover:shadow-lg transition">
+                    <label class="flex items-center gap-2 mb-2">
+                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white shadow">
+                            <i class="fas fa-diagram-project text-sm"></i>
+                        </span>
+                        <span class="font-black text-primary tracking-wide text-xs uppercase">Project</span>
+                    </label>
+                    <input type="number" min="0" step="1" name="activity_project" value="0"
+                           class="w-full px-3 py-2.5 rounded-xl border border-violet-200 bg-white text-lg font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-500">
+                </div>
+                <div class="rounded-2xl border border-teal-200 bg-teal-50/50 p-4 hover:shadow-lg transition">
+                    <label class="flex items-center gap-2 mb-2">
+                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white shadow">
+                            <i class="fas fa-leaf text-sm"></i>
+                        </span>
+                        <span class="font-black text-primary tracking-wide text-xs uppercase">Landscape</span>
+                    </label>
+                    <input type="number" min="0" step="1" name="activity_landscape" value="0"
+                           class="w-full px-3 py-2.5 rounded-xl border border-teal-200 bg-white text-lg font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-500">
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row sm:justify-end gap-3 pt-3 border-t border-slate-100">
+                <button type="reset" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-bold hover:bg-slate-50 transition shadow-sm">
+                    <i class="fas fa-rotate-left"></i> Reset
+                </button>
+                <button type="submit" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 hover:from-amber-500 hover:to-orange-700 text-white text-sm font-black shadow-lg shadow-amber-500/30 hover:shadow-xl transition">
+                    <i class="fas fa-cloud-arrow-up"></i> Simpan / Update Counters
+                </button>
+            </div>
+        </form>
     </div>
 
     <div class="card-premium p-5 sm:p-8 bg-white animate-slide-up" style="animation-delay: 90ms">
