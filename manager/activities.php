@@ -463,7 +463,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <!-- ========================================================== -->
                 <!-- 🔷 DIVISI 1: OPERATION                                     -->
                 <!-- ========================================================== -->
-                <div class="rounded-2xl border-2 border-blue-200 bg-blue-50/50 p-5 hover:shadow-lg transition">
+                <div class="rounded-2xl border-2 border-slate-200 bg-white p-5 hover:shadow-lg transition">
                     <div class="flex items-center justify-between mb-3">
                         <label class="flex items-center gap-2">
                             <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-md">
@@ -475,13 +475,13 @@ require_once __DIR__ . '/../includes/navbar.php';
                             </div>
                         </label>
                         <input type="number" min="0" step="1" name="activity_operation" value="0"
-                               class="w-24 px-3 py-2 rounded-xl border border-blue-200 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-500">
+                               class="w-24 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-500">
                     </div>
-                    <div class="space-y-2 pt-3 mt-3 border-t border-blue-100">
+                    <div class="space-y-2 pt-3 mt-3 border-t border-slate-200">
                         <div class="flex items-center justify-between mb-1">
-                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity (Ketik Manual)</span>
+                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity</span>
                             <button type="button" onclick="addActRow('op')"
-                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">
+                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm transition">
                                 <i class="fas fa-plus text-[10px]"></i> Tambah Activity
                             </button>
                         </div>
@@ -491,7 +491,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <!-- ========================================================== -->
                 <!-- 🟢 DIVISI 2: MAINTENANCE                                   -->
                 <!-- ========================================================== -->
-                <div class="rounded-2xl border-2 border-emerald-200 bg-emerald-50/50 p-5 hover:shadow-lg transition">
+                <div class="rounded-2xl border-2 border-slate-200 bg-white p-5 hover:shadow-lg transition">
                     <div class="flex items-center justify-between mb-3">
                         <label class="flex items-center gap-2">
                             <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white shadow-md">
@@ -503,13 +503,13 @@ require_once __DIR__ . '/../includes/navbar.php';
                             </div>
                         </label>
                         <input type="number" min="0" step="1" name="activity_maintenance" value="0"
-                               class="w-24 px-3 py-2 rounded-xl border border-emerald-200 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-500">
+                               class="w-24 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-500">
                     </div>
-                    <div class="space-y-2 pt-3 mt-3 border-t border-emerald-100">
+                    <div class="space-y-2 pt-3 mt-3 border-t border-slate-200">
                         <div class="flex items-center justify-between mb-1">
-                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity (Ketik Manual)</span>
+                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity</span>
                             <button type="button" onclick="addActRow('mt')"
-                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
+                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm transition">
                                 <i class="fas fa-plus text-[10px]"></i> Tambah Activity
                             </button>
                         </div>
@@ -519,7 +519,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <!-- ========================================================== -->
                 <!-- 🟣 DIVISI 3: PROJECT                                       -->
                 <!-- ========================================================== -->
-                <div class="rounded-2xl border-2 border-violet-200 bg-violet-50/50 p-5 hover:shadow-lg transition">
+                <div class="rounded-2xl border-2 border-slate-200 bg-white p-5 hover:shadow-lg transition">
                     <div class="flex items-center justify-between mb-3">
                         <label class="flex items-center gap-2">
                             <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white shadow-md">
@@ -531,13 +531,13 @@ require_once __DIR__ . '/../includes/navbar.php';
                             </div>
                         </label>
                         <input type="number" min="0" step="1" name="activity_project" value="0"
-                               class="w-24 px-3 py-2 rounded-xl border border-violet-200 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-500">
+                               class="w-24 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-500">
                     </div>
-                    <div class="space-y-2 pt-3 mt-3 border-t border-violet-100">
+                    <div class="space-y-2 pt-3 mt-3 border-t border-slate-200">
                         <div class="flex items-center justify-between mb-1">
-                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity (Ketik Manual)</span>
+                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity</span>
                             <button type="button" onclick="addActRow('pr')"
-                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white shadow-sm transition">
+                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm transition">
                                 <i class="fas fa-plus text-[10px]"></i> Tambah Activity
                             </button>
                         </div>
@@ -547,7 +547,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <!-- ========================================================== -->
                 <!-- 🟩 DIVISI 4: LANDSCAPE                                     -->
                 <!-- ========================================================== -->
-                <div class="rounded-2xl border-2 border-teal-200 bg-teal-50/50 p-5 hover:shadow-lg transition">
+                <div class="rounded-2xl border-2 border-slate-200 bg-white p-5 hover:shadow-lg transition">
                     <div class="flex items-center justify-between mb-3">
                         <label class="flex items-center gap-2">
                             <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white shadow-md">
@@ -559,13 +559,13 @@ require_once __DIR__ . '/../includes/navbar.php';
                             </div>
                         </label>
                         <input type="number" min="0" step="1" name="activity_landscape" value="0"
-                               class="w-24 px-3 py-2 rounded-xl border border-teal-200 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-500">
+                               class="w-24 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-500">
                     </div>
-                    <div class="space-y-2 pt-3 mt-3 border-t border-teal-100">
+                    <div class="space-y-2 pt-3 mt-3 border-t border-slate-200">
                         <div class="flex items-center justify-between mb-1">
-                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity (Ketik Manual)</span>
+                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity</span>
                             <button type="button" onclick="addActRow('la')"
-                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition">
+                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm transition">
                                 <i class="fas fa-plus text-[10px]"></i> Tambah Activity
                             </button>
                         </div>
@@ -624,7 +624,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                     }
                 }
             ?>
-            <div class="group rounded-2xl border-2 <?= $c['border'] ?> <?= $c['bg'] ?>/40 p-4 sm:p-5 hover:shadow-2xl hover:-translate-y-0.5 hover:scale-[1.005] hover:ring-4 <?= $c['ring'] ?> transition-all duration-300 cursor-pointer active:scale-[0.998]"
+            <div class="group rounded-2xl border-2 border-slate-200 bg-white p-4 sm:p-5 hover:shadow-2xl hover:-translate-y-0.5 hover:scale-[1.005] hover:ring-4 hover:ring-slate-300 transition-all duration-300 cursor-pointer active:scale-[0.998]"
                  onclick="openModal('<?= htmlspecialchars($c['id']) ?>')"
                  role="button"
                  tabindex="0"
@@ -633,7 +633,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <div class="flex flex-col gap-4">
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div class="flex items-center gap-3 sm:gap-4 shrink-0 sm:w-56">
-                            <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br <?= $c['iconBox'] ?> flex items-center justify-center text-white shadow-lg ring-2 <?= $c['ring'] ?> shrink-0 group-hover:rotate-3 group-hover:scale-105 transition-transform duration-300">
+                            <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br <?= $c['iconBox'] ?> flex items-center justify-center text-white shadow-lg ring-2 ring-white/90 shrink-0 group-hover:rotate-3 group-hover:scale-105 transition-transform duration-300">
                                 <i class="<?= $c['icon'] ?> text-xl sm:text-2xl"></i>
                             </div>
                             <div>
@@ -650,7 +650,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                         </div>
                     </div>
                     <?php if ($itemsAllPreview !== ''): ?>
-                    <div class="rounded-xl border border-dashed <?= $c['border'] ?> bg-white/60 p-3.5">
+                    <div class="rounded-xl border border-dashed border-slate-300 bg-white/60 p-3.5">
                         <p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 mb-2 flex items-center gap-1"><i class="fas fa-list-ul"></i> Preview Daftar Activity Terbaru</p>
                         <?= $itemsAllPreview ?>
                     </div>
@@ -690,7 +690,7 @@ require_once __DIR__ . '/../includes/navbar.php';
     <div id="modal-<?= htmlspecialchars($c['id']) ?>" class="fixed inset-0 z-[9999] hidden items-center justify-center p-4 animate-fade-in-modal"
          onclick="if(event.target===this)closeModal('<?= htmlspecialchars($c['id']) ?>')">
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md"></div>
-        <div class="relative w-full max-w-4xl max-h-[88vh] bg-white rounded-3xl shadow-[0_30px_100px_-20px_rgba(30,41,59,0.45)] overflow-hidden flex flex-col animate-slide-up-modal border-2 <?= $c['border'] ?>">
+        <div class="relative w-full max-w-4xl max-h-[88vh] bg-white rounded-3xl shadow-[0_30px_100px_-20px_rgba(30,41,59,0.45)] overflow-hidden flex flex-col animate-slide-up-modal border-2 border-slate-200">
             <!-- HEADER MODAL GRADIENT -->
             <div class="bg-gradient-to-br <?= $c['iconBox'] ?> p-6 sm:p-7 text-white relative overflow-hidden">
                 <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
@@ -747,7 +747,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                                     <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-28">Tanggal</th>
                                     <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-40">Nama Staff</th>
                                     <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Activity Detail<br><span class="text-[9px] font-bold text-slate-500">(Daftar Aktivitas + Status)</span></th>
-                                    <th class="px-3 py-3 text-right text-[10px] font-black uppercase tracking-widest text-slate-500 pr-3 w-32">Counters<br><span class="text-[9px] <?= $c['color'] ?> font-bold">Divisi <?= $c['label'] ?></span></th>
+                                    <th class="px-3 py-3 text-right text-[10px] font-black uppercase tracking-widest text-slate-500 pr-3 w-32">Counters<br><span class="text-[9px] text-slate-600 font-bold">Divisi <?= $c['label'] ?></span></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -758,7 +758,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                                     $runningSum += (int)($r['cnt'] ?? 0);
                                     $actRowHtml = renderActItems($r[$colItems] ?? '');
                                 ?>
-                                <tr class="hover:bg-<?= $c['color'] ?>/5 transition-colors group">
+                                <tr class="hover:bg-slate-50 transition-colors group">
                                     <td class="px-3 py-3 text-xs font-bold text-slate-400 align-top"><?= $no++ ?>.</td>
                                     <td class="px-3 py-3 align-top">
                                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-900/5 border border-slate-200 text-[11px] font-mono font-bold text-slate-700">
@@ -787,15 +787,15 @@ require_once __DIR__ . '/../includes/navbar.php';
                                         <?php endif; ?>
                                     </td>
                                     <td class="px-3 py-3 pr-3 text-right align-top">
-                                        <span class="inline-flex items-center justify-end gap-1 px-2.5 py-1.5 rounded-lg <?= $c['bg'] ?> border <?= $c['border'] ?> text-base font-black <?= $c['color'] ?> shadow-sm">
-                                            <i class="<?= $c['icon'] ?> text-[12px]"></i>
+                                        <span class="inline-flex items-center justify-end gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 border border-slate-300 text-base font-black text-slate-700 shadow-sm">
+                                            <i class="<?= $c['icon'] ?> text-[12px] text-slate-500"></i>
                                             <?= number_format((int)($r['cnt'] ?? 0), 0, ',', '.') ?>
                                         </span>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
-                            <tfoot class="bg-gradient-to-r from-slate-50 to-<?= $c['color'] ?>/5 border-t-2 <?= $c['border'] ?>">
+                            <tfoot class="bg-gradient-to-r from-slate-50 to-slate-100 border-t-2 border-slate-300">
                                 <tr>
                                     <td colspan="5" class="px-3 py-3.5 text-right">
                                         <span class="text-[11px] font-black uppercase tracking-widest text-slate-500 mr-1.5 flex items-center justify-end gap-1.5">
@@ -974,7 +974,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                     <?php else: ?>
                     <div class="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
                         <table class="w-full text-sm">
-                            <thead class="bg-gradient-to-r from-slate-50 to-<?= $c['color'] ?>/5 border-b border-slate-200">
+                            <thead class="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                                 <tr>
                                     <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-10">#</th>
                                     <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Nama Master Activity</th>
@@ -1102,18 +1102,16 @@ require_once __DIR__ . '/../includes/navbar.php';
         window.CUR_MASTER_TAB = divId;
         const meta = window.DIV_META && window.DIV_META[divId] ? window.DIV_META[divId] : null;
         const label = meta ? meta.label : divId;
-        // Update Tab Buttons UI
+        // Update Tab Buttons UI (NETRAL SEMUA - INDIGO ACTIVE CONSISTENT)
         document.querySelectorAll('.master-tab-btn').forEach(btn => {
             const isActive = btn.getAttribute('data-tab') === divId;
             if (!isActive) {
-                btn.classList.remove('bg-white', 'text-primary', 'shadow', 'ring-2', 'ring-indigo-300', 'border-white');
+                btn.classList.remove('bg-white', 'shadow', 'ring-2', 'ring-indigo-300', 'border-white', 'text-indigo-700');
                 btn.classList.add('text-slate-600', 'hover:bg-white/70');
                 return;
             }
-            const colorSet = (meta && meta.color) ? meta.color.split(' ') : ['text-indigo-700'];
             btn.classList.remove('text-slate-600', 'hover:bg-white/70');
-            btn.classList.add('bg-white', 'shadow', 'ring-2', 'ring-indigo-300', 'border-white');
-            colorSet.forEach(c => btn.classList.add(c));
+            btn.classList.add('bg-white', 'shadow', 'ring-2', 'ring-indigo-300', 'border-white', 'text-indigo-700');
         });
         // Update Panels visibility
         document.querySelectorAll('.master-panel').forEach(p => {
@@ -1187,13 +1185,13 @@ require_once __DIR__ . '/../includes/navbar.php';
         }, 120);
     }
 
-    // ================================ JS: DINAMIS ROW DROPDOWN MASTER (OPSI A - HANYA PILIH DARI DROPDOWN) ================================
+    // ================================ JS: DINAMIS ROW DROPDOWN MASTER (OPSI A - NETRAL STYLE!) ================================
     function addActRow(divCode) {
         const map = {
-            op: { prefix: 'act_op',       color: 'blue',    border: 'border-blue-200',   bg: 'bg-blue-50/50' },
-            mt: { prefix: 'act_mt',       color: 'emerald', border: 'border-emerald-200', bg: 'bg-emerald-50/50' },
-            pr: { prefix: 'act_pr',       color: 'purple',  border: 'border-purple-200', bg: 'bg-purple-50/50' },
-            la: { prefix: 'act_la',       color: 'teal',    border: 'border-teal-200',   bg: 'bg-teal-50/50' },
+            op: { prefix: 'act_op',       color: 'indigo', border: 'border-slate-200', bg: 'bg-slate-50/70' },
+            mt: { prefix: 'act_mt',       color: 'indigo', border: 'border-slate-200', bg: 'bg-slate-50/70' },
+            pr: { prefix: 'act_pr',       color: 'indigo', border: 'border-slate-200', bg: 'bg-slate-50/70' },
+            la: { prefix: 'act_la',       color: 'indigo', border: 'border-slate-200', bg: 'bg-slate-50/70' },
         };
         const cfg = map[divCode];
         if (!cfg) return;
@@ -1231,7 +1229,7 @@ require_once __DIR__ . '/../includes/navbar.php';
             <span class="inline-flex w-8 h-8 rounded-lg bg-white border ` + cfg.border + ` items-center justify-center text-[11px] font-black text-slate-600 shrink-0 self-start sm:self-center">` + curNum + `</span>
             <div class="flex-1 min-w-0">
                 <select name="` + cfg.prefix + `_text[]" data-act-select ` + disabledAttr + `
-                    class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-` + cfg.color + `-300 focus:border-` + cfg.color + `-400 transition appearance-none pr-8" required>
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition appearance-none pr-8" required>
                     ${optionsHtml}
                 </select>
                 ${listMasters.length === 0 ? `
@@ -1243,15 +1241,15 @@ require_once __DIR__ . '/../includes/navbar.php';
             </div>
             <div class="sm:w-44">
                 <select name="` + cfg.prefix + `_status[]" data-act-status
-                    class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-bold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-` + cfg.color + `-300 focus:border-` + cfg.color + `-400 transition appearance-none pr-8">
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-bold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition appearance-none pr-8">
                     <option value="progress">⏳ In Progress</option>
                     <option value="complete">✅ Complete</option>
                 </select>
             </div>
             <button type="button" onclick="removeActRow(this)"
-                class="w-10 h-10 rounded-lg bg-rose-50 hover:bg-rose-500 text-rose-600 hover:text-white border border-rose-200 hover:border-rose-500 flex items-center justify-center transition shrink-0 self-start sm:self-center"
+                class="w-10 h-10 rounded-lg bg-slate-50 hover:bg-rose-500 text-slate-600 hover:text-white border border-slate-200 hover:border-rose-500 flex items-center justify-center transition shrink-0 self-start sm:self-center"
                 aria-label="Hapus activity ini" title="Hapus baris ini">
-                <i class="fas fa-trash-can text-[14px]"></i>
+                <i class="fas fa-trash-can text-[14px] hover:text-white"></i>
             </button>
         `;
         container.appendChild(row);
