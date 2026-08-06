@@ -146,7 +146,7 @@ include __DIR__ . '/../includes/sidebar.php';
         <div>
             <p class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1 flex items-center gap-1.5"><i class="fas fa-database"></i> Data Master Logistik</p>
             <h1 class="font-display text-2xl lg:text-3xl font-bold text-primary mb-1">🔧 Master Cost Code (Kode Akun Biaya)</h1>
-            <p class="text-secondary text-sm">Total <strong class="text-primary"><?= $statTotal ?> kode</strong> terdaftar. Tambah / edit / nonaktifkan disini, <strong>semua dropdown Cost Code di Order Request &amp; halaman lain OTOMATIS UPDATE</strong> (jika is_active=1).</p>
+          
         </div>
         <button type="button" onclick="openCcModal(0)"
                 class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-card bg-slate-900 hover:bg-slate-800 text-white font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 self-start sm:self-end">

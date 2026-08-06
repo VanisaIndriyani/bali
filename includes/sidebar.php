@@ -12,6 +12,10 @@ $isManagerOrSpv = $isManager || $isSupervisor;
 $currentFile = basename($_SERVER['PHP_SELF']);
 $currentDir = basename(dirname($_SERVER['PHP_SELF']));
 
+$roleBadge = 'Engineer';
+if ($isSupervisor) $roleBadge = 'Supervisor';
+if ($isManager) $roleBadge = 'Manager';
+
 $isDashboard = $currentFile === 'index.php' && !in_array($currentDir, ['users','engineer','supervisor','manager','reports','profile','orders']);
 $isEnergyDashboard = ($currentFile === 'energy.php');
 $isEnergyLogsheet  = ($currentFile === 'energy_logsheet.php');
@@ -28,7 +32,13 @@ $isOrderDetail = $currentDir === 'orders' && $currentFile === 'detail.php';
 $isOrderApprove = $currentDir === 'orders' && in_array($currentFile, ['approve.php']);
 $isEngActivities = ($page ?? '') === 'engineering_activities' || ($currentDir === 'manager' && $currentFile === 'activities.php');
 $isMasterCostCode = ($currentDir === 'manager' && $currentFile === 'master_cost_codes.php');
-$isAnyDataMaster = $isMasterCostCode; // nanti tambah yang lain
+$isAnyDataMaster = $isMasterCostCode;
+$isUsersPage = ($currentDir === 'manager' && $currentFile === 'users.php');
+
+$isAnyManagerArea = $isUsersPage || $isEngActivities || $isAnyDataMaster;
+$isAnyDailyLogArea = $isDailyLog;
+$isAnyApprovalArea = $isReview;
+$isAnyLogisticArea = $isOrderIndex || $isOrderCreate || $isOrderDetail || $isOrderApprove;
 
 $db = Database::getInstance();
 $pendingCount = 0;
@@ -46,11 +56,18 @@ if ($isEngineer) {
         $pendingOrderCount = (int)($db->fetchOne("SELECT COUNT(*) as cnt FROM orders WHERE requested_by = ? AND status IN ('pending_supervisor','pending_manager','rejected')", [$myId])['cnt'] ?? 0);
     }
 }
+
+$sbBase = 'flex items-center gap-3 w-full rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900';
+$sbBaseActive = '!bg-slate-100 !text-slate-900 !font-bold';
+$sbIconBase = 'w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-lg text-slate-500';
+$sbIconActive = '!text-slate-900 !bg-slate-200';
+$sbCountBadge = 'ml-auto inline-flex items-center justify-center h-5 min-w-[1.25rem] px-1.5 rounded-md bg-slate-100 text-slate-500 text-[11px] font-black tracking-tight';
+$sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
 ?>
 <div class="app-layout is-sidebar-expanded" id="appLayout">
-<aside id="sidebar" class="sidebar sidebar-expanded">
-    <div class="sidebar-inner">
-        <div class="sidebar-brand">
+<aside id="sidebar" class="sidebar sidebar-expanded !bg-white !border-r !border-slate-200 !shadow-none">
+    <div class="sidebar-inner !p-0 !bg-white">
+        <div class="sidebar-brand !border-b !border-slate-100 !pb-4 !px-4">
             <button type="button" id="sidebarToggle" class="sidebar-toggle hidden md:inline-flex sidebar-btn-topright" aria-label="Toggle Sidebar" title="Collapse / Expand">
                 <i class="fas fa-bars-staggered transition-transform duration-300"></i>
             </button>
@@ -58,47 +75,48 @@ if ($isEngineer) {
                 <i class="fas fa-xmark"></i>
             </button>
             <a href="<?= BASE_URL ?>index.php" class="brand-link brand-link--stacked group">
-                <div class="brand-logo animate-float" style="animation-delay: 0.1s; box-shadow: 0 10px 30px rgba(0,0,0,0.18), 0 1px 3px rgba(201,162,39,0.25); border-radius: 18px; background: white; padding: 4px; border: 1px solid rgba(229,229,229,0.9);">
+                <div class="brand-logo animate-float" style="animation-delay: 0.1s; box-shadow: 0 4px 14px rgba(15,23,42,0.08); border-radius: 18px; background: white; padding: 3px; border: 1px solid rgba(226,232,240,0.9);">
                     <img src="<?= BASE_URL ?>logo.jpeg" alt="St. Regis Bali" class="w-full h-full object-cover rounded-2xl"
-                        style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.14)) drop-shadow(0 1px 2px rgba(201,162,39,0.3));">
+                        style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;">
                 </div>
                 <div class="brand-text text-center">
-                    <h1 class="font-display text-xl font-bold tracking-wide leading-tight">ST. REGIS BALI</h1>
-                    <p class="text-[10px] font-semibold tracking-[0.2em] uppercase mt-1">Engineering Daily Log</p>
+                    <h1 class="font-display text-xl font-black tracking-wide leading-tight text-slate-900">ST. REGIS BALI</h1>
+                    <p class="text-[10px] font-bold tracking-[0.2em] uppercase mt-1 text-slate-500">Engineering Daily Log</p>
                 </div>
             </a>
         </div>
 
-        <nav class="sidebar-nav">
-            <div class="nav-section"><span>Dashboard</span></div>
-            <a href="<?= BASE_URL ?>index.php" class="nav-item <?= $isDashboard ? 'nav-item-active' : '' ?>">
-                <span class="nav-icon"><i class="fas fa-chart-line"></i></span>
-                <span class="nav-label"><?= T('nav_dashboard', 'Dashboard Utama') ?></span>
+        <nav class="sidebar-nav !px-3 !py-3 !space-y-0.5">
+            <?php
+            $isDashActive = $isDashboard;
+            ?>
+            <a href="<?= BASE_URL ?>index.php" class="<?= $sbBase ?> <?= $isDashActive ? $sbBaseActive : '' ?>">
+                <span class="<?= $sbIconBase ?> <?= $isDashActive ? $sbIconActive : '' ?>"><i class="fas fa-chart-line text-[15px]"></i></span>
+                <span class="nav-label">Dashboard Utama</span>
             </a>
 
-            <!-- COLLAPSIBLE: ⚡ ENERGY (WA 18.09: Energy di bawah dashboard, 2 submenu Dashboard + Log Sheet) -->
             <?php
             $energyDefaultOpen = ($isAnyEnergy) ? 'true' : 'false';
+            $isEnergyActive = $isAnyEnergy;
             ?>
             <button type="button" id="energyToggleBtn" data-default-open="<?= $energyDefaultOpen ?>"
                     onclick="toggleEnergyMenu(this)"
-                    class="nav-item w-full !border-l-4 <?= ($isAnyEnergy) ? '!border-l-amber-500 nav-item-active !bg-amber-50/80 !font-bold !text-primary' : '!border-l-transparent' ?> justify-between pr-4 mt-0.5">
-                <span class="flex items-center gap-3">
-                    <span class="nav-icon <?= ($isAnyEnergy) ? '!text-amber-600 !bg-amber-100 !ring-2 !ring-amber-200' : 'text-amber-600' ?>"><i class="fas fa-bolt"></i></span>
-                    <span class="nav-label">⚡ Energy</span>
-                </span>
-                <i id="energyChevron" class="fas fa-chevron-down text-xs text-slate-400 transition-transform duration-200 -rotate-90"></i>
+                    class="w-full text-left mt-1 <?= $sbBase ?> <?= $isEnergyActive ? $sbBaseActive : '' ?>">
+                <span class="<?= $sbIconBase ?> <?= $isEnergyActive ? $sbIconActive : '' ?>"><i class="fas fa-bolt text-[15px]"></i></span>
+                <span class="nav-label">Energy</span>
+                <span class="<?= $sbCountBadge ?> <?= $isEnergyActive ? $sbCountBadgeActive : '' ?>">2</span>
+                <i id="energyChevron" class="fas fa-chevron-down text-[11px] text-slate-400 transition-transform duration-200 -rotate-90 ml-1 mr-0.5 shrink-0"></i>
             </button>
-            <div id="energyGroup" class="overflow-hidden transition-all duration-200 hidden pl-2 ml-1 border-l-2 border-amber-200/70 my-0.5">
+            <div id="energyGroup" class="overflow-hidden transition-all duration-200 hidden ml-3 my-0.5 space-y-0.5 border-l-2 border-slate-100 pl-3">
                 <a href="<?= BASE_URL ?>energy.php"
-                   class="nav-item !pl-10 !py-2.5 !border-l-0 !text-sm <?= ($isEnergyDashboard) ? 'nav-item-active !bg-amber-50 !text-primary !font-bold !ring-1 !ring-amber-200 !mx-2 !rounded-lg my-0.5' : '' ?>">
-                    <span class="nav-icon !w-7 !h-7 text-[13px] <?= ($isEnergyDashboard) ? '!bg-amber-500 !text-white' : 'text-amber-600 bg-amber-50' ?>"><i class="fas fa-gauge-high"></i></span>
-                    <span class="nav-label">Energy Dashboard</span>
+                   class="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-all <?= ($isEnergyDashboard) ? '!bg-slate-100 !text-slate-900 !font-semibold' : '' ?>">
+                    <i class="fas fa-gauge-high text-[13px] w-4 text-center text-slate-400"></i>
+                    <span>Energy Dashboard</span>
                 </a>
                 <a href="<?= BASE_URL ?>energy_logsheet.php"
-                   class="nav-item !pl-10 !py-2.5 !border-l-0 !text-sm <?= ($isEnergyLogsheet) ? 'nav-item-active !bg-amber-50 !text-primary !font-bold !ring-1 !ring-amber-200 !mx-2 !rounded-lg my-0.5' : '' ?>">
-                    <span class="nav-icon !w-7 !h-7 text-[13px] <?= ($isEnergyLogsheet) ? '!bg-amber-500 !text-white' : 'text-amber-600 bg-amber-50' ?>"><i class="fas fa-table-list"></i></span>
-                    <span class="nav-label">📋 Log Sheet</span>
+                   class="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-all <?= ($isEnergyLogsheet) ? '!bg-slate-100 !text-slate-900 !font-semibold' : '' ?>">
+                    <i class="fas fa-table-list text-[13px] w-4 text-center text-slate-400"></i>
+                    <span>Log Sheet</span>
                 </a>
             </div>
             <script>
@@ -129,117 +147,120 @@ if ($isEngineer) {
                 })();
             </script>
 
+            <div class="h-px my-3 bg-slate-100 mx-1"></div>
+
             <?php if ($isEngineer || $isSupervisor): ?>
-            <div class="nav-section"><span>Daily Log</span></div>
-            <a href="<?= BASE_URL ?>engineer/select_date.php" class="nav-item <?= $isDailyLog ? 'nav-item-active' : '' ?>">
-                <span class="nav-icon"><i class="fas fa-edit"></i></span>
-                <span class="nav-label"><?= T('nav_fill_daily_log', 'Isi Daily Log') ?></span>
+            <div class="nav-section !mb-1"><span>Daily Log</span></div>
+            <a href="<?= BASE_URL ?>engineer/select_date.php" class="<?= $sbBase ?> <?= $isDailyLog ? $sbBaseActive : '' ?>">
+                <span class="<?= $sbIconBase ?> <?= $isDailyLog ? $sbIconActive : '' ?>"><i class="fas fa-edit text-[15px]"></i></span>
+                <span class="nav-label">Isi Daily Log</span>
+            </a>
+            <?php endif; ?>
+
+            <?php if ($isSupervisor): ?>
+            <div class="nav-section !mt-4 !mb-1"><span>Approval</span></div>
+            <a href="<?= BASE_URL ?>supervisor/review.php" class="<?= $sbBase ?> <?= $isReview ? $sbBaseActive : '' ?>">
+                <span class="<?= $sbIconBase ?> <?= $isReview ? $sbIconActive : '' ?>"><i class="fas fa-file-signature text-[15px]"></i></span>
+                <span class="nav-label">Review Daily Log</span>
+                <?php if ($pendingCount > 0): ?>
+                    <span class="ml-auto inline-flex items-center justify-center h-5 min-w-[1.25rem] px-1.5 rounded-md bg-amber-100 text-amber-700 text-[11px] font-black"><?= $pendingCount > 99 ? '99+' : $pendingCount ?></span>
+                <?php endif; ?>
             </a>
             <?php endif; ?>
 
             <?php if ($isSupervisor || $isManager): ?>
-            <div class="nav-section !mt-5"><span><?= T('nav_logistic_header', 'Logistic') ?></span></div>
-            <a href="<?= BASE_URL ?>orders/create.php" class="nav-item !border-l-4 <?= ($isOrderCreate) ? '!border-l-amber-500 nav-item-active !bg-amber-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
-                <span class="nav-icon <?= ($isOrderCreate) ? '!text-amber-600 !bg-amber-100 !ring-2 !ring-amber-200' : 'text-amber-600' ?>"><i class="fas fa-file-circle-plus"></i></span>
-                <span class="nav-label"><?= T('nav_order_create', 'Buat Order Request') ?></span>
+            <div class="nav-section !mt-4 !mb-1"><span>Logistic</span></div>
+            <a href="<?= BASE_URL ?>orders/create.php" class="<?= $sbBase ?> <?= $isOrderCreate ? $sbBaseActive : '' ?>">
+                <span class="<?= $sbIconBase ?> <?= $isOrderCreate ? $sbIconActive : '' ?>"><i class="fas fa-file-circle-plus text-[15px]"></i></span>
+                <span class="nav-label">Buat Order Request</span>
             </a>
-            <a href="<?= BASE_URL ?>orders/index.php" class="nav-item !border-l-4 <?= ($isOrderIndex || $isOrderDetail) ? '!border-l-emerald-500 nav-item-active !bg-emerald-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
-                <span class="nav-icon <?= ($isOrderIndex || $isOrderDetail) ? '!text-emerald-600 !bg-emerald-100 !ring-2 !ring-emerald-200' : 'text-emerald-600' ?>"><i class="fas fa-clipboard-list"></i></span>
-                <span class="nav-label flex items-center gap-2">
-                    <?= T('nav_logistic_label', 'Logistik') ?>
-                    <?php if ($pendingOrderCount > 0): ?>
-                        <span class="ml-auto badge-pill"><?= $pendingOrderCount > 99 ? '99+' : $pendingOrderCount ?></span>
-                    <?php endif; ?>
-                </span>
+            <a href="<?= BASE_URL ?>orders/index.php" class="<?= $sbBase ?> <?= ($isOrderIndex || $isOrderDetail) ? $sbBaseActive : '' ?>">
+                <span class="<?= $sbIconBase ?> <?= ($isOrderIndex || $isOrderDetail) ? $sbIconActive : '' ?>"><i class="fas fa-clipboard-list text-[15px]"></i></span>
+                <span class="nav-label">Logistik</span>
+                <?php if ($pendingOrderCount > 0): ?>
+                    <span class="ml-auto inline-flex items-center justify-center h-5 min-w-[1.25rem] px-1.5 rounded-md bg-emerald-100 text-emerald-700 text-[11px] font-black"><?= $pendingOrderCount > 99 ? '99+' : $pendingOrderCount ?></span>
+                <?php endif; ?>
             </a>
             <?php endif; ?>
 
-<?php
-// ⛔ CATATAN PENTING: Menu Kelola Staff Engineer (Daftar Akun) SEKARANG PINDAH KHUSUS KE MANAGER AREA! Supervisor TIDAK BOLEH akses kelola akun sesuai request user WA 17.56.
-?>
-            <?php if ($isSupervisor): ?>
-                <div class="nav-section"><span>Approval</span></div>
-                <a href="<?= BASE_URL ?>supervisor/review.php" class="nav-item <?= $isReview ? 'nav-item-active' : '' ?>">
-                    <span class="nav-icon">
-                        <i class="fas fa-file-signature"></i>
-                    </span>
-                    <span class="nav-label"><?= T('nav_review', 'Review Daily Log') ?>
-                        <?php if ($pendingCount > 0): ?>
-                            <span class="ml-auto badge-pill"><?= $pendingCount > 99 ? '99+' : $pendingCount ?></span>
-                        <?php endif; ?>
-                    </span>
-                </a>
-            <?php endif; ?>
+            <?php if ($isManager): ?>
+            <div class="h-px my-3 bg-slate-100 mx-1"></div>
+            <?php
+            $dmDefaultOpen = ($isAnyDataMaster) ? 'true' : 'false';
+            $managerMenuCount = 3;
+            $isManagerAreaActive = $isAnyManagerArea;
+            ?>
+            <div class="nav-section !mb-1"><span>Manager Area</span></div>
+
+            <a href="<?= BASE_URL ?>manager/users.php" class="<?= $sbBase ?> <?= $isUsersPage ? $sbBaseActive : '' ?>">
+                <span class="<?= $sbIconBase ?> <?= $isUsersPage ? $sbIconActive : '' ?>"><i class="fas fa-users-gear text-[15px]"></i></span>
+                <span class="nav-label">Daftar Akun</span>
+            </a>
+            <a href="<?= BASE_URL ?>manager/activities.php" class="<?= $sbBase ?> <?= $isEngActivities ? $sbBaseActive : '' ?>">
+                <span class="<?= $sbIconBase ?> <?= $isEngActivities ? $sbIconActive : '' ?>"><i class="fas fa-layer-group text-[15px]"></i></span>
+                <span class="nav-label">Engineering Activities</span>
+            </a>
 
             <?php
-            $isUsersPage = ($currentDir === 'manager' && $currentFile === 'users.php');
-            if ($isManager): ?>
-                <div class="nav-section !mt-5"><span>Manager Area</span></div>
-                <a href="<?= BASE_URL ?>manager/users.php" class="nav-item !border-l-4 <?= ($isUsersPage) ? '!border-l-purple-500 nav-item-active !bg-purple-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
-                    <span class="nav-icon <?= ($isUsersPage) ? '!text-purple-600 !bg-purple-100 !ring-2 !ring-purple-200' : 'text-purple-600' ?>"><i class="fas fa-users-gear"></i></span>
-                    <span class="nav-label"> Daftar Akun</span>
+            $isDmActive = $isAnyDataMaster;
+            ?>
+            <button type="button" id="dmToggleBtn" data-default-open="<?= $dmDefaultOpen ?>"
+                    onclick="toggleDataMaster(this)"
+                    class="w-full text-left <?= $sbBase ?> <?= $isDmActive ? $sbBaseActive : '' ?>">
+                <span class="<?= $sbIconBase ?> <?= $isDmActive ? $sbIconActive : '' ?>"><i class="fas fa-folder-tree text-[15px]"></i></span>
+                <span class="nav-label">Data Master</span>
+                <span class="<?= $sbCountBadge ?> <?= $isDmActive ? $sbCountBadgeActive : '' ?>">1</span>
+                <i id="dmChevron" class="fas fa-chevron-down text-[11px] text-slate-400 transition-transform duration-200 -rotate-90 ml-1 mr-0.5 shrink-0"></i>
+            </button>
+            <div id="dmGroup" class="overflow-hidden transition-all duration-200 hidden ml-3 my-0.5 space-y-0.5 border-l-2 border-slate-100 pl-3">
+                <a href="<?= BASE_URL ?>manager/master_cost_codes.php"
+                   class="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-all <?= ($isMasterCostCode) ? '!bg-slate-100 !text-slate-900 !font-semibold' : '' ?>">
+                    <i class="fas fa-barcode text-[13px] w-4 text-center text-slate-400"></i>
+                    <span>Master Cost Code</span>
                 </a>
-                <a href="<?= BASE_URL ?>manager/activities.php" class="nav-item !border-l-4 <?= ($isEngActivities) ? '!border-l-indigo-500 nav-item-active !bg-indigo-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
-                    <span class="nav-icon <?= ($isEngActivities) ? '!text-indigo-600 !bg-indigo-100 !ring-2 !ring-indigo-200' : 'text-indigo-600' ?>"><i class="fas fa-layer-group"></i></span>
-                    <span class="nav-label">Engineering Activities</span>
-                </a>
-                <!-- COLLAPSIBLE: 📂 DATA MASTER LOGISTIK (WA 18.08: Menu expand kayak contoh foto) -->
-                <?php
-                $dmDefaultOpen = ($isAnyDataMaster) ? 'true' : 'false';
-                ?>
-                <button type="button" id="dmToggleBtn" data-default-open="<?= $dmDefaultOpen ?>"
-                        onclick="toggleDataMaster(this)"
-                        class="nav-item w-full !border-l-4 <?= ($isAnyDataMaster) ? '!border-l-slate-900 nav-item-active !bg-slate-50/80 !font-bold !text-primary' : '!border-l-transparent' ?> justify-between pr-4">
-                    <span class="flex items-center gap-3">
-                        <span class="nav-icon <?= ($isAnyDataMaster) ? '!text-slate-800 !bg-slate-200 !ring-2 !ring-slate-300' : 'text-slate-700' ?>"><i class="fas fa-folder-tree"></i></span>
-                        <span class="nav-label"> Data Master</span>
-                    </span>
-                    <i id="dmChevron" class="fas fa-chevron-down text-xs text-slate-400 transition-transform duration-200 -rotate-90"></i>
-                </button>
-                <div id="dmGroup" class="overflow-hidden transition-all duration-200 hidden pl-2 ml-1 border-l-2 border-slate-200 my-0.5">
-                    <a href="<?= BASE_URL ?>manager/master_cost_codes.php"
-                       class="nav-item !pl-10 !py-2.5 !border-l-0 !text-sm <?= ($isMasterCostCode) ? 'nav-item-active !bg-slate-50 !text-primary !font-bold !ring-1 !ring-slate-200 !mx-2 !rounded-lg my-0.5' : '' ?>">
-                        <span class="nav-icon !w-7 !h-7 text-[13px] <?= ($isMasterCostCode) ? '!bg-slate-900 !text-white' : 'text-slate-600 bg-slate-100' ?>"><i class="fas fa-barcode"></i></span>
-                        <span class="nav-label">Master Cost Code</span>
-                    </a>
-                </div>
-                <script>
-                    (function(){
-                        try {
-                            const btn = document.getElementById('dmToggleBtn');
-                            const grp = document.getElementById('dmGroup');
-                            const chv = document.getElementById('dmChevron');
-                            const STORAGE_KEY = 'sb_dataMaster_open';
-                            const isDefaultOpen = btn && btn.dataset.defaultOpen === 'true';
-                            const saved = localStorage.getItem(STORAGE_KEY);
-                            const shouldOpen = (saved !== null) ? (saved === '1') : isDefaultOpen;
-                            function setDmOpen(open){
-                                if(!grp || !btn || !chv) return;
-                                if(open){
-                                    grp.classList.remove('hidden');
-                                    chv.classList.remove('-rotate-90');
-                                    localStorage.setItem(STORAGE_KEY, '1');
-                                } else {
-                                    grp.classList.add('hidden');
-                                    chv.classList.add('-rotate-90');
-                                    localStorage.setItem(STORAGE_KEY, '0');
-                                }
+            </div>
+            <script>
+                (function(){
+                    try {
+                        const btn = document.getElementById('dmToggleBtn');
+                        const grp = document.getElementById('dmGroup');
+                        const chv = document.getElementById('dmChevron');
+                        const STORAGE_KEY = 'sb_dataMaster_open';
+                        const isDefaultOpen = btn && btn.dataset.defaultOpen === 'true';
+                        const saved = localStorage.getItem(STORAGE_KEY);
+                        const shouldOpen = (saved !== null) ? (saved === '1') : isDefaultOpen;
+                        function setDmOpen(open){
+                            if(!grp || !btn || !chv) return;
+                            if(open){
+                                grp.classList.remove('hidden');
+                                chv.classList.remove('-rotate-90');
+                                localStorage.setItem(STORAGE_KEY, '1');
+                            } else {
+                                grp.classList.add('hidden');
+                                chv.classList.add('-rotate-90');
+                                localStorage.setItem(STORAGE_KEY, '0');
                             }
-                            window.toggleDataMaster = function(b){ setDmOpen(grp.classList.contains('hidden')); };
-                            setDmOpen(shouldOpen);
-                        } catch(e) {}
-                    })();
-                </script>
+                        }
+                        window.toggleDataMaster = function(b){ setDmOpen(grp.classList.contains('hidden')); };
+                        setDmOpen(shouldOpen);
+                    } catch(e) {}
+                })();
+            </script>
             <?php endif; ?>
 
-            <div class="nav-section"><span>Umum</span></div>
-            <a href="<?= BASE_URL ?>history.php" class="nav-item <?= $isHistory ? 'nav-item-active' : '' ?>">
-                <span class="nav-icon"><i class="fas fa-clock-rotate-left"></i></span>
-                <span class="nav-label"><?= T('nav_history', 'Riwayat & Laporan') ?></span>
+            <div class="h-px my-3 bg-slate-100 mx-1"></div>
+            <div class="nav-section !mb-1"><span>Umum</span></div>
+            <a href="<?= BASE_URL ?>history.php" class="<?= $sbBase ?> <?= $isHistory ? $sbBaseActive : '' ?>">
+                <span class="<?= $sbIconBase ?> <?= $isHistory ? $sbIconActive : '' ?>"><i class="fas fa-clock-rotate-left text-[15px]"></i></span>
+                <span class="nav-label">Riwayat & Laporan</span>
+            </a>
+            <a href="<?= BASE_URL ?>profile/edit.php" class="<?= $sbBase ?>">
+                <span class="<?= $sbIconBase ?>"><i class="fas fa-user-gear text-[15px]"></i></span>
+                <span class="nav-label">Edit Profil</span>
             </a>
 
-            <div class="mt-6 px-4">
-                <div class="text-[10px] font-bold tracking-[0.2em] uppercase text-slate-500 mb-2 px-1"><?= T('language', 'Bahasa') ?></div>
+            <div class="mt-5 px-2.5">
+                <div class="text-[10px] font-bold tracking-[0.2em] uppercase text-slate-400 mb-2 px-1">Bahasa</div>
                 <div class="flex items-center gap-2 bg-slate-100/70 p-1 rounded-xl border border-slate-200">
                     <?php
                     $qsRemoveLang = $_GET;
@@ -248,11 +269,11 @@ if ($isEngineer) {
                     $suffix = $baseQs ? '?' . $baseQs . '&' : '?';
                     ?>
                     <a href="<?= $suffix ?>lang=id"
-                       class="flex-1 text-center text-xs font-bold py-1.5 px-2 rounded-lg transition-all duration-200 <?= (APP_LANG === 'id') ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-gold-glow' : 'text-slate-500 hover:bg-white hover:text-slate-800' ?>">
+                       class="flex-1 text-center text-xs font-bold py-1.5 px-2 rounded-lg transition-all duration-200 <?= (APP_LANG === 'id') ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-800' ?>">
                         <?= T('lang_id', '🇮🇩 ID') ?>
                     </a>
                     <a href="<?= $suffix ?>lang=en"
-                       class="flex-1 text-center text-xs font-bold py-1.5 px-2 rounded-lg transition-all duration-200 <?= (APP_LANG === 'en') ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-gold-glow' : 'text-slate-500 hover:bg-white hover:text-slate-800' ?>">
+                       class="flex-1 text-center text-xs font-bold py-1.5 px-2 rounded-lg transition-all duration-200 <?= (APP_LANG === 'en') ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-white hover:text-slate-800' ?>">
                         <?= T('lang_en', '🇬🇧 EN') ?>
                     </a>
                 </div>
@@ -260,22 +281,19 @@ if ($isEngineer) {
 
         </nav>
 
-        <div class="sidebar-footer">
-            <div class="user-card">
-                <div class="avatar-md"><?= $initial ?></div>
-                <div class="user-info min-w-0">
-                    <p class="user-name truncate"><?= cleanInput($displayName) ?></p>
-                    <p class="user-role truncate"><?= $displayEmail ?></p>
+        <div class="!border-t !border-slate-200 !p-3 !mt-auto">
+            <div class="w-full flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-slate-50 transition-all group">
+                <div class="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-base font-black text-slate-700 border border-slate-200 shadow-sm">
+                    <?= $initial ?>
                 </div>
+                <a href="<?= BASE_URL ?>profile/edit.php" class="flex-1 min-w-0 hover:opacity-80 transition-opacity" title="<?= T('nav_profile', 'Edit Profil') ?>">
+                    <p class="truncate text-sm font-bold text-slate-900 leading-tight"><?= cleanInput($displayName) ?></p>
+                    <p class="truncate text-[12px] font-medium text-slate-500 leading-tight mt-0.5"><?= $roleBadge ?></p>
+                </a>
+                <a href="<?= BASE_URL ?>logout.php" class="w-8 h-8 shrink-0 ml-2 flex items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-all" title="<?= T('nav_logout', 'Keluar') ?>">
+                    <i class="fas fa-right-from-bracket text-sm transform rotate-180"></i>
+                </a>
             </div>
-            <a href="<?= BASE_URL ?>profile/edit.php" class="profile-btn">
-                <i class="fas fa-user-gear"></i>
-                <span><?= T('nav_profile', 'Edit Profil') ?></span>
-            </a>
-            <a href="<?= BASE_URL ?>logout.php" class="logout-btn">
-                <i class="fas fa-right-from-bracket"></i>
-                <span><?= T('nav_logout', 'Keluar') ?></span>
-            </a>
         </div>
     </div>
 </aside>
@@ -288,9 +306,9 @@ if ($isEngineer) {
             <i class="fas fa-bars"></i>
         </button>
         <a href="<?= BASE_URL ?>index.php" class="mobile-brand">
-            <img src="<?= BASE_URL ?>logo.jpeg" alt="Logo" class="w-9 h-9 object-cover rounded-lg bg-white ring-1 ring-amber-200 shadow-md flex-shrink-0"
-                style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.18)) drop-shadow(0 1px 2px rgba(201,162,39,0.4));">
-            <span class="font-display font-black text-primary tracking-wide text-base">ST. REGIS BALI</span>
+            <img src="<?= BASE_URL ?>logo.jpeg" alt="Logo" class="w-9 h-9 object-cover rounded-lg bg-white ring-1 ring-slate-200 shadow-sm flex-shrink-0"
+                style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;">
+            <span class="font-display font-black text-slate-900 tracking-wide text-base">ST. REGIS BALI</span>
         </a>
         <a href="<?= BASE_URL ?>logout.php" class="logout-mobile" title="Logout">
             <i class="fas fa-right-from-bracket"></i>

@@ -26,11 +26,9 @@ include __DIR__ . '/includes/sidebar.php';
     <!-- HEADER JUDUL -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 animate-slide-up">
         <div>
-            <p class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1 flex items-center gap-1.5">
-                <i class="fas fa-bolt"></i> Divisi Energy &amp; Utility
-            </p>
-            <h1 class="font-display text-2xl lg:text-3xl font-bold text-primary mb-1">⚡ Energy Dashboard</h1>
-            <p class="text-secondary text-sm">Ringkasan konsumsi listrik, solar, gas, &amp; air bersih. Data <strong class="text-primary">placeholder</strong>, siap diisi logic input per periode tanggal.</p>
+           
+            <h1 class="font-display text-2xl lg:text-3xl font-bold text-primary mb-1">Energy Dashboard</h1>
+          
         </div>
         <div class="flex items-center gap-2 self-start sm:self-end">
             <a href="<?= BASE_URL ?>energy_logsheet.php" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-card bg-white border border-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-50 hover:-translate-y-0.5 transition shadow-sm">

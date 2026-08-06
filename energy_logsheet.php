@@ -20,19 +20,19 @@ include __DIR__ . '/includes/sidebar.php';
     <div class="mb-4 flex items-center gap-2 text-xs font-semibold text-slate-500">
         <a href="<?= BASE_URL ?>index.php" class="hover:text-primary transition"><i class="fas fa-house mr-1"></i> Dashboard</a>
         <i class="fas fa-chevron-right text-[10px] text-slate-400"></i>
-        <a href="<?= BASE_URL ?>energy.php" class="hover:text-primary transition">⚡ Energy</a>
+        <a href="<?= BASE_URL ?>energy.php" class="hover:text-primary transition">Energy</a>
         <i class="fas fa-chevron-right text-[10px] text-slate-400"></i>
-        <span class="text-primary font-black">📋 Log Sheet</span>
+        <span class="text-primary font-black">Log Sheet</span>
     </div>
 
     <!-- HEADER JUDUL -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 animate-slide-up">
         <div>
             <p class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1 flex items-center gap-1.5">
-                <i class="fas fa-table-list"></i> Form Harian Energy
+              
             </p>
-            <h1 class="font-display text-2xl lg:text-3xl font-bold text-primary mb-1">📋 Energy Log Sheet</h1>
-            <p class="text-secondary text-sm">Input konsumsi listrik PLN/Genset, solar, gas, &amp; air bersih per shift setiap hari.</p>
+            <h1 class="font-display text-2xl lg:text-3xl font-bold text-primary mb-1"> Energy Log Sheet</h1>
+           
         </div>
         <div class="flex items-center gap-2 self-start sm:self-end flex-wrap">
             <a href="<?= BASE_URL ?>energy.php" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-card bg-white border border-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-50 hover:-translate-y-0.5 transition shadow-sm">
