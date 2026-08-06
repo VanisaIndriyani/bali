@@ -117,7 +117,7 @@ if ($isEngineer) {
             <?php if ($isManager): ?>
                 <div class="nav-section !mt-5"><span>Manager Area</span></div>
                 <a href="<?= BASE_URL ?>manager/activities.php" class="nav-item !border-l-4 <?= ($isEngActivities) ? '!border-l-indigo-500 nav-item-active !bg-indigo-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
-                    <span class="nav-icon <?= ($isEngActivities) ? '!text-indigo-600 !bg-indigo-100 !ring-2 !ring-indigo-200' : 'text-indigo-600' ?>"><i class="fas fa-clipboard-list-check"></i></span>
+                    <span class="nav-icon <?= ($isEngActivities) ? '!text-indigo-600 !bg-indigo-100 !ring-2 !ring-indigo-200' : 'text-indigo-600' ?>"><i class="fas fa-layer-group"></i></span>
                     <span class="nav-label">Engineering Activities</span>
                 </a>
             <?php endif; ?>
