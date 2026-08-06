@@ -343,18 +343,19 @@ require_once __DIR__ . '/../includes/navbar.php';
             </div>
         </div>
 
-        <!-- ② WATER MAIN BUILDING + COOLING TOWER (HANYA 2 SUMBER) -->
+        <!-- ② WATER PDAM + MAIN BUILDING + COOLING TOWER (3 SUMBER) -->
         <div class="bg-surface rounded-premium border border-blue-200/60 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 90ms">
             <div class="px-5 lg:px-6 py-4 border-b border-blue-100/80 bg-gradient-to-r from-blue-50/90 via-sky-50/60 to-cyan-50/70">
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30"><i class="fas fa-droplet text-sm"></i></span>
-                    <?= T('form_water_title', '② Water - Konsumsi Air Main Building & Cooling Tower (m³)') ?>
+                    <?= T('form_water_title', '② Water - Konsumsi Air PDAM, Main Building & Cooling Tower (m³)') ?>
                 </h3>
-                <p class="text-xs text-secondary mt-0.5"><?= T('form_water_sub', '2 sumber utama: Main Building + Cooling Tower') ?></p>
+                <p class="text-xs text-secondary mt-0.5"><?= T('form_water_sub', '3 sumber sesuai catatan: PDAM / Main Building / Cooling Tower') ?></p>
             </div>
-            <div class="p-5 lg:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4">
+            <div class="p-5 lg:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <?php
                 $waterFields = [
+                    ['water_pdam', T('form_water_pdam', 'PDAM'), 'text-slate-600', 'bg-slate-50/60', 'border-slate-200'],
                     ['water_main_building', T('form_water_main', 'Main Building'), 'text-cyan-600', 'bg-cyan-50/60', 'border-cyan-200'],
                     ['water_cooling_tower', T('form_water_ct', 'Cooling Tower'), 'text-teal-600', 'bg-teal-50/60', 'border-teal-200'],
                 ];
@@ -374,7 +375,7 @@ require_once __DIR__ . '/../includes/navbar.php';
 HTML;
                 }
                 ?>
-                <div class="sm:col-span-2 md:col-span-2 pt-1 mt-1 border-t border-dashed border-blue-100">
+                <div class="sm:col-span-2 md:col-span-3 pt-1 mt-1 border-t border-dashed border-blue-100">
                     <div class="flex items-center justify-between gap-4">
                         <label class="text-sm font-extrabold text-primary flex items-center gap-1.5"><i class="fas fa-calculator text-primary"></i><?= T('form_water_total_label', 'TOTAL KONSUMSI AIR (Hanya Main Building)') ?></label>
                         <div class="relative w-full sm:w-56">
