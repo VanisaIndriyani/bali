@@ -35,14 +35,15 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                     </a>
                     <?php endif; ?>
                     <?php if ($isSupervisor || $isManager): ?>
-                    <a href="<?= BASE_URL ?>orders/create.php" class="nav-link !bg-gradient-to-r !from-amber-50/80 !via-orange-50/70 !to-amber-50/80 !text-amber-900 !ring-1 !ring-amber-200 hover:!from-amber-100 hover:!to-orange-100">
-                        <i class="fas fa-file-circle-plus mr-2 text-amber-700"></i>① Order
+                    <?php
+                        $isOrdCreate = ($currentDir === 'orders' && $currentFile === 'create.php');
+                        $isOrdLogistic = ($currentDir === 'orders' && in_array($currentFile, ['index.php','detail.php','dashboard.php'], true));
+                    ?>
+                    <a href="<?= BASE_URL ?>orders/create.php" class="nav-link !bg-gradient-to-r !from-amber-50/80 !via-orange-50/70 !to-amber-50/80 !text-amber-900 !ring-1 !ring-amber-200 hover:!from-amber-100 hover:!to-orange-100 <?= ($isOrdCreate) ? 'nav-link-active' : '' ?>">
+                        <i class="fas fa-file-circle-plus mr-2 text-amber-700"></i>Buat Order
                     </a>
-                    <a href="<?= BASE_URL ?>orders/dashboard.php" class="nav-link !bg-gradient-to-r !from-orange-50/80 !via-amber-50/70 !to-orange-50/80 !text-orange-900 !ring-1 !ring-orange-200 hover:!from-orange-100 hover:!to-amber-100 <?= (basename($_SERVER['PHP_SELF']) === 'dashboard.php' && dirname($_SERVER['PHP_SELF']) === '/orders') ? 'nav-link-active' : '' ?>">
-                        <i class="fas fa-boxes-stacked mr-2 text-orange-700"></i>② Logistik
-                    </a>
-                    <a href="<?= BASE_URL ?>orders/index.php" class="nav-link <?= (in_array($currentPage, ['index.php','detail.php']) && (dirname($_SERVER['PHP_SELF']) === '/orders' || basename(dirname($_SERVER['PHP_SELF'])) === 'orders')) ? 'nav-link-active' : '' ?>">
-                        <i class="fas fa-clipboard-list mr-2 text-accent"></i>⑧ Daftar
+                    <a href="<?= BASE_URL ?>orders/index.php" class="nav-link !bg-gradient-to-r !from-emerald-50/80 !via-teal-50/60 !to-emerald-50/80 !text-emerald-900 !ring-1 !ring-emerald-200 hover:!from-emerald-100 hover:!to-teal-100 <?= ($isOrdLogistic) ? 'nav-link-active' : '' ?>">
+                        <i class="fas fa-clipboard-list mr-2 text-emerald-700"></i>Logistik
                     </a>
                     <?php endif; ?>
                     <a href="<?= BASE_URL ?>history.php" class="nav-link <?= $currentPage === 'history.php' ? 'nav-link-active' : '' ?>">
@@ -99,14 +100,15 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                 </a>
                 <?php endif; ?>
                 <?php if ($isSupervisor || $isManager): ?>
-                <a href="<?= BASE_URL ?>orders/create.php" class="nav-link-mobile !bg-gradient-to-r !from-amber-50/90 !to-orange-50/90 !text-amber-950 !font-black !ring-2 !ring-amber-300/60">
-                    <i class="fas fa-file-circle-plus mr-1.5 text-amber-700"></i>① Order
+                <?php
+                    $isMobOrdCreate = ($currentDir === 'orders' && $currentFile === 'create.php');
+                    $isMobOrdLogistic = ($currentDir === 'orders' && in_array($currentFile, ['index.php','detail.php','dashboard.php'], true));
+                ?>
+                <a href="<?= BASE_URL ?>orders/create.php" class="nav-link-mobile !bg-gradient-to-r !from-amber-50/90 !to-orange-50/90 !text-amber-950 !font-black !ring-2 !ring-amber-300/60 <?= ($isMobOrdCreate) ? 'nav-link-mobile-active' : '' ?>">
+                    <i class="fas fa-file-circle-plus mr-1.5 text-amber-700"></i>Buat Order
                 </a>
-                <a href="<?= BASE_URL ?>orders/dashboard.php" class="nav-link-mobile !bg-gradient-to-r !from-orange-50/90 !to-amber-50/90 !text-orange-950 !font-black !ring-2 !ring-orange-300/60 <?= (basename($_SERVER['PHP_SELF']) === 'dashboard.php' && dirname($_SERVER['PHP_SELF']) === '/orders') ? 'nav-link-mobile-active' : '' ?>">
-                    <i class="fas fa-boxes-stacked mr-1.5 text-orange-700"></i>② Logistik
-                </a>
-                <a href="<?= BASE_URL ?>orders/index.php" class="nav-link-mobile <?= (in_array($currentPage, ['index.php','detail.php']) && (dirname($_SERVER['PHP_SELF']) === '/orders' || basename(dirname($_SERVER['PHP_SELF'])) === 'orders')) ? 'nav-link-mobile-active' : '' ?>">
-                    <i class="fas fa-clipboard-list mr-1.5"></i>⑧ Daftar
+                <a href="<?= BASE_URL ?>orders/index.php" class="nav-link-mobile !bg-gradient-to-r !from-emerald-50/90 !to-teal-50/90 !text-emerald-950 !font-black !ring-2 !ring-emerald-300/60 <?= ($isMobOrdLogistic) ? 'nav-link-mobile-active' : '' ?>">
+                    <i class="fas fa-clipboard-list mr-1.5 text-emerald-700"></i>Logistik
                 </a>
                 <?php endif; ?>
                 <a href="<?= BASE_URL ?>history.php" class="nav-link-mobile <?= $currentPage === 'history.php' ? 'nav-link-mobile-active' : '' ?>">

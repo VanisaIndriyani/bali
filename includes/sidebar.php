@@ -21,7 +21,6 @@ if ($currentDir !== 'supervisor') $isManageUsers = $currentDir === 'users' && in
 $isOrderIndex = $currentDir === 'orders' && $currentFile === 'index.php';
 $isOrderCreate = $currentDir === 'orders' && $currentFile === 'create.php';
 $isOrderDetail = $currentDir === 'orders' && $currentFile === 'detail.php';
-$isOrderDashboard = $currentDir === 'orders' && $currentFile === 'dashboard.php';
 $isOrderApprove = $currentDir === 'orders' && in_array($currentFile, ['approve.php']);
 $isEngActivities = ($page ?? '') === 'engineering_activities' || ($currentDir === 'manager' && $currentFile === 'activities.php');
 
@@ -85,15 +84,10 @@ if ($isEngineer) {
                 <span class="nav-icon <?= ($isOrderCreate) ? '!text-amber-600 !bg-amber-100 !ring-2 !ring-amber-200' : 'text-amber-600' ?>"><i class="fas fa-file-circle-plus"></i></span>
                 <span class="nav-label"><?= T('nav_order_create', 'Buat Order Request') ?></span>
             </a>
-            <?php $isOrderDashboard = ($isOrderDashboard ?? false); ?>
-            <a href="<?= BASE_URL ?>orders/dashboard.php" class="nav-item !border-l-4 <?= ($isOrderDashboard) ? '!border-l-orange-500 nav-item-active !bg-orange-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
-                <span class="nav-icon <?= ($isOrderDashboard) ? '!text-orange-600 !bg-orange-100 !ring-2 !ring-orange-200' : 'text-orange-600' ?>"><i class="fas fa-boxes-stacked"></i></span>
-                <span class="nav-label"><?= T('nav_logistic_dash', 'Dashboard Logistik') ?></span>
-            </a>
-            <a href="<?= BASE_URL ?>orders/index.php" class="nav-item !border-l-4 <?= ($isOrderIndex) ? '!border-l-emerald-500 nav-item-active !bg-emerald-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
-                <span class="nav-icon <?= ($isOrderIndex) ? '!text-emerald-600 !bg-emerald-100 !ring-2 !ring-emerald-200' : 'text-emerald-600' ?>"><i class="fas fa-clipboard-list"></i></span>
+            <a href="<?= BASE_URL ?>orders/index.php" class="nav-item !border-l-4 <?= ($isOrderIndex || $isOrderDetail) ? '!border-l-emerald-500 nav-item-active !bg-emerald-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
+                <span class="nav-icon <?= ($isOrderIndex || $isOrderDetail) ? '!text-emerald-600 !bg-emerald-100 !ring-2 !ring-emerald-200' : 'text-emerald-600' ?>"><i class="fas fa-clipboard-list"></i></span>
                 <span class="nav-label flex items-center gap-2">
-                    <?= T('nav_order_list', 'Daftar Order / PR') ?>
+                    <?= T('nav_logistic_label', 'Logistik') ?>
                     <?php if ($pendingOrderCount > 0): ?>
                         <span class="ml-auto badge-pill"><?= $pendingOrderCount > 99 ? '99+' : $pendingOrderCount ?></span>
                     <?php endif; ?>
