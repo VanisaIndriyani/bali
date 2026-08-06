@@ -46,22 +46,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
                 'Manager ('.$userName.') update counters: O='.$actOp.' M='.$actMt.' P='.$actPr.' L='.$actLa);
             setFlash('success', 'Counters Activity berhasil di-update untuk '.$engRow['name'].' ('.$logDate.')');
         } else {
-            $ym = date('Ym', strtotime($logDate));
-            $seq = 1;
-            $lr = $db->fetchOne("SELECT MAX(CAST(SUBSTRING(log_no, -4) AS UNSIGNED)) AS s FROM daily_logs WHERE log_no LIKE ?", ['DL-'.$ym.'-%']);
-            if ($lr) $seq = (int)($lr['s'] ?? 0) + 1;
-            $logNo = sprintf('DL-%s-%04d', $ym, $seq);
             $notes = 'Diisi langsung oleh Manager - Approved Otomatis';
             $status = 'approved';
             $db->query(
-                "INSERT INTO daily_logs (log_no, log_date, engineer_id, shift, status, notes, activity_operation, activity_maintenance, activity_project, activity_landscape, created_by, updated_by)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                [$logNo, $logDate, $engId, 'Day', $status, $notes, $actOp, $actMt, $actPr, $actLa, $userId, $userId]
+                "INSERT INTO daily_logs (log_date, engineer_id, shift, status, notes, activity_operation, activity_maintenance, activity_project, activity_landscape, created_by, updated_by)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                [$logDate, $engId, 'Day', $status, $notes, $actOp, $actMt, $actPr, $actLa, $userId, $userId]
             );
             $newId = (int)$db->lastInsertId();
             addTimeline($db, 'daily_log', $newId, $userId, 'manager', 'create_activity',
                 'Manager ('.$userName.') buat counters baru: O='.$actOp.' M='.$actMt.' P='.$actPr.' L='.$actLa);
-            setFlash('success', 'Counters Activity berhasil disimpan baru untuk '.$engRow['name'].' ('.$logDate.') No: '.$logNo);
+            setFlash('success', 'Counters Activity berhasil disimpan baru untuk '.$engRow['name'].' ('.$logDate.') ID: '.$newId);
         }
     } catch (Throwable $e) {
         setFlash('danger', 'Gagal menyimpan: '.$e->getMessage());
@@ -165,7 +160,7 @@ foreach ($cats as $c) {
         default       => 'activity_operation'
     };
     $catDetailRows[$c['id']] = $db->fetchAll(
-        "SELECT dl.id, dl.log_no, dl.log_date, dl.{$col} AS cnt, COALESCE(u.name, '-') AS engineer_name
+        "SELECT dl.id, dl.log_date, dl.{$col} AS cnt, COALESCE(u.name, '-') AS engineer_name
          FROM daily_logs dl
          LEFT JOIN users u ON u.id = dl.engineer_id
          WHERE dl.log_date BETWEEN ? AND ? AND dl.{$col} > 0
@@ -421,8 +416,8 @@ require_once __DIR__ . '/../includes/navbar.php';
                             <thead class="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                                 <tr>
                                     <th class="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-14">#</th>
+                                    <th class="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-24">Ref ID</th>
                                     <th class="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Tanggal</th>
-                                    <th class="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">No. Log</th>
                                     <th class="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Nama Engineer / Staff</th>
                                     <th class="px-4 py-3.5 text-right text-[10px] font-black uppercase tracking-widest text-slate-500 pr-5">Counters<br><span class="text-[9px] <?= $c['color'] ?> font-bold">Divisi <?= $c['label'] ?></span></th>
                                 </tr>
@@ -437,6 +432,11 @@ require_once __DIR__ . '/../includes/navbar.php';
                                 <tr class="hover:bg-<?= $c['color'] ?>/5 transition-colors group">
                                     <td class="px-4 py-3.5 text-xs font-bold text-slate-400"><?= $no++ ?>.</td>
                                     <td class="px-4 py-3.5">
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/5 border border-slate-200 text-xs font-mono font-bold text-slate-700">
+                                            #<?= (int)$r['id'] ?>
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3.5">
                                         <div class="flex items-center gap-2">
                                             <span class="inline-flex w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-<?= $c['color'] ?>/10 items-center justify-center text-slate-500 group-hover:<?= $c['color'] ?> transition">
                                                 <i class="far fa-calendar-day text-xs"></i>
@@ -446,11 +446,6 @@ require_once __DIR__ . '/../includes/navbar.php';
                                                 <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"><?= date('l', strtotime($r['log_date'])) ?></span>
                                             </div>
                                         </div>
-                                    </td>
-                                    <td class="px-4 py-3.5">
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs font-mono font-bold text-slate-700">
-                                            <?= htmlspecialchars($r['log_no']) ?>
-                                        </span>
                                     </td>
                                     <td class="px-4 py-3.5">
                                         <div class="flex items-center gap-2.5">
