@@ -242,6 +242,67 @@ require_once __DIR__ . '/../includes/navbar.php';
     </div>
 
     <form method="POST" enctype="multipart/form-data" class="space-y-5">
+        <!-- ⑧ OCCUPANCY RATE (OCC %) - PALING ATAS SENDIRI SESUAI REQUEST -->
+        <div class="bg-surface rounded-premium border border-accent/40 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 50ms">
+            <div class="px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-100/60">
+                <h3 class="font-bold text-primary flex items-center gap-2">
+                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 via-yellow-500 to-amber-700 flex items-center justify-center text-white shadow-md shadow-amber-500/30"><i class="fas fa-bed text-sm"></i></span>
+                    <?= T('form_occ_title', 'Occupancy Rate (OCC %) • Tingkat Hunian Kamar') ?>
+                </h3>
+                <p class="text-xs text-secondary mt-0.5"><?= T('form_occ_sub', 'Isi persentase kamar terisi hari ini (0 - 100%) • Data acuan compare utility consumption') ?></p>
+            </div>
+            <div class="p-5 lg:p-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <div class="md:col-span-1">
+                        <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><i class="fas fa-percentage mr-1 text-amber-600"></i><?= T('form_occ_label', 'Occupancy Rate Hari Ini') ?></label>
+                        <div class="relative">
+                            <input type="number" id="occRate" step="0.01" min="0" max="100" name="occ_rate"
+                                value="<?= $log['occ_rate'] ?? '0.00' ?>"
+                                oninput="occVisual(this.value)"
+                                class="w-full pl-4 pr-14 py-3.5 rounded-card border border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 text-2xl font-black text-primary placeholder-secondary/60 focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/15 focus:bg-white transition-all">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-lg text-amber-700 font-black bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full">%</span>
+                        </div>
+                        <div class="mt-3 flex gap-2 flex-wrap">
+                            <button type="button" onclick="setOcc(50)" class="px-3 py-1 rounded-lg text-xs font-bold border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition">50%</button>
+                            <button type="button" onclick="setOcc(65)" class="px-3 py-1 rounded-lg text-xs font-bold border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition">65%</button>
+                            <button type="button" onclick="setOcc(70)" class="px-3 py-1 rounded-lg text-xs font-bold border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition">70%</button>
+                            <button type="button" onclick="setOcc(80)" class="px-3 py-1 rounded-lg text-xs font-bold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">80%</button>
+                            <button type="button" onclick="setOcc(90)" class="px-3 py-1 rounded-lg text-xs font-bold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">90%</button>
+                            <button type="button" onclick="setOcc(100)" class="px-3 py-1 rounded-lg text-xs font-bold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">Full 100%</button>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-black uppercase tracking-[0.18em] text-secondary mb-2"><?= T('form_occ_visual', 'Visual Bar') ?></label>
+                        <div class="relative h-10 rounded-premium overflow-hidden bg-gray-100 border border-gray-200 shadow-inner">
+                            <div id="occBar" class="absolute inset-y-0 left-0 h-full rounded-premium transition-all duration-700 ease-out bg-gradient-to-r from-amber-400 via-yellow-400 to-emerald-500" style="width: 0%"></div>
+                            <div class="absolute inset-0 flex items-center justify-center text-sm font-black text-primary drop-shadow-[0_1px_0_rgba(255,255,255,0.7)]"><span id="occLabelText">0%</span> • <span id="occLabelTextDesc"><?= T('form_occ_empty', 'Kosong') ?></span></div>
+                        </div>
+                        <script>
+                            function occVisual(v) {
+                                let val = parseFloat(v) || 0;
+                                if (val < 0) val = 0;
+                                if (val > 100) val = 100;
+                                const bar = document.getElementById('occBar');
+                                const label = document.getElementById('occLabelText');
+                                const desc = document.getElementById('occLabelTextDesc');
+                                if (bar) bar.style.width = val + '%';
+                                if (label) label.textContent = val.toFixed(2) + '%';
+                                if (desc) {
+                                    if (val <= 0) desc.textContent = '<?= T('form_occ_empty', 'Kosong') ?>';
+                                    else if (val < 40) desc.textContent = '<?= T('form_occ_low', 'Low Season • Sepi') ?>';
+                                    else if (val < 65) desc.textContent = '<?= T('form_occ_mid', 'Mid Season • Normal') ?>';
+                                    else if (val < 85) desc.textContent = '<?= T('form_occ_high', 'High Season • Ramai') ?>';
+                                    else desc.textContent = '<?= T('form_occ_full', 'Peak Season • Penuh!') ?>';
+                                }
+                            }
+                            function setOcc(p) { const el = document.getElementById('occRate'); if (el) { el.value = p; occVisual(p); } }
+                            document.addEventListener('DOMContentLoaded', function() { const el = document.getElementById('occRate'); if (el) occVisual(el.value); });
+                        </script>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ① TOTAL LISTRIK - WBP LWBP -->
         <div class="bg-surface rounded-premium border border-amber-200/60 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 50ms">
             <div class="px-5 lg:px-6 py-4 border-b border-amber-100/80 bg-gradient-to-r from-amber-50/90 via-amber-50/60 to-yellow-50">
@@ -557,67 +618,6 @@ HTML;
                             value="<?= $log['total_fuel'] ?? '0.00' ?>"
                             class="w-full pl-4 pr-16 py-3.5 rounded-card border border-rose-200 bg-rose-50/60 text-lg font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 focus:bg-white transition-all">
                         <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-rose-700 font-bold bg-rose-100 px-2 py-0.5 rounded-full">L</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ⑧ OCCUPANCY RATE (OCC %) -->
-        <div class="bg-surface rounded-premium border border-accent/40 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 310ms">
-            <div class="px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-100/60">
-                <h3 class="font-bold text-primary flex items-center gap-2">
-                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 via-yellow-500 to-amber-700 flex items-center justify-center text-white shadow-md shadow-amber-500/30"><i class="fas fa-bed text-sm"></i></span>
-                    <?= T('form_occ_title', '⑧ Occupancy Rate (OCC %) • Tingkat Hunian Kamar') ?>
-                </h3>
-                <p class="text-xs text-secondary mt-0.5"><?= T('form_occ_sub', 'Isi persentase kamar terisi hari ini (0 - 100%) • Data acuan compare utility consumption') ?></p>
-            </div>
-            <div class="p-5 lg:p-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                    <div class="md:col-span-1">
-                        <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><i class="fas fa-percentage mr-1 text-amber-600"></i><?= T('form_occ_label', 'Occupancy Rate Hari Ini') ?></label>
-                        <div class="relative">
-                            <input type="number" id="occRate" step="0.01" min="0" max="100" name="occ_rate"
-                                value="<?= $log['occ_rate'] ?? '0.00' ?>"
-                                oninput="occVisual(this.value)"
-                                class="w-full pl-4 pr-14 py-3.5 rounded-card border border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 text-2xl font-black text-primary placeholder-secondary/60 focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/15 focus:bg-white transition-all">
-                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-lg text-amber-700 font-black bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full">%</span>
-                        </div>
-                        <div class="mt-3 flex gap-2 flex-wrap">
-                            <button type="button" onclick="setOcc(50)" class="px-3 py-1 rounded-lg text-xs font-bold border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition">50%</button>
-                            <button type="button" onclick="setOcc(65)" class="px-3 py-1 rounded-lg text-xs font-bold border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition">65%</button>
-                            <button type="button" onclick="setOcc(70)" class="px-3 py-1 rounded-lg text-xs font-bold border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition">70%</button>
-                            <button type="button" onclick="setOcc(80)" class="px-3 py-1 rounded-lg text-xs font-bold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">80%</button>
-                            <button type="button" onclick="setOcc(90)" class="px-3 py-1 rounded-lg text-xs font-bold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">90%</button>
-                            <button type="button" onclick="setOcc(100)" class="px-3 py-1 rounded-lg text-xs font-bold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">Full 100%</button>
-                        </div>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-black uppercase tracking-[0.18em] text-secondary mb-2"><?= T('form_occ_visual', 'Visual Bar') ?></label>
-                        <div class="relative h-10 rounded-premium overflow-hidden bg-gray-100 border border-gray-200 shadow-inner">
-                            <div id="occBar" class="absolute inset-y-0 left-0 h-full rounded-premium transition-all duration-700 ease-out bg-gradient-to-r from-amber-400 via-yellow-400 to-emerald-500" style="width: 0%"></div>
-                            <div class="absolute inset-0 flex items-center justify-center text-sm font-black text-primary drop-shadow-[0_1px_0_rgba(255,255,255,0.7)]"><span id="occLabelText">0%</span> • <span id="occLabelTextDesc"><?= T('form_occ_empty', 'Kosong') ?></span></div>
-                        </div>
-                        <script>
-                            function occVisual(v) {
-                                let val = parseFloat(v) || 0;
-                                if (val < 0) val = 0;
-                                if (val > 100) val = 100;
-                                const bar = document.getElementById('occBar');
-                                const label = document.getElementById('occLabelText');
-                                const desc = document.getElementById('occLabelTextDesc');
-                                if (bar) bar.style.width = val + '%';
-                                if (label) label.textContent = val.toFixed(2) + '%';
-                                if (desc) {
-                                    if (val <= 0) desc.textContent = '<?= T('form_occ_empty', 'Kosong') ?>';
-                                    else if (val < 40) desc.textContent = '<?= T('form_occ_low', 'Low Season • Sepi') ?>';
-                                    else if (val < 65) desc.textContent = '<?= T('form_occ_mid', 'Mid Season • Normal') ?>';
-                                    else if (val < 85) desc.textContent = '<?= T('form_occ_high', 'High Season • Ramai') ?>';
-                                    else desc.textContent = '<?= T('form_occ_full', 'Peak Season • Penuh!') ?>';
-                                }
-                            }
-                            function setOcc(p) { const el = document.getElementById('occRate'); if (el) { el.value = p; occVisual(p); } }
-                            document.addEventListener('DOMContentLoaded', function() { const el = document.getElementById('occRate'); if (el) occVisual(el.value); });
-                        </script>
                     </div>
                 </div>
             </div>
