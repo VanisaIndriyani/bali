@@ -151,14 +151,30 @@ $reviewedName = T('dash_act_reviewed_name', 'Supervisor Engineering');
 
 $colLeft = [];
 $colRight = [];
+$catDetailRows = [];
 foreach ($cats as $c) {
     $todayCnt = buildActCnt($db, $today, $today, $c['id'], $userId, 'manager');
     $monthCnt = buildActCnt($db, $monthStart, $today, $c['id'], $userId, 'manager');
     $cnt = (int)($monthCnt['count'] ?? 0);
     $todayN = (int)($todayCnt['count'] ?? 0);
+    $col = match($c['id']) {
+        'operation'   => 'activity_operation',
+        'maintenance' => 'activity_maintenance',
+        'project'     => 'activity_project',
+        'landscape'   => 'activity_landscape',
+        default       => 'activity_operation'
+    };
+    $catDetailRows[$c['id']] = $db->fetchAll(
+        "SELECT dl.id, dl.log_no, dl.log_date, dl.{$col} AS cnt, COALESCE(u.name, '-') AS engineer_name
+         FROM daily_logs dl
+         LEFT JOIN users u ON u.id = dl.engineer_id
+         WHERE dl.log_date BETWEEN ? AND ? AND dl.{$col} > 0
+         ORDER BY dl.log_date DESC, dl.id DESC",
+        [$monthStart, $today]
+    );
     $colLeft[] = $c;
     $colRight[] = $cnt > 0
-        ? '<div class="flex items-center gap-2 text-sm font-bold '.$c['color'].'"><i class="far fa-calendar-check"></i> <span class="font-black">'.$cnt.'</span> '.$actMonthLabel.($todayN > 0 ? ' <span class="text-secondary/70 font-medium text-xs ml-1">(+'.$todayN.' '.$actTodayLabel.')</span>' : '').'</div>'
+        ? '<div class="flex items-center gap-2 text-sm font-bold '.$c['color'].'"><i class="far fa-calendar-check"></i> <span class="font-black">'.$cnt.'</span> '.$actMonthLabel.($todayN > 0 ? ' <span class="text-secondary/70 font-medium text-xs ml-1">(+'.$todayN.' '.$actTodayLabel.')</span>' : '').' <span class="ml-2 inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-primary/70 px-2 py-0.5 rounded-full bg-white/70 border border-slate-200 shadow-sm"><i class="fas fa-hand-pointer text-xs"></i> Klik Detail</span></div>'
         : '<div class="flex items-center gap-2 text-sm text-secondary/70 font-medium">'.$blankIcon.$actEmpty.'</div>';
 }
 
@@ -301,10 +317,15 @@ require_once __DIR__ . '/../includes/navbar.php';
         </div>
         <div class="flex flex-col gap-4 sm:gap-5 mb-6">
             <?php foreach ($colLeft as $idx => $c): ?>
-            <div class="rounded-2xl border-2 <?= $c['border'] ?> <?= $c['bg'] ?>/40 p-4 sm:p-5 hover:shadow-xl hover:-translate-y-0.5 hover:scale-[1.005] transition-all duration-300">
+            <div class="group rounded-2xl border-2 <?= $c['border'] ?> <?= $c['bg'] ?>/40 p-4 sm:p-5 hover:shadow-2xl hover:-translate-y-0.5 hover:scale-[1.005] hover:ring-4 <?= $c['ring'] ?> transition-all duration-300 cursor-pointer active:scale-[0.998]"
+                 onclick="openModal('<?= htmlspecialchars($c['id']) ?>')"
+                 role="button"
+                 tabindex="0"
+                 aria-label="Buka detail divisi <?= htmlspecialchars($c['label']) ?>"
+                 onkeydown="if(event.key==='Enter'||event.key===' ')openModal('<?= htmlspecialchars($c['id']) ?>')">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div class="flex items-center gap-3 sm:gap-4 shrink-0 sm:w-56">
-                        <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br <?= $c['iconBox'] ?> flex items-center justify-center text-white shadow-lg ring-2 <?= $c['ring'] ?> shrink-0">
+                        <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br <?= $c['iconBox'] ?> flex items-center justify-center text-white shadow-lg ring-2 <?= $c['ring'] ?> shrink-0 group-hover:rotate-3 group-hover:scale-105 transition-transform duration-300">
                             <i class="<?= $c['icon'] ?> text-xl sm:text-2xl"></i>
                         </div>
                         <div>
@@ -337,6 +358,199 @@ require_once __DIR__ . '/../includes/navbar.php';
             </div>
         </div>
     </div>
+
+    <!-- ================================ MODAL DETAIL REKAP DIVISI (4 PCS) ================================ -->
+    <?php foreach ($colLeft as $idx => $c):
+        $rows = $catDetailRows[$c['id']] ?? [];
+        $totalSum = 0;
+        foreach ($rows as $r) $totalSum += (int)($r['cnt'] ?? 0);
+    ?>
+    <div id="modal-<?= htmlspecialchars($c['id']) ?>" class="fixed inset-0 z-[9999] hidden items-center justify-center p-4 animate-fade-in-modal"
+         onclick="if(event.target===this)closeModal('<?= htmlspecialchars($c['id']) ?>')">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md"></div>
+        <div class="relative w-full max-w-4xl max-h-[88vh] bg-white rounded-3xl shadow-[0_30px_100px_-20px_rgba(30,41,59,0.45)] overflow-hidden flex flex-col animate-slide-up-modal border-2 <?= $c['border'] ?>">
+            <!-- HEADER MODAL GRADIENT -->
+            <div class="bg-gradient-to-br <?= $c['iconBox'] ?> p-6 sm:p-7 text-white relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                <div class="absolute -right-20 bottom-0 w-60 h-60 bg-black/10 rounded-full blur-3xl"></div>
+                <div class="relative flex items-start justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center ring-2 ring-white/40 shadow-lg shrink-0">
+                            <i class="<?= $c['icon'] ?> text-2xl sm:text-3xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.25em] text-white/85 mb-1.5">DETAIL REKAP BULAN INI • <?= date('M Y') ?></p>
+                            <h4 class="font-display text-2xl sm:text-3xl font-black tracking-wide leading-tight">Divisi <?= $c['label'] ?></h4>
+                            <div class="flex items-center gap-3 mt-2">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white text-xs font-bold">
+                                    <i class="fas fa-list-check"></i> Total Data: <span class="font-black text-white"><?= count($rows) ?> aktivitas</span>
+                                </span>
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-slate-800 text-xs font-black shadow">
+                                    <i class="<?= $c['icon'] ?> <?= $c['color'] ?>"></i> Total Counters: <?= number_format($totalSum, 0, ',', '.') ?>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button"
+                            onclick="closeModal('<?= htmlspecialchars($c['id']) ?>')"
+                            class="shrink-0 w-11 h-11 rounded-2xl bg-white/20 hover:bg-white text-white hover:text-rose-600 border border-white/30 backdrop-blur-sm flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 shadow-md"
+                            aria-label="Tutup modal">
+                        <i class="fas fa-xmark text-xl font-black"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- BODY MODAL -->
+            <div class="flex-1 overflow-y-auto p-5 sm:p-7 bg-gradient-to-b from-slate-50 to-white">
+                <?php if (empty($rows)): ?>
+                    <div class="text-center py-16 px-6">
+                        <div class="w-20 h-20 mx-auto mb-5 rounded-3xl bg-slate-100 flex items-center justify-center text-slate-400">
+                            <i class="far fa-folder-open text-3xl"></i>
+                        </div>
+                        <h5 class="text-xl font-black text-slate-700 mb-2">Belum ada data aktivitas divisi <?= $c['label'] ?></h5>
+                        <p class="text-sm text-slate-500 mb-6">Isi counters terlebih dahulu melalui Form Manager Isi Activity Counters di atas.</p>
+                        <button type="button"
+                                onclick="closeModal('<?= htmlspecialchars($c['id']) ?>')"
+                                class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 hover:from-slate-800 hover:to-black text-white text-sm font-bold shadow-lg shadow-slate-500/20 transition">
+                            <i class="fas fa-arrow-left"></i> Kembali
+                        </button>
+                    </div>
+                <?php else: ?>
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
+                                <tr>
+                                    <th class="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-14">#</th>
+                                    <th class="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Tanggal</th>
+                                    <th class="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">No. Log</th>
+                                    <th class="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Nama Engineer / Staff</th>
+                                    <th class="px-4 py-3.5 text-right text-[10px] font-black uppercase tracking-widest text-slate-500 pr-5">Counters<br><span class="text-[9px] <?= $c['color'] ?> font-bold">Divisi <?= $c['label'] ?></span></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <?php
+                                $no = 1;
+                                $runningSum = 0;
+                                foreach ($rows as $r):
+                                    $runningSum += (int)($r['cnt'] ?? 0);
+                                ?>
+                                <tr class="hover:bg-<?= $c['color'] ?>/5 transition-colors group">
+                                    <td class="px-4 py-3.5 text-xs font-bold text-slate-400"><?= $no++ ?>.</td>
+                                    <td class="px-4 py-3.5">
+                                        <div class="flex items-center gap-2">
+                                            <span class="inline-flex w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-<?= $c['color'] ?>/10 items-center justify-center text-slate-500 group-hover:<?= $c['color'] ?> transition">
+                                                <i class="far fa-calendar-day text-xs"></i>
+                                            </span>
+                                            <div class="flex flex-col">
+                                                <span class="text-sm font-bold text-primary"><?= date('d M Y', strtotime($r['log_date'])) ?></span>
+                                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"><?= date('l', strtotime($r['log_date'])) ?></span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3.5">
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs font-mono font-bold text-slate-700">
+                                            <?= htmlspecialchars($r['log_no']) ?>
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3.5">
+                                        <div class="flex items-center gap-2.5">
+                                            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center font-black text-xs shadow-sm ring-2 ring-white">
+                                                <?= strtoupper(mb_substr((string)$r['engineer_name'], 0, 1) ?: '?') ?>
+                                            </div>
+                                            <div class="flex flex-col">
+                                                <span class="text-sm font-bold text-primary leading-tight"><?= htmlspecialchars($r['engineer_name']) ?></span>
+                                                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Engineering Staff</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3.5 pr-5 text-right">
+                                        <span class="inline-flex items-center justify-end gap-1.5 min-w-[90px] px-3.5 py-2 rounded-xl <?= $c['bg'] ?> border <?= $c['border'] ?> text-base sm:text-lg font-black <?= $c['color'] ?> shadow-sm">
+                                            <i class="<?= $c['icon'] ?> text-sm"></i>
+                                            <?= number_format((int)($r['cnt'] ?? 0), 0, ',', '.') ?>
+                                        </span>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                            <tfoot class="bg-gradient-to-r from-slate-50 to-<?= $c['color'] ?>/5 border-t-2 <?= $c['border'] ?>">
+                                <tr>
+                                    <td colspan="4" class="px-4 py-4 text-right">
+                                        <span class="text-sm font-black uppercase tracking-widest text-slate-500 mr-2 flex items-center justify-end gap-2">
+                                            <i class="fas fa-calculator"></i> TOTAL COUNTERS DIVISI <?= $c['label'] ?> BULAN INI:
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-4 pr-5 text-right">
+                                        <span class="inline-flex items-center justify-end gap-2 min-w-[120px] px-4 py-2.5 rounded-2xl bg-gradient-to-br <?= $c['iconBox'] ?> text-white text-lg sm:text-xl font-black shadow-lg shadow-slate-500/10 ring-2 ring-white/80">
+                                            <i class="<?= $c['icon'] ?>"></i>
+                                            <?= number_format($totalSum, 0, ',', '.') ?>
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <div class="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+                        <p class="text-[11px] font-semibold text-slate-500 flex items-center gap-2">
+                            <i class="fas fa-info-circle text-slate-400"></i> Data diurutkan dari tanggal terbaru (DESC). Total Running Sum bulan ini sudah ditampilkan di atas kanan.
+                        </p>
+                        <div class="flex items-center gap-2 sm:gap-3 justify-end flex-wrap">
+                            <button type="button"
+                                    onclick="closeModal('<?= htmlspecialchars($c['id']) ?>')"
+                                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold shadow-sm transition">
+                                <i class="fas fa-xmark"></i> Tutup
+                            </button>
+                            <a href="<?= BASE_URL ?>reports/excel.php?cat=<?= urlencode($c['id']) ?>&month=<?= date('Y-m') ?>" target="_blank" rel="noopener noreferrer"
+                               class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white text-sm font-bold shadow-md hover:shadow-lg transition">
+                                <i class="far fa-file-excel"></i> Export Excel
+                            </a>
+                            <a href="<?= BASE_URL ?>reports/pdf.php?cat=<?= urlencode($c['id']) ?>&month=<?= date('Y-m') ?>" target="_blank" rel="noopener noreferrer"
+                               class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 hover:from-rose-600 hover:to-rose-800 text-white text-sm font-bold shadow-md hover:shadow-lg transition">
+                                <i class="far fa-file-pdf"></i> Export PDF
+                            </a>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <?php endforeach; ?>
+    <!-- ================================ / END MODAL ================================ -->
+
+    <script>
+    function openModal(cat) {
+        const modal = document.getElementById('modal-' + cat);
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+        const closeBtn = modal.querySelector('button[aria-label="Tutup modal"]');
+        if (closeBtn) setTimeout(() => closeBtn.focus(), 100);
+    }
+    function closeModal(cat) {
+        const modal = document.getElementById('modal-' + cat);
+        if (!modal) return;
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = '';
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('[id^="modal-"]').forEach(function(m) {
+                if (m.classList.contains('flex')) {
+                    const id = m.id.replace('modal-', '');
+                    closeModal(id);
+                }
+            });
+        }
+    });
+    </script>
+    <style>
+    @keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUpModal { from { opacity: 0; transform: translateY(30px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .animate-fade-in-modal { animation: fadeInModal 0.18s ease-out !important; }
+    .animate-slide-up-modal { animation: slideUpModal 0.26s cubic-bezier(0.22, 1, 0.36, 1) !important; }
+    </style>
 </div>
 
 <?php
