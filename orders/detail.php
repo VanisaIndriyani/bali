@@ -79,10 +79,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db->commit();
             setFlash('success', T('order_action_reject_ok', 'Order ditolak'));
         } elseif ($action === 'resubmit' && ((int)$order['requested_by'] === (int)$user['id']) && in_array($order['status'], ['rejected','draft'], true)) {
-            $db->query("UPDATE orders SET status = 'pending_supervisor', rejected_by = NULL, rejected_reason = NULL, rejected_at = NULL WHERE id = ?", [$id]);
-            addOrderApproval($db, $id, (int)$user['id'], $role, 'submit', 'Re-submit ke Supervisor');
+            $newStatus = 'pending_supervisor';
+            $extraUpd = ["rejected_by = NULL", "rejected_reason = NULL", "rejected_at = NULL", "supervisor_id = NULL", "supervisor_approved_at = NULL", "manager_id = NULL", "manager_approved_at = NULL", "completed_at = NULL"];
+            $msgApp = 'Re-submit ke Supervisor';
+            if ($role === 'supervisor') {
+                $newStatus = 'pending_manager';
+                $extraUpd[] = "supervisor_id = ".(int)$user['id'].", supervisor_approved_at = NOW()";
+                $msgApp = 'Re-submit Supervisor → Approve 1 otomatis, lanjut ke Approval 2 Manager';
+            } elseif ($role === 'manager' || $role === 'admin') {
+                $newStatus = 'approved';
+                $extraUpd[] = "supervisor_id = ".(int)$user['id'].", supervisor_approved_at = NOW()";
+                $extraUpd[] = "manager_id = ".(int)$user['id'].", manager_approved_at = NOW()";
+                $msgApp = 'Re-submit Manager/Admin → Approve 1 + 2 LULUS (Final Approved)';
+            }
+            $db->query("UPDATE orders SET status = '".$db->escape($newStatus)."', ".implode(', ', $extraUpd)." WHERE id = ".$id);
+            addOrderApproval($db, $id, (int)$user['id'], $role, 'submit', $msgApp);
             $db->commit();
-            setFlash('success', T('order_action_submit_ok', 'Order berhasil dikirim ke Supervisor'));
+            $okMsg = T('order_action_submit_ok', 'Order berhasil dikirim');
+            if ($newStatus === 'pending_manager') $okMsg = 'Order berhasil dikirim ke Manager';
+            elseif ($newStatus === 'approved') $okMsg = 'Order berhasil disetujui otomatis';
+            setFlash('success', $okMsg);
         } elseif ($action === 'complete' && $isManagerOrSpv = in_array($role, ['manager','supervisor','admin'], true)) {
             $db->query("UPDATE orders SET status = 'completed', completed_at = NOW() WHERE id = ?", [$id]);
             addOrderApproval($db, $id, (int)$user['id'], $role, 'complete', $notes ?: 'Order ditandai SELESAI');

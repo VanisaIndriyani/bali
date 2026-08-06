@@ -30,7 +30,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $neededDate = !empty($_POST['needed_date']) ? $_POST['needed_date'] : null;
     $notes = cleanInput($_POST['notes'] ?? '');
     $action = $_POST['action'] ?? 'submit';
-    $requestedBy = (int)$user['id'];
+    $userId = (int)$user['id'];
+    $userRole = (string)($user['role'] ?? '');
+    $requestedBy = $userId;
     $reqNumber = trim((string)($_POST['req_number'] ?? ''));
     $adminPriceNotes = cleanInput($_POST['admin_price_notes'] ?? '');
 
@@ -65,7 +67,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         setFlash('danger', 'Judul dan minimal 1 item harus diisi');
     } else {
         try {
-            $status = $action === 'draft' ? 'draft' : 'pending_supervisor';
+            $status = 'pending_supervisor';
+            $extraSets = [];
+            $extraMsg = 'Submit ke Supervisor';
+            if ($action === 'draft') {
+                $status = 'draft';
+                $extraMsg = 'Draft';
+            } else {
+                if ($userRole === 'supervisor') {
+                    $status = 'pending_manager';
+                    $extraSets[] = "supervisor_id = ".(int)$userId.", supervisor_approved_at = NOW()";
+                    $extraMsg = 'Supervisor submit → Approve 1 otomatis, lanjut ke Manager (Approval 2)';
+                } elseif ($userRole === 'manager') {
+                    $status = 'approved';
+                    $extraSets[] = "supervisor_id = ".(int)$userId.", supervisor_approved_at = NOW()";
+                    $extraSets[] = "manager_id = ".(int)$userId.", manager_approved_at = NOW()";
+                    $extraMsg = 'Manager submit → Approve 1 + Approve 2 otomatis LULUS (Final Approved)';
+                } elseif ($userRole === 'admin') {
+                    $status = 'approved';
+                    $extraSets[] = "manager_id = ".(int)$userId.", manager_approved_at = NOW()";
+                    $extraMsg = 'Admin submit → Approve Final otomatis';
+                }
+            }
+            $status = $db->escape($status);
             $orderNo = generateOrderNo($db, 'PR');
 
             $db->beginTransaction();
@@ -75,6 +99,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 [$orderNo, ($reqNumber!=='' ? $reqNumber : null), $requestedBy, $costCodeId > 0 ? $costCodeId : null, $title, $purpose, $requestedDate, $neededDate, $totalAmount, ($adminPriceNotes!==''?$adminPriceNotes:null), $status, $notes]
             );
             $orderId = (int)$db->lastInsertId();
+            if (!empty($extraSets)) {
+                $db->query("UPDATE orders SET ".implode(', ', $extraSets)." WHERE id = ".$orderId);
+            }
 
             $insItem = $db->getConnection()->prepare(
                 "INSERT INTO order_items (order_id, item_name, description, qty, unit, unit_price, subtotal, sort_order) VALUES (?,?,?,?,?,?,?,?)"
@@ -83,10 +110,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $insItem->execute([$orderId, $it['name'], $it['desc'], $it['qty'], $it['unit'], $it['price'], $it['subtotal'], $it['sort']]);
             }
 
-            addOrderApproval($db, $orderId, (int)$user['id'], $user['role'], $action === 'draft' ? 'update' : 'submit', $status === 'pending_supervisor' ? 'Submit ke Supervisor' : 'Draft');
+            addOrderApproval($db, $orderId, (int)$user['id'], $userRole, $action === 'draft' ? 'update' : 'submit', $extraMsg);
             $db->commit();
 
-            setFlash('success', $status === 'draft' ? 'Draft disimpan' : 'Order berhasil dikirim ke Supervisor');
+            $okMsg = 'Order berhasil diproses';
+            if ($status === 'draft') $okMsg = 'Draft disimpan';
+            elseif ($status === 'pending_manager') $okMsg = 'Order berhasil dikirim ke Manager (Approval 2)';
+            elseif ($status === 'approved') $okMsg = 'Order berhasil disetujui otomatis';
+            else $okMsg = 'Order berhasil dikirim ke Supervisor';
+            setFlash('success', $okMsg);
             redirect('orders/detail.php?id=' . $orderId);
         } catch (Throwable $e) {
             try { $db->rollBack(); } catch (Throwable $_) {}
