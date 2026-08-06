@@ -13,6 +13,9 @@ $currentFile = basename($_SERVER['PHP_SELF']);
 $currentDir = basename(dirname($_SERVER['PHP_SELF']));
 
 $isDashboard = $currentFile === 'index.php' && !in_array($currentDir, ['users','engineer','supervisor','manager','reports','profile','orders']);
+$isEnergyDashboard = ($currentFile === 'energy.php');
+$isEnergyLogsheet  = ($currentFile === 'energy_logsheet.php');
+$isAnyEnergy       = $isEnergyDashboard || $isEnergyLogsheet;
 $isDailyLog = $currentDir === 'engineer' && in_array($currentFile, ['select_date.php', 'daily_log_form.php']);
 $isReview = $currentDir === 'supervisor' && in_array($currentFile, ['review.php', 'review_detail.php']);
 $isHistory = $currentFile === 'history.php';
@@ -73,6 +76,59 @@ if ($isEngineer) {
                 <span class="nav-label"><?= T('nav_dashboard', 'Dashboard Utama') ?></span>
             </a>
 
+            <!-- COLLAPSIBLE: ⚡ ENERGY (WA 18.09: Energy di bawah dashboard, 2 submenu Dashboard + Log Sheet) -->
+            <?php
+            $energyDefaultOpen = ($isAnyEnergy) ? 'true' : 'false';
+            ?>
+            <button type="button" id="energyToggleBtn" data-default-open="<?= $energyDefaultOpen ?>"
+                    onclick="toggleEnergyMenu(this)"
+                    class="nav-item w-full !border-l-4 <?= ($isAnyEnergy) ? '!border-l-amber-500 nav-item-active !bg-amber-50/80 !font-bold !text-primary' : '!border-l-transparent' ?> justify-between pr-4 mt-0.5">
+                <span class="flex items-center gap-3">
+                    <span class="nav-icon <?= ($isAnyEnergy) ? '!text-amber-600 !bg-amber-100 !ring-2 !ring-amber-200' : 'text-amber-600' ?>"><i class="fas fa-bolt"></i></span>
+                    <span class="nav-label">⚡ Energy</span>
+                </span>
+                <i id="energyChevron" class="fas fa-chevron-down text-xs text-slate-400 transition-transform duration-200 -rotate-90"></i>
+            </button>
+            <div id="energyGroup" class="overflow-hidden transition-all duration-200 hidden pl-2 ml-1 border-l-2 border-amber-200/70 my-0.5">
+                <a href="<?= BASE_URL ?>energy.php"
+                   class="nav-item !pl-10 !py-2.5 !border-l-0 !text-sm <?= ($isEnergyDashboard) ? 'nav-item-active !bg-amber-50 !text-primary !font-bold !ring-1 !ring-amber-200 !mx-2 !rounded-lg my-0.5' : '' ?>">
+                    <span class="nav-icon !w-7 !h-7 text-[13px] <?= ($isEnergyDashboard) ? '!bg-amber-500 !text-white' : 'text-amber-600 bg-amber-50' ?>"><i class="fas fa-gauge-high"></i></span>
+                    <span class="nav-label">Energy Dashboard</span>
+                </a>
+                <a href="<?= BASE_URL ?>energy_logsheet.php"
+                   class="nav-item !pl-10 !py-2.5 !border-l-0 !text-sm <?= ($isEnergyLogsheet) ? 'nav-item-active !bg-amber-50 !text-primary !font-bold !ring-1 !ring-amber-200 !mx-2 !rounded-lg my-0.5' : '' ?>">
+                    <span class="nav-icon !w-7 !h-7 text-[13px] <?= ($isEnergyLogsheet) ? '!bg-amber-500 !text-white' : 'text-amber-600 bg-amber-50' ?>"><i class="fas fa-table-list"></i></span>
+                    <span class="nav-label">📋 Log Sheet</span>
+                </a>
+            </div>
+            <script>
+                (function(){
+                    try {
+                        const btn = document.getElementById('energyToggleBtn');
+                        const grp = document.getElementById('energyGroup');
+                        const chv = document.getElementById('energyChevron');
+                        const STORAGE_KEY = 'sb_energyMenu_open';
+                        const isDefaultOpen = btn && btn.dataset.defaultOpen === 'true';
+                        const saved = localStorage.getItem(STORAGE_KEY);
+                        const shouldOpen = (saved !== null) ? (saved === '1') : isDefaultOpen;
+                        function setEnergyOpen(open){
+                            if(!grp || !btn || !chv) return;
+                            if(open){
+                                grp.classList.remove('hidden');
+                                chv.classList.remove('-rotate-90');
+                                localStorage.setItem(STORAGE_KEY, '1');
+                            } else {
+                                grp.classList.add('hidden');
+                                chv.classList.add('-rotate-90');
+                                localStorage.setItem(STORAGE_KEY, '0');
+                            }
+                        }
+                        window.toggleEnergyMenu = function(b){ setEnergyOpen(grp.classList.contains('hidden')); };
+                        setEnergyOpen(shouldOpen);
+                    } catch(e) {}
+                })();
+            </script>
+
             <?php if ($isEngineer || $isSupervisor): ?>
             <div class="nav-section"><span>Daily Log</span></div>
             <a href="<?= BASE_URL ?>engineer/select_date.php" class="nav-item <?= $isDailyLog ? 'nav-item-active' : '' ?>">
@@ -121,7 +177,7 @@ if ($isEngineer) {
                 <div class="nav-section !mt-5"><span>Manager Area</span></div>
                 <a href="<?= BASE_URL ?>manager/users.php" class="nav-item !border-l-4 <?= ($isUsersPage) ? '!border-l-purple-500 nav-item-active !bg-purple-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
                     <span class="nav-icon <?= ($isUsersPage) ? '!text-purple-600 !bg-purple-100 !ring-2 !ring-purple-200' : 'text-purple-600' ?>"><i class="fas fa-users-gear"></i></span>
-                    <span class="nav-label">📚 Daftar Akun</span>
+                    <span class="nav-label"> Daftar Akun</span>
                 </a>
                 <a href="<?= BASE_URL ?>manager/activities.php" class="nav-item !border-l-4 <?= ($isEngActivities) ? '!border-l-indigo-500 nav-item-active !bg-indigo-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
                     <span class="nav-icon <?= ($isEngActivities) ? '!text-indigo-600 !bg-indigo-100 !ring-2 !ring-indigo-200' : 'text-indigo-600' ?>"><i class="fas fa-layer-group"></i></span>
@@ -136,7 +192,7 @@ if ($isEngineer) {
                         class="nav-item w-full !border-l-4 <?= ($isAnyDataMaster) ? '!border-l-slate-900 nav-item-active !bg-slate-50/80 !font-bold !text-primary' : '!border-l-transparent' ?> justify-between pr-4">
                     <span class="flex items-center gap-3">
                         <span class="nav-icon <?= ($isAnyDataMaster) ? '!text-slate-800 !bg-slate-200 !ring-2 !ring-slate-300' : 'text-slate-700' ?>"><i class="fas fa-folder-tree"></i></span>
-                        <span class="nav-label">📂 Data Master</span>
+                        <span class="nav-label"> Data Master</span>
                     </span>
                     <i id="dmChevron" class="fas fa-chevron-down text-xs text-slate-400 transition-transform duration-200 -rotate-90"></i>
                 </button>
@@ -144,7 +200,7 @@ if ($isEngineer) {
                     <a href="<?= BASE_URL ?>manager/master_cost_codes.php"
                        class="nav-item !pl-10 !py-2.5 !border-l-0 !text-sm <?= ($isMasterCostCode) ? 'nav-item-active !bg-slate-50 !text-primary !font-bold !ring-1 !ring-slate-200 !mx-2 !rounded-lg my-0.5' : '' ?>">
                         <span class="nav-icon !w-7 !h-7 text-[13px] <?= ($isMasterCostCode) ? '!bg-slate-900 !text-white' : 'text-slate-600 bg-slate-100' ?>"><i class="fas fa-barcode"></i></span>
-                        <span class="nav-label">🔧 Master Cost Code</span>
+                        <span class="nav-label">Master Cost Code</span>
                     </a>
                 </div>
                 <script>
