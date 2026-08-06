@@ -38,21 +38,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     try {
         $exist = $db->fetchOne("SELECT id FROM daily_logs WHERE engineer_id = ? AND log_date = ? LIMIT 1", [$engId, $logDate]);
         if ($exist) {
-            $db->query(
-                "UPDATE daily_logs SET activity_operation = ?, activity_maintenance = ?, activity_project = ?, activity_landscape = ? WHERE id = ?",
-                [$actOp, $actMt, $actPr, $actLa, (int)$exist['id']]
-            );
+            $dataUpdate = [
+                'activity_operation' => $actOp,
+                'activity_maintenance' => $actMt,
+                'activity_project' => $actPr,
+                'activity_landscape' => $actLa,
+                'status' => 'approved',
+                'revision_notes' => null,
+                'supervisor_id' => null,
+                'supervisor_signature' => null,
+                'approved_at' => date('Y-m-d H:i:s'),
+            ];
+            $db->update('daily_logs', $dataUpdate, 'id = :id', ['id' => (int)$exist['id']]);
             addTimeline($db, 'daily_log', (int)$exist['id'], $userId, 'manager', 'update_activity',
                 'Manager ('.$userName.') update counters: O='.$actOp.' M='.$actMt.' P='.$actPr.' L='.$actLa);
-            setFlash('success', 'Counters Activity berhasil di-update untuk '.$engRow['name'].' ('.$logDate.')');
+            setFlash('success', 'Counters Activity berhasil di-update untuk '.$engRow['name'].' ('.$logDate.') ID: '.$exist['id']);
         } else {
-            $notes = 'Diisi langsung oleh Manager - Approved Otomatis';
-            $status = 'approved';
-            $db->query(
-                "INSERT INTO daily_logs (log_date, engineer_id, shift, status, notes, activity_operation, activity_maintenance, activity_project, activity_landscape, created_by, updated_by)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                [$logDate, $engId, 'Day', $status, $notes, $actOp, $actMt, $actPr, $actLa, $userId, $userId]
-            );
+            $dataInsert = [
+                'log_date' => $logDate,
+                'engineer_id' => $engId,
+                'activity_operation' => $actOp,
+                'activity_maintenance' => $actMt,
+                'activity_project' => $actPr,
+                'activity_landscape' => $actLa,
+                'status' => 'approved',
+                'approved_at' => date('Y-m-d H:i:s'),
+                // Standard fields (isi default biar GA ERROR karena NOT NULL)
+                'total_electricity' => 0,
+                'total_water' => 0,
+                'total_gas' => 0,
+                'electricity_wbp' => 0,
+                'electricity_lwbp' => 0,
+                'water_pdam' => 0,
+                'water_iki_gaban' => 0,
+                'water_deepwell_1' => 0,
+                'water_deepwell_2_brr' => 0,
+                'water_deepwell_asean' => 0,
+                'water_deepwell_lpb' => 0,
+                'water_main_building' => 0,
+                'water_cooling_tower' => 0,
+                'water_bottling' => 0,
+                'gas_lpg' => 0,
+                'gas_lng' => 0,
+                'swro_watermeter' => 0,
+                'swro_kwh' => 0,
+                'swro_tds' => 0,
+                'bottling_kwh' => 0,
+                'bottling_watermeter' => 0,
+                'chiller_1_on' => 0,
+                'chiller_2_on' => 0,
+                'chiller_3_on' => 0,
+                'chiller_water_ph' => 0,
+                'chiller_water_tds' => 0,
+                'chiller_temp' => 0,
+                'chiller_pressure_chwp' => 0,
+                'chiller_pressure_cwp' => 0,
+                'total_fuel' => 0,
+                'occ_rate' => 0,
+                'work_activities' => 'Diisi langsung oleh Manager - Approved Otomatis',
+                'obstacles' => '',
+                'solutions' => '',
+            ];
+            $db->insert('daily_logs', $dataInsert);
             $newId = (int)$db->lastInsertId();
             addTimeline($db, 'daily_log', $newId, $userId, 'manager', 'create_activity',
                 'Manager ('.$userName.') buat counters baru: O='.$actOp.' M='.$actMt.' P='.$actPr.' L='.$actLa);
