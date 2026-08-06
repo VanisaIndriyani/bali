@@ -93,7 +93,8 @@ if ($isEngineer) {
                     Buat Order / Request Order
                 </span>
             </a>
-            <a href="<?= BASE_URL ?>index.php#section_logistic" class="nav-item !rounded-none !mt-0 border border-amber-100/70 border-y-0 bg-gradient-to-r from-white via-orange-50/40 to-white">
+            <?php $isOrderDashboard = ($page ?? '') === 'dashboard_logistic' || (basename($_SERVER['PHP_SELF']) === 'dashboard.php' && dirname($_SERVER['PHP_SELF']) === '/orders'); ?>
+            <a href="<?= BASE_URL ?>orders/dashboard.php" class="nav-item !rounded-none !mt-0 border border-amber-100/70 border-y-0 bg-gradient-to-r from-white via-orange-50/40 to-white <?= ($isOrderDashboard) ? 'nav-item-active' : '' ?>">
                 <span class="nav-icon text-orange-700 ring-2 ring-orange-200 bg-orange-50"><i class="fas fa-boxes-stacked"></i></span>
                 <span class="nav-label font-bold text-orange-950 flex items-center gap-2">
                     <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 text-white text-[10px] font-black shadow-sm">②</span>

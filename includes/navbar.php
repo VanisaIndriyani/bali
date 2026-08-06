@@ -38,7 +38,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                     <a href="<?= BASE_URL ?>orders/create.php" class="nav-link !bg-gradient-to-r !from-amber-50/80 !via-orange-50/70 !to-amber-50/80 !text-amber-900 !ring-1 !ring-amber-200 hover:!from-amber-100 hover:!to-orange-100">
                         <i class="fas fa-file-circle-plus mr-2 text-amber-700"></i>① Order
                     </a>
-                    <a href="<?= BASE_URL ?>index.php#section_logistic" class="nav-link !bg-gradient-to-r !from-orange-50/80 !via-amber-50/70 !to-orange-50/80 !text-orange-900 !ring-1 !ring-orange-200 hover:!from-orange-100 hover:!to-amber-100">
+                    <a href="<?= BASE_URL ?>orders/dashboard.php" class="nav-link !bg-gradient-to-r !from-orange-50/80 !via-amber-50/70 !to-orange-50/80 !text-orange-900 !ring-1 !ring-orange-200 hover:!from-orange-100 hover:!to-amber-100 <?= (basename($_SERVER['PHP_SELF']) === 'dashboard.php' && dirname($_SERVER['PHP_SELF']) === '/orders') ? 'nav-link-active' : '' ?>">
                         <i class="fas fa-boxes-stacked mr-2 text-orange-700"></i>② Logistik
                     </a>
                     <a href="<?= BASE_URL ?>orders/index.php" class="nav-link <?= (in_array($currentPage, ['index.php','detail.php']) && (dirname($_SERVER['PHP_SELF']) === '/orders' || basename(dirname($_SERVER['PHP_SELF'])) === 'orders')) ? 'nav-link-active' : '' ?>">
@@ -102,7 +102,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                 <a href="<?= BASE_URL ?>orders/create.php" class="nav-link-mobile !bg-gradient-to-r !from-amber-50/90 !to-orange-50/90 !text-amber-950 !font-black !ring-2 !ring-amber-300/60">
                     <i class="fas fa-file-circle-plus mr-1.5 text-amber-700"></i>① Order
                 </a>
-                <a href="<?= BASE_URL ?>index.php#section_logistic" class="nav-link-mobile !bg-gradient-to-r !from-orange-50/90 !to-amber-50/90 !text-orange-950 !font-black !ring-2 !ring-orange-300/60">
+                <a href="<?= BASE_URL ?>orders/dashboard.php" class="nav-link-mobile !bg-gradient-to-r !from-orange-50/90 !to-amber-50/90 !text-orange-950 !font-black !ring-2 !ring-orange-300/60 <?= (basename($_SERVER['PHP_SELF']) === 'dashboard.php' && dirname($_SERVER['PHP_SELF']) === '/orders') ? 'nav-link-mobile-active' : '' ?>">
                     <i class="fas fa-boxes-stacked mr-1.5 text-orange-700"></i>② Logistik
                 </a>
                 <a href="<?= BASE_URL ?>orders/index.php" class="nav-link-mobile <?= (in_array($currentPage, ['index.php','detail.php']) && (dirname($_SERVER['PHP_SELF']) === '/orders' || basename(dirname($_SERVER['PHP_SELF'])) === 'orders')) ? 'nav-link-mobile-active' : '' ?>">
