@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
                 'solutions' => '',
             ];
             $db->insert('daily_logs', $dataInsert);
-            $newId = (int)$db->lastInsertId();
+            $newId = (int)$db->getConnection()->lastInsertId();
             addTimeline($db, 'daily_log', $newId, $userId, 'manager', 'create_activity',
                 'Manager ('.$userName.') buat counters baru: O='.$actOp.' M='.$actMt.' P='.$actPr.' L='.$actLa);
             setFlash('success', 'Counters Activity berhasil disimpan baru untuk '.$engRow['name'].' ('.$logDate.') ID: '.$newId);
