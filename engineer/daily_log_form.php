@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $wMainBldg = (float)($_POST['water_main_building'] ?? 0);
     $wCooling = (float)($_POST['water_cooling_tower'] ?? 0);
     $wBottling = (float)($_POST['water_bottling'] ?? 0);
-    $water = $wMainBldg + $wCooling;
+    $water = $wMainBldg;
 
     // ③ Gas 2 types
     $gLpg = (float)($_POST['gas_lpg'] ?? 0);
@@ -314,7 +314,7 @@ require_once __DIR__ . '/../includes/navbar.php';
             </div>
             <div class="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div>
-                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><i class="far fa-circle-dot mr-1 text-amber-500"></i><?= T('form_elec_wbp', 'KWH WBP') ?> <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_elec_wbp', 'KWH WBP') ?> <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <input type="number" step="0.01" min="0" name="electricity_wbp" required oninput="calcTotals()"
                             value="<?= $log['electricity_wbp'] ?? '0.00' ?>"
@@ -323,7 +323,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><i class="far fa-circle-dot mr-1 text-yellow-700"></i><?= T('form_elec_lwbp', 'KWH LWBP') ?> <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_elec_lwbp', 'KWH LWBP') ?> <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <input type="number" step="0.01" min="0" name="electricity_lwbp" required oninput="calcTotals()"
                             value="<?= $log['electricity_lwbp'] ?? '0.00' ?>"
@@ -376,7 +376,7 @@ HTML;
                 ?>
                 <div class="sm:col-span-2 md:col-span-2 pt-1 mt-1 border-t border-dashed border-blue-100">
                     <div class="flex items-center justify-between gap-4">
-                        <label class="text-sm font-extrabold text-primary flex items-center gap-1.5"><i class="fas fa-calculator text-primary"></i><?= T('form_water_total_label', 'TOTAL KONSUMSI AIR (Auto Main + Cooling Tower)') ?></label>
+                        <label class="text-sm font-extrabold text-primary flex items-center gap-1.5"><i class="fas fa-calculator text-primary"></i><?= T('form_water_total_label', 'TOTAL KONSUMSI AIR (Hanya Main Building)') ?></label>
                         <div class="relative w-full sm:w-56">
                             <input type="number" id="totalWater" readonly step="0.01" min="0"
                                 value="<?= $log['total_water'] ?? '0.00' ?>"
@@ -399,7 +399,7 @@ HTML;
             </div>
             <div class="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div>
-                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><i class="far fa-circle-dot mr-1 text-orange-500"></i><?= T('form_gas_lpg', 'LPG') ?> <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_gas_lpg', 'LPG') ?> <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <input type="number" step="0.01" min="0" name="gas_lpg" required oninput="calcTotals()"
                             value="<?= $log['gas_lpg'] ?? '0.00' ?>"
@@ -408,7 +408,7 @@ HTML;
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><i class="far fa-circle-dot mr-1 text-red-500"></i><?= T('form_gas_lng', 'LNG') ?> <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_gas_lng', 'LNG') ?> <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <input type="number" step="0.01" min="0" name="gas_lng" required oninput="calcTotals()"
                             value="<?= $log['gas_lng'] ?? '0.00' ?>"
@@ -605,7 +605,7 @@ HTML;
             </div>
             <div class="p-5 lg:p-6">
                 <div class="max-w-sm mx-auto sm:mx-0">
-                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><i class="far fa-circle-dot mr-1 text-rose-600"></i><?= T('form_fuel_total', 'Total Fuel (Liter)') ?></label>
+                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_fuel_total', 'Total Fuel (Liter)') ?></label>
                     <div class="relative">
                         <input type="number" step="0.01" min="0" name="total_fuel"
                             value="<?= $log['total_fuel'] ?? '0.00' ?>"
@@ -808,9 +808,9 @@ HTML;
             let e = 0;
             document.querySelectorAll('.js-sum-electric').forEach(el => e += parseFloat(el.value || 0));
             document.getElementById('totalElectricity').value = e.toFixed(2);
-            // Total Water = sum 9 js-sum-water
-            let w = 0;
-            document.querySelectorAll('.js-sum-water').forEach(el => w += parseFloat(el.value || 0));
+            // Total Water = HANYA MAIN BUILDING SAJA
+            let wmb = document.querySelector('input[name="water_main_building"]');
+            let w = wmb ? parseFloat(wmb.value || 0) : 0;
             document.getElementById('totalWater').value = w.toFixed(2);
             // Total Gas = sum 2 js-sum-gas
             let g = 0;
