@@ -308,40 +308,40 @@ $cats = [
         'label' => T('dash_act_operation', 'OPERATION'),
         'icon'  => 'fas fa-gears',
         'iconBox' => 'from-blue-400 to-blue-600',
-        'ring' => 'ring-blue-200',
-        'bg' => 'bg-blue-50',
-        'border' => 'border-blue-200',
-        'color' => 'text-blue-700'
+        'ring' => 'ring-slate-200',
+        'bg' => 'bg-slate-100',
+        'border' => 'border-slate-300',
+        'color' => 'text-slate-700'
     ],
     [
         'id'    => 'maintenance',
         'label' => T('dash_act_maintenance', 'MAINTENANCE'),
         'icon'  => 'fas fa-wrench',
         'iconBox' => 'from-emerald-400 to-emerald-600',
-        'ring' => 'ring-emerald-200',
-        'bg' => 'bg-emerald-50',
-        'border' => 'border-emerald-200',
-        'color' => 'text-emerald-700'
+        'ring' => 'ring-slate-200',
+        'bg' => 'bg-slate-100',
+        'border' => 'border-slate-300',
+        'color' => 'text-slate-700'
     ],
     [
         'id'    => 'project',
         'label' => T('dash_act_project', 'PROJECT'),
         'icon'  => 'fas fa-diagram-project',
         'iconBox' => 'from-violet-400 to-violet-600',
-        'ring' => 'ring-violet-200',
-        'bg' => 'bg-violet-50',
-        'border' => 'border-violet-200',
-        'color' => 'text-violet-700'
+        'ring' => 'ring-slate-200',
+        'bg' => 'bg-slate-100',
+        'border' => 'border-slate-300',
+        'color' => 'text-slate-700'
     ],
     [
         'id'    => 'landscape',
         'label' => T('dash_act_landscape', 'LANDSCAPE'),
         'icon'  => 'fas fa-leaf',
         'iconBox' => 'from-teal-400 to-teal-600',
-        'ring' => 'ring-teal-200',
-        'bg' => 'bg-teal-50',
-        'border' => 'border-teal-200',
-        'color' => 'text-teal-700'
+        'ring' => 'ring-slate-200',
+        'bg' => 'bg-slate-100',
+        'border' => 'border-slate-300',
+        'color' => 'text-slate-700'
     ],
 ];
 $catsData = [];
@@ -955,19 +955,19 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <div data-master-panel="<?= htmlspecialchars($c['id']) ?>" class="master-panel hidden">
                     <div class="flex items-center justify-between mb-3">
                         <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 flex items-center gap-1.5">
-                            <i class="<?= $c['icon'] ?> <?= $c['color'] ?>"></i>
+                            <i class="<?= $c['icon'] ?> text-slate-500"></i>
                             Daftar Master Activity Divisi <?= $c['label'] ?> • Total <span class="font-black text-primary"><?= count($listMaster) ?> Item</span>
                         </p>
                     </div>
                     <?php if (count($listMaster) === 0): ?>
                     <div class="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-8 text-center">
-                        <div class="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-br <?= $c['iconBox'] ?>/10 flex items-center justify-center <?= $c['color'] ?>">
+                        <div class="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500">
                             <i class="far fa-folder-open text-3xl"></i>
                         </div>
                         <h6 class="font-black text-lg text-slate-700 mb-1">Belum ada Master Activity Divisi <?= $c['label'] ?></h6>
                         <p class="text-sm text-slate-500 mb-4 max-w-md mx-auto">Tambahkan master activity melalui form Create di atas. Data master akan muncul sebagai DROPDOWN PILIHAN di Form Counters.</p>
                         <button type="button" onclick="document.getElementById('masterActivityName').focus();"
-                                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br <?= $c['iconBox'] ?> text-white text-xs font-bold shadow-md hover:shadow-lg transition">
+                                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-xs font-bold shadow-md hover:shadow-lg transition">
                             <i class="fas fa-plus"></i> Tambah Master Pertama
                         </button>
                     </div>
@@ -992,7 +992,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                                         <input type="hidden" id="m-status-<?= (int)$m['id'] ?>" value="<?= htmlspecialchars($m['status_default']) ?>">
                                         <input type="hidden" id="m-sort-<?= (int)$m['id'] ?>" value="<?= (int)$m['sort_order'] ?>">
                                         <div class="flex items-start gap-2">
-                                            <span class="inline-flex w-8 h-8 rounded-lg bg-<?= $c['color'] ?>/10 text-<?= $c['color'] ?> items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition">
+                                            <span class="inline-flex w-8 h-8 rounded-lg bg-slate-100 text-slate-600 items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition">
                                                 <i class="<?= $c['icon'] ?> text-[12px]"></i>
                                             </span>
                                             <span class="text-sm font-bold text-primary leading-relaxed pt-1"><?= htmlspecialchars($m['activity_name']) ?></span>
