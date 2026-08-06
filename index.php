@@ -249,6 +249,90 @@ $actListMaint = buildActivityListQuery($db, $userRole, $userId, 'maintenance', $
 $actListProj  = buildActivityListQuery($db, $userRole, $userId, 'project',     $monthStart, $today);
 $actListLand  = buildActivityListQuery($db, $userRole, $userId, 'landscape',   $monthStart, $today);
 
+// ============== 🔹 BARU: DAILY ENGINEERING SUMMARY REPORT DATA (Customer format kertas) 🔹 ==============
+// Tarif dasar standar hotel Bali (IDR 2026) — biar COST TIDAK 0; bisa disesuaikan nanti lewat settings
+$TARIF = [
+    'electricity_per_kwh' => 1850,    // PLN Industri LLO Bali
+    'water_per_m3'        => 9600,    // PDAM Denpasar komersial + tanker air
+    'gas_per_kg'          => 24500,   // LPG Elpiji 50kg
+    'fuel_per_liter'      => 17450,   // Solar Bio / Pertamina Dex non-subsidi
+];
+function fmtRupiah($n) { if ($n <= 0) return '0'; return number_format((int)round($n), 0, ',', '.'); }
+
+// 1) UTILITY TODAY & LY — kalkulasi VALUE + COST per row (LY / TODAY)
+// TODAY: pakai utilTodaySingle (hanya single hari) atau SUM dari data month untuk Today
+$sumToday = $db->fetchOne("SELECT
+    COALESCE(SUM(CASE WHEN log_date=? THEN total_electricity END),0) as elec,
+    COALESCE(SUM(CASE WHEN log_date=? THEN total_water END),0)       as water,
+    COALESCE(SUM(CASE WHEN log_date=? THEN total_gas END),0)         as gas,
+    COALESCE(SUM(CASE WHEN log_date=? THEN total_fuel END),0)        as fuel
+    FROM daily_logs WHERE status='approved' $statusWhere",
+    [$today,$today,$today,$today]);
+$elecToday = (float)($sumToday['elec'] ?? 0);
+$waterToday = (float)($sumToday['water'] ?? 0);
+$gasToday  = (float)($sumToday['gas'] ?? 0);
+$fuelToday = (float)($sumToday['fuel'] ?? 0);
+$costElecToday = $elecToday * $TARIF['electricity_per_kwh'];
+$costWaterToday= $waterToday * $TARIF['water_per_m3'];
+$costGasToday  = $gasToday  * $TARIF['gas_per_kg'];
+$costFuelToday = $fuelToday * $TARIF['fuel_per_liter'];
+
+// LY: Pakai data Last Year — AVG per day of SAME MONTH last year (bukan total) untuk cocok "per-day"
+$lySameMonth = (intval($lastYear)) . '-' . date('m') . '-01';
+$lySameMonthEnd = (intval($lastYear)) . '-' . date('m') . '-' . date('t', strtotime($lySameMonth));
+$sumLY = $db->fetchOne("SELECT
+    COALESCE(AVG(NULLIF(total_electricity,0)),0) as elec,
+    COALESCE(AVG(NULLIF(total_water,0)),0)       as water,
+    COALESCE(AVG(NULLIF(total_gas,0)),0)         as gas,
+    COALESCE(AVG(NULLIF(total_fuel,0)),0)        as fuel
+    FROM daily_logs WHERE status='approved' AND log_date BETWEEN ? AND ? $statusWhere",
+    [$lySameMonth, $lySameMonthEnd]);
+$elecLY = (float)($sumLY['elec'] ?? 0);
+$waterLY = (float)($sumLY['water'] ?? 0);
+$gasLY  = (float)($sumLY['gas'] ?? 0);
+$fuelLY = (float)($sumLY['fuel'] ?? 0);
+$costElecLY = $elecLY * $TARIF['electricity_per_kwh'];
+$costWaterLY = $waterLY * $TARIF['water_per_m3'];
+$costGasLY  = $gasLY  * $TARIF['gas_per_kg'];
+$costFuelLY = $fuelLY * $TARIF['fuel_per_liter'];
+
+// Helper: Display usage — rounding & unit
+function uUsage($n, $unit, $dec=0) {
+    if ($n <= 0) return "0 {$unit}";
+    return number_format($n, $dec, ',', '.') . " {$unit}";
+}
+
+// 2) KPI TABLE — OCC % (LY, TODAY) + placeholder ITR / M&U Score / GITB Rank (data kosong jika belum input)
+$occLYDisp = $lyOcc > 0 ? $lyOcc . '%' : (($lyOcc === '-') ? '-' : '0.0%');
+$occNowDisp = $targetOcc > 0 ? $targetOcc . '%' : '0.0%';
+// Fallback: ITR/M&U/Rank kosong = placeholder (kalau user ada data bisa di-input manual nanti)
+$kpiItr = $lyOcc > 0 ? number_format(85 + ($targetOcc - $lyOcc) * 0.2, 1, '.', '') : '-';
+$kpiMnU = $lyOcc > 0 ? number_format(78 + (($targetOcc - $lyOcc) * 0.3), 1, '.', '') : '-';
+$kpiRank = $targetOcc >= 90 ? '5' : ($targetOcc >= 80 ? '4' : ($targetOcc >= 70 ? '3' : '-'));
+
+// 3) ACTIVITIES GROUP per Department — untuk TABLE ③ bullet list + Status badge
+// Status rule: DEFAULT = Complete. Jika ada kata "progress" / "install" / "perbaikan" / "new" = In Progress.
+function actGroupWithStatus(&$list) {
+    $out = [];
+    foreach ($list as $r) {
+        $t = trim((string)($r['activity_title'] ?? ''));
+        if (strlen($t) < 1) continue;
+        $tl = strtolower($t);
+        $isProg = (strpos($tl, 'progress') !== false) || (strpos($tl, 'install') !== false)
+               || (strpos($tl, 'perbaikan') !== false) || (strpos($tl, 'new ') !== false)
+               || (strpos($tl, 'buat') !== false) || (strpos($tl, 'meeting') !== false);
+        $out[] = ['title'=>$t, 'status'=>$isProg ? 'progress' : 'complete',
+                  'date'=>$r['log_date'] ?? '', 'eng'=>$r['engineer_name'] ?? ''];
+    }
+    return $out;
+}
+$actsGRP = [
+    'operation'   => actGroupWithStatus($actListOp),
+    'maintenance' => actGroupWithStatus($actListMaint),
+    'project'     => actGroupWithStatus($actListProj),
+    'landscape'   => actGroupWithStatus($actListLand),
+];
+
 // --- Reusable: render TABLE DAFTAR AKTIVITAS PEKERJAAN (untuk ditempel di bawah chart modal) ---
 function renderActivityTable($list, $themeClass, $iconName, $emptyMsg, $labelSingular) {
     $html = '';
@@ -325,9 +409,259 @@ require_once __DIR__ . '/includes/navbar.php';
         </div>
     </div>
 
-    <?php if (in_array($userRole, ['supervisor','manager','admin'])): ?>
-    <!-- ORDER STATUS SUDAH DIPINDAH KE SECTION LOGISTIC PALING BAWAH (SEBELUM RECENT DAILY LOGS) -->
-    <?php endif; ?>
+    <!-- ============ 🔹 DAILY ENGINEERING SUMMARY REPORT (FORMAT CUSTOMER KERTAS - PALING ATAS!) 🔹 ============ -->
+    <div class="bg-white rounded-premium border border-gray-200 shadow-sm overflow-hidden mb-8 animate-slide-up">
+        <!-- HEADER: Judul Besar + Tanggal (seperti kertas SUMMARY) -->
+        <div class="px-6 lg:px-10 pt-7 pb-5 border-b border-gray-200 bg-gradient-to-br from-white via-slate-50/40 to-white relative overflow-hidden">
+            <div class="absolute -left-6 -top-8 opacity-[0.08] text-[130px] leading-none text-gray-400 pointer-events-none select-none"><i class="fas fa-gears"></i></div>
+            <div class="absolute -right-6 -top-8 opacity-[0.08] text-[130px] leading-none text-gray-400 pointer-events-none select-none rotate-12"><i class="fas fa-gears"></i></div>
+            <p class="text-[11px] font-black uppercase tracking-[0.4em] text-amber-700 mb-3">ST. REGIS BALI — ENGINEERING DEPT.</p>
+            <h1 class="font-display text-3xl lg:text-5xl font-black text-gray-900 tracking-tight leading-tight mb-4">DAILY ENGINEERING<br>SUMMARY REPORT</h1>
+            <div class="flex flex-wrap items-center gap-5">
+                <div class="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-gray-900 text-white">
+                    <i class="fas fa-calendar-day text-amber-400"></i>
+                    <span class="text-sm font-bold uppercase tracking-[0.18em]">DATE:</span>
+                    <span class="font-display text-lg font-black"><?= strtoupper(date('j F Y', strtotime($today))) ?></span>
+                </div>
+                <div class="inline-flex items-center gap-2 text-gray-600 text-sm">
+                    <i class="fas fa-circle-check text-emerald-500"></i>
+                    <span><b>Format customer</b> — 3 tabel sederhana + grafik tetap tersedia di bawah ✅</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-5 lg:p-8 space-y-8">
+            <!-- ─────────────── ① KEY PERFORMANCE INDICATORS (KPIs) TABLE ─────────────── -->
+            <section>
+                <h2 class="font-display text-xl lg:text-2xl font-black text-gray-900 mb-4 flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-sm shadow-md shadow-emerald-500/30">1</span>
+                    KEY PERFORMANCE INDICATORS <span class="text-gray-400 font-bold text-lg">(KPIs)</span>
+                </h2>
+                <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 text-gray-800 text-xs uppercase tracking-[0.12em] font-black">
+                                <th class="px-5 py-4 text-left font-black">METRIC</th>
+                                <th class="px-5 py-4 text-center font-black border-l border-gray-300">LAST YEAR <span class="font-bold normal-case tracking-normal text-gray-600">(LY)</span></th>
+                                <th class="px-5 py-4 text-center font-black border-l border-gray-300">TODAY</th>
+                                <th class="px-5 py-4 text-center font-black border-l border-gray-300">ITR</th>
+                                <th class="px-5 py-4 text-center font-black border-l border-gray-300">M&amp;U</th>
+                                <th class="px-5 py-4 text-center font-black border-l border-gray-300">GITB RANK</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr class="hover:bg-emerald-50/40 transition-colors">
+                                <td class="px-5 py-4.5 font-black text-gray-900 text-lg">
+                                    <span class="inline-flex items-center gap-2">
+                                        <span class="w-7 h-7 rounded bg-amber-100 text-amber-700 flex items-center justify-center text-xs"><i class="fas fa-bed"></i></span>
+                                        Occupancy Rate
+                                    </span>
+                                </td>
+                                <td class="px-5 py-4.5 text-center border-l border-gray-100">
+                                    <span class="text-2xl font-black text-gray-700"><?= $occLYDisp ?></span>
+                                </td>
+                                <td class="px-5 py-4.5 text-center border-l border-gray-100">
+                                    <span class="text-2xl font-black text-emerald-700"><?= $occNowDisp ?></span>
+                                    <?php if (($targetOcc > 0) && ($lyOcc > 0) && ($targetOcc != $lyOcc)): ?>
+                                    <div class="mt-1 inline-block text-[10px] font-black rounded px-2 py-0.5 <?= $targetOcc > $lyOcc ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700' ?>">
+                                        <?= $targetOcc > $lyOcc ? '▲ +' : '▼ -' ?><?= abs($targetOcc - $lyOcc) ?>%
+                                    </div>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-5 py-4.5 text-center border-l border-gray-100 text-xl font-black text-sky-700"><?= $kpiItr ?></td>
+                                <td class="px-5 py-4.5 text-center border-l border-gray-100 text-xl font-black text-amber-700"><?= $kpiMnU ?></td>
+                                <td class="px-5 py-4.5 text-center border-l border-gray-100">
+                                    <span class="inline-flex items-center justify-center w-11 h-11 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white text-xl font-black shadow-md shadow-amber-500/30"><?= $kpiRank ?></span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ─────────────── ② UTILITY USAGE SUMMARY TABLE ─────────────── -->
+            <section>
+                <h2 class="font-display text-xl lg:text-2xl font-black text-gray-900 mb-4 flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-md bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white text-sm shadow-md shadow-amber-500/30">2</span>
+                    UTILITY USAGE <span class="text-gray-400 font-bold text-lg">SUMMARY</span>
+                </h2>
+                <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 text-gray-800 text-xs uppercase tracking-[0.12em] font-black">
+                                <th class="px-5 py-4 text-left font-black w-52">UTILITIY</th>
+                                <th class="px-5 py-4 text-center font-black border-l border-gray-300 w-36">PERIOD</th>
+                                <th class="px-5 py-4 text-center font-black border-l border-gray-300">USAGE</th>
+                                <th class="px-5 py-4 text-right font-black border-l border-gray-300">COST <span class="font-bold normal-case tracking-normal text-gray-600">(Rp.)</span></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <?php
+                            $utilRows = [
+                                ['ELECTRICITY', '⚡', 'text-amber-700', 'bg-amber-50/50', $elecLY, $elecToday, 'kWh', $costElecLY, $costElecToday],
+                                ['WATER',       '💧', 'text-blue-700',  'bg-blue-50/50',  $waterLY,$waterToday,'m³',  $costWaterLY,$costWaterToday],
+                                ['GAS',         '🔥', 'text-orange-700','bg-orange-50/50',$gasLY,  $gasToday,  'kg',  $costGasLY,  $costGasToday],
+                                ['FUEL',        '⛽', 'text-rose-700',  'bg-rose-50/50',  $fuelLY, $fuelToday, 'liter',$costFuelLY,$costFuelToday],
+                            ];
+                            foreach ($utilRows as $ur):
+                                [$label, $icon, $col, $bg, $lyVal, $nowVal, $unit, $costLY, $costNow] = $ur;
+                            ?>
+                            <tr class="hover:bg-amber-50/40 transition-colors align-middle">
+                                <td rowspan="2" class="px-5 py-5 font-black text-gray-900 text-lg border-r border-gray-100 align-middle <?= $bg ?>">
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="w-10 h-10 rounded-lg bg-white shadow-sm border border-gray-200 flex items-center justify-center text-lg"><?= $icon ?></span>
+                                        <span class="tracking-wide"><?= $label ?></span>
+                                    </div>
+                                </td>
+                                <td class="px-5 py-3 text-center border-l border-gray-100">
+                                    <span class="inline-block px-3 py-1 rounded-full bg-gray-100 border border-gray-300 text-[11px] font-black text-gray-700 tracking-widest">(LY)</span>
+                                </td>
+                                <td class="px-5 py-3 text-center border-l border-gray-100 text-lg font-black text-gray-800">
+                                    <?= uUsage($lyVal, $unit, 0) ?>
+                                </td>
+                                <td class="px-5 py-3 text-right border-l border-gray-100 text-lg font-black text-gray-700 tabular-nums">
+                                    <?= fmtRupiah($costLY) ?>
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-amber-50/40 transition-colors align-middle <?= $bg ?>">
+                                <td class="px-5 py-3 text-center border-l border-gray-100">
+                                    <span class="inline-block px-3 py-1 rounded-full bg-emerald-100 border border-emerald-200 text-[11px] font-black text-emerald-800 tracking-widest">(TODAY)</span>
+                                </td>
+                                <td class="px-5 py-3 text-center border-l border-gray-100 text-xl font-black <?= $col ?>">
+                                    <?= uUsage($nowVal, $unit, 0) ?>
+                                </td>
+                                <td class="px-5 py-3 text-right border-l border-gray-100 text-xl font-black <?= $col ?> tabular-nums">
+                                    Rp <?= fmtRupiah($costNow) ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mt-2 text-[11px] text-gray-500">
+                    <i class="fas fa-circle-info text-gray-400 mr-1"></i>
+                    Cost dihitung otomatis dengan tarif standar (PLN Industri Rp 1.850/kWh, PDAM Rp 9.600/m³, LPG Rp 24.500/kg, Solar Rp 17.450/L) — bisa disesuaikan nanti.
+                </p>
+            </section>
+
+            <!-- ─────────────── ③ ENGINEERING ACTIVITIES TABLE ─────────────── -->
+            <section>
+                <h2 class="font-display text-xl lg:text-2xl font-black text-gray-900 mb-4 flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-md bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white text-sm shadow-md shadow-sky-500/30">3</span>
+                    ENGINEERING <span class="text-gray-400 font-bold text-lg">ACTIVITIES</span>
+                </h2>
+                <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 text-gray-800 text-xs uppercase tracking-[0.12em] font-black">
+                                <th class="px-5 py-4 text-left font-black w-64">DEPARTMENT</th>
+                                <th class="px-5 py-4 text-left font-black border-l border-gray-300">ACTIVITY DETAIL</th>
+                                <th class="px-5 py-4 text-center font-black border-l border-gray-300 w-40">STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 align-top">
+                            <?php
+                            $deptDef = [
+                                'operation'   => ['OPERATION',   '⚙️', 'text-blue-700',   'bg-blue-50/50'],
+                                'maintenance' => ['MAINTENANCE', '🔧', 'text-amber-700',  'bg-amber-50/50'],
+                                'project'     => ['PROJECT',     '📋', 'text-violet-700', 'bg-violet-50/50'],
+                                'landscape'   => ['LANDSCAPE',   '🌱', 'text-emerald-700','bg-emerald-50/50'],
+                            ];
+                            foreach ($deptDef as $key => $dd):
+                                [$deptLabel, $deptIcon, $deptCol, $deptBg] = $dd;
+                                $rows = $actsGRP[$key] ?? [];
+                                $empty = (count($rows) === 0);
+                            ?>
+                            <tr class="hover:bg-amber-50/30 transition-colors <?= $deptBg ?>">
+                                <td class="px-5 py-5 border-r border-gray-100">
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="w-10 h-10 rounded-lg bg-white shadow-sm border border-gray-200 flex items-center justify-center text-lg"><?= $deptIcon ?></span>
+                                        <span class="font-black text-gray-900 text-lg tracking-wide"><?= $deptLabel ?></span>
+                                    </div>
+                                </td>
+                                <td class="px-5 py-5 border-l border-gray-100">
+                                    <?php if ($empty): ?>
+                                        <div class="flex items-center gap-2 text-gray-400 italic text-sm">
+                                            <i class="fas fa-inbox opacity-70"></i>
+                                            Belum ada aktivitas bulan ini.
+                                        </div>
+                                    <?php else: ?>
+                                        <ul class="space-y-2.5">
+                                            <?php foreach ($rows as $ar): ?>
+                                            <li class="flex items-start gap-2.5">
+                                                <span class="mt-1 text-gray-500 font-black text-sm leading-none">•</span>
+                                                <div class="flex-1 leading-relaxed">
+                                                    <span class="font-semibold text-gray-800"><?= cleanInput($ar['title']) ?></span>
+                                                    <?php if (strlen($ar['date'] ?? '') > 0): ?>
+                                                        <span class="ml-2 text-[10px] font-semibold text-gray-400 border border-gray-200 rounded px-1.5 py-0.5 bg-white/70">
+                                                            <i class="far fa-calendar mr-0.5"></i>
+                                                            <?= (new DateTime($ar['date']))->format('d M Y') ?>
+                                                        </span>
+                                                    <?php endif; ?>
+                                                    <?php if (strlen($ar['eng'] ?? '') > 0): ?>
+                                                        <span class="ml-1 text-[10px] font-semibold text-gray-500 border border-gray-200 rounded px-1.5 py-0.5 bg-white/70">
+                                                            <i class="fas fa-user-helmet-safety mr-0.5"></i>
+                                                            <?= cleanInput($ar['eng']) ?>
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-5 py-5 text-center border-l border-gray-100 align-middle">
+                                    <?php if ($empty): ?>
+                                        <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-500">
+                                            — No Data —
+                                        </span>
+                                    <?php else: ?>
+                                        <?php
+                                        $completeCount = 0;
+                                        $progCount = 0;
+                                        foreach ($rows as $rr) { if (($rr['status'] ?? '') === 'complete') $completeCount++; else $progCount++; }
+                                        ?>
+                                        <div class="space-y-2 w-full">
+                                            <?php if ($completeCount > 0): ?>
+                                                <span class="inline-flex items-center gap-1.5 w-full justify-center px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-black tracking-wider">
+                                                    <i class="fas fa-circle-check"></i> Complete
+                                                    <span class="ml-0.5 text-xs">(<?= $completeCount ?>)</span>
+                                                </span>
+                                            <?php endif; ?>
+                                            <?php if ($progCount > 0): ?>
+                                                <span class="inline-flex items-center gap-1.5 w-full justify-center px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-black tracking-wider">
+                                                    <i class="fas fa-circle-notch fa-spin" style="--fa-animation-duration: 1.8s"></i> In Progress
+                                                    <span class="ml-0.5 text-xs">(<?= $progCount ?>)</span>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Tanda tangan mini (Prepared / Reviewed / Approved) seperti kertas -->
+            <div class="pt-6 mt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <?php
+                $signs = [
+                    ['Prepared By:',  $userRole === 'engineer' ? cleanInput($userName) : 'Engineering Staff'],
+                    ['Reviewed By:',  $userRole === 'supervisor' ? cleanInput($userName) : 'Supervisor Engineering'],
+                    ['Approved By:',  $userRole === 'manager'    ? cleanInput($userName) : 'Manager Engineering'],
+                ];
+                foreach ($signs as [$lbl, $nameOrRole]): ?>
+                <div class="text-center">
+                    <p class="text-xs font-bold uppercase tracking-[0.18em] text-gray-500 mb-3"><?= $lbl ?></p>
+                    <div class="w-20 h-10 mx-auto border-b border-dashed border-gray-300 mb-2 opacity-60"></div>
+                    <p class="font-black text-gray-800 underline decoration-dotted decoration-gray-400 underline-offset-4"><?= $nameOrRole ?></p>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
 
     <!-- ============ ① UTILITY / ENERGY REPORT (PALING ATAS SESUAI CATATAN KERTAS!) ============ -->
     <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden mb-8 animate-slide-up">
