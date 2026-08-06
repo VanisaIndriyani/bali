@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 $pageTitle = T('order_create_title', 'Buat Order Request Baru');
-requireRole(['engineer', 'supervisor', 'manager']);
+requireRole(['engineer', 'supervisor', 'manager', 'admin']);
 
 $db = Database::getInstance();
 $user = currentUser();

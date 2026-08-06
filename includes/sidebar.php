@@ -33,6 +33,12 @@ if ($isSupervisor) {
 if ($isManager) {
     $pendingOrderCount = (int)($db->fetchOne("SELECT COUNT(*) as cnt FROM orders WHERE status = 'pending_manager'")['cnt'] ?? 0);
 }
+if ($isEngineer) {
+    $myId = (int)($user['id'] ?? 0);
+    if ($myId > 0) {
+        $pendingOrderCount = (int)($db->fetchOne("SELECT COUNT(*) as cnt FROM orders WHERE created_by = ? AND status IN ('pending_supervisor','pending_manager','rejected')", [$myId])['cnt'] ?? 0);
+    }
+}
 ?>
 <div class="app-layout is-sidebar-expanded" id="appLayout">
 <aside id="sidebar" class="sidebar sidebar-expanded">
@@ -71,13 +77,11 @@ if ($isManager) {
             </a>
             <?php endif; ?>
 
-            <div class="nav-section"><span>Order / PR</span></div>
-            <?php if ($isEngineer || $isSupervisor): ?>
+            <div class="nav-section"><span>Order / PR <span class="ml-1 text-amber-700 font-black">LOGISTIC</span></span></div>
             <a href="<?= BASE_URL ?>orders/create.php" class="nav-item <?= $isOrderCreate ? 'nav-item-active' : '' ?>">
                 <span class="nav-icon"><i class="fas fa-file-circle-plus"></i></span>
                 <span class="nav-label"><?= T('nav_order_create', 'Buat Order Request') ?></span>
             </a>
-            <?php endif; ?>
             <a href="<?= BASE_URL ?>orders/index.php" class="nav-item <?= $isOrderIndex ? 'nav-item-active' : '' ?>">
                 <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
                 <span class="nav-label"><?= T('nav_order_list', 'Daftar Order / PR') ?>
