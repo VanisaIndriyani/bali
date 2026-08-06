@@ -23,6 +23,102 @@ try {
     }
 } catch (Throwable $_) {}
 
+// 🔧 AUTO CREATE TABLE activity_masters UNTUK CRUD MASTER DAFTAR AKTIVITAS PER DIVISI (JIKA BELUM ADA)
+try {
+    $chkTbl = $db->fetchOne("SHOW TABLES LIKE 'activity_masters'");
+    if (!$chkTbl) {
+        $db->query("CREATE TABLE activity_masters (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            division ENUM('operation','maintenance','project','landscape') NOT NULL,
+            activity_name VARCHAR(255) NOT NULL,
+            status_default ENUM('complete','progress') DEFAULT 'progress',
+            sort_order INT DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_division (division)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    } else {
+        $chkCol = $db->fetchOne("SHOW COLUMNS FROM activity_masters LIKE 'sort_order'");
+        if (!$chkCol) $db->query("ALTER TABLE activity_masters ADD COLUMN sort_order INT DEFAULT 0 AFTER status_default");
+    }
+} catch (Throwable $_) {}
+
+// ================================ POST HANDLER: CRUD MASTER ACTIVITY ================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $act = (string)($_POST['action'] ?? '');
+
+    // ✅ SAVE MASTER (Create / Edit)
+    if ($act === 'save_master_activity') {
+        $masterId  = max(0, (int)($_POST['master_id'] ?? 0));
+        $div       = in_array(($_POST['division'] ?? ''), ['operation','maintenance','project','landscape']) ? (string)$_POST['division'] : '';
+        $name      = trim((string)($_POST['activity_name'] ?? ''));
+        $statusDef = in_array(($_POST['status_default'] ?? ''), ['complete','progress']) ? (string)$_POST['status_default'] : 'progress';
+        $sortOrder = max(0, (int)($_POST['sort_order'] ?? 0));
+        if ($div === '' || $name === '') {
+            setFlash('danger', 'Divisi dan Nama Activity wajib diisi');
+            redirect('manager/activities.php');
+        }
+        try {
+            if ($masterId > 0) {
+                $db->update('activity_masters', [
+                    'division' => $div,
+                    'activity_name' => $name,
+                    'status_default' => $statusDef,
+                    'sort_order' => $sortOrder,
+                ], 'id = :id', ['id' => $masterId]);
+                setFlash('success', '✅ Master Activity berhasil di-UPDATE: '.$name);
+            } else {
+                $db->insert('activity_masters', [
+                    'division' => $div,
+                    'activity_name' => $name,
+                    'status_default' => $statusDef,
+                    'sort_order' => $sortOrder,
+                ]);
+                setFlash('success', '✅ Master Activity berhasil di-TAMBAH: '.$name);
+            }
+        } catch (Throwable $e) {
+            setFlash('danger', 'ERROR simpan master: '.$e->getMessage());
+        }
+        redirect('manager/activities.php');
+    }
+
+    // ❌ DELETE MASTER by ID
+    if ($act === 'delete_master_activity') {
+        $masterId = max(0, (int)($_POST['master_id'] ?? 0));
+        if ($masterId <= 0) {
+            setFlash('danger', 'ID Master tidak valid');
+            redirect('manager/activities.php');
+        }
+        try {
+            $row = $db->fetchOne("SELECT activity_name FROM activity_masters WHERE id = ? LIMIT 1", [$masterId]);
+            $db->query("DELETE FROM activity_masters WHERE id = ? LIMIT 1", [$masterId]);
+            setFlash('success', '🗑️ Master Activity berhasil di-HAPUS'.($row ? ': '.$row['activity_name'] : ''));
+        } catch (Throwable $e) {
+            setFlash('danger', 'ERROR hapus master: '.$e->getMessage());
+        }
+        redirect('manager/activities.php');
+    }
+}
+
+// ✅ FETCH SEMUA MASTER ACTIVITY PER DIVISI (untuk Modal CRUD & Dropdown Form Input)
+$allMasters = $db->fetchAll("SELECT * FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+$mastersByDiv = [
+    'operation'   => [],
+    'maintenance' => [],
+    'project'     => [],
+    'landscape'   => [],
+];
+foreach ($allMasters as $m) {
+    $d = $m['division'] ?? '';
+    if (isset($mastersByDiv[$d])) $mastersByDiv[$d][] = $m;
+}
+$divCodeMap = [
+    'operation'   => 'op',
+    'maintenance' => 'mt',
+    'project'     => 'pr',
+    'landscape'   => 'la',
+];
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_activity_counters') {
     $logDate = !empty($_POST['log_date']) ? (string)$_POST['log_date'] : $today;
     $engId = (int)($_POST['engineer_id'] ?? 0);
@@ -32,17 +128,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     $actLa = max(0, (int)($_POST['activity_landscape'] ?? 0));
     $ok = [];
 
-    // ✨ HELPER: Parse Activity Items (Text + Status) dari POST Array per Divisi → return JSON or NULL
+    // ✨ HELPER: Parse Activity Items (Text + Status + MasterID) dari POST Array → return JSON or NULL
+    // Format value dropdown: "Nama Activity|masterId" (split by | LIMIT 2)
     $fnParseItems = function ($keyText, $keyStatus) {
         $texts = $_POST[$keyText] ?? [];
         $statuses = $_POST[$keyStatus] ?? [];
         if (!is_array($texts) || count($texts) === 0) return null;
         $items = [];
         foreach ($texts as $i => $t) {
-            $t = trim((string)$t);
-            if ($t === '') continue;
+            $raw = trim((string)$t);
+            if ($raw === '') continue;
+            $mid = 0;
+            $realText = $raw;
+            if (strpos($raw, '|') !== false) {
+                $parts = explode('|', $raw, 2);
+                $realText = trim($parts[0] ?? '');
+                $mid = max(0, (int)($parts[1] ?? 0));
+            }
+            if ($realText === '') continue;
             $s = in_array(($statuses[$i] ?? ''), ['complete', 'progress']) ? (string)$statuses[$i] : 'progress';
-            $items[] = ['t' => $t, 's' => $s];
+            $entry = ['t' => $realText, 's' => $s];
+            if ($mid > 0) $entry['mid'] = $mid;
+            $items[] = $entry;
         }
         return count($items) > 0 ? json_encode($items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
     };
@@ -301,6 +408,10 @@ require_once __DIR__ . '/../includes/navbar.php';
             <a href="<?= BASE_URL ?>reports/excel.php" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white text-sm font-bold shadow hover:shadow-lg transition-all">
                 <i class="far fa-file-excel"></i> <?= T('btn_export_excel', 'Export Excel') ?>
             </a>
+            <button type="button" onclick="openMasterModal()"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-700 hover:from-indigo-600 hover:to-purple-800 text-white text-sm font-bold shadow hover:shadow-lg transition-all">
+                <i class="fas fa-gear"></i> ⚙️ Kelola Master Activity
+            </button>
             <a href="<?= BASE_URL ?>index.php" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold shadow-sm transition-all">
                 <i class="fas fa-arrow-left"></i> <?= T('btn_back_dash', 'Kembali ke Dashboard') ?>
             </a>
@@ -727,9 +838,229 @@ require_once __DIR__ . '/../includes/navbar.php';
         </div>
     </div>
     <?php endforeach; ?>
-    <!-- ================================ / END MODAL ================================ -->
+    <!-- ================================ / END MODAL DIVISI ================================ -->
+
+    <!-- ================================ MODAL CRUD MASTER ACTIVITY ================================ -->
+    <?php
+    $divMeta = [];
+    foreach ($cats as $c) $divMeta[$c['id']] = [
+      'label' => $c['label'], 'icon' => $c['icon'], 'color' => $c['color'],
+      'bg' => $c['bg'], 'border' => $c['border'], 'ring' => $c['ring'], 'iconBox' => $c['iconBox'],
+    ];
+    ?>
+    <div id="modal-master" class="fixed inset-0 z-[99999] hidden items-center justify-center p-4 animate-fade-in-modal"
+         onclick="if(event.target===this)closeMasterModal()">
+        <div class="absolute inset-0 bg-slate-900/65 backdrop-blur-md"></div>
+        <div class="relative w-full max-w-5xl max-h-[93vh] bg-white rounded-3xl shadow-[0_30px_100px_-20px_rgba(30,41,59,0.45)] overflow-hidden flex flex-col animate-slide-up-modal border-2 border-indigo-200">
+            <!-- HEADER MODAL GRADIENT -->
+            <div class="bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-700 p-5 sm:p-6 text-white relative overflow-hidden">
+                <div class="absolute -right-12 -top-12 w-44 h-44 bg-white/10 rounded-full blur-2xl"></div>
+                <div class="absolute -right-24 bottom-0 w-64 h-64 bg-black/10 rounded-full blur-3xl"></div>
+                <div class="relative flex items-start justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center ring-2 ring-white/40 shadow-lg shrink-0">
+                            <i class="fas fa-database text-2xl sm:text-3xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.25em] text-white/85 mb-1.5">CRUD MASTER DATA AKTIVITAS</p>
+                            <h4 class="font-display text-2xl sm:text-3xl font-black tracking-wide leading-tight">Master Activity per Divisi</h4>
+                            <div class="flex items-center gap-3 mt-2">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white text-xs font-bold">
+                                    <i class="fas fa-list-check"></i> Total Master: <span class="font-black text-white"><?= count($allMasters) ?></span>
+                                </span>
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-slate-800 text-xs font-black shadow">
+                                    <i class="fas fa-layer-group text-indigo-600"></i> 4 Divisi Tersedia
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button"
+                            onclick="closeMasterModal()"
+                            class="shrink-0 w-11 h-11 rounded-2xl bg-white/20 hover:bg-white text-white hover:text-rose-600 border border-white/30 backdrop-blur-sm flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 shadow-md"
+                            aria-label="Tutup modal">
+                        <i class="fas fa-xmark text-xl font-black"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- BODY MODAL -->
+            <div class="flex-1 overflow-y-auto p-5 sm:p-6 bg-gradient-to-b from-slate-50 to-white">
+                <!-- TAB FILTER 4 DIVISI -->
+                <div class="flex flex-wrap gap-2 mb-5 p-1.5 rounded-2xl bg-slate-100 border border-slate-200">
+                    <?php foreach ($cats as $c): ?>
+                    <button type="button" data-tab="<?= htmlspecialchars($c['id']) ?>" onclick="switchMasterTab('<?= htmlspecialchars($c['id']) ?>')"
+                            class="master-tab-btn flex-1 min-w-[120px] px-3 py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all duration-200 border border-transparent flex items-center justify-center gap-1.5">
+                        <i class="<?= $c['icon'] ?>"></i>
+                        <span class="truncate"><?= $c['label'] ?></span>
+                        <span class="inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full bg-black/10 backdrop-blur-sm text-[10px] font-black"><?= count($mastersByDiv[$c['id']] ?? []) ?></span>
+                    </button>
+                    <?php endforeach; ?>
+                </div>
+
+                <!-- FORM CREATE / EDIT MASTER -->
+                <form method="POST" id="masterForm" class="mb-5 p-4 sm:p-5 rounded-2xl bg-white border-2 border-dashed border-indigo-200 shadow-sm">
+                    <input type="hidden" name="action" value="save_master_activity">
+                    <input type="hidden" name="master_id" id="masterId" value="0">
+                    <input type="hidden" name="division" id="masterDivision" value="operation">
+                    <h5 class="font-black text-base sm:text-lg text-primary mb-3 flex items-center gap-2" id="masterFormTitle">
+                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-sm">
+                            <i class="fas fa-plus text-[14px]"></i>
+                        </span>
+                        <span id="masterFormLabel">Tambah Master Activity Divisi Operation</span>
+                    </h5>
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                        <div class="md:col-span-7">
+                            <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">
+                                <i class="fas fa-keyboard text-indigo-500 mr-1"></i> Nama Activity / Pekerjaan
+                            </label>
+                            <input type="text" name="activity_name" id="masterActivityName" required
+                                   placeholder="Contoh: Perbaikan pompa air Main Building lantai 2"
+                                   class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">
+                                <i class="fas fa-flag-checkered text-slate-500 mr-1"></i> Status Default
+                            </label>
+                            <select name="status_default" id="masterStatusDefault"
+                                    class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-bold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition appearance-none pr-8">
+                                <option value="progress">⏳ In Progress</option>
+                                <option value="complete">✅ Complete</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">
+                                <i class="fas fa-arrow-down-1-9 text-slate-500 mr-1"></i> Urutan
+                            </label>
+                            <input type="number" min="0" step="1" name="sort_order" id="masterSortOrder" value="0"
+                                   class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-bold text-primary text-center shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition">
+                        </div>
+                        <div class="md:col-span-2 flex gap-2">
+                            <button type="submit"
+                                    class="flex-1 px-3 py-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-sm font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-1.5">
+                                <i class="fas fa-save text-[13px]"></i> Simpan
+                            </button>
+                            <button type="button" onclick="resetMasterForm()"
+                                    class="w-11 shrink-0 px-2.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-600 text-sm font-bold transition"
+                                    title="Reset Form ke Tambah Baru" aria-label="Reset Form">
+                                <i class="fas fa-rotate-left text-[13px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- PANEL LIST MASTER PER DIVISI -->
+                <?php foreach ($cats as $c):
+                    $listMaster = $mastersByDiv[$c['id']] ?? [];
+                ?>
+                <div data-master-panel="<?= htmlspecialchars($c['id']) ?>" class="master-panel hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 flex items-center gap-1.5">
+                            <i class="<?= $c['icon'] ?> <?= $c['color'] ?>"></i>
+                            Daftar Master Activity Divisi <?= $c['label'] ?> • Total <span class="font-black text-primary"><?= count($listMaster) ?> Item</span>
+                        </p>
+                    </div>
+                    <?php if (count($listMaster) === 0): ?>
+                    <div class="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-8 text-center">
+                        <div class="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-br <?= $c['iconBox'] ?>/10 flex items-center justify-center <?= $c['color'] ?>">
+                            <i class="far fa-folder-open text-3xl"></i>
+                        </div>
+                        <h6 class="font-black text-lg text-slate-700 mb-1">Belum ada Master Activity Divisi <?= $c['label'] ?></h6>
+                        <p class="text-sm text-slate-500 mb-4 max-w-md mx-auto">Tambahkan master activity melalui form Create di atas. Data master akan muncul sebagai DROPDOWN PILIHAN di Form Counters.</p>
+                        <button type="button" onclick="document.getElementById('masterActivityName').focus();"
+                                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br <?= $c['iconBox'] ?> text-white text-xs font-bold shadow-md hover:shadow-lg transition">
+                            <i class="fas fa-plus"></i> Tambah Master Pertama
+                        </button>
+                    </div>
+                    <?php else: ?>
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gradient-to-r from-slate-50 to-<?= $c['color'] ?>/5 border-b border-slate-200">
+                                <tr>
+                                    <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-10">#</th>
+                                    <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Nama Master Activity</th>
+                                    <th class="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest text-slate-500 w-32">Status Default</th>
+                                    <th class="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest text-slate-500 w-16">Urut</th>
+                                    <th class="px-3 py-3 text-center text-[10px] font-black uppercase tracking-widest text-slate-500 w-32 pr-3">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <?php $no = 1; foreach ($listMaster as $m): ?>
+                                <tr class="hover:bg-<?= $c['color'] ?>/5 transition-colors group">
+                                    <td class="px-3 py-3 text-xs font-bold text-slate-400 align-top"><?= $no++ ?>.</td>
+                                    <td class="px-3 py-3 align-top">
+                                        <input type="hidden" id="m-name-<?= (int)$m['id'] ?>" value="<?= htmlspecialchars($m['activity_name']) ?>">
+                                        <input type="hidden" id="m-status-<?= (int)$m['id'] ?>" value="<?= htmlspecialchars($m['status_default']) ?>">
+                                        <input type="hidden" id="m-sort-<?= (int)$m['id'] ?>" value="<?= (int)$m['sort_order'] ?>">
+                                        <div class="flex items-start gap-2">
+                                            <span class="inline-flex w-8 h-8 rounded-lg bg-<?= $c['color'] ?>/10 text-<?= $c['color'] ?> items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition">
+                                                <i class="<?= $c['icon'] ?> text-[12px]"></i>
+                                            </span>
+                                            <span class="text-sm font-bold text-primary leading-relaxed pt-1"><?= htmlspecialchars($m['activity_name']) ?></span>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-3 text-center align-top pt-4">
+                                        <?php if (($m['status_default'] ?? 'progress') === 'complete'): ?>
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-black shadow-sm">
+                                                <i class="fas fa-check-circle text-[10px]"></i> Complete
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-black shadow-sm">
+                                                <i class="fas fa-spinner fa-spin text-[10px]"></i> In Progress
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="px-3 py-3 text-center text-xs font-bold text-slate-500 align-top pt-4"><?= (int)$m['sort_order'] ?></td>
+                                    <td class="px-3 py-3 pr-3 align-top pt-3">
+                                        <div class="flex items-center justify-center gap-1.5">
+                                            <button type="button" onclick="editMaster('<?= htmlspecialchars($c['id']) ?>', <?= (int)$m['id'] ?>)"
+                                                    class="w-9 h-9 rounded-lg bg-amber-50 hover:bg-amber-500 text-amber-600 hover:text-white border border-amber-200 hover:border-amber-500 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm"
+                                                    title="Edit master activity ini" aria-label="Edit">
+                                                <i class="fas fa-pencil text-[13px]"></i>
+                                            </button>
+                                            <form method="POST" onsubmit="return confirm('⚠️ YAKIN HAPUS master activity ini? Data activity yang sudah tersimpan di Daily Log TIDAK AKAN TERHAPUS (tetap tampil textnya).');">
+                                                <input type="hidden" name="action" value="delete_master_activity">
+                                                <input type="hidden" name="master_id" value="<?= (int)$m['id'] ?>">
+                                                <button type="submit"
+                                                        class="w-9 h-9 rounded-lg bg-rose-50 hover:bg-rose-500 text-rose-600 hover:text-white border border-rose-200 hover:border-rose-500 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm"
+                                                        title="Hapus master activity ini" aria-label="Hapus">
+                                                    <i class="fas fa-trash-can text-[13px]"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <!-- FOOTER MODAL -->
+            <div class="p-4 sm:p-5 border-t border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <p class="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
+                    <i class="fas fa-info-circle text-slate-400"></i>
+                    Master activity yang sudah dihapus TIDAK merusak data lama di Daily Log (nama activity tetap tersimpan sebagai text).
+                </p>
+                <div class="flex items-center justify-end gap-2">
+                    <button type="button" onclick="closeMasterModal()"
+                            class="px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold shadow-sm transition flex items-center justify-center gap-1.5">
+                        <i class="fas fa-xmark"></i> Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ================================ / END MODAL CRUD MASTER ================================ -->
 
     <script>
+    // ✨ EMBED DATA MASTER ACTIVITY PER DIVISI KE JS GLOBAL (UNTUK DROPDOWN DINAMIS)
+    window.ACTIVITY_MASTERS = <?= json_encode($mastersByDiv, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.CUR_MASTER_TAB = 'operation';
+    window.DIV_META = <?= json_encode($divMeta, JSON_UNESCAPED_UNICODE) ?>;
+    window.DIV_CODE_TO_FULL = { op: 'operation', mt: 'maintenance', pr: 'project', la: 'landscape' };
+
     function openModal(cat) {
         const modal = document.getElementById('modal-' + cat);
         if (!modal) return;
@@ -746,29 +1077,130 @@ require_once __DIR__ . '/../includes/navbar.php';
         modal.classList.remove('flex');
         document.body.style.overflow = '';
     }
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            document.querySelectorAll('[id^="modal-"]').forEach(function(m) {
-                if (m.classList.contains('flex')) {
-                    const id = m.id.replace('modal-', '');
-                    closeModal(id);
-                }
-            });
+    // ================================ JS: CRUD MASTER MODAL FUNCTION ================================
+    function openMasterModal(initialTab) {
+        const modal = document.getElementById('modal-master');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+        const tab = initialTab || window.CUR_MASTER_TAB || 'operation';
+        switchMasterTab(tab);
+        // Reset ke form create kosong setiap buka modal
+        setTimeout(() => resetMasterForm(), 80);
+        const closeBtn = modal.querySelector('button[aria-label="Tutup modal"]');
+        if (closeBtn) setTimeout(() => closeBtn.focus(), 100);
+    }
+    function closeMasterModal() {
+        const modal = document.getElementById('modal-master');
+        if (!modal) return;
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = '';
+    }
+    function switchMasterTab(divId) {
+        window.CUR_MASTER_TAB = divId;
+        const meta = window.DIV_META && window.DIV_META[divId] ? window.DIV_META[divId] : null;
+        const label = meta ? meta.label : divId;
+        // Update Tab Buttons UI
+        document.querySelectorAll('.master-tab-btn').forEach(btn => {
+            const isActive = btn.getAttribute('data-tab') === divId;
+            if (!isActive) {
+                btn.classList.remove('bg-white', 'text-primary', 'shadow', 'ring-2', 'ring-indigo-300', 'border-white');
+                btn.classList.add('text-slate-600', 'hover:bg-white/70');
+                return;
+            }
+            const colorSet = (meta && meta.color) ? meta.color.split(' ') : ['text-indigo-700'];
+            btn.classList.remove('text-slate-600', 'hover:bg-white/70');
+            btn.classList.add('bg-white', 'shadow', 'ring-2', 'ring-indigo-300', 'border-white');
+            colorSet.forEach(c => btn.classList.add(c));
+        });
+        // Update Panels visibility
+        document.querySelectorAll('.master-panel').forEach(p => {
+            const show = p.getAttribute('data-master-panel') === divId;
+            p.classList.toggle('hidden', !show);
+        });
+        // Update hidden form division + label form
+        const inpDiv = document.getElementById('masterDivision');
+        if (inpDiv) inpDiv.value = divId;
+        const labelTitle = document.getElementById('masterFormLabel');
+        if (labelTitle) {
+            const mid = parseInt((document.getElementById('masterId') || {value: '0'}).value || '0', 10);
+            labelTitle.textContent = (mid > 0 ? 'Edit Master Activity Divisi ' : 'Tambah Master Activity Divisi ') + label;
         }
-    });
+        resetMasterForm(true); // keep current div only
+    }
+    function resetMasterForm(skipTabFocus) {
+        const mid = document.getElementById('masterId');
+        const nameInp = document.getElementById('masterActivityName');
+        const stInp = document.getElementById('masterStatusDefault');
+        const sortInp = document.getElementById('masterSortOrder');
+        const divInp = document.getElementById('masterDivision');
+        const titleLabel = document.getElementById('masterFormLabel');
+        const formTitle = document.getElementById('masterFormTitle');
+        if (mid) mid.value = '0';
+        if (nameInp) { nameInp.value = ''; }
+        if (stInp) { stInp.value = 'progress'; }
+        if (sortInp) { sortInp.value = '0'; }
+        const tab = window.CUR_MASTER_TAB || (divInp && divInp.value) || 'operation';
+        const meta = window.DIV_META && window.DIV_META[tab] ? window.DIV_META[tab] : null;
+        const label = meta ? meta.label : tab;
+        if (divInp) divInp.value = tab;
+        if (titleLabel) titleLabel.textContent = 'Tambah Master Activity Divisi ' + label;
+        if (formTitle) {
+            const iconWrap = formTitle.querySelector('span');
+            if (iconWrap) { iconWrap.className = 'w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-sm'; iconWrap.innerHTML = '<i class="fas fa-plus text-[14px]"></i>'; }
+        }
+        if (!skipTabFocus && nameInp) setTimeout(() => nameInp.focus(), 50);
+    }
+    function editMaster(divId, masterId) {
+        // Buka modal dan pindah tab ke divisi target (jika beda)
+        const modal = document.getElementById('modal-master');
+        if (!modal || !modal.classList.contains('flex')) openMasterModal(divId);
+        else switchMasterTab(divId);
+        setTimeout(() => {
+            const nameEl   = document.getElementById('m-name-'   + masterId);
+            const statusEl = document.getElementById('m-status-' + masterId);
+            const sortEl   = document.getElementById('m-sort-'   + masterId);
+            const midInp   = document.getElementById('masterId');
+            const nameInp  = document.getElementById('masterActivityName');
+            const stInp    = document.getElementById('masterStatusDefault');
+            const sortInp  = document.getElementById('masterSortOrder');
+            const labelTtl = document.getElementById('masterFormLabel');
+            const formTitle = document.getElementById('masterFormTitle');
+            if (!nameEl || !midInp) return;
+            midInp.value = String(masterId);
+            nameInp.value = nameEl.value || '';
+            if (stInp && statusEl) stInp.value = statusEl.value || 'progress';
+            if (sortInp && sortEl) sortInp.value = String((sortEl.value || '0'));
+            const meta = window.DIV_META && window.DIV_META[divId] ? window.DIV_META[divId] : null;
+            const label = meta ? meta.label : divId;
+            if (labelTtl) labelTtl.textContent = 'Edit Master Activity Divisi ' + label + ' (ID #' + masterId + ')';
+            if (formTitle) {
+                const iconWrap = formTitle.querySelector('span');
+                if (iconWrap) { iconWrap.className = 'w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-600 text-white flex items-center justify-center shadow-sm'; iconWrap.innerHTML = '<i class="fas fa-pencil text-[13px]"></i>'; }
+            }
+            // Scroll form CREATE-EDIT ke view paling atas di body modal
+            const body = document.querySelector('#modal-master .overflow-y-auto');
+            if (body) body.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => { if (nameInp) { nameInp.focus(); nameInp.select(); } }, 120);
+        }, 120);
+    }
 
-    // ✨ Dinamis Add/Delete Row Activity Detail Manual per Divisi
+    // ================================ JS: DINAMIS ROW DROPDOWN MASTER (OPSI A - HANYA PILIH DARI DROPDOWN) ================================
     function addActRow(divCode) {
         const map = {
-            op: { prefix: 'act_op',       color: 'blue',    btn: 'bg-blue-600 hover:bg-blue-700',     border: 'border-blue-200',   bg: 'bg-blue-50/50',     placeholder: 'Contoh: Perbaikan pompa air lantai 3 di Suite 301' },
-            mt: { prefix: 'act_mt',       color: 'emerald', btn: 'bg-emerald-600 hover:bg-emerald-700', border: 'border-emerald-200', bg: 'bg-emerald-50/50',   placeholder: 'Contoh: Ganti bearing motor AC Restoran' },
-            pr: { prefix: 'act_pr',       color: 'purple',  btn: 'bg-purple-600 hover:bg-purple-700',   border: 'border-purple-200', bg: 'bg-purple-50/50',   placeholder: 'Contoh: Pemasangan signage baru area lobby' },
-            la: { prefix: 'act_la',       color: 'teal',    btn: 'bg-teal-600 hover:bg-teal-700',       border: 'border-teal-200',   bg: 'bg-teal-50/50',     placeholder: 'Contoh: Potong rumput area taman kolam renang' },
+            op: { prefix: 'act_op',       color: 'blue',    border: 'border-blue-200',   bg: 'bg-blue-50/50' },
+            mt: { prefix: 'act_mt',       color: 'emerald', border: 'border-emerald-200', bg: 'bg-emerald-50/50' },
+            pr: { prefix: 'act_pr',       color: 'purple',  border: 'border-purple-200', bg: 'bg-purple-50/50' },
+            la: { prefix: 'act_la',       color: 'teal',    border: 'border-teal-200',   bg: 'bg-teal-50/50' },
         };
         const cfg = map[divCode];
         if (!cfg) return;
         const container = document.getElementById('actRows_' + divCode);
         if (!container) return;
+        const fullDiv = window.DIV_CODE_TO_FULL[divCode] || divCode;
+        const listMasters = window.ACTIVITY_MASTERS && Array.isArray(window.ACTIVITY_MASTERS[fullDiv]) ? window.ACTIVITY_MASTERS[fullDiv] : [];
         let curNum = parseInt(container.getAttribute('data-rows') || '0', 10);
         curNum += 1;
         container.setAttribute('data-rows', String(curNum));
@@ -776,15 +1208,41 @@ require_once __DIR__ . '/../includes/navbar.php';
         const row = document.createElement('div');
         row.className = 'flex flex-col sm:flex-row gap-2 items-stretch sm:items-center p-2.5 rounded-xl ' + cfg.bg + ' border ' + cfg.border + ' animate-fade-in';
         row.setAttribute('data-act-row', '1');
+
+        // Build OPTIONS DROPDOWN MASTER
+        let optionsHtml = `<option value="" disabled selected>-- Pilih Master Activity --</option>`;
+        if (listMasters.length === 0) {
+            optionsHtml = `
+                <option value="" disabled selected>⚠️ Belum ada Master Divisi ini!</option>
+                <option value="" disabled>👉 Silakan buka ⚙️ Kelola Master Activity di header</option>
+            `;
+        } else {
+            listMasters.forEach(m => {
+                const sd = (m && m.status_default) === 'complete' ? '✅ Complete' : '⏳ In Progress';
+                const val = ((m.activity_name || '').replace(/\|/g, ' ')) + '|' + (m.id || 0);
+                const mid = m.id || 0;
+                optionsHtml += `<option value="${String(val).replace(/"/g,'&quot;')}" data-status="${m.status_default || 'progress'}" data-mid="${mid}">${m.activity_name || ''} <span class="text-slate-400">[${sd}]</span></option>`;
+            });
+        }
+
+        const disabledAttr = listMasters.length === 0 ? 'disabled style="opacity:0.65; cursor:not-allowed;"' : '';
+
         row.innerHTML = `
             <span class="inline-flex w-8 h-8 rounded-lg bg-white border ` + cfg.border + ` items-center justify-center text-[11px] font-black text-slate-600 shrink-0 self-start sm:self-center">` + curNum + `</span>
             <div class="flex-1 min-w-0">
-                <input type="text" name="` + cfg.prefix + `_text[]"
-                    class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-` + cfg.color + `-300 focus:border-` + cfg.color + `-400 transition"
-                    placeholder="` + cfg.placeholder + `" required>
+                <select name="` + cfg.prefix + `_text[]" data-act-select ` + disabledAttr + `
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-` + cfg.color + `-300 focus:border-` + cfg.color + `-400 transition appearance-none pr-8" required>
+                    ${optionsHtml}
+                </select>
+                ${listMasters.length === 0 ? `
+                    <button type="button" onclick="openMasterModal('${fullDiv}')"
+                        class="mt-1.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-[11px] font-black shadow-sm transition">
+                        <i class="fas fa-plus-circle text-[10px]"></i> ⚙️ Tambah Master Dulu
+                    </button>
+                ` : ''}
             </div>
             <div class="sm:w-44">
-                <select name="` + cfg.prefix + `_status[]"
+                <select name="` + cfg.prefix + `_status[]" data-act-status
                     class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-bold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-` + cfg.color + `-300 focus:border-` + cfg.color + `-400 transition appearance-none pr-8">
                     <option value="progress">⏳ In Progress</option>
                     <option value="complete">✅ Complete</option>
@@ -797,10 +1255,21 @@ require_once __DIR__ . '/../includes/navbar.php';
             </button>
         `;
         container.appendChild(row);
-        // Auto fokus ke input text baris baru
+
+        // Auto SET STATUS DEFAULT ketika SELECT MASTER DIPILIH!
+        const selAct = row.querySelector('[data-act-select]');
+        const selSt  = row.querySelector('[data-act-status]');
+        if (selAct && selSt) {
+            selAct.addEventListener('change', function() {
+                const opt = this.options[this.selectedIndex];
+                if (opt && opt.getAttribute('data-status')) {
+                    selSt.value = opt.getAttribute('data-status') || 'progress';
+                }
+            });
+        }
+        // Auto focus select dropdown baris baru
         setTimeout(() => {
-            const inp = row.querySelector('input[type="text"]');
-            if (inp) inp.focus();
+            if (selAct && listMasters.length > 0) selAct.focus();
         }, 50);
     }
     function removeActRow(btn) {
@@ -808,7 +1277,6 @@ require_once __DIR__ . '/../includes/navbar.php';
         const row = btn.closest('[data-act-row]');
         const container = row ? row.parentElement : null;
         if (row) row.remove();
-        // Re-numbering rows biar nomor urut tetap urut
         if (container) {
             const allRows = container.querySelectorAll('[data-act-row]');
             let n = 0;
@@ -820,6 +1288,22 @@ require_once __DIR__ . '/../includes/navbar.php';
             container.setAttribute('data-rows', String(n));
         }
     }
+
+    // ================================ ESCAPE KEY CLOSE SEMUA MODAL (TERMASUK MASTER) ================================
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            // Close Master Modal dulu (jika terbuka)
+            const mm = document.getElementById('modal-master');
+            if (mm && mm.classList.contains('flex')) { closeMasterModal(); return; }
+            // Close Divisi Modal
+            document.querySelectorAll('[id^="modal-"]').forEach(function(m) {
+                if (m.classList.contains('flex')) {
+                    const id = m.id.replace('modal-', '');
+                    closeModal(id);
+                }
+            });
+        }
+    });
     </script>
     <style>
     @keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
