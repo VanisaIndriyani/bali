@@ -12,6 +12,17 @@ $userId = (int)($user['id']    ?? 0);
 $monthStart = date('Y-m-01');
 $today = date('Y-m-d');
 
+// 🔧 AUTO ALTER TABLE TAMBAH 4 KOLOM BARU UNTUK LIST ACTIVITY MANUAL PER DIVISI (JIKA BELUM ADA)
+try {
+    $chkAct = $db->fetchOne("SHOW COLUMNS FROM daily_logs LIKE 'activity_operation_items'");
+    if (!$chkAct) {
+        $db->query("ALTER TABLE daily_logs ADD COLUMN activity_operation_items TEXT NULL AFTER activity_operation");
+        $db->query("ALTER TABLE daily_logs ADD COLUMN activity_maintenance_items TEXT NULL AFTER activity_maintenance");
+        $db->query("ALTER TABLE daily_logs ADD COLUMN activity_project_items TEXT NULL AFTER activity_project");
+        $db->query("ALTER TABLE daily_logs ADD COLUMN activity_landscape_items TEXT NULL AFTER activity_landscape");
+    }
+} catch (Throwable $_) {}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_activity_counters') {
     $logDate = !empty($_POST['log_date']) ? (string)$_POST['log_date'] : $today;
     $engId = (int)($_POST['engineer_id'] ?? 0);
@@ -20,6 +31,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     $actPr = max(0, (int)($_POST['activity_project'] ?? 0));
     $actLa = max(0, (int)($_POST['activity_landscape'] ?? 0));
     $ok = [];
+
+    // ✨ HELPER: Parse Activity Items (Text + Status) dari POST Array per Divisi → return JSON or NULL
+    $fnParseItems = function ($keyText, $keyStatus) {
+        $texts = $_POST[$keyText] ?? [];
+        $statuses = $_POST[$keyStatus] ?? [];
+        if (!is_array($texts) || count($texts) === 0) return null;
+        $items = [];
+        foreach ($texts as $i => $t) {
+            $t = trim((string)$t);
+            if ($t === '') continue;
+            $s = in_array(($statuses[$i] ?? ''), ['complete', 'progress']) ? (string)$statuses[$i] : 'progress';
+            $items[] = ['t' => $t, 's' => $s];
+        }
+        return count($items) > 0 ? json_encode($items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
+    };
+    $itemsOpJson = $fnParseItems('act_op_text', 'act_op_status');
+    $itemsMtJson = $fnParseItems('act_mt_text', 'act_mt_status');
+    $itemsPrJson = $fnParseItems('act_pr_text', 'act_pr_status');
+    $itemsLaJson = $fnParseItems('act_la_text', 'act_la_status');
 
     if (!preg_match('/^20\d{2}-\d{2}-\d{2}$/', $logDate)) {
         setFlash('danger', 'Format tanggal salah');
@@ -43,6 +73,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
                 'activity_maintenance' => $actMt,
                 'activity_project' => $actPr,
                 'activity_landscape' => $actLa,
+                'activity_operation_items' => $itemsOpJson,
+                'activity_maintenance_items' => $itemsMtJson,
+                'activity_project_items' => $itemsPrJson,
+                'activity_landscape_items' => $itemsLaJson,
                 'status' => 'approved',
                 'revision_notes' => null,
                 'supervisor_id' => null,
@@ -59,6 +93,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
                 'activity_maintenance' => $actMt,
                 'activity_project' => $actPr,
                 'activity_landscape' => $actLa,
+                'activity_operation_items' => $itemsOpJson,
+                'activity_maintenance_items' => $itemsMtJson,
+                'activity_project_items' => $itemsPrJson,
+                'activity_landscape_items' => $itemsLaJson,
                 'status' => 'approved',
                 'approved_at' => date('Y-m-d H:i:s'),
                 // Standard fields (isi default biar GA ERROR karena NOT NULL)
@@ -133,6 +171,30 @@ function buildActCnt($db, $from, $to, $cat, $userId, $userRole) {
     return ['count' => $cntAct, 'sum' => (float)($row['total_sum'] ?? 0)];
 }
 
+// ✨ HELPER: Render Activity Items (JSON Array of [{t:...,s:...}]) → HTML Bullet Badge Status
+function renderActItems($jsonItems, $maxItems = null) {
+    if (empty($jsonItems)) return '';
+    $arr = is_string($jsonItems) ? json_decode($jsonItems, true) : $jsonItems;
+    if (!is_array($arr) || count($arr) === 0) return '';
+    $out = [];
+    $items = $maxItems ? array_slice($arr, 0, $maxItems) : $arr;
+    foreach ($items as $it) {
+        if (!is_array($it) || empty($it['t'])) continue;
+        $text = htmlspecialchars(trim((string)$it['t']));
+        $status = ($it['s'] ?? 'progress') === 'complete' ? 'complete' : 'progress';
+        if ($status === 'complete') {
+            $badge = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 ml-1.5 whitespace-nowrap shrink-0"><i class="fas fa-check-circle text-[9px]"></i> Complete</span>';
+        } else {
+            $badge = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 ml-1.5 whitespace-nowrap shrink-0"><i class="fas fa-spinner fa-spin text-[9px]"></i> In Progress</span>';
+        }
+        $out[] = '<div class="flex items-start gap-1 text-xs text-primary leading-relaxed"><span class="text-slate-400 font-black shrink-0 mt-0.5">•</span><span class="flex-1 min-w-0 break-words">'.$text.'</span>'.$badge.'</div>';
+    }
+    if ($maxItems && count($arr) > $maxItems) {
+        $out[] = '<div class="text-[10px] font-bold text-slate-500 italic pl-3">+ '.(count($arr) - $maxItems).' item lainnya (klik detail untuk lihat lengkapnya)</div>';
+    }
+    return count($out) > 0 ? '<div class="space-y-1.5 pt-2">'.implode('', $out).'</div>' : '';
+}
+
 $cats = [
     [
         'id'    => 'operation',
@@ -203,7 +265,8 @@ foreach ($cats as $c) {
         default       => 'activity_operation'
     };
     $catDetailRows[$c['id']] = $db->fetchAll(
-        "SELECT dl.id, dl.log_date, dl.{$col} AS cnt, COALESCE(u.name, '-') AS engineer_name
+        "SELECT dl.id, dl.log_date, dl.{$col} AS cnt, COALESCE(u.name, '-') AS engineer_name,
+                dl.activity_operation_items, dl.activity_maintenance_items, dl.activity_project_items, dl.activity_landscape_items
          FROM daily_logs dl
          LEFT JOIN users u ON u.id = dl.engineer_id
          WHERE dl.log_date BETWEEN ? AND ? AND dl.{$col} > 0
@@ -285,46 +348,118 @@ require_once __DIR__ . '/../includes/navbar.php';
             <p class="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500 mb-3 pl-1 flex items-center gap-2">
                 <i class="fas fa-layer-group"></i> <?= T('eng_act_field_counters', 'Counters Aktivitas 4 Divisi') ?>
             </p>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="rounded-2xl border border-blue-200 bg-blue-50/50 p-4 hover:shadow-lg transition">
-                    <label class="flex items-center gap-2 mb-2">
-                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow">
-                            <i class="fas fa-gears text-sm"></i>
-                        </span>
-                        <span class="font-black text-primary tracking-wide text-xs uppercase">Operation</span>
-                    </label>
-                    <input type="number" min="0" step="1" name="activity_operation" value="0"
-                           class="w-full px-3 py-2.5 rounded-xl border border-blue-200 bg-white text-lg font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-500">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                <!-- ========================================================== -->
+                <!-- 🔷 DIVISI 1: OPERATION                                     -->
+                <!-- ========================================================== -->
+                <div class="rounded-2xl border-2 border-blue-200 bg-blue-50/50 p-5 hover:shadow-lg transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="flex items-center gap-2">
+                            <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-md">
+                                <i class="fas fa-gears"></i>
+                            </span>
+                            <div>
+                                <span class="font-black text-primary tracking-wide text-xs uppercase block">Operation</span>
+                                <span class="text-[10px] text-slate-500">Counter & Daftar Activity</span>
+                            </div>
+                        </label>
+                        <input type="number" min="0" step="1" name="activity_operation" value="0"
+                               class="w-24 px-3 py-2 rounded-xl border border-blue-200 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-500">
+                    </div>
+                    <div class="space-y-2 pt-3 mt-3 border-t border-blue-100">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity (Ketik Manual)</span>
+                            <button type="button" onclick="addActRow('op')"
+                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">
+                                <i class="fas fa-plus text-[10px]"></i> Tambah Activity
+                            </button>
+                        </div>
+                        <div id="actRows_op" class="space-y-2" data-rows="0"><!-- JS isi rows dinamis --></div>
+                    </div>
                 </div>
-                <div class="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 hover:shadow-lg transition">
-                    <label class="flex items-center gap-2 mb-2">
-                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white shadow">
-                            <i class="fas fa-wrench text-sm"></i>
-                        </span>
-                        <span class="font-black text-primary tracking-wide text-xs uppercase">Maintenance</span>
-                    </label>
-                    <input type="number" min="0" step="1" name="activity_maintenance" value="0"
-                           class="w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-white text-lg font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-500">
+                <!-- ========================================================== -->
+                <!-- 🟢 DIVISI 2: MAINTENANCE                                   -->
+                <!-- ========================================================== -->
+                <div class="rounded-2xl border-2 border-emerald-200 bg-emerald-50/50 p-5 hover:shadow-lg transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="flex items-center gap-2">
+                            <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white shadow-md">
+                                <i class="fas fa-wrench"></i>
+                            </span>
+                            <div>
+                                <span class="font-black text-primary tracking-wide text-xs uppercase block">Maintenance</span>
+                                <span class="text-[10px] text-slate-500">Counter & Daftar Activity</span>
+                            </div>
+                        </label>
+                        <input type="number" min="0" step="1" name="activity_maintenance" value="0"
+                               class="w-24 px-3 py-2 rounded-xl border border-emerald-200 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-500">
+                    </div>
+                    <div class="space-y-2 pt-3 mt-3 border-t border-emerald-100">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity (Ketik Manual)</span>
+                            <button type="button" onclick="addActRow('mt')"
+                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
+                                <i class="fas fa-plus text-[10px]"></i> Tambah Activity
+                            </button>
+                        </div>
+                        <div id="actRows_mt" class="space-y-2" data-rows="0"><!-- JS isi rows dinamis --></div>
+                    </div>
                 </div>
-                <div class="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 hover:shadow-lg transition">
-                    <label class="flex items-center gap-2 mb-2">
-                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white shadow">
-                            <i class="fas fa-diagram-project text-sm"></i>
-                        </span>
-                        <span class="font-black text-primary tracking-wide text-xs uppercase">Project</span>
-                    </label>
-                    <input type="number" min="0" step="1" name="activity_project" value="0"
-                           class="w-full px-3 py-2.5 rounded-xl border border-violet-200 bg-white text-lg font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-500">
+                <!-- ========================================================== -->
+                <!-- 🟣 DIVISI 3: PROJECT                                       -->
+                <!-- ========================================================== -->
+                <div class="rounded-2xl border-2 border-violet-200 bg-violet-50/50 p-5 hover:shadow-lg transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="flex items-center gap-2">
+                            <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white shadow-md">
+                                <i class="fas fa-diagram-project"></i>
+                            </span>
+                            <div>
+                                <span class="font-black text-primary tracking-wide text-xs uppercase block">Project</span>
+                                <span class="text-[10px] text-slate-500">Counter & Daftar Activity</span>
+                            </div>
+                        </label>
+                        <input type="number" min="0" step="1" name="activity_project" value="0"
+                               class="w-24 px-3 py-2 rounded-xl border border-violet-200 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-500">
+                    </div>
+                    <div class="space-y-2 pt-3 mt-3 border-t border-violet-100">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity (Ketik Manual)</span>
+                            <button type="button" onclick="addActRow('pr')"
+                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white shadow-sm transition">
+                                <i class="fas fa-plus text-[10px]"></i> Tambah Activity
+                            </button>
+                        </div>
+                        <div id="actRows_pr" class="space-y-2" data-rows="0"><!-- JS isi rows dinamis --></div>
+                    </div>
                 </div>
-                <div class="rounded-2xl border border-teal-200 bg-teal-50/50 p-4 hover:shadow-lg transition">
-                    <label class="flex items-center gap-2 mb-2">
-                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white shadow">
-                            <i class="fas fa-leaf text-sm"></i>
-                        </span>
-                        <span class="font-black text-primary tracking-wide text-xs uppercase">Landscape</span>
-                    </label>
-                    <input type="number" min="0" step="1" name="activity_landscape" value="0"
-                           class="w-full px-3 py-2.5 rounded-xl border border-teal-200 bg-white text-lg font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-500">
+                <!-- ========================================================== -->
+                <!-- 🟩 DIVISI 4: LANDSCAPE                                     -->
+                <!-- ========================================================== -->
+                <div class="rounded-2xl border-2 border-teal-200 bg-teal-50/50 p-5 hover:shadow-lg transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="flex items-center gap-2">
+                            <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white shadow-md">
+                                <i class="fas fa-leaf"></i>
+                            </span>
+                            <div>
+                                <span class="font-black text-primary tracking-wide text-xs uppercase block">Landscape</span>
+                                <span class="text-[10px] text-slate-500">Counter & Daftar Activity</span>
+                            </div>
+                        </label>
+                        <input type="number" min="0" step="1" name="activity_landscape" value="0"
+                               class="w-24 px-3 py-2 rounded-xl border border-teal-200 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-500">
+                    </div>
+                    <div class="space-y-2 pt-3 mt-3 border-t border-teal-100">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity (Ketik Manual)</span>
+                            <button type="button" onclick="addActRow('la')"
+                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white shadow-sm transition">
+                                <i class="fas fa-plus text-[10px]"></i> Tambah Activity
+                            </button>
+                        </div>
+                        <div id="actRows_la" class="space-y-2" data-rows="0"><!-- JS isi rows dinamis --></div>
+                    </div>
                 </div>
             </div>
 
@@ -354,30 +489,61 @@ require_once __DIR__ . '/../includes/navbar.php';
             </div>
         </div>
         <div class="flex flex-col gap-4 sm:gap-5 mb-6">
-            <?php foreach ($colLeft as $idx => $c): ?>
+            <?php foreach ($colLeft as $idx => $c):
+                $rowsCard = $catDetailRows[$c['id']] ?? [];
+                $colItems = match($c['id']) {
+                    'operation'   => 'activity_operation_items',
+                    'maintenance' => 'activity_maintenance_items',
+                    'project'     => 'activity_project_items',
+                    'landscape'   => 'activity_landscape_items',
+                    default       => 'activity_operation_items',
+                };
+                $itemsAllPreview = '';
+                if (count($rowsCard) > 0) {
+                    $collect = [];
+                    foreach ($rowsCard as $rc) {
+                        $jsonText = $rc[$colItems] ?? '';
+                        if (empty($jsonText)) continue;
+                        $arr = json_decode($jsonText, true);
+                        if (is_array($arr)) foreach ($arr as $ai) $collect[] = $ai;
+                        if (count($collect) >= 3) break;
+                    }
+                    if (count($collect) > 0) {
+                        $itemsAllPreview = renderActItems($collect, 3);
+                    }
+                }
+            ?>
             <div class="group rounded-2xl border-2 <?= $c['border'] ?> <?= $c['bg'] ?>/40 p-4 sm:p-5 hover:shadow-2xl hover:-translate-y-0.5 hover:scale-[1.005] hover:ring-4 <?= $c['ring'] ?> transition-all duration-300 cursor-pointer active:scale-[0.998]"
                  onclick="openModal('<?= htmlspecialchars($c['id']) ?>')"
                  role="button"
                  tabindex="0"
                  aria-label="Buka detail divisi <?= htmlspecialchars($c['label']) ?>"
                  onkeydown="if(event.key==='Enter'||event.key===' ')openModal('<?= htmlspecialchars($c['id']) ?>')">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div class="flex items-center gap-3 sm:gap-4 shrink-0 sm:w-56">
-                        <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br <?= $c['iconBox'] ?> flex items-center justify-center text-white shadow-lg ring-2 <?= $c['ring'] ?> shrink-0 group-hover:rotate-3 group-hover:scale-105 transition-transform duration-300">
-                            <i class="<?= $c['icon'] ?> text-xl sm:text-2xl"></i>
+                <div class="flex flex-col gap-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div class="flex items-center gap-3 sm:gap-4 shrink-0 sm:w-56">
+                            <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br <?= $c['iconBox'] ?> flex items-center justify-center text-white shadow-lg ring-2 <?= $c['ring'] ?> shrink-0 group-hover:rotate-3 group-hover:scale-105 transition-transform duration-300">
+                                <i class="<?= $c['icon'] ?> text-xl sm:text-2xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1"><?= $deptLabel ?></p>
+                                <p class="font-black uppercase tracking-wider text-base sm:text-lg text-primary leading-tight"><?= $c['label'] ?></p>
+                                <p class="text-[11px] font-bold uppercase tracking-widest text-secondary/70 mt-0.5">This Month • <?= date('M Y') ?></p>
+                            </div>
                         </div>
-                        <div>
-                            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1"><?= $deptLabel ?></p>
-                            <p class="font-black uppercase tracking-wider text-base sm:text-lg text-primary leading-tight"><?= $c['label'] ?></p>
-                            <p class="text-[11px] font-bold uppercase tracking-widest text-secondary/70 mt-0.5">This Month • <?= date('M Y') ?></p>
+                        <div class="flex-1 min-w-0 pl-0 sm:pl-8 sm:border-l sm:border-dashed sm:border-slate-300">
+                            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1.5"><?= $actDetailLabel ?></p>
+                            <div class="text-sm">
+                                <?= $colRight[$idx] ?>
+                            </div>
                         </div>
                     </div>
-                    <div class="flex-1 min-w-0 pl-0 sm:pl-8 sm:border-l sm:border-dashed sm:border-slate-300">
-                        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1.5"><?= $actDetailLabel ?></p>
-                        <div class="text-sm">
-                            <?= $colRight[$idx] ?>
-                        </div>
+                    <?php if ($itemsAllPreview !== ''): ?>
+                    <div class="rounded-xl border border-dashed <?= $c['border'] ?> bg-white/60 p-3.5">
+                        <p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 mb-2 flex items-center gap-1"><i class="fas fa-list-ul"></i> Preview Daftar Activity Terbaru</p>
+                        <?= $itemsAllPreview ?>
                     </div>
+                    <?php endif; ?>
                 </div>
             </div>
             <?php endforeach; ?>
@@ -402,6 +568,13 @@ require_once __DIR__ . '/../includes/navbar.php';
         $rows = $catDetailRows[$c['id']] ?? [];
         $totalSum = 0;
         foreach ($rows as $r) $totalSum += (int)($r['cnt'] ?? 0);
+        $colItems = match($c['id']) {
+            'operation'   => 'activity_operation_items',
+            'maintenance' => 'activity_maintenance_items',
+            'project'     => 'activity_project_items',
+            'landscape'   => 'activity_landscape_items',
+            default       => 'activity_operation_items',
+        };
     ?>
     <div id="modal-<?= htmlspecialchars($c['id']) ?>" class="fixed inset-0 z-[9999] hidden items-center justify-center p-4 animate-fade-in-modal"
          onclick="if(event.target===this)closeModal('<?= htmlspecialchars($c['id']) ?>')">
@@ -458,11 +631,12 @@ require_once __DIR__ . '/../includes/navbar.php';
                         <table class="w-full text-sm">
                             <thead class="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                                 <tr>
-                                    <th class="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-14">#</th>
-                                    <th class="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-24">Ref ID</th>
-                                    <th class="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Tanggal</th>
-                                    <th class="px-4 py-3.5 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Nama Engineer / Staff</th>
-                                    <th class="px-4 py-3.5 text-right text-[10px] font-black uppercase tracking-widest text-slate-500 pr-5">Counters<br><span class="text-[9px] <?= $c['color'] ?> font-bold">Divisi <?= $c['label'] ?></span></th>
+                                    <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-10">#</th>
+                                    <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-20">Ref ID</th>
+                                    <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-28">Tanggal</th>
+                                    <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-40">Nama Staff</th>
+                                    <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Activity Detail<br><span class="text-[9px] font-bold text-slate-500">(Daftar Aktivitas + Status)</span></th>
+                                    <th class="px-3 py-3 text-right text-[10px] font-black uppercase tracking-widest text-slate-500 pr-3 w-32">Counters<br><span class="text-[9px] <?= $c['color'] ?> font-bold">Divisi <?= $c['label'] ?></span></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -471,39 +645,39 @@ require_once __DIR__ . '/../includes/navbar.php';
                                 $runningSum = 0;
                                 foreach ($rows as $r):
                                     $runningSum += (int)($r['cnt'] ?? 0);
+                                    $actRowHtml = renderActItems($r[$colItems] ?? '');
                                 ?>
                                 <tr class="hover:bg-<?= $c['color'] ?>/5 transition-colors group">
-                                    <td class="px-4 py-3.5 text-xs font-bold text-slate-400"><?= $no++ ?>.</td>
-                                    <td class="px-4 py-3.5">
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/5 border border-slate-200 text-xs font-mono font-bold text-slate-700">
+                                    <td class="px-3 py-3 text-xs font-bold text-slate-400 align-top"><?= $no++ ?>.</td>
+                                    <td class="px-3 py-3 align-top">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-900/5 border border-slate-200 text-[11px] font-mono font-bold text-slate-700">
                                             #<?= (int)$r['id'] ?>
                                         </span>
                                     </td>
-                                    <td class="px-4 py-3.5">
-                                        <div class="flex items-center gap-2">
-                                            <span class="inline-flex w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-<?= $c['color'] ?>/10 items-center justify-center text-slate-500 group-hover:<?= $c['color'] ?> transition">
-                                                <i class="far fa-calendar-day text-xs"></i>
-                                            </span>
-                                            <div class="flex flex-col">
-                                                <span class="text-sm font-bold text-primary"><?= date('d M Y', strtotime($r['log_date'])) ?></span>
-                                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"><?= date('l', strtotime($r['log_date'])) ?></span>
-                                            </div>
+                                    <td class="px-3 py-3 align-top">
+                                        <div class="flex flex-col">
+                                            <span class="text-xs font-bold text-primary"><?= date('d M Y', strtotime($r['log_date'])) ?></span>
+                                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"><?= date('l', strtotime($r['log_date'])) ?></span>
                                         </div>
                                     </td>
-                                    <td class="px-4 py-3.5">
-                                        <div class="flex items-center gap-2.5">
-                                            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center font-black text-xs shadow-sm ring-2 ring-white">
+                                    <td class="px-3 py-3 align-top">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center font-black text-[11px] shadow-sm ring-2 ring-white shrink-0">
                                                 <?= strtoupper(mb_substr((string)$r['engineer_name'], 0, 1) ?: '?') ?>
                                             </div>
-                                            <div class="flex flex-col">
-                                                <span class="text-sm font-bold text-primary leading-tight"><?= htmlspecialchars($r['engineer_name']) ?></span>
-                                                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Engineering Staff</span>
-                                            </div>
+                                            <span class="text-xs font-bold text-primary leading-tight"><?= htmlspecialchars($r['engineer_name']) ?></span>
                                         </div>
                                     </td>
-                                    <td class="px-4 py-3.5 pr-5 text-right">
-                                        <span class="inline-flex items-center justify-end gap-1.5 min-w-[90px] px-3.5 py-2 rounded-xl <?= $c['bg'] ?> border <?= $c['border'] ?> text-base sm:text-lg font-black <?= $c['color'] ?> shadow-sm">
-                                            <i class="<?= $c['icon'] ?> text-sm"></i>
+                                    <td class="px-3 py-3 align-top min-w-[300px]">
+                                        <?php if ($actRowHtml === ''): ?>
+                                            <span class="inline-block text-[11px] italic text-slate-400 font-semibold">(tidak ada detail activity manual)</span>
+                                        <?php else: ?>
+                                            <?= $actRowHtml ?>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="px-3 py-3 pr-3 text-right align-top">
+                                        <span class="inline-flex items-center justify-end gap-1 px-2.5 py-1.5 rounded-lg <?= $c['bg'] ?> border <?= $c['border'] ?> text-base font-black <?= $c['color'] ?> shadow-sm">
+                                            <i class="<?= $c['icon'] ?> text-[12px]"></i>
                                             <?= number_format((int)($r['cnt'] ?? 0), 0, ',', '.') ?>
                                         </span>
                                     </td>
@@ -512,13 +686,13 @@ require_once __DIR__ . '/../includes/navbar.php';
                             </tbody>
                             <tfoot class="bg-gradient-to-r from-slate-50 to-<?= $c['color'] ?>/5 border-t-2 <?= $c['border'] ?>">
                                 <tr>
-                                    <td colspan="4" class="px-4 py-4 text-right">
-                                        <span class="text-sm font-black uppercase tracking-widest text-slate-500 mr-2 flex items-center justify-end gap-2">
+                                    <td colspan="5" class="px-3 py-3.5 text-right">
+                                        <span class="text-[11px] font-black uppercase tracking-widest text-slate-500 mr-1.5 flex items-center justify-end gap-1.5">
                                             <i class="fas fa-calculator"></i> TOTAL COUNTERS DIVISI <?= $c['label'] ?> BULAN INI:
                                         </span>
                                     </td>
-                                    <td class="px-4 py-4 pr-5 text-right">
-                                        <span class="inline-flex items-center justify-end gap-2 min-w-[120px] px-4 py-2.5 rounded-2xl bg-gradient-to-br <?= $c['iconBox'] ?> text-white text-lg sm:text-xl font-black shadow-lg shadow-slate-500/10 ring-2 ring-white/80">
+                                    <td class="px-3 py-3.5 pr-3 text-right">
+                                        <span class="inline-flex items-center justify-end gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-br <?= $c['iconBox'] ?> text-white text-lg font-black shadow-lg shadow-slate-500/10 ring-2 ring-white/80">
                                             <i class="<?= $c['icon'] ?>"></i>
                                             <?= number_format($totalSum, 0, ',', '.') ?>
                                         </span>
@@ -582,6 +756,70 @@ require_once __DIR__ . '/../includes/navbar.php';
             });
         }
     });
+
+    // ✨ Dinamis Add/Delete Row Activity Detail Manual per Divisi
+    function addActRow(divCode) {
+        const map = {
+            op: { prefix: 'act_op',       color: 'blue',    btn: 'bg-blue-600 hover:bg-blue-700',     border: 'border-blue-200',   bg: 'bg-blue-50/50',     placeholder: 'Contoh: Perbaikan pompa air lantai 3 di Suite 301' },
+            mt: { prefix: 'act_mt',       color: 'emerald', btn: 'bg-emerald-600 hover:bg-emerald-700', border: 'border-emerald-200', bg: 'bg-emerald-50/50',   placeholder: 'Contoh: Ganti bearing motor AC Restoran' },
+            pr: { prefix: 'act_pr',       color: 'purple',  btn: 'bg-purple-600 hover:bg-purple-700',   border: 'border-purple-200', bg: 'bg-purple-50/50',   placeholder: 'Contoh: Pemasangan signage baru area lobby' },
+            la: { prefix: 'act_la',       color: 'teal',    btn: 'bg-teal-600 hover:bg-teal-700',       border: 'border-teal-200',   bg: 'bg-teal-50/50',     placeholder: 'Contoh: Potong rumput area taman kolam renang' },
+        };
+        const cfg = map[divCode];
+        if (!cfg) return;
+        const container = document.getElementById('actRows_' + divCode);
+        if (!container) return;
+        let curNum = parseInt(container.getAttribute('data-rows') || '0', 10);
+        curNum += 1;
+        container.setAttribute('data-rows', String(curNum));
+
+        const row = document.createElement('div');
+        row.className = 'flex flex-col sm:flex-row gap-2 items-stretch sm:items-center p-2.5 rounded-xl ' + cfg.bg + ' border ' + cfg.border + ' animate-fade-in';
+        row.setAttribute('data-act-row', '1');
+        row.innerHTML = `
+            <span class="inline-flex w-8 h-8 rounded-lg bg-white border ` + cfg.border + ` items-center justify-center text-[11px] font-black text-slate-600 shrink-0 self-start sm:self-center">` + curNum + `</span>
+            <div class="flex-1 min-w-0">
+                <input type="text" name="` + cfg.prefix + `_text[]"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-` + cfg.color + `-300 focus:border-` + cfg.color + `-400 transition"
+                    placeholder="` + cfg.placeholder + `" required>
+            </div>
+            <div class="sm:w-44">
+                <select name="` + cfg.prefix + `_status[]"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-bold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-` + cfg.color + `-300 focus:border-` + cfg.color + `-400 transition appearance-none pr-8">
+                    <option value="progress">⏳ In Progress</option>
+                    <option value="complete">✅ Complete</option>
+                </select>
+            </div>
+            <button type="button" onclick="removeActRow(this)"
+                class="w-10 h-10 rounded-lg bg-rose-50 hover:bg-rose-500 text-rose-600 hover:text-white border border-rose-200 hover:border-rose-500 flex items-center justify-center transition shrink-0 self-start sm:self-center"
+                aria-label="Hapus activity ini" title="Hapus baris ini">
+                <i class="fas fa-trash-can text-[14px]"></i>
+            </button>
+        `;
+        container.appendChild(row);
+        // Auto fokus ke input text baris baru
+        setTimeout(() => {
+            const inp = row.querySelector('input[type="text"]');
+            if (inp) inp.focus();
+        }, 50);
+    }
+    function removeActRow(btn) {
+        if (!btn) return;
+        const row = btn.closest('[data-act-row]');
+        const container = row ? row.parentElement : null;
+        if (row) row.remove();
+        // Re-numbering rows biar nomor urut tetap urut
+        if (container) {
+            const allRows = container.querySelectorAll('[data-act-row]');
+            let n = 0;
+            allRows.forEach(r => {
+                n++;
+                const numSpan = r.querySelector('span:first-child');
+                if (numSpan) numSpan.textContent = String(n);
+            });
+            container.setAttribute('data-rows', String(n));
+        }
+    }
     </script>
     <style>
     @keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
