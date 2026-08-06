@@ -623,7 +623,8 @@ HTML;
             </div>
         </div>
 
-        <!-- ⑨ ENG ACTIVITY COUNTERS (OTOMATIS DIHITUNG DARI LIST DINAMIS DI BAWAH) -->
+        <!-- ⑨ ENG ACTIVITY COUNTERS (OTOMATIS DIHITUNG DARI LIST DINAMIS DI BAWAH) - HANYA MANAGER YANG BISA LIHAT -->
+        <?php if (($user['role'] ?? '') === 'manager'): ?>
         <div class="bg-surface rounded-premium border border-accent/30 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 330ms">
             <div class="px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-amber-50/90 via-yellow-50/60 to-amber-50/70">
                 <h3 class="font-bold text-primary flex items-center gap-2">
@@ -657,6 +658,7 @@ HTML;
                 ?>
             </div>
         </div>
+        <?php endif; ?>
 
         <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 370ms">
             <div class="px-5 lg:px-6 py-4 border-b border-border bg-muted/30">

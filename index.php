@@ -865,7 +865,8 @@ HTML;
     </div>
 
     <!-- ============ ④ BOTTLING PLANT ============ -->
-    <!-- ============ ⑥ ENG ACTIVITY (URUTAN PINDAH SESUAI CATATAN KERTAS) ============ -->
+    <!-- ============ ⑤ ENGINEERING ACTIVITIES - HANYA SUPERVISOR / MANAGER YANG DAPAT LIHAT ============ -->
+    <?php if (in_array($userRole, ['supervisor','manager','admin'], true)): ?>
     <div class="bg-surface rounded-premium border border-accent/20 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 120ms">
         <div class="px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-white via-amber-50/30 to-white">
             <div class="flex items-end justify-between gap-3">
@@ -982,6 +983,7 @@ HTML;
             ?>
         </div>
     </div>
+    <?php endif; ?>
 
     <?php if ($todayData): ?>
         <div class="mb-8 p-4 sm:p-5 lg:p-6 bg-surface rounded-premium border border-border shadow-sm animate-slide-up">

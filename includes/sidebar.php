@@ -21,7 +21,9 @@ if ($currentDir !== 'supervisor') $isManageUsers = $currentDir === 'users' && in
 $isOrderIndex = $currentDir === 'orders' && $currentFile === 'index.php';
 $isOrderCreate = $currentDir === 'orders' && $currentFile === 'create.php';
 $isOrderDetail = $currentDir === 'orders' && $currentFile === 'detail.php';
+$isOrderDashboard = $currentDir === 'orders' && $currentFile === 'dashboard.php';
 $isOrderApprove = $currentDir === 'orders' && in_array($currentFile, ['approve.php']);
+$isEngActivities = ($page ?? '') === 'engineering_activities' || ($currentDir === 'manager' && $currentFile === 'activities.php');
 
 $db = Database::getInstance();
 $pendingCount = 0;
@@ -83,7 +85,7 @@ if ($isEngineer) {
                 <span class="nav-icon <?= ($isOrderCreate) ? '!text-amber-600 !bg-amber-100 !ring-2 !ring-amber-200' : 'text-amber-600' ?>"><i class="fas fa-file-circle-plus"></i></span>
                 <span class="nav-label"><?= T('nav_order_create', 'Buat Order Request') ?></span>
             </a>
-            <?php $isOrderDashboard = ($page ?? '') === 'dashboard_logistic' || (basename($_SERVER['PHP_SELF']) === 'dashboard.php' && dirname($_SERVER['PHP_SELF']) === '/orders'); ?>
+            <?php $isOrderDashboard = ($isOrderDashboard ?? false); ?>
             <a href="<?= BASE_URL ?>orders/dashboard.php" class="nav-item !border-l-4 <?= ($isOrderDashboard) ? '!border-l-orange-500 nav-item-active !bg-orange-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
                 <span class="nav-icon <?= ($isOrderDashboard) ? '!text-orange-600 !bg-orange-100 !ring-2 !ring-orange-200' : 'text-orange-600' ?>"><i class="fas fa-boxes-stacked"></i></span>
                 <span class="nav-label"><?= T('nav_logistic_dash', 'Dashboard Logistik') ?></span>
@@ -115,6 +117,14 @@ if ($isEngineer) {
                 <a href="<?= BASE_URL ?>supervisor/users/index.php" class="nav-item <?= $isManageUsers ? 'nav-item-active' : '' ?>">
                     <span class="nav-icon"><i class="fas fa-users-gear"></i></span>
                     <span class="nav-label"><?= T('nav_manage_staff', 'Kelola Staff Engineer') ?></span>
+                </a>
+            <?php endif; ?>
+
+            <?php if ($isManager): ?>
+                <div class="nav-section !mt-5"><span>Manager Area</span></div>
+                <a href="<?= BASE_URL ?>manager/activities.php" class="nav-item !border-l-4 <?= ($isEngActivities) ? '!border-l-indigo-500 nav-item-active !bg-indigo-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
+                    <span class="nav-icon <?= ($isEngActivities) ? '!text-indigo-600 !bg-indigo-100 !ring-2 !ring-indigo-200' : 'text-indigo-600' ?>"><i class="fas fa-clipboard-list-check"></i></span>
+                    <span class="nav-label">Engineering Activities</span>
                 </a>
             <?php endif; ?>
 
