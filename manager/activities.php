@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 $pageTitle = T('eng_act_page_title', 'Engineering Activities');
-requireRole('manager');
+requireRole(['admin', 'manager', 'supervisor']);
 $page = 'engineering_activities';
 
 $db = Database::getInstance();
@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
         redirect('manager/activities.php');
     }
 
-    $engRow = $db->fetchOne("SELECT id, name FROM users WHERE id = ? AND role = 'engineer' LIMIT 1", [$engId]);
+    $engRow = $db->fetchOne("SELECT id, name FROM users WHERE id = ? AND LOWER(role) = 'engineer' LIMIT 1", [$engId]);
     if (!$engRow) {
         setFlash('danger', 'Engineer tidak ditemukan');
         redirect('manager/activities.php');
@@ -51,8 +51,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
             $lr = $db->fetchOne("SELECT MAX(CAST(SUBSTRING(log_no, -4) AS UNSIGNED)) AS s FROM daily_logs WHERE log_no LIKE ?", ['DL-'.$ym.'-%']);
             if ($lr) $seq = (int)($lr['s'] ?? 0) + 1;
             $logNo = sprintf('DL-%s-%04d', $ym, $seq);
-            $notes = 'Diisi langsung oleh Manager';
-            $status = 'pending_supervisor';
+            $notes = 'Diisi langsung oleh Manager - Approved Otomatis';
+            $status = 'approved';
             $db->query(
                 "INSERT INTO daily_logs (log_no, log_date, engineer_id, shift, status, notes, activity_operation, activity_maintenance, activity_project, activity_landscape, created_by, updated_by)
                  VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     redirect('manager/activities.php');
 }
 
-$engineers = $db->fetchAll("SELECT id, name, role FROM users WHERE role = 'engineer' AND (status = 'active' OR status IS NULL OR status = '') ORDER BY name ASC");
+$engineers = $db->fetchAll("SELECT id, name, role FROM users WHERE LOWER(role) = 'engineer' AND (status = 'active' OR status IS NULL OR status = '') ORDER BY name ASC");
 
 function buildActCnt($db, $from, $to, $cat, $userId, $userRole) {
     $col = match($cat) {
@@ -79,7 +79,7 @@ function buildActCnt($db, $from, $to, $cat, $userId, $userRole) {
         'landscape'   => 'activity_landscape',
         default       => 'activity_operation'
     };
-    $where = "WHERE log_date BETWEEN ? AND ? AND status = 'approved'";
+    $where = "WHERE log_date BETWEEN ? AND ?";
     $params = [$from, $to];
     if ($userRole === 'engineer') {
         $where .= " AND engineer_id = ?";
