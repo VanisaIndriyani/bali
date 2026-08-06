@@ -1,6 +1,6 @@
 <?php
-$pageTitle = T('dash_logistic_page_title', 'Dashboard Logistik & Order Request');
 require_once __DIR__ . '/../config/config.php';
+$pageTitle = T('dash_logistic_page_title', 'Dashboard Logistik & Order Request');
 requireRole(['supervisor', 'manager']);
 
 $db = Database::getInstance();
