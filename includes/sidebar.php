@@ -24,6 +24,8 @@ $isOrderCreate = $currentDir === 'orders' && $currentFile === 'create.php';
 $isOrderDetail = $currentDir === 'orders' && $currentFile === 'detail.php';
 $isOrderApprove = $currentDir === 'orders' && in_array($currentFile, ['approve.php']);
 $isEngActivities = ($page ?? '') === 'engineering_activities' || ($currentDir === 'manager' && $currentFile === 'activities.php');
+$isMasterCostCode = ($currentDir === 'manager' && $currentFile === 'master_cost_codes.php');
+$isAnyDataMaster = $isMasterCostCode; // nanti tambah yang lain
 
 $db = Database::getInstance();
 $pendingCount = 0;
@@ -125,6 +127,53 @@ if ($isEngineer) {
                     <span class="nav-icon <?= ($isEngActivities) ? '!text-indigo-600 !bg-indigo-100 !ring-2 !ring-indigo-200' : 'text-indigo-600' ?>"><i class="fas fa-layer-group"></i></span>
                     <span class="nav-label">Engineering Activities</span>
                 </a>
+                <!-- COLLAPSIBLE: 📂 DATA MASTER LOGISTIK (WA 18.08: Menu expand kayak contoh foto) -->
+                <?php
+                $dmDefaultOpen = ($isAnyDataMaster) ? 'true' : 'false';
+                ?>
+                <button type="button" id="dmToggleBtn" data-default-open="<?= $dmDefaultOpen ?>"
+                        onclick="toggleDataMaster(this)"
+                        class="nav-item w-full !border-l-4 <?= ($isAnyDataMaster) ? '!border-l-slate-900 nav-item-active !bg-slate-50/80 !font-bold !text-primary' : '!border-l-transparent' ?> justify-between pr-4">
+                    <span class="flex items-center gap-3">
+                        <span class="nav-icon <?= ($isAnyDataMaster) ? '!text-slate-800 !bg-slate-200 !ring-2 !ring-slate-300' : 'text-slate-700' ?>"><i class="fas fa-folder-tree"></i></span>
+                        <span class="nav-label">📂 Data Master</span>
+                    </span>
+                    <i id="dmChevron" class="fas fa-chevron-down text-xs text-slate-400 transition-transform duration-200 -rotate-90"></i>
+                </button>
+                <div id="dmGroup" class="overflow-hidden transition-all duration-200 hidden pl-2 ml-1 border-l-2 border-slate-200 my-0.5">
+                    <a href="<?= BASE_URL ?>manager/master_cost_codes.php"
+                       class="nav-item !pl-10 !py-2.5 !border-l-0 !text-sm <?= ($isMasterCostCode) ? 'nav-item-active !bg-slate-50 !text-primary !font-bold !ring-1 !ring-slate-200 !mx-2 !rounded-lg my-0.5' : '' ?>">
+                        <span class="nav-icon !w-7 !h-7 text-[13px] <?= ($isMasterCostCode) ? '!bg-slate-900 !text-white' : 'text-slate-600 bg-slate-100' ?>"><i class="fas fa-barcode"></i></span>
+                        <span class="nav-label">🔧 Master Cost Code</span>
+                    </a>
+                </div>
+                <script>
+                    (function(){
+                        try {
+                            const btn = document.getElementById('dmToggleBtn');
+                            const grp = document.getElementById('dmGroup');
+                            const chv = document.getElementById('dmChevron');
+                            const STORAGE_KEY = 'sb_dataMaster_open';
+                            const isDefaultOpen = btn && btn.dataset.defaultOpen === 'true';
+                            const saved = localStorage.getItem(STORAGE_KEY);
+                            const shouldOpen = (saved !== null) ? (saved === '1') : isDefaultOpen;
+                            function setDmOpen(open){
+                                if(!grp || !btn || !chv) return;
+                                if(open){
+                                    grp.classList.remove('hidden');
+                                    chv.classList.remove('-rotate-90');
+                                    localStorage.setItem(STORAGE_KEY, '1');
+                                } else {
+                                    grp.classList.add('hidden');
+                                    chv.classList.add('-rotate-90');
+                                    localStorage.setItem(STORAGE_KEY, '0');
+                                }
+                            }
+                            window.toggleDataMaster = function(b){ setDmOpen(grp.classList.contains('hidden')); };
+                            setDmOpen(shouldOpen);
+                        } catch(e) {}
+                    })();
+                </script>
             <?php endif; ?>
 
             <div class="nav-section"><span>Umum</span></div>
