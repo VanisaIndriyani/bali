@@ -20,6 +20,10 @@ try {
         $db->query("ALTER TABLE orders ADD COLUMN admin_price_notes TEXT NULL AFTER total_amount");
         $db->query("ALTER TABLE orders ADD INDEX idx_req_number (req_number)");
     }
+    $chkAtt = $db->fetchOne("SHOW COLUMNS FROM orders LIKE 'attachments'");
+    if (!$chkAtt) {
+        $db->query("ALTER TABLE orders ADD COLUMN attachments TEXT NULL AFTER notes");
+    }
 } catch (Throwable $_) {}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -67,6 +71,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         setFlash('danger', 'Judul dan minimal 1 item harus diisi');
     } else {
         try {
+            // 💰 UPLOAD FOTO / BUKTI PENDUKUNG (Multiple Foto Maks 5 file, max 3MB per foto)
+            $attachmentJson = null;
+            $uploadDir = __DIR__ . '/../assets/uploads/orders/';
+            if (!is_dir($uploadDir)) {
+                @mkdir($uploadDir, 0777, true);
+                @file_put_contents($uploadDir . 'index.html', '');
+            }
+            $allowedExt = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+            $maxFileSize = 3 * 1024 * 1024; // 3MB per foto
+            $uploadedFiles = [];
+            if (!empty($_FILES['order_photos']) && is_array($_FILES['order_photos']['name'])) {
+                foreach ($_FILES['order_photos']['name'] as $idx => $origName) {
+                    if ($_FILES['order_photos']['error'][$idx] !== UPLOAD_ERR_OK) continue;
+                    if (count($uploadedFiles) >= 5) break; // MAKS 5 FOTO PER ORDER
+                    $fileSize = (int)$_FILES['order_photos']['size'][$idx];
+                    if ($fileSize === 0 || $fileSize > $maxFileSize) continue;
+                    $extLower = strtolower((string)pathinfo($origName, PATHINFO_EXTENSION));
+                    if (!in_array($extLower, $allowedExt, true)) continue;
+                    $tmpName = $_FILES['order_photos']['tmp_name'][$idx];
+                    if (!is_uploaded_file($tmpName)) continue;
+                    $newFileName = 'order_' . date('Ymd_His') . '_' . substr(bin2hex(random_bytes(4)), 0, 8) . '.' . $extLower;
+                    if (@move_uploaded_file($tmpName, $uploadDir . $newFileName)) {
+                        $uploadedFiles[] = $newFileName;
+                    }
+                }
+            }
+            if (count($uploadedFiles) > 0) {
+                $attachmentJson = json_encode($uploadedFiles, JSON_UNESCAPED_SLASHES);
+            }
+
             $status = 'pending_supervisor';
             $extraSets = [];
             $extraMsg = 'Submit ke Supervisor';
@@ -94,9 +128,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $db->beginTransaction();
             $db->query(
-                "INSERT INTO orders (order_no, req_number, requested_by, cost_code_id, title, purpose, requested_date, needed_date, total_amount, admin_price_notes, status, notes)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                [$orderNo, ($reqNumber!=='' ? $reqNumber : null), $requestedBy, $costCodeId > 0 ? $costCodeId : null, $title, $purpose, $requestedDate, $neededDate, $totalAmount, ($adminPriceNotes!==''?$adminPriceNotes:null), $status, $notes]
+                "INSERT INTO orders (order_no, req_number, requested_by, cost_code_id, title, purpose, requested_date, needed_date, total_amount, admin_price_notes, status, notes, attachments)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                [$orderNo, ($reqNumber!=='' ? $reqNumber : null), $requestedBy, $costCodeId > 0 ? $costCodeId : null, $title, $purpose, $requestedDate, $neededDate, $totalAmount, ($adminPriceNotes!==''?$adminPriceNotes:null), $status, $notes, $attachmentJson]
             );
             $orderId = (int)$db->lastInsertId();
             if (!empty($extraSets)) {
@@ -142,7 +176,7 @@ require_once __DIR__ . '/../includes/navbar.php';
         <a href="<?= BASE_URL ?>orders/index.php" class="btn-ghost inline-flex self-start"><i class="fas fa-arrow-left mr-1.5"></i><?= T('btn_back', 'Kembali') ?></a>
     </div>
 
-    <form method="post" class="space-y-6" id="orderForm">
+    <form method="post" class="space-y-6" id="orderForm" enctype="multipart/form-data">
         <div class="card-premium p-5 sm:p-7">
             <h3 class="font-black text-primary text-lg mb-5 flex items-center gap-2">
                 <i class="fas fa-circle-info text-amber-600"></i>
@@ -178,6 +212,19 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <div class="form-group md:col-span-2">
                     <label class="form-label"><?= T('order_field_notes', 'Catatan Tambahan') ?></label>
                     <textarea name="notes" rows="2" class="form-input" placeholder="<?= T('order_ph_notes', 'Catatan tambahan untuk approval') ?>"><?= cleanInput($_POST['notes'] ?? '') ?></textarea>
+                </div>
+                <div class="form-group md:col-span-2">
+                    <label class="form-label flex items-center gap-2">
+                        <i class="fas fa-camera text-rose-600"></i>
+                        <?= T('order_field_photos', 'Upload Foto / Bukti Pendukung') ?>
+                        <span class="text-[10px] font-black text-secondary bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200/80">MAKS 5 FOTO • 3MB/FOTO • JPG/PNG/WEBP</span>
+                    </label>
+                    <div class="relative">
+                        <input type="file" name="order_photos[]" id="orderPhotos" accept="image/jpeg,image/png,image/webp,image/gif" multiple
+                            class="w-full px-4 py-6 rounded-card border-2 border-dashed border-rose-300 bg-gradient-to-br from-rose-50/60 via-white to-pink-50/40 font-medium text-primary hover:border-rose-500 hover:bg-rose-50 transition-all focus:outline-none focus:ring-4 focus:ring-rose-500/10 cursor-pointer file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-sm file:font-black file:bg-gradient-to-br file:from-rose-500 file:to-pink-600 file:text-white hover:file:from-rose-600 hover:file:to-pink-700">
+                    </div>
+                    <div id="photoPreview" class="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 hidden"></div>
+                    <p class="text-[11px] text-secondary mt-2 leading-relaxed"><i class="fas fa-lightbulb text-amber-500"></i> <b>Tip:</b> Bisa pilih banyak foto sekaligus (tahan tombol <b>CTRL</b> saat pilih file). Berguna untuk bukti foto kerusakan sparepart / desain / referensi barang yang mau dipesan.</p>
                 </div>
             </div>
         </div>
@@ -286,6 +333,39 @@ document.addEventListener('DOMContentLoaded', () => {
     addItemRow({name:'', desc:'', qty:1, unit:'pcs', price:0});
     addItemRow({name:'', desc:'', qty:1, unit:'pcs', price:0});
     calcGrand();
+
+    // ✨ JS PREVIEW FOTO BEFORE UPLOAD (MAX 5 FOTO!)
+    const fileInput = document.getElementById('orderPhotos');
+    const previewArea = document.getElementById('photoPreview');
+    if (fileInput && previewArea) {
+        fileInput.addEventListener('change', (ev) => {
+            previewArea.innerHTML = '';
+            const files = Array.from(ev.target.files || []).slice(0, 5);
+            if (files.length === 0) { previewArea.classList.add('hidden'); return; }
+            previewArea.classList.remove('hidden');
+            files.forEach((f, idx) => {
+                if (!f.type.startsWith('image/')) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const div = document.createElement('div');
+                    div.className = 'relative group rounded-xl overflow-hidden border-2 border-rose-200 shadow-sm hover:shadow-lg transition-all';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" class="w-full h-28 object-cover" alt="Foto ${idx+1}">
+                        <div class="absolute top-1 right-1 w-6 h-6 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center shadow-md border border-white/80">${idx+1}</div>
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900/80 to-transparent p-2 text-[10px] text-white font-bold truncate">${f.name}</div>
+                    `;
+                    previewArea.appendChild(div);
+                };
+                reader.readAsDataURL(f);
+            });
+            if (files.length < ev.target.files.length) {
+                const note = document.createElement('div');
+                note.className = 'col-span-full text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2';
+                note.textContent = '⚠️ Hanya 5 foto pertama yang diupload (maksimal 5 foto per order)';
+                previewArea.appendChild(note);
+            }
+        });
+    }
 });
 </script>
 

@@ -218,6 +218,39 @@ $canComplete = in_array($role, ['manager','supervisor','admin'], true) && $order
                 </dl>
             </div>
 
+            <?php
+            $photos = [];
+            if (!empty($order['attachments'])) {
+                $dec = json_decode($order['attachments'], true);
+                if (is_array($dec)) $photos = $dec;
+            }
+            if (count($photos) > 0): ?>
+            <div class="card-premium p-5 sm:p-6 overflow-hidden">
+                <h3 class="font-black text-primary text-lg mb-4 flex items-center gap-2">
+                    <i class="fas fa-images text-rose-600"></i>
+                    <?= T('order_photos_title', 'Foto / Bukti Pendukung') ?>
+                    <span class="text-xs font-bold text-secondary bg-rose-50 text-rose-700 px-2.5 py-0.5 rounded-full border border-rose-200"><?= count($photos) ?> foto</span>
+                </h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+                    <?php foreach ($photos as $idx => $p):
+                        $url = BASE_URL . 'assets/uploads/orders/' . htmlspecialchars($p);
+                        $no = (int)$idx + 1;
+                    ?>
+                    <a href="javascript:void(0)" onclick="openPhotoModal('<?= $url ?>', '<?= $no ?> / <?= count($photos) ?>')"
+                        class="group relative rounded-xl overflow-hidden border-2 border-rose-200 shadow-sm hover:shadow-xl hover:scale-[1.03] hover:border-rose-400 transition-all duration-200 cursor-zoom-in bg-slate-100">
+                        <img src="<?= $url ?>" loading="lazy" alt="Bukti foto <?= $no ?>" class="w-full h-36 sm:h-40 object-cover group-hover:brightness-90 transition-all">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all flex items-end justify-between p-2.5">
+                            <span class="text-white text-xs font-black drop-shadow-md">Foto #<?= $no ?></span>
+                            <span class="w-7 h-7 rounded-full bg-white/95 text-slate-800 flex items-center justify-center shadow-lg text-[10px] font-black border-2 border-white">
+                                <i class="fas fa-expand"></i>
+                            </span>
+                        </div>
+                    </a>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <div class="card-premium p-0 overflow-hidden">
                 <div class="px-5 sm:px-7 py-5 border-b border-border bg-slate-50/60">
                     <h3 class="font-black text-primary text-lg flex items-center gap-2"><i class="fas fa-list-check text-accent"></i> <?= T('order_items_title', 'Daftar Barang / Jasa') ?> <span class="text-xs text-secondary font-semibold normal-case">(<?= count($items) ?> item)</span></h3>
@@ -351,4 +384,44 @@ $canComplete = in_array($role, ['manager','supervisor','admin'], true) && $order
         </div>
     </div>
 </div>
+
+<!-- 🌆 MODAL FULL SIZE PREVIEW FOTO -->
+<div id="photoModal" class="fixed inset-0 z-[99999] hidden items-center justify-center">
+    <div class="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onclick="closePhotoModal()"></div>
+    <div class="relative z-10 max-w-6xl w-[95%] max-h-[92vh] flex flex-col">
+        <div class="flex items-center justify-between mb-3 px-1">
+            <div class="text-white font-bold text-lg flex items-center gap-2">
+                <i class="fas fa-image text-rose-400"></i>
+                <span id="photoModalCaption">Preview Foto</span>
+            </div>
+            <button onclick="closePhotoModal()" class="w-11 h-11 rounded-full bg-white/10 hover:bg-rose-600 text-white border border-white/20 hover:border-rose-300 transition-all shadow-xl flex items-center justify-center text-lg" title="Tutup (ESC)">
+                <i class="fas fa-xmark"></i>
+            </button>
+        </div>
+        <div class="rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-black">
+            <img id="photoModalImg" src="" alt="Foto Order" class="w-full max-h-[80vh] object-contain">
+        </div>
+        <div class="text-center text-white/70 text-xs mt-3">
+            <i class="fas fa-keyboard mr-1"></i> Tekan tombol <kbd class="px-2 py-0.5 rounded bg-white/10 border border-white/20 font-bold mx-0.5">ESC</kbd> atau klik latar gelap untuk menutup
+        </div>
+    </div>
+</div>
+<script>
+function openPhotoModal(url, caption){
+    document.getElementById('photoModalImg').src = url;
+    document.getElementById('photoModalCaption').textContent = 'Foto Bukti - ' + caption;
+    const m = document.getElementById('photoModal');
+    m.classList.remove('hidden'); m.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+}
+function closePhotoModal(){
+    const m = document.getElementById('photoModal');
+    m.classList.add('hidden'); m.classList.remove('flex');
+    document.body.style.overflow = '';
+}
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closePhotoModal();
+});
+</script>
+
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
