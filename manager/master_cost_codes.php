@@ -6,8 +6,11 @@
  * Style DOMINAN PUTIH + SLATE NETRAL sesuai request user
  */
 
-require_once __DIR__ . '/../includes/bootstrap.php';
+require_once __DIR__ . '/../config/config.php';
+requireLogin();
 requireRole('manager');
+
+$db = Database::getInstance();
 
 // ================================================================
 // AUTO MIGRASI - PERTAMA KALI BUKA HALAMAN:
