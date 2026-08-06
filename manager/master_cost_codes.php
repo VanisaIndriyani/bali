@@ -17,17 +17,12 @@ $db = Database::getInstance();
 // 1. Cek kolom updated_at, category di table cost_codes. JIKA BELUM ADA -> ALTER TABLE ADD
 // ================================================================
 try {
-    $colsUpdated = $db->fetchAll("SHOW COLUMNS FROM cost_codes LIKE 'updated_at'");
-    if (empty($colsUpdated)) {
-        $pdo->exec("ALTER TABLE cost_codes ADD COLUMN updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP AFTER created_at");
-    }
-    $colsCat = $db->fetchAll("SHOW COLUMNS FROM cost_codes LIKE 'category'");
-    if (empty($colsCat)) {
-        $pdo->exec("ALTER TABLE cost_codes ADD COLUMN category VARCHAR(50) NULL DEFAULT NULL AFTER name");
-    }
-} catch (Throwable $e) {
-    // ignore migration error
-}
+    $chkColUpd = $db->fetchOne("SHOW COLUMNS FROM cost_codes LIKE 'updated_at'");
+    if (!$chkColUpd) @$db->query("ALTER TABLE cost_codes ADD COLUMN updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP AFTER created_at");
+
+    $chkColCat = $db->fetchOne("SHOW COLUMNS FROM cost_codes LIKE 'category'");
+    if (!$chkColCat) @$db->query("ALTER TABLE cost_codes ADD COLUMN category VARCHAR(50) NULL DEFAULT NULL AFTER name");
+} catch (Throwable $_) {}
 
 $pageTitle = 'Master Cost Code';
 $pageSubtitle = 'Data Master Kode Akun Biaya / Cost Code Logistik. Semua perubahan otomatis update di dropdown Order Request & halaman lain yang pakai Cost Code.';
