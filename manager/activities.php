@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
         redirect('manager/activities.php');
     }
     try {
-        $exist = $db->fetchOne("SELECT id, log_no FROM daily_logs WHERE engineer_id = ? AND log_date = ? LIMIT 1", [$engId, $logDate]);
+        $exist = $db->fetchOne("SELECT id FROM daily_logs WHERE engineer_id = ? AND log_date = ? LIMIT 1", [$engId, $logDate]);
         if ($exist) {
             $db->query(
                 "UPDATE daily_logs SET activity_operation = ?, activity_maintenance = ?, activity_project = ?, activity_landscape = ? WHERE id = ?",
