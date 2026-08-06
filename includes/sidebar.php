@@ -78,39 +78,22 @@ if ($isEngineer) {
             <?php endif; ?>
 
             <?php if ($isSupervisor || $isManager): ?>
-            <a href="<?= BASE_URL ?>orders/dashboard.php" class="sidebar-section-clickable block nav-section !mt-5 !mb-1.5 rounded-t-xl px-3 pt-3 pb-2.5 bg-gradient-to-br from-amber-100 via-orange-100 to-amber-100 ring-2 ring-amber-300/80 shadow-xl shadow-amber-500/20 !no-underline !select-none transition-all duration-250 hover:!ring-orange-400 hover:!shadow-2xl hover:!shadow-orange-500/30 hover:-translate-y-[1.5px] active:translate-y-0 active:!shadow-sm group overflow-hidden relative">
-                <span class="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-gradient-to-br from-amber-400/20 to-orange-500/30 blur-xl"></span>
-                <span class="!text-amber-950 !tracking-[0.28em] flex items-center gap-2.5 !font-black cursor-pointer relative z-10">
-                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 via-orange-500 to-amber-700 shadow-xl shadow-orange-600/40 flex items-center justify-center ring-2 ring-white/70">
-                        <i class="fas fa-diagram-project text-white text-base"></i>
-                    </span>
-                    FLOW LOGISTIK
-                    <span class="ml-auto text-[10px] font-black tracking-normal bg-gradient-to-br from-amber-600 to-orange-700 text-white px-2.5 py-1 rounded-full shadow-xl shadow-orange-600/40 ring-1 ring-white/40">3 STEP</span>
-                    <i class="ml-1.5 fas fa-angle-right text-sm text-amber-800 opacity-80 transition-transform group-hover:translate-x-1.5"></i>
-                </span>
-            </a>
-            <a href="<?= BASE_URL ?>orders/create.php" class="nav-item !rounded-b-none !rounded-t-none !mt-0 !py-3 !px-3 border border-amber-200 border-y-0 bg-gradient-to-r from-white via-amber-50/60 to-white hover:!via-amber-100/60 transition-all <?= ($isOrderCreate) ? 'nav-item-active' : '' ?> group">
-                <span class="nav-icon !w-11 !h-11 !rounded-xl !text-lg bg-gradient-to-br from-amber-500 to-orange-600 !text-white ring-2 ring-amber-200 shadow-xl shadow-amber-500/30 flex items-center justify-center group-hover:scale-110 transition-transform"><i class="fas fa-file-circle-plus"></i></span>
-                <span class="nav-label font-black text-amber-950 flex items-center gap-2.5">
-                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-amber-500 to-orange-700 text-white text-[11px] font-black shadow-lg shadow-amber-500/40 ring-2 ring-white/70">①</span>
-                    Buat Order / Request Order
-                </span>
+            <div class="nav-section !mt-5"><span><?= T('nav_logistic_header', 'Logistic') ?></span></div>
+            <a href="<?= BASE_URL ?>orders/create.php" class="nav-item !border-l-4 <?= ($isOrderCreate) ? '!border-l-amber-500 nav-item-active !bg-amber-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
+                <span class="nav-icon <?= ($isOrderCreate) ? '!text-amber-600 !bg-amber-100 !ring-2 !ring-amber-200' : 'text-amber-600' ?>"><i class="fas fa-file-circle-plus"></i></span>
+                <span class="nav-label"><?= T('nav_order_create', 'Buat Order Request') ?></span>
             </a>
             <?php $isOrderDashboard = ($page ?? '') === 'dashboard_logistic' || (basename($_SERVER['PHP_SELF']) === 'dashboard.php' && dirname($_SERVER['PHP_SELF']) === '/orders'); ?>
-            <a href="<?= BASE_URL ?>orders/dashboard.php" class="nav-item !rounded-none !mt-0 !py-3 !px-3 border border-orange-200 border-y-0 bg-gradient-to-r from-white via-orange-50/70 to-white hover:!via-orange-100/60 transition-all <?= ($isOrderDashboard) ? 'nav-item-active' : '' ?> group">
-                <span class="nav-icon !w-11 !h-11 !rounded-xl !text-lg bg-gradient-to-br from-orange-500 to-amber-600 !text-white ring-2 ring-orange-200 shadow-xl shadow-orange-500/30 flex items-center justify-center group-hover:scale-110 transition-transform"><i class="fas fa-boxes-stacked"></i></span>
-                <span class="nav-label font-black text-orange-950 flex items-center gap-2.5">
-                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-orange-500 to-amber-700 text-white text-[11px] font-black shadow-lg shadow-orange-500/40 ring-2 ring-white/70">②</span>
-                    Dashboard Logistik (Ringkasan Status)
-                </span>
+            <a href="<?= BASE_URL ?>orders/dashboard.php" class="nav-item !border-l-4 <?= ($isOrderDashboard) ? '!border-l-orange-500 nav-item-active !bg-orange-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
+                <span class="nav-icon <?= ($isOrderDashboard) ? '!text-orange-600 !bg-orange-100 !ring-2 !ring-orange-200' : 'text-orange-600' ?>"><i class="fas fa-boxes-stacked"></i></span>
+                <span class="nav-label"><?= T('nav_logistic_dash', 'Dashboard Logistik') ?></span>
             </a>
-            <a href="<?= BASE_URL ?>orders/index.php" class="nav-item !rounded-t-none !mt-0 !py-3 !px-3 border border-emerald-200 border-t-0 bg-gradient-to-r from-white via-emerald-50/60 to-white hover:!via-emerald-100/60 transition-all <?= ($isOrderIndex) ? 'nav-item-active' : '' ?> group">
-                <span class="nav-icon !w-11 !h-11 !rounded-xl !text-lg bg-gradient-to-br from-emerald-500 to-teal-600 !text-white ring-2 ring-emerald-200 shadow-xl shadow-emerald-500/30 flex items-center justify-center group-hover:scale-110 transition-transform"><i class="fas fa-clipboard-list"></i></span>
-                <span class="nav-label font-black text-emerald-950 flex items-center gap-2.5">
-                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-teal-700 text-white text-[11px] font-black shadow-lg shadow-emerald-500/40 ring-2 ring-white/70">⑧</span>
-                    Daftar Order / PR
+            <a href="<?= BASE_URL ?>orders/index.php" class="nav-item !border-l-4 <?= ($isOrderIndex) ? '!border-l-emerald-500 nav-item-active !bg-emerald-50/80 !font-bold !text-primary' : '!border-l-transparent' ?>">
+                <span class="nav-icon <?= ($isOrderIndex) ? '!text-emerald-600 !bg-emerald-100 !ring-2 !ring-emerald-200' : 'text-emerald-600' ?>"><i class="fas fa-clipboard-list"></i></span>
+                <span class="nav-label flex items-center gap-2">
+                    <?= T('nav_order_list', 'Daftar Order / PR') ?>
                     <?php if ($pendingOrderCount > 0): ?>
-                        <span class="ml-auto badge-pill !bg-gradient-to-br !from-red-500 !to-rose-600 !ring-2 !ring-white/70 !shadow-lg !shadow-red-500/40 !text-white !text-xs !font-black"><?= $pendingOrderCount > 99 ? '99+' : $pendingOrderCount ?></span>
+                        <span class="ml-auto badge-pill"><?= $pendingOrderCount > 99 ? '99+' : $pendingOrderCount ?></span>
                     <?php endif; ?>
                 </span>
             </a>

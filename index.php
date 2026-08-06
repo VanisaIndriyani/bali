@@ -865,48 +865,6 @@ HTML;
     </div>
 
     <!-- ============ ④ BOTTLING PLANT ============ -->
-    <div class="bg-surface rounded-premium border border-violet-200/70 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 100ms">
-        <div class="px-5 lg:px-6 py-4 border-b border-violet-100 bg-gradient-to-r from-white via-violet-50/50 to-white">
-            <div class="flex items-end justify-between gap-3">
-                <div>
-                    <p class="text-[11px] font-black uppercase tracking-[0.25em] text-violet-700 mb-1">MINERAL WATER PRODUCTION</p>
-                    <h2 class="font-display text-xl lg:text-2xl font-black text-primary flex items-center gap-2">
-                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-violet-700 flex items-center justify-center text-white shadow-md shadow-violet-500/25 text-sm">④</span>
-                        <?= T('dash_bottling_title', 'Bottling Plant') ?>
-                    </h2>
-                </div>
-            </div>
-        </div>
-        <div class="p-5 lg:p-6">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <?php
-                $botMonthly = $db->fetchOne("SELECT COALESCE(SUM(bottling_watermeter),0) as wm, COALESCE(SUM(bottling_kwh),0) as kwh FROM daily_logs WHERE log_date BETWEEN ? AND ? AND status='approved' $statusWhere", [$monthStart, $today]);
-                $botToday = $utilTodaySingle ? [
-                    'wm' => (float)($utilTodaySingle['bottling_watermeter'] ?? 0),
-                    'kwh' => (float)($utilTodaySingle['bottling_kwh'] ?? 0),
-                ] : ['wm'=>0,'kwh'=>0];
-                $botCards = [
-                    [T('dash_bt_wm', 'Produksi Air (m³)'), $botToday['wm'] > 0 ? formatNumber($botToday['wm'], 1) : '-', '🥤', 'from-purple-400 to-violet-700', 'bg-violet-50', 'border-violet-200', 'text-violet-700', formatNumber($botMonthly['wm'] ?? 0, 1).' m³ bulan ini'],
-                    [T('dash_bt_kwh', 'Konsumsi Listrik (kWh)'), $botToday['kwh'] > 0 ? formatNumber($botToday['kwh'], 1) : '-', '⚡', 'from-amber-400 to-orange-600', 'bg-orange-50', 'border-orange-200', 'text-orange-700', formatNumber($botMonthly['kwh'] ?? 0, 1).' kWh bulan ini'],
-                ];
-                foreach ($botCards as $bc) {
-                    [$lbl, $todayVal, $icon, $grad, $bg, $bor, $col, $monthVal] = $bc;
-                ?>
-                    <div class="rounded-2xl border <?= $bor ?> <?= $bg ?>/40 p-4 sm:p-5 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.01] cursor-pointer transition-all" onclick="openModal('bottling')">
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-9 h-9 rounded-xl bg-gradient-to-br <?= $grad ?> flex items-center justify-center text-white shadow">
-                                <span class="text-sm"><?= $icon ?></span>
-                            </div>
-                            <p class="font-bold text-primary text-xs sm:text-sm uppercase tracking-wide"><?= $lbl ?></p>
-                        </div>
-                        <p class="text-2xl lg:text-3xl font-black text-primary leading-none mb-1"><?= $todayVal ?></p>
-                        <p class="text-[11px] font-bold <?= $col ?>"><i class="far fa-calendar-alt mr-1"></i> <?= $monthVal ?></p>
-                    </div>
-                <?php } ?>
-            </div>
-        </div>
-    </div>
-
     <!-- ============ ⑥ ENG ACTIVITY (URUTAN PINDAH SESUAI CATATAN KERTAS) ============ -->
     <div class="bg-surface rounded-premium border border-accent/20 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 120ms">
         <div class="px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-white via-amber-50/30 to-white">

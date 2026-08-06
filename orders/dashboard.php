@@ -54,6 +54,146 @@ require_once __DIR__ . '/../includes/navbar.php';
         </div>
     </div>
 
+    <!-- ============ FLOWCHART SESUAI KERTAS TULIS TANGAN CUSTOMER ============ -->
+    <div class="card-premium p-5 sm:p-7 mb-8 bg-gradient-to-b from-white via-sky-50/20 to-white ring-1 ring-sky-100 shadow-sm animate-slide-up" style="animation-delay: 80ms">
+        <div class="mb-6 flex items-end gap-3 border-b-2 border-dashed border-sky-200 pb-4">
+            <h3 class="font-handwriting font-black text-3xl sm:text-4xl text-sky-900 tracking-wide" style="transform: rotate(-1deg)">LOGISTIC</h3>
+            <p class="text-[11px] font-semibold uppercase tracking-widest text-sky-600 mb-1.5">Flow Order Request sesuai catatan kertas</p>
+        </div>
+
+        <div class="relative max-w-3xl mx-auto space-y-1">
+            <?php
+            $flowItems = [
+                [
+                    'num' => '①', 'hash' => true, 'title' => 'REQUEST ORDER',
+                    'note' => 'Tampilan dashboard.',
+                    'href' => BASE_URL . 'orders/create.php',
+                    'rotate' => '-rotate-[0.4deg]',
+                    'color' => 'amber',
+                    'boxInner' => null
+                ],
+                [
+                    'num' => '②', 'hash' => false, 'title' => 'Order by : Pilih Eng',
+                    'note' => 'nama eng di data master.',
+                    'rotate' => 'rotate-[0.3deg]',
+                    'color' => 'slate'
+                ],
+                [
+                    'num' => '③', 'hash' => false, 'title' => 'Pilih account.',
+                    'note' => 'Account di buat di data master.',
+                    'rotate' => '-rotate-[0.25deg]',
+                    'color' => 'slate'
+                ],
+                [
+                    'num' => '④', 'hash' => false, 'title' => 'Item Order QTY',
+                    'note' => 'Bisa dikecil / tambah baris.',
+                    'rotate' => 'rotate-[0.4deg]',
+                    'color' => 'slate',
+                    'boxInner' => '<div class="mt-3 pl-2 pr-5 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs font-mono text-sky-800"><div class="flex gap-2 border-b border-sky-200/60 pb-0.5"><span>1</span><span class="text-slate-400">.............</span><span class="text-slate-400">.............</span></div><div class="flex gap-2 border-b border-sky-200/60 pb-0.5"><span>2</span><span class="text-slate-400">.............</span><span class="text-slate-400">.............</span></div><div class="flex gap-2 border-b border-sky-200/60 pb-0.5"><span>3</span><span class="text-slate-400">.............</span><span class="text-slate-400">.............</span></div></div>'
+                ],
+                [
+                    'num' => '⑤', 'hash' => false, 'title' => 'REQ NUMBER',
+                    'note' => '➝  Input oleh admin dan isi harga.',
+                    'rotate' => '-rotate-[0.3deg]',
+                    'color' => 'slate'
+                ],
+                [
+                    'num' => '⑥', 'hash' => true, 'title' => 'APPROVAL · 1',
+                    'note' => null,
+                    'rotate' => 'rotate-[0.35deg]',
+                    'color' => 'orange'
+                ],
+                [
+                    'num' => '⑥', 'hash' => false, 'title' => 'Approved by.',
+                    'note' => 'Yang punya account.',
+                    'rotate' => '-rotate-[0.2deg]',
+                    'color' => 'slate',
+                    'strike' => 'Pilih nama eng / manager'
+                ],
+                [
+                    'num' => '⑦', 'hash' => true, 'title' => 'Approval 2',
+                    'note' => null,
+                    'rotate' => 'rotate-[0.3deg]',
+                    'color' => 'emerald'
+                ],
+                [
+                    'num' => '⑦', 'hash' => false, 'title' => 'Approved by.',
+                    'note' => 'Pilih orang yang punya account.',
+                    'rotate' => '-rotate-[0.25deg]',
+                    'color' => 'slate'
+                ],
+            ];
+
+            $total = count($flowItems);
+            foreach ($flowItems as $idx => $f) {
+                $isLast = ($idx === $total - 1);
+                $num = $f['num'];
+                $title = htmlspecialchars($f['title'] ?? '', ENT_QUOTES);
+                $note = $f['note'] ?? null;
+                $hash = !empty($f['hash']);
+                $href = $f['href'] ?? null;
+                $rot = $f['rotate'] ?? 'rotate-0';
+                $color = $f['color'] ?? 'slate';
+                $strike = $f['strike'] ?? null;
+                $boxInner = $f['boxInner'] ?? null;
+
+                $colTitle = match($color) {
+                    'amber'   => 'from-amber-500 to-orange-600',
+                    'orange'  => 'from-orange-500 to-amber-600',
+                    'emerald' => 'from-emerald-500 to-teal-600',
+                    default   => 'from-sky-600 to-indigo-700'
+                };
+                $colBorder = match($color) {
+                    'amber'   => 'border-amber-400/80 bg-amber-50/70',
+                    'orange'  => 'border-orange-400/80 bg-orange-50/70',
+                    'emerald' => 'border-emerald-400/80 bg-emerald-50/70',
+                    default   => 'border-sky-600/70 bg-white'
+                };
+                $colHash = match($color) {
+                    'amber'   => 'text-amber-600',
+                    'orange'  => 'text-orange-600',
+                    'emerald' => 'text-emerald-600',
+                    default   => 'text-sky-700'
+                };
+
+                $wrapOpen = $href ? ('<a href="'.htmlspecialchars($href, ENT_QUOTES).'" class="block group">') : '<div class="block">';
+                $wrapClose = $href ? '</a>' : '</div>';
+            ?>
+                <div class="relative pl-10 py-1">
+                    <?php if ($hash): ?>
+                        <span class="absolute left-0 top-4 text-xl font-black <?= $colHash ?> select-none" title="Tanda check list">#</span>
+                    <?php endif; ?>
+
+                    <?= $wrapOpen ?>
+                        <div class="relative border-2 border-sky-700/80 rounded-lg p-3.5 pr-5 <?= $colBorder ?> shadow-sm transition-all duration-200 transform <?= $rot ?> <?= ($href ? 'hover:-translate-y-0.5 hover:shadow-lg hover:shadow-sky-500/10 hover:border-sky-800' : '') ?>">
+                            <div class="flex items-start gap-3">
+                                <span class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br <?= $colTitle ?> text-white text-base font-black shadow-md ring-2 ring-white/80"><?= $num ?></span>
+                                <div class="min-w-0 flex-1 pt-0.5">
+                                    <h4 class="font-display font-black text-base sm:text-lg text-sky-950 tracking-wide leading-tight <?= ($href ? 'group-hover:text-sky-800' : '') ?>"><?= $title ?></h4>
+                                    <?php if ($strike): ?>
+                                        <p class="mt-1 text-xs text-slate-500 line-through decoration-2 decoration-red-400/70 font-medium"><?= htmlspecialchars($strike) ?></p>
+                                    <?php endif; ?>
+                                    <?php if ($note): ?>
+                                        <p class="mt-1.5 text-xs sm:text-sm text-slate-600 font-medium leading-snug"><?= htmlspecialchars($note) ?></p>
+                                    <?php endif; ?>
+                                    <?php if ($boxInner) echo $boxInner; ?>
+                                </div>
+                                <?php if ($href): ?>
+                                    <i class="fas fa-arrow-right text-sm text-amber-600 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all mt-1.5 shrink-0"></i>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?= $wrapClose ?>
+
+                    <?php if (!$isLast): ?>
+                        <div class="absolute left-[22px] top-full h-7 w-[2px] bg-gradient-to-b from-sky-600/80 to-sky-400/60 -translate-x-1/2"></div>
+                        <div class="absolute left-[22px] top-[calc(100%+1.6rem)] h-0 w-0 -translate-x-1/2 border-l-[7px] border-r-[7px] border-t-[10px] border-l-transparent border-r-transparent border-t-sky-600/80"></div>
+                    <?php endif; ?>
+                </div>
+            <?php } ?>
+        </div>
+    </div>
+
     <div class="bg-surface rounded-premium border border-amber-200/70 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 100ms">
         <div class="p-5 lg:p-6">
             <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
