@@ -47,6 +47,9 @@ table { border-collapse: collapse; }
     border-radius: 999px;
     transition: all 0.25s ease;
     position: relative;
+    cursor: pointer !important;
+    user-select: none;
+    text-decoration: none;
 }
 .nav-link:hover {
     background-color: #f5f5f5;
@@ -73,6 +76,9 @@ table { border-collapse: collapse; }
     white-space: nowrap;
     flex-shrink: 0;
     transition: all 0.25s ease;
+    cursor: pointer !important;
+    user-select: none;
+    text-decoration: none;
 }
 .nav-link-mobile-active {
     background-color: #111111 !important;
@@ -381,12 +387,17 @@ input:focus, textarea:focus, select:focus {
     font-size: 10px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase;
     color: #c9a227;
     position: relative;
+    cursor: default;
 }
 .nav-section::after {
     content: ""; display: inline-block; height: 1px; margin-left: 0.5rem; width: 30px;
     background: linear-gradient(90deg, rgba(201,162,39,0.55), transparent);
     vertical-align: middle;
 }
+.sidebar-section-clickable { cursor: pointer !important; user-select: none; display: block; }
+.sidebar-section-clickable:hover { filter: brightness(1.03); }
+.sidebar-section-clickable:active { filter: brightness(0.97); transform: scale(0.995); }
+.sidebar-section-clickable.nav-section::after { width: 40px; background: linear-gradient(90deg, rgba(201,162,39,0.8), rgba(201,162,39,0.1), transparent); }
 .nav-item {
     display: flex; align-items: center; gap: 0.85rem;
     padding: 0.75rem 0.95rem;
@@ -398,6 +409,8 @@ input:focus, textarea:focus, select:focus {
     position: relative;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
+    cursor: pointer !important;
+    user-select: none;
 }
 .nav-item:hover {
     background: #fff7e0;

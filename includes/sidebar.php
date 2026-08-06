@@ -77,14 +77,21 @@ if ($isEngineer) {
             </a>
             <?php endif; ?>
 
-            <div class="nav-section"><span>Order / PR <span class="ml-1 text-amber-700 font-black">LOGISTIC</span></span></div>
-            <a href="<?= BASE_URL ?>orders/create.php" class="nav-item <?= $isOrderCreate ? 'nav-item-active' : '' ?>">
-                <span class="nav-icon"><i class="fas fa-file-circle-plus"></i></span>
-                <span class="nav-label"><?= T('nav_order_create', 'Buat Order Request') ?></span>
+            <a href="<?= BASE_URL ?>orders/index.php" class="sidebar-section-clickable block nav-section !mt-5 !mb-1.5 rounded-t-xl px-2 pt-2.5 pb-1.5 bg-gradient-to-br from-amber-50 via-amber-50/70 to-orange-50 ring-1 ring-amber-200/80 shadow-sm !no-underline !select-none transition-all duration-200 hover:!ring-amber-400 hover:!shadow-md hover:!shadow-amber-500/20 hover:-translate-y-[1px] active:translate-y-0 active:!shadow-sm">
+                <span class="!text-amber-900 !tracking-[0.25em] flex items-center gap-1.5 !font-black cursor-pointer">
+                    <i class="fas fa-boxes-stacked text-amber-700 fa-fw"></i>
+                    LOGISTIC
+                    <span class="ml-auto text-[9px] font-black tracking-normal bg-gradient-to-br from-amber-500 to-orange-600 text-white px-2 py-0.5 rounded-full shadow-md shadow-amber-500/30">Order/PR</span>
+                    <i class="ml-1.5 fas fa-angle-right text-[11px] text-amber-600 opacity-70 transition-transform group-hover:translate-x-1"></i>
+                </span>
             </a>
-            <a href="<?= BASE_URL ?>orders/index.php" class="nav-item <?= $isOrderIndex ? 'nav-item-active' : '' ?>">
-                <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
-                <span class="nav-label"><?= T('nav_order_list', 'Daftar Order / PR') ?>
+            <a href="<?= BASE_URL ?>orders/create.php" class="nav-item !rounded-b-none !mt-0 border border-amber-100/70 border-b-0 bg-gradient-to-r from-white via-amber-50/30 to-white <?= $isOrderCreate ? 'nav-item-active' : '' ?>">
+                <span class="nav-icon text-amber-700"><i class="fas fa-file-circle-plus"></i></span>
+                <span class="nav-label font-bold text-amber-950"><?= T('nav_order_create', 'Buat Order Request') ?><span class="ml-1 text-[10px] font-black text-amber-600 tracking-wider">NEW</span></span>
+            </a>
+            <a href="<?= BASE_URL ?>orders/index.php" class="nav-item !rounded-t-none !mt-0 !pt-2 border border-amber-100/70 border-t-0 bg-gradient-to-r from-white via-orange-50/30 to-white <?= $isOrderIndex ? 'nav-item-active' : '' ?>">
+                <span class="nav-icon text-orange-700"><i class="fas fa-clipboard-list"></i></span>
+                <span class="nav-label font-semibold"><?= T('nav_order_list', 'Daftar Order / PR') ?>
                     <?php if ($pendingOrderCount > 0): ?>
                         <span class="ml-auto badge-pill"><?= $pendingOrderCount > 99 ? '99+' : $pendingOrderCount ?></span>
                     <?php endif; ?>
