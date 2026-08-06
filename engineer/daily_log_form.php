@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $wMainBldg = (float)($_POST['water_main_building'] ?? 0);
     $wCooling = (float)($_POST['water_cooling_tower'] ?? 0);
     $wBottling = (float)($_POST['water_bottling'] ?? 0);
-    $water = $wPdam + $wIki + $wDw1 + $wDw2 + $wDwAsean + $wDwLpb + $wMainBldg + $wCooling + $wBottling;
+    $water = $wMainBldg + $wCooling;
 
     // ③ Gas 2 types
     $gLpg = (float)($_POST['gas_lpg'] ?? 0);
@@ -343,34 +343,27 @@ require_once __DIR__ . '/../includes/navbar.php';
             </div>
         </div>
 
-        <!-- ② WATER 9 SUMBER -->
+        <!-- ② WATER MAIN BUILDING + COOLING TOWER (HANYA 2 SUMBER) -->
         <div class="bg-surface rounded-premium border border-blue-200/60 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 90ms">
             <div class="px-5 lg:px-6 py-4 border-b border-blue-100/80 bg-gradient-to-r from-blue-50/90 via-sky-50/60 to-cyan-50/70">
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30"><i class="fas fa-droplet text-sm"></i></span>
-                    <?= T('form_water_title', '② Water - Konsumsi Air 9 Sumber (m³)') ?>
+                    <?= T('form_water_title', '② Water - Konsumsi Air Main Building & Cooling Tower (m³)') ?>
                 </h3>
-                <p class="text-xs text-secondary mt-0.5"><?= T('form_water_sub', '9 sumber sesuai catatan: PDAM / IKI Gaban / Deep Well / Main Building / Cooling Tower / Bottling') ?></p>
+                <p class="text-xs text-secondary mt-0.5"><?= T('form_water_sub', '2 sumber utama: Main Building + Cooling Tower') ?></p>
             </div>
-            <div class="p-5 lg:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="p-5 lg:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4">
                 <?php
                 $waterFields = [
-                    ['water_pdam', T('form_water_pdam', 'PDAM'), 'text-blue-600', 'bg-blue-50/60', 'border-blue-200'],
-                    ['water_iki_gaban', T('form_water_iki', 'IKI Gaban'), 'text-blue-700', 'bg-blue-50/40', 'border-blue-200/80'],
-                    ['water_deepwell_1', T('form_water_dw1', 'Deep Well 1'), 'text-indigo-600', 'bg-indigo-50/60', 'border-indigo-200'],
-                    ['water_deepwell_2_brr', T('form_water_dw2', 'Deep Well 2 Brr'), 'text-indigo-700', 'bg-indigo-50/40', 'border-indigo-200/80'],
-                    ['water_deepwell_asean', T('form_water_dw_asean', 'Deep Well ASEAN'), 'text-sky-600', 'bg-sky-50/60', 'border-sky-200'],
-                    ['water_deepwell_lpb', T('form_water_dw_lpb', 'Deep Well LPB'), 'text-sky-700', 'bg-sky-50/40', 'border-sky-200/80'],
                     ['water_main_building', T('form_water_main', 'Main Building'), 'text-cyan-600', 'bg-cyan-50/60', 'border-cyan-200'],
                     ['water_cooling_tower', T('form_water_ct', 'Cooling Tower'), 'text-teal-600', 'bg-teal-50/60', 'border-teal-200'],
-                    ['water_bottling', T('form_water_bottling', 'Bottling Water'), 'text-blue-800', 'bg-blue-100/60', 'border-blue-300/80'],
                 ];
                 foreach ($waterFields as $wf) {
                     [$field, $label, $col, $bg, $bor] = $wf;
                     $val = $log[$field] ?? '0.00';
                     echo <<<HTML
                 <div>
-                    <label class="block text-xs font-extrabold text-primary mb-1.5 tracking-wide"><i class="far fa-circle-dot mr-1 {$col}"></i>{$label}</label>
+                    <label class="block text-xs font-extrabold text-primary mb-1.5 tracking-wide">{$label}</label>
                     <div class="relative">
                         <input type="number" step="0.01" min="0" name="{$field}" oninput="calcTotals()"
                             value="{$val}"
@@ -381,9 +374,9 @@ require_once __DIR__ . '/../includes/navbar.php';
 HTML;
                 }
                 ?>
-                <div class="sm:col-span-2 md:col-span-3 pt-1 mt-1 border-t border-dashed border-blue-100">
+                <div class="sm:col-span-2 md:col-span-2 pt-1 mt-1 border-t border-dashed border-blue-100">
                     <div class="flex items-center justify-between gap-4">
-                        <label class="text-sm font-extrabold text-primary flex items-center gap-1.5"><i class="fas fa-calculator text-primary"></i><?= T('form_water_total_label', 'TOTAL KONSUMSI AIR (Auto sum 9 sumber)') ?></label>
+                        <label class="text-sm font-extrabold text-primary flex items-center gap-1.5"><i class="fas fa-calculator text-primary"></i><?= T('form_water_total_label', 'TOTAL KONSUMSI AIR (Auto Main + Cooling Tower)') ?></label>
                         <div class="relative w-full sm:w-56">
                             <input type="number" id="totalWater" readonly step="0.01" min="0"
                                 value="<?= $log['total_water'] ?? '0.00' ?>"

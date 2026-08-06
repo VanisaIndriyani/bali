@@ -37,7 +37,7 @@ if ($isManager) {
 if ($isEngineer) {
     $myId = (int)($user['id'] ?? 0);
     if ($myId > 0) {
-        $pendingOrderCount = (int)($db->fetchOne("SELECT COUNT(*) as cnt FROM orders WHERE created_by = ? AND status IN ('pending_supervisor','pending_manager','rejected')", [$myId])['cnt'] ?? 0);
+        $pendingOrderCount = (int)($db->fetchOne("SELECT COUNT(*) as cnt FROM orders WHERE requested_by = ? AND status IN ('pending_supervisor','pending_manager','rejected')", [$myId])['cnt'] ?? 0);
     }
 }
 ?>
