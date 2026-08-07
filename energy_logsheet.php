@@ -15,7 +15,7 @@ $pageSubtitle = 'Form Input & Daftar Catatan Konsumsi Energi Harian (Listrik, So
 include __DIR__ . '/includes/header.php';
 include __DIR__ . '/includes/sidebar.php';
 ?>
-<div class="main-content px-4 sm:px-6 lg:px-8 py-6 max-w-[1800px] mx-auto">
+<div class="main-content px-4 sm:px-6 lg:px-8 py-6 pb-16 max-w-[1800px] mx-auto">
     <!-- BREADCRUMB -->
     <div class="mb-4 flex items-center gap-2 text-xs font-semibold text-slate-500">
         <a href="<?= BASE_URL ?>index.php" class="hover:text-primary transition"><i class="fas fa-house mr-1"></i> Dashboard</a>
@@ -80,7 +80,7 @@ include __DIR__ . '/includes/sidebar.php';
     </div>
 
     <!-- 6 QUICK INFO CARDS MINI (FILTER RESULT) -->
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total Entri</p>
             <p class="font-display text-xl sm:text-2xl font-black text-primary mt-1">186</p>
@@ -114,7 +114,7 @@ include __DIR__ . '/includes/sidebar.php';
             <span class="flex-shrink">Scroll ke kanan untuk melihat kolom <strong class="not-italic text-slate-700">PIC</strong> &amp; <strong class="not-italic text-slate-700">Aksi</strong> yang ada di sisi kanan tabel</span>
             <i class="fas fa-arrow-right text-indigo-500 flex-shrink-0"></i>
         </div>
-        <div class="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+        <div class="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 pb-3 pr-2">
             <table class="w-full text-sm min-w-[1700px]">
                 <thead class="bg-slate-50 border-b-2 border-slate-200">
                     <tr class="text-left text-secondary text-xs">

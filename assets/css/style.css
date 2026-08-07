@@ -14,6 +14,9 @@ body {
     color: #111111;
     background-color: #f5f5f5;
     overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 100vh;
+    position: relative;
 }
 
 /* ============ RESPONSIVE GLOBAL HELPERS ============ */
@@ -249,6 +252,8 @@ input:focus, textarea:focus, select:focus {
     min-height: 100vh;
     align-items: stretch;
     background: #f5f5f5;
+    overflow-y: visible;
+    overflow-x: clip;
 }
 
 /* ============ SIDEBAR SUPERVISOR (PUTIH DOMINAN + AKSEN EMAS) ============ */
@@ -567,9 +572,9 @@ input:focus, textarea:focus, select:focus {
 }
 .logout-mobile:hover { background: #fee2e2; color: #ef4444; }
 
-.main-wrapper { flex: 1; width: 100%; min-width: 0; min-height: 100vh; display: flex; flex-direction: column; padding: 0 1rem 2rem 1rem; }
-@media (min-width: 640px) { .main-wrapper { padding: 0 1.5rem 3rem 1.5rem; } }
-@media (min-width: 1024px) { .main-wrapper { padding: 0 2rem 3.5rem 2rem; } }
+.main-wrapper { flex: 1; width: 100%; min-width: 0; min-height: 100vh; display: flex; flex-direction: column; padding: 0 1rem 3rem 1rem; overflow-y: visible; }
+@media (min-width: 640px) { .main-wrapper { padding: 0 1.5rem 4rem 1.5rem; } }
+@media (min-width: 1024px) { .main-wrapper { padding: 0 2rem 4.5rem 2rem; } }
 .flash-wrap { padding-top: 0.5rem; }
 
 .page-shell { width: 100%; max-width: 1280px; margin-left: auto; margin-right: auto; padding: 1.5rem 1rem 2rem; }
