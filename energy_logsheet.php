@@ -91,19 +91,19 @@ include __DIR__ . '/includes/sidebar.php';
         </div>
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total kWh</p>
-            <p class="font-display text-2xl font-black text-primary mt-1">62.8k</p>
+            <p class="font-display text-2xl font-black text-primary mt-1">62.847,5</p>
         </div>
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total Solar</p>
-            <p class="font-display text-2xl font-black text-primary mt-1">14.5k L</p>
+            <p class="font-display text-2xl font-black text-primary mt-1">14.520,0 L</p>
         </div>
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total Gas</p>
-            <p class="font-display text-2xl font-black text-primary mt-1">2.3t Kg</p>
+            <p class="font-display text-2xl font-black text-primary mt-1">2.300,0 Kg</p>
         </div>
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total Air</p>
-            <p class="font-display text-2xl font-black text-primary mt-1">16.1k m³</p>
+            <p class="font-display text-2xl font-black text-primary mt-1">16.185,4 m³</p>
         </div>
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">PIC Aktif</p>
@@ -113,8 +113,11 @@ include __DIR__ . '/includes/sidebar.php';
 
     <!-- TABLE LIST LOG SHEET (DATA STATIS + PLACEHOLDER) -->
     <div class="bg-white rounded-premium border border-slate-200 shadow-sm overflow-hidden mb-6 animate-slide-up" style="animation-delay: 90ms">
+        <div class="px-4 sm:px-5 pt-3 text-[11px] text-slate-500 italic font-semibold flex items-center gap-1 bg-slate-50/50 border-b border-slate-100 pb-2">
+            <i class="fas fa-hand-point-right text-indigo-500"></i> Scroll ke kanan untuk melihat kolom <strong>PIC</strong> &amp; <strong>Aksi</strong> yang ada di sisi kanan tabel <i class="fas fa-arrow-right text-indigo-500 ml-1"></i>
+        </div>
         <div class="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
-            <table class="w-full text-sm min-w-[1200px]">
+            <table class="w-full text-sm min-w-[1700px]">
                 <thead class="bg-slate-50 border-b-2 border-slate-200">
                     <tr class="text-left text-secondary text-xs">
                         <th class="px-4 sm:px-5 py-3.5 font-bold whitespace-nowrap w-12">#</th>
