@@ -359,6 +359,27 @@ $reviewedName = T('dash_act_reviewed_name', 'Supervisor Engineering');
 $colLeft = [];
 $colRight = [];
 $catDetailRows = [];
+// 📦 BARU: Simpan activity_masters per divisi + preview items master untuk dipakai render card dan modal nanti
+$masterRowsPerDiv = ['operation'=>[], 'maintenance'=>[], 'project'=>[], 'landscape'=>[]];
+$masterPreviewPerDiv = ['operation'=>[], 'maintenance'=>[], 'project'=>[], 'landscape'=>[]];
+$masterCntPerDiv = ['operation'=>0, 'maintenance'=>0, 'project'=>0, 'landscape'=>0];
+try {
+    $_mastersAll = $db->fetchAll("SELECT id, division, activity_name, sort_order, status_default, created_at FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+    foreach ($_mastersAll as $_m) {
+        $dv = (string)($_m['division'] ?? 'operation');
+        if (!in_array($dv, ['operation','maintenance','project','landscape'], true)) $dv = 'operation';
+        $ttl = trim((string)($_m['activity_name'] ?? ''));
+        if ($ttl === '') continue;
+        $st = (strtolower((string)($_m['status_default'] ?? 'progress')) === 'complete') ? 'complete' : 'progress';
+        $masterRowsPerDiv[$dv][] = $_m;
+        if (count($masterPreviewPerDiv[$dv]) < 3) {
+            $masterPreviewPerDiv[$dv][] = ['t'=>$ttl, 's'=>$st, '__from_master'=>true];
+        }
+        $masterCntPerDiv[$dv]++;
+    }
+    unset($_mastersAll, $_m, $dv, $ttl, $st);
+} catch (Throwable $e) {}
+
 foreach ($cats as $c) {
     $todayCnt = buildActCnt($db, $today, $today, $c['id'], $userId, 'manager');
     $monthCnt = buildActCnt($db, $monthStart, $today, $c['id'], $userId, 'manager');
@@ -380,10 +401,29 @@ foreach ($cats as $c) {
          ORDER BY dl.log_date DESC, dl.id DESC",
         [$monthStart, $today]
     );
+    // ============== ✨ TAMBAHAN: MASUKKAN DATA MASTER KE COUNT & PREVIEW ✨ ==============
+    $div = $c['id'];
+    $hasDaily = (is_array($catDetailRows[$div]) && count($catDetailRows[$div]) > 0) || ($cnt > 0);
+    $mCnt = (int)($masterCntPerDiv[$div] ?? 0);
+    $totalMasterShown = 0;
+    if ($mCnt > 0) {
+        $totalMasterShown = $mCnt;
+        // JIKA TIDAK ADA daily log sama sekali: count bulan ini diambil dari master count (agar tidak muncul 0)
+        if (!$hasDaily) $cnt += $mCnt;
+    }
     $colLeft[] = $c;
-    $colRight[] = $cnt > 0
-        ? '<div class="flex items-center gap-2 text-sm font-bold '.$c['color'].'"><i class="far fa-calendar-check"></i> <span class="font-black">'.$cnt.'</span> '.$actMonthLabel.($todayN > 0 ? ' <span class="text-secondary/70 font-medium text-xs ml-1">(+'.$todayN.' '.$actTodayLabel.')</span>' : '').' <span class="ml-2 inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-primary/70 px-2 py-0.5 rounded-full bg-white/70 border border-slate-200 shadow-sm"><i class="fas fa-hand-pointer text-xs"></i> Klik Detail</span></div>'
-        : '<div class="flex items-center gap-2 text-sm text-secondary/70 font-medium">'.$blankIcon.$actEmpty.'</div>';
+    if ($cnt > 0 || $totalMasterShown > 0) {
+        $badgeMaster = '';
+        if ($totalMasterShown > 0 && !$hasDaily) {
+            $badgeMaster = ' <span class="ml-2 inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-sky-700 px-2.5 py-0.5 rounded-full bg-sky-50 border border-sky-200 shadow-xs"><i class="fas fa-database text-[10px]"></i> MASTER TEMPLATE</span>';
+        } elseif ($totalMasterShown > 0) {
+            $badgeMaster = ' <span class="ml-1 inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-slate-500 px-2 py-0.5 rounded-full bg-white/60 border border-slate-200">+'.$totalMasterShown.' Master</span>';
+        }
+        $txtCount = '<div class="flex items-center gap-2 text-sm font-bold '.$c['color'].'"><i class="far fa-calendar-check"></i> <span class="font-black">'.$cnt.'</span> '.$actMonthLabel.($todayN > 0 ? ' <span class="text-secondary/70 font-medium text-xs ml-1">(+'.$todayN.' '.$actTodayLabel.')</span>' : '').$badgeMaster.'</div>';
+        $colRight[] = $txtCount;
+    } else {
+        $colRight[] = '<div class="flex items-center gap-2 text-sm text-secondary/70 font-medium">'.$blankIcon.$actEmpty.'</div>';
+    }
 }
 
 require_once __DIR__ . '/../includes/header.php';
@@ -610,8 +650,8 @@ require_once __DIR__ . '/../includes/navbar.php';
                     default       => 'activity_operation_items',
                 };
                 $itemsAllPreview = '';
+                $collect = [];
                 if (count($rowsCard) > 0) {
-                    $collect = [];
                     foreach ($rowsCard as $rc) {
                         $jsonText = $rc[$colItems] ?? '';
                         if (empty($jsonText)) continue;
@@ -619,9 +659,17 @@ require_once __DIR__ . '/../includes/navbar.php';
                         if (is_array($arr)) foreach ($arr as $ai) $collect[] = $ai;
                         if (count($collect) >= 3) break;
                     }
-                    if (count($collect) > 0) {
-                        $itemsAllPreview = renderActItems($collect, 3);
+                }
+                // ✨ BARU: Tambahkan juga master activity preview (max total 3)
+                if (count($collect) < 3) {
+                    $mPrev = $masterPreviewPerDiv[$c['id']] ?? [];
+                    foreach ($mPrev as $mp) {
+                        if (count($collect) >= 3) break;
+                        $collect[] = $mp;
                     }
+                }
+                if (count($collect) > 0) {
+                    $itemsAllPreview = renderActItems($collect, 3);
                 }
             ?>
             <div class="group rounded-2xl border-2 border-slate-200 bg-white p-4 sm:p-5 hover:shadow-2xl hover:-translate-y-0.5 hover:scale-[1.005] hover:ring-4 hover:ring-slate-300 transition-all duration-300 cursor-pointer active:scale-[0.998]"
@@ -679,6 +727,9 @@ require_once __DIR__ . '/../includes/navbar.php';
         $rows = $catDetailRows[$c['id']] ?? [];
         $totalSum = 0;
         foreach ($rows as $r) $totalSum += (int)($r['cnt'] ?? 0);
+        $divKey = $c['id'];
+        $masterRows = $masterRowsPerDiv[$divKey] ?? [];
+        $masterCnt = (int)($masterCntPerDiv[$divKey] ?? 0);
         $colItems = match($c['id']) {
             'operation'   => 'activity_operation_items',
             'maintenance' => 'activity_maintenance_items',
@@ -686,6 +737,7 @@ require_once __DIR__ . '/../includes/navbar.php';
             'landscape'   => 'activity_landscape_items',
             default       => 'activity_operation_items',
         };
+        $showMasterBox = ($masterCnt > 0);
     ?>
     <div id="modal-<?= htmlspecialchars($c['id']) ?>" class="fixed inset-0 z-[9999] hidden items-center justify-center p-4 animate-fade-in-modal"
          onclick="if(event.target===this)closeModal('<?= htmlspecialchars($c['id']) ?>')">
@@ -703,13 +755,18 @@ require_once __DIR__ . '/../includes/navbar.php';
                         <div>
                             <p class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.25em] text-white/85 mb-1.5">DETAIL REKAP BULAN INI • <?= date('M Y') ?></p>
                             <h4 class="font-display text-2xl sm:text-3xl font-black tracking-wide leading-tight">Divisi <?= $c['label'] ?></h4>
-                            <div class="flex items-center gap-3 mt-2">
+                            <div class="flex flex-wrap items-center gap-3 mt-2">
                                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white text-xs font-bold">
                                     <i class="fas fa-list-check"></i> Total Data: <span class="font-black text-white"><?= count($rows) ?> aktivitas</span>
                                 </span>
                                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-slate-800 text-xs font-black shadow">
                                     <i class="<?= $c['icon'] ?> <?= $c['color'] ?>"></i> Total Counters: <?= number_format($totalSum, 0, ',', '.') ?>
                                 </span>
+                                <?php if ($showMasterBox): ?>
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-black shadow">
+                                    <i class="fas fa-database"></i> Master Template: <?= $masterCnt ?>
+                                </span>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -724,7 +781,7 @@ require_once __DIR__ . '/../includes/navbar.php';
 
             <!-- BODY MODAL -->
             <div class="flex-1 overflow-y-auto p-5 sm:p-7 bg-gradient-to-b from-slate-50 to-white">
-                <?php if (empty($rows)): ?>
+                <?php if (empty($rows) && !$showMasterBox): ?>
                     <div class="text-center py-16 px-6">
                         <div class="w-20 h-20 mx-auto mb-5 rounded-3xl bg-slate-100 flex items-center justify-center text-slate-400">
                             <i class="far fa-folder-open text-3xl"></i>
@@ -738,6 +795,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                         </button>
                     </div>
                 <?php else: ?>
+                    <?php if (!empty($rows)): ?>
                     <div class="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
                         <table class="w-full text-sm">
                             <thead class="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
@@ -812,6 +870,70 @@ require_once __DIR__ . '/../includes/navbar.php';
                             </tfoot>
                         </table>
                     </div>
+                    <?php endif; ?>
+
+                    <?php if ($showMasterBox): ?>
+                    <div class="mt-7 border-t-2 border-dashed border-slate-200 pt-7">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white shadow shadow-sky-500/30">
+                                <i class="fas fa-database text-sm"></i>
+                            </div>
+                            <div>
+                                <p class="text-[11px] font-black uppercase tracking-[0.2em] text-sky-700">MASTER TEMPLATE</p>
+                                <h6 class="font-black text-lg text-primary">Daftar Master Activity Divisi <?= $c['label'] ?> (<?= $masterCnt ?>)</h6>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto rounded-2xl border border-sky-200 bg-gradient-to-br from-white to-sky-50/40 shadow-sm">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gradient-to-r from-sky-100 to-sky-50 border-b border-sky-200">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-sky-800 w-12">#</th>
+                                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-sky-800 w-20">Urutan</th>
+                                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-sky-800">Nama Master Activity</th>
+                                        <th class="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest text-sky-800 w-44">Status Default</th>
+                                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-sky-800 w-40">Dibuat Tgl</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-sky-100">
+                                    <?php
+                                    $_nMaster = 0;
+                                    foreach ($masterRows as $mr):
+                                        $_nMaster++;
+                                        $stM = (strtolower((string)($mr['status_default'] ?? 'progress')) === 'complete') ? 'complete' : 'progress';
+                                        $crAt = (string)($mr['created_at'] ?? '');
+                                        if ($crAt !== '') { try { $dtM = new DateTime($crAt); $crFmt = $dtM->format('d M Y'); } catch (Throwable $e) { $crFmt = $crAt; } } else { $crFmt = '-'; }
+                                    ?>
+                                    <tr class="hover:bg-sky-50 transition-colors">
+                                        <td class="px-4 py-3 align-top text-slate-500 font-black text-xs"><?= $_nMaster ?>.</td>
+                                        <td class="px-4 py-3 align-top">
+                                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white border border-sky-200 text-sky-700 font-black shadow-xs">
+                                                <?= (int)($mr['sort_order'] ?? 0) ?>
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 align-top font-bold text-slate-800"><?= htmlspecialchars(trim((string)($mr['activity_name'] ?? ''))) ?></td>
+                                        <td class="px-4 py-3 align-top text-center">
+                                            <?php if ($stM === 'complete'): ?>
+                                                <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-black">
+                                                    <i class="fas fa-check-circle text-[10px]"></i> COMPLETE
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-black">
+                                                    <i class="fas fa-spinner fa-spin text-[10px]"></i> IN PROGRESS
+                                                </span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="px-4 py-3 align-top text-xs text-slate-600 font-semibold">
+                                            <span class="inline-flex items-center gap-1">
+                                                <i class="far fa-calendar text-slate-400"></i> <?= $crFmt ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <?php endif; ?>
 
                     <div class="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
                         <p class="text-[11px] font-semibold text-slate-500 flex items-center gap-2">
@@ -1185,7 +1307,7 @@ require_once __DIR__ . '/../includes/navbar.php';
         }, 120);
     }
 
-    // ================================ JS: DINAMIS ROW DROPDOWN MASTER (OPSI A - NETRAL STYLE!) ================================
+    // ================================ JS: DINAMIS ROW INPUT TEXT MANUAL (TIDAK PAKAI DROPDOWN MASTER!) ================================
     function addActRow(divCode) {
         const map = {
             op: { prefix: 'act_op',       color: 'indigo', border: 'border-slate-200', bg: 'bg-slate-50/70' },
@@ -1197,8 +1319,6 @@ require_once __DIR__ . '/../includes/navbar.php';
         if (!cfg) return;
         const container = document.getElementById('actRows_' + divCode);
         if (!container) return;
-        const fullDiv = window.DIV_CODE_TO_FULL[divCode] || divCode;
-        const listMasters = window.ACTIVITY_MASTERS && Array.isArray(window.ACTIVITY_MASTERS[fullDiv]) ? window.ACTIVITY_MASTERS[fullDiv] : [];
         let curNum = parseInt(container.getAttribute('data-rows') || '0', 10);
         curNum += 1;
         container.setAttribute('data-rows', String(curNum));
@@ -1207,40 +1327,15 @@ require_once __DIR__ . '/../includes/navbar.php';
         row.className = 'flex flex-col sm:flex-row gap-2 items-stretch sm:items-center p-2.5 rounded-xl ' + cfg.bg + ' border ' + cfg.border + ' animate-fade-in';
         row.setAttribute('data-act-row', '1');
 
-        // Build OPTIONS DROPDOWN MASTER
-        let optionsHtml = `<option value="" disabled selected>-- Pilih Master Activity --</option>`;
-        if (listMasters.length === 0) {
-            optionsHtml = `
-                <option value="" disabled selected>⚠️ Belum ada Master Divisi ini!</option>
-                <option value="" disabled>👉 Silakan buka ⚙️ Kelola Master Activity di header</option>
-            `;
-        } else {
-            listMasters.forEach(m => {
-                const sd = (m && m.status_default) === 'complete' ? '✅ Complete' : '⏳ In Progress';
-                const val = ((m.activity_name || '').replace(/\|/g, ' ')) + '|' + (m.id || 0);
-                const mid = m.id || 0;
-                optionsHtml += `<option value="${String(val).replace(/"/g,'&quot;')}" data-status="${m.status_default || 'progress'}" data-mid="${mid}">${m.activity_name || ''} <span class="text-slate-400">[${sd}]</span></option>`;
-            });
-        }
-
-        const disabledAttr = listMasters.length === 0 ? 'disabled style="opacity:0.65; cursor:not-allowed;"' : '';
-
         row.innerHTML = `
             <span class="inline-flex w-8 h-8 rounded-lg bg-white border ` + cfg.border + ` items-center justify-center text-[11px] font-black text-slate-600 shrink-0 self-start sm:self-center">` + curNum + `</span>
             <div class="flex-1 min-w-0">
-                <select name="` + cfg.prefix + `_text[]" data-act-select ` + disabledAttr + `
-                    class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition appearance-none pr-8" required>
-                    ${optionsHtml}
-                </select>
-                ${listMasters.length === 0 ? `
-                    <button type="button" onclick="openMasterModal('${fullDiv}')"
-                        class="mt-1.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-[11px] font-black shadow-sm transition">
-                        <i class="fas fa-plus-circle text-[10px]"></i> ⚙️ Tambah Master Dulu
-                    </button>
-                ` : ''}
+                <input type="text" name="` + cfg.prefix + `_text[]"
+                    placeholder="Ketik nama aktivitas... Contoh: Perbaikan AC Lobby Lantai 2"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition" required>
             </div>
             <div class="sm:w-44">
-                <select name="` + cfg.prefix + `_status[]" data-act-status
+                <select name="` + cfg.prefix + `_status[]"
                     class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-bold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition appearance-none pr-8">
                     <option value="progress">⏳ In Progress</option>
                     <option value="complete">✅ Complete</option>
@@ -1254,20 +1349,10 @@ require_once __DIR__ . '/../includes/navbar.php';
         `;
         container.appendChild(row);
 
-        // Auto SET STATUS DEFAULT ketika SELECT MASTER DIPILIH!
-        const selAct = row.querySelector('[data-act-select]');
-        const selSt  = row.querySelector('[data-act-status]');
-        if (selAct && selSt) {
-            selAct.addEventListener('change', function() {
-                const opt = this.options[this.selectedIndex];
-                if (opt && opt.getAttribute('data-status')) {
-                    selSt.value = opt.getAttribute('data-status') || 'progress';
-                }
-            });
-        }
-        // Auto focus select dropdown baris baru
+        // Auto focus input text baris baru agar user bisa langsung ketik
         setTimeout(() => {
-            if (selAct && listMasters.length > 0) selAct.focus();
+            const inpTxt = row.querySelector('input[type="text"]');
+            if (inpTxt) inpTxt.focus();
         }, 50);
     }
     function removeActRow(btn) {
