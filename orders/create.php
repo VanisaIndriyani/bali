@@ -1,28 +1,111 @@
-﻿<?php
+﻿﻿<?php
 require_once __DIR__ . '/../config/config.php';
 $pageTitle = T('order_create_title', 'Buat Order Request Baru');
-requireRole(['supervisor', 'manager']);
+requireRole(['supervisor', 'manager', 'engineer']);
 
 $db = Database::getInstance();
 $user = currentUser();
 $curRole = (string)($user['role'] ?? '');
-if ($curRole !== 'supervisor' && $curRole !== 'manager') {
-    header('Location: ' . BASE_URL . 'index.php', true, 302);
-    exit();
-}
 
 $costCodes = $db->fetchAll("SELECT id, code, name FROM cost_codes WHERE is_active = 1 ORDER BY code ASC");
 
 try {
-    $chk = $db->fetchOne("SHOW COLUMNS FROM orders LIKE 'req_number'");
-    if (!$chk) {
-        $db->query("ALTER TABLE orders ADD COLUMN req_number VARCHAR(60) NULL AFTER order_no");
-        $db->query("ALTER TABLE orders ADD COLUMN admin_price_notes TEXT NULL AFTER total_amount");
-        $db->query("ALTER TABLE orders ADD INDEX idx_req_number (req_number)");
+    // 🔧 AUTO CREATE TABLE orders JIKA BELUM ADA (first time install)
+    $chkTbl = $db->fetchOne("SHOW TABLES LIKE 'orders'");
+    if (!$chkTbl) {
+        $db->query("CREATE TABLE IF NOT EXISTS orders (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            order_no VARCHAR(60) NOT NULL UNIQUE,
+            req_number VARCHAR(60) NULL,
+            requested_by INT NOT NULL,
+            cost_code_id INT NULL,
+            title VARCHAR(255) NOT NULL,
+            purpose TEXT NULL,
+            requested_date DATE NOT NULL,
+            needed_date DATE NULL,
+            total_amount DECIMAL(18,2) NOT NULL DEFAULT 0,
+            admin_price_notes TEXT NULL,
+            status ENUM('draft','pending_supervisor','pending_manager','approved','rejected','completed','cancelled') NOT NULL DEFAULT 'pending_supervisor',
+            notes TEXT NULL,
+            attachments TEXT NULL,
+            priority ENUM('low','medium','high','urgent') NOT NULL DEFAULT 'medium',
+            delivery_address TEXT NULL,
+            payment_method VARCHAR(50) NULL,
+            supplier_id INT NULL,
+            supervisor_id INT NULL,
+            supervisor_approved_at DATETIME NULL,
+            manager_id INT NULL,
+            manager_approved_at DATETIME NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_status (status),
+            INDEX idx_requested_by (requested_by),
+            INDEX idx_order_no (order_no),
+            INDEX idx_req_number (req_number)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     }
-    $chkAtt = $db->fetchOne("SHOW COLUMNS FROM orders LIKE 'attachments'");
-    if (!$chkAtt) {
-        $db->query("ALTER TABLE orders ADD COLUMN attachments TEXT NULL AFTER notes");
+
+    // 🔧 AUTO ALTER TABLE orders TAMBAH KOLOM YANG MUNGKIN HILANG (jika table sudah ada tapi lama)
+    $chkCols = [
+        'req_number' => "ALTER TABLE orders ADD COLUMN req_number VARCHAR(60) NULL AFTER order_no",
+        'admin_price_notes' => "ALTER TABLE orders ADD COLUMN admin_price_notes TEXT NULL AFTER total_amount",
+        'attachments' => "ALTER TABLE orders ADD COLUMN attachments TEXT NULL AFTER notes",
+        'priority' => "ALTER TABLE orders ADD COLUMN priority ENUM('low','medium','high','urgent') NOT NULL DEFAULT 'medium' AFTER attachments",
+        'delivery_address' => "ALTER TABLE orders ADD COLUMN delivery_address TEXT NULL AFTER priority",
+        'payment_method' => "ALTER TABLE orders ADD COLUMN payment_method VARCHAR(50) NULL AFTER delivery_address",
+        'supplier_id' => "ALTER TABLE orders ADD COLUMN supplier_id INT NULL AFTER payment_method",
+        'supervisor_id' => "ALTER TABLE orders ADD COLUMN supervisor_id INT NULL AFTER supplier_id",
+        'supervisor_approved_at' => "ALTER TABLE orders ADD COLUMN supervisor_approved_at DATETIME NULL AFTER supervisor_id",
+        'manager_id' => "ALTER TABLE orders ADD COLUMN manager_id INT NULL AFTER supervisor_approved_at",
+        'manager_approved_at' => "ALTER TABLE orders ADD COLUMN manager_approved_at DATETIME NULL AFTER manager_id",
+    ];
+    foreach ($chkCols as $colName => $sqlAlter) {
+        $chk = $db->fetchOne("SHOW COLUMNS FROM orders LIKE '{$colName}'");
+        if (!$chk) @$db->query($sqlAlter);
+    }
+    // 🔧 MODIFY ENUM STATUS AGAR SEMUA VALUE TERSEDIA (jika lama cuma enum sedikit)
+    try {
+        $chkStat = $db->fetchOne("SHOW COLUMNS FROM orders LIKE 'status'");
+        if ($chkStat && stripos((string)($chkStat['Type'] ?? ''), 'pending_supervisor') === false) {
+            @$db->query("ALTER TABLE orders MODIFY COLUMN status ENUM('draft','pending_supervisor','pending_manager','approved','rejected','completed','cancelled') NOT NULL DEFAULT 'pending_supervisor'");
+        }
+    } catch (Throwable $_) {}
+    try {
+        $chkPri = $db->fetchOne("SHOW COLUMNS FROM orders LIKE 'priority'");
+        if ($chkPri && stripos((string)($chkPri['Type'] ?? ''), 'medium') === false) {
+            @$db->query("ALTER TABLE orders MODIFY COLUMN priority ENUM('low','medium','high','urgent') NOT NULL DEFAULT 'medium'");
+        }
+    } catch (Throwable $_) {}
+
+    // 🔧 AUTO CREATE TABLE order_items & order_approvals JIKA BELUM ADA (jika table order_approvals & order_items hilang)
+    $chkItems = $db->fetchOne("SHOW TABLES LIKE 'order_items'");
+    if (!$chkItems) {
+        $db->query("CREATE TABLE IF NOT EXISTS order_items (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            order_id INT NOT NULL,
+            item_name VARCHAR(255) NOT NULL,
+            description TEXT NULL,
+            qty DECIMAL(12,2) NOT NULL DEFAULT 0,
+            unit VARCHAR(30) NULL,
+            unit_price DECIMAL(18,2) NOT NULL DEFAULT 0,
+            subtotal DECIMAL(18,2) NOT NULL DEFAULT 0,
+            sort_order INT DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_order_id (order_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    }
+    $chkAppr = $db->fetchOne("SHOW TABLES LIKE 'order_approvals'");
+    if (!$chkAppr) {
+        $db->query("CREATE TABLE IF NOT EXISTS order_approvals (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            order_id INT NOT NULL,
+            user_id INT NOT NULL,
+            role VARCHAR(30) NOT NULL,
+            action VARCHAR(30) NOT NULL,
+            notes TEXT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_order_id (order_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     }
 } catch (Throwable $_) {}
 
@@ -39,6 +122,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $requestedBy = $userId;
     $reqNumber = trim((string)($_POST['req_number'] ?? ''));
     $adminPriceNotes = cleanInput($_POST['admin_price_notes'] ?? '');
+    $priority = in_array(($_POST['priority'] ?? ''), ['low','medium','high','urgent'], true) ? (string)$_POST['priority'] : 'medium';
+    $deliveryAddress = trim((string)($_POST['delivery_address'] ?? ''));
+    if ($deliveryAddress === '') {
+        $deliveryAddress = 'The St. Regis Bali Resort, Engineering Department, Kawasan Pariwisata Nusa Dua, Bali';
+    }
 
     $items = [];
     $totalAmount = 0;
@@ -68,7 +156,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($title === '' || count($items) === 0) {
-        setFlash('danger', 'Judul dan minimal 1 item harus diisi');
+        $errMsg = '⚠️ Periksa kembali isian Anda:<br>';
+        if ($title === '') $errMsg .= '• <strong>Judul / Keperluan</strong> harus diisi.<br>';
+        if (count($items) === 0) $errMsg .= '• <strong>Minimal 1 Item Order</strong> harus diisi (Section "Item Order" ada DI BAWAH form Informasi Order — klik + Tambah Item jika perlu).';
+        setFlash('danger', $errMsg);
     } else {
         try {
             // 💰 UPLOAD FOTO / BUKTI PENDUKUNG (Multiple Foto Maks 5 file, max 3MB per foto)
@@ -121,6 +212,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $status = 'approved';
                     $extraSets[] = "manager_id = ".(int)$userId.", manager_approved_at = NOW()";
                     $extraMsg = 'Admin submit → Approve Final otomatis';
+                } elseif ($userRole === 'engineer') {
+                    $status = 'pending_supervisor';
+                    $extraMsg = 'Engineer submit → masuk list approval Supervisor';
                 }
             }
             $status = $db->escape($status);
@@ -128,9 +222,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $db->beginTransaction();
             $db->query(
-                "INSERT INTO orders (order_no, req_number, requested_by, cost_code_id, title, purpose, requested_date, needed_date, total_amount, admin_price_notes, status, notes, attachments)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                [$orderNo, ($reqNumber!=='' ? $reqNumber : null), $requestedBy, $costCodeId > 0 ? $costCodeId : null, $title, $purpose, $requestedDate, $neededDate, $totalAmount, ($adminPriceNotes!==''?$adminPriceNotes:null), $status, $notes, $attachmentJson]
+                "INSERT INTO orders (order_no, req_number, requested_by, cost_code_id, title, purpose, requested_date, needed_date, total_amount, admin_price_notes, status, notes, attachments, priority, delivery_address)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                [$orderNo, ($reqNumber!=='' ? $reqNumber : null), $requestedBy, $costCodeId > 0 ? $costCodeId : null, $title, $purpose, $requestedDate, $neededDate, $totalAmount, ($adminPriceNotes!==''?$adminPriceNotes:null), $status, $notes, $attachmentJson, $priority, $deliveryAddress]
             );
             $orderId = (int)$db->lastInsertId();
             if (!empty($extraSets)) {
@@ -148,15 +242,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db->commit();
 
             $okMsg = 'Order berhasil diproses';
-            if ($status === 'draft') $okMsg = 'Draft disimpan';
-            elseif ($status === 'pending_manager') $okMsg = 'Order berhasil dikirim ke Manager (Approval 2)';
-            elseif ($status === 'approved') $okMsg = 'Order berhasil disetujui otomatis';
-            else $okMsg = 'Order berhasil dikirim ke Supervisor';
+            if ($status === 'draft') $okMsg = '✅ Draft disimpan';
+            elseif ($status === 'pending_manager') $okMsg = '✅ Order berhasil dikirim ke Manager (Approval 2)';
+            elseif ($status === 'approved') $okMsg = '✅ Order berhasil disetujui otomatis';
+            else $okMsg = '✅ Order berhasil dikirim ke Supervisor. Menunggu approval!';
             setFlash('success', $okMsg);
             redirect('orders/detail.php?id=' . $orderId);
         } catch (Throwable $e) {
             try { $db->rollBack(); } catch (Throwable $_) {}
-            setFlash('danger', 'Error: ' . $e->getMessage());
+            setFlash('danger', '❌ Gagal menyimpan Order: ' . $e->getMessage());
         }
     }
 }
@@ -177,6 +271,22 @@ require_once __DIR__ . '/../includes/navbar.php';
     </div>
 
     <form method="post" class="space-y-6" id="orderForm" enctype="multipart/form-data">
+        <div class="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 p-4 shadow-sm animate-slide-up">
+            <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm inline-flex items-center justify-center flex-none text-white text-lg">
+                    <i class="fas fa-circle-exclamation"></i>
+                </div>
+                <div class="flex-1 space-y-1">
+                    <p class="font-black text-amber-900 text-sm">⚠️ PENTING SEBELUM SUBMIT:</p>
+                    <ul class="text-[12px] text-amber-800/90 space-y-1 leading-relaxed list-disc pl-4">
+                        <li>Section <strong>"Item Order"</strong> ada DI BAWAH (setelah Section Informasi Order). <strong>Minimal 1 item harus diisi!</strong> — klik <strong>+ Tambah Item</strong> jika baris item kurang / tidak muncul.</li>
+                        <li>Klik tombol <strong>"Kirim untuk Approval"</strong> (kuning) = Order langsung masuk daftar approval Supervisor (status: Pending Supervisor).</li>
+                        <li>Kalau mau simpan dulu tanpa kirim = klik <strong>"Simpan Draft"</strong> (putih).</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
         <div class="card-premium p-5 sm:p-7">
             <h3 class="font-black text-primary text-lg mb-5 flex items-center gap-2">
                 <i class="fas fa-circle-info text-amber-600"></i>
