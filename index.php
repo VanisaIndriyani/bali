@@ -333,6 +333,68 @@ $actsGRP = [
     'landscape'   => actGroupWithStatus($actListLand),
 ];
 
+// ============== 🔹 BARU: ENGINEERING ACTIVITIES YANG MASIH IN PROGRESS (Dashboard Widget) 🔹 ==============
+// INI STATUS ASLI (BUKAN HEURISTIK DARI TITLE!) diambil dari 4 JSON kolom daily_logs.*_items
+// Jika s = 'complete' otomatis HILANG dari widget ini; hanya s='progress' saja yang muncul.
+function fetchProgressActivities($db, $userRole, $userId, $dateFrom, $dateTo) {
+    $roleWhere = '';
+    $params = [];
+    if ($userRole === 'engineer') {
+        $roleWhere = ' AND dl.engineer_id = ?';
+        $params[] = $userId;
+    }
+    $colMap = [
+        'operation'   => 'activity_operation_items',
+        'maintenance' => 'activity_maintenance_items',
+        'project'     => 'activity_project_items',
+        'landscape'   => 'activity_landscape_items',
+    ];
+    $out = [];
+    foreach ($colMap as $division => $col) {
+        $sql = "SELECT dl.id as dlid, dl.log_date, u.name as engineer_name, dl.$col as json_col
+                FROM daily_logs dl
+                LEFT JOIN users u ON u.id = dl.engineer_id
+                WHERE dl.status='approved' $roleWhere
+                  AND dl.log_date BETWEEN ? AND ?
+                  AND dl.$col IS NOT NULL AND dl.$col <> ''
+                ORDER BY dl.log_date DESC, dl.id DESC";
+        $all = $db->fetchAll($sql, array_merge($params, [$dateFrom, $dateTo]));
+        foreach ($all as $row) {
+            $raw = (string)($row['json_col'] ?? '');
+            if ($raw === '') continue;
+            $arr = json_decode($raw, true);
+            if (!is_array($arr) || count($arr) === 0) continue;
+            foreach ($arr as $item) {
+                if (!is_array($item)) continue;
+                $s = (string)($item['s'] ?? 'progress');
+                if ($s !== 'progress') continue; // ✅ HANYA YANG IN PROGRESS SAJA
+                $t = trim((string)($item['t'] ?? ''));
+                if ($t === '') continue;
+                $out[] = [
+                    'division'     => $division,
+                    'activity'     => $t,
+                    'log_date'     => (string)($row['log_date'] ?? ''),
+                    'engineer_name'=> (string)($row['engineer_name'] ?? '-'),
+                    'daily_log_id' => (int)($row['dlid'] ?? 0),
+                ];
+            }
+        }
+    }
+    usort($out, function($a, $b) {
+        if ($a['log_date'] === $b['log_date']) return 0;
+        return ($a['log_date'] < $b['log_date']) ? 1 : -1;
+    });
+    return $out;
+}
+$divInfo = [
+    'operation'   => ['label'=>'OPERATION',   'icon'=>'⚙️', 'col'=>'text-blue-700',   'bg'=>'bg-blue-50', 'chip'=>'bg-blue-100 border-blue-200 text-blue-700'],
+    'maintenance' => ['label'=>'MAINTENANCE', 'icon'=>'🔧', 'col'=>'text-amber-700',  'bg'=>'bg-amber-50','chip'=>'bg-amber-100 border-amber-200 text-amber-700'],
+    'project'     => ['label'=>'PROJECT',     'icon'=>'📋', 'col'=>'text-violet-700', 'bg'=>'bg-violet-50','chip'=>'bg-violet-100 border-violet-200 text-violet-700'],
+    'landscape'   => ['label'=>'LANDSCAPE',   'icon'=>'🌱', 'col'=>'text-emerald-700','bg'=>'bg-emerald-50','chip'=>'bg-emerald-100 border-emerald-200 text-emerald-700'],
+];
+$progressActivities = fetchProgressActivities($db, $userRole, $userId, $monthStart, $today);
+$progressCount = count($progressActivities);
+
 // --- Reusable: render TABLE DAFTAR AKTIVITAS PEKERJAAN (untuk ditempel di bawah chart modal) ---
 function renderActivityTable($list, $themeClass, $iconName, $emptyMsg, $labelSingular) {
     $html = '';
@@ -409,6 +471,113 @@ require_once __DIR__ . '/includes/navbar.php';
         </div>
     </div>
 
+    <!-- ============ 🔴 ENGINEERING ACTIVITIES: IN PROGRESS (DASHBOARD WIDGET BARU) 🔴 ============ -->
+    <div class="bg-white rounded-premium border border-gray-200 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 40ms">
+        <div class="px-5 lg:px-8 pt-6 pb-5 border-b border-gray-200 bg-gradient-to-br from-white via-orange-50/30 to-white relative overflow-hidden">
+            <div class="absolute -left-5 -top-6 opacity-[0.07] text-[130px] leading-none text-orange-500 pointer-events-none select-none"><i class="fas fa-list-check"></i></div>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <p class="text-[11px] font-black uppercase tracking-[0.35em] text-orange-700 mb-2"><i class="fas fa-bolt mr-1"></i> FOKUS HARI INI</p>
+                    <h1 class="font-display text-2xl lg:text-4xl font-black text-gray-900 tracking-tight leading-tight">
+                        AKTIVITAS DALAM <span class="text-orange-600">PROGRESS</span>
+                    </h1>
+                    <p class="text-sm text-gray-500 mt-2">
+                        Hanya menampilkan pekerjaan yang <b class="text-orange-700">BELUM SELESAI</b>. Jika status diubah menjadi <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-[4px] text-[11px] font-black mx-0.5">COMPLETE</span> di Manager — otomatis <b>hilang</b> dari daftar ini.
+                    </p>
+                </div>
+                <div class="flex items-center gap-2.5">
+                    <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-md shadow-orange-500/25 font-black text-sm">
+                        <i class="fas fa-gears animate-spin-slow text-[13px]"></i>
+                        TOTAL PROGRESS:
+                        <span class="font-black text-lg leading-none ml-0.5"><?= $progressCount ?></span>
+                    </span>
+                    <?php if (in_array($userRole, ['manager','admin','supervisor'], true)): ?>
+                    <a href="<?= BASE_URL ?>manager/activities.php" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-gray-800 transition">
+                        <i class="fas fa-arrow-right-to-bracket"></i>
+                        BUKA ENGINEERING ACTIVITIES
+                    </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <div class="p-5 lg:p-7">
+            <?php if ($progressCount === 0): ?>
+                <div class="py-14 px-6 rounded-2xl border-2 border-dashed border-gray-200 bg-gradient-to-br from-gray-50 to-white text-center">
+                    <div class="w-20 h-20 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-4xl text-emerald-600 mx-auto mb-4 shadow-sm">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                    <h3 class="font-black text-xl text-gray-800 mb-2">SEMUA AKTIVITAS SELESAI! 🎉</h3>
+                    <p class="text-sm text-gray-500 leading-relaxed max-w-lg mx-auto">
+                        Tidak ada pekerjaan Engineering yang masih berstatus <b>In Progress</b> untuk bulan ini.
+                        Semua pekerjaan sudah ditandai <b class="text-emerald-600">Complete</b>. Bagus! 👏
+                    </p>
+                </div>
+            <?php else: ?>
+                <div class="overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 text-gray-800 text-[11px] uppercase tracking-[0.12em] font-black">
+                                <th class="px-5 py-4 text-left font-black w-14">NO</th>
+                                <th class="px-5 py-4 text-left font-black w-40 border-l border-gray-300">DIVISI</th>
+                                <th class="px-5 py-4 text-left font-black border-l border-gray-300">NAMA PEKERJAAN / AKTIVITAS</th>
+                                <th class="px-5 py-4 text-left font-black w-48 border-l border-gray-300">ENGINEER</th>
+                                <th class="px-5 py-4 text-center font-black w-40 border-l border-gray-300">TANGGAL LOG</th>
+                                <th class="px-5 py-4 text-center font-black w-40 border-l border-gray-300">STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 align-top">
+                            <?php
+                            $no = 0;
+                            foreach ($progressActivities as $pa):
+                                $no++;
+                                $div = $pa['division'] ?? 'operation';
+                                $info = $divInfo[$div] ?? $divInfo['operation'];
+                                $tgl = $pa['log_date'] ?? '';
+                                if (strlen($tgl) > 0) { try { $tglObj = new DateTime($tgl); $tglFmt = $tglObj->format('d M Y'); } catch (Throwable $e) { $tglFmt = $tgl; } } else { $tglFmt = '-'; }
+                                $bgStripe = ($no % 2 === 0) ? ' bg-gray-50/40' : '';
+                            ?>
+                            <tr class="hover:bg-orange-50/40 transition-colors<?= $bgStripe ?>">
+                                <td class="px-5 py-4 text-gray-500 font-black text-sm leading-none">
+                                    <span class="w-7 h-7 inline-flex items-center justify-center rounded-md bg-white border border-gray-200 shadow-xs"><?= $no ?></span>
+                                </td>
+                                <td class="px-5 py-4 border-l border-gray-100">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-10 h-10 rounded-lg <?= $info['bg'] ?> border border-gray-200 flex items-center justify-center text-lg shadow-xs"><?= $info['icon'] ?></span>
+                                        <div class="flex flex-col gap-0.5">
+                                            <span class="inline-block px-2 py-0.5 rounded border text-[10px] font-black tracking-wider <?= $info['chip'] ?>"><?= $info['label'] ?></span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-5 py-4 border-l border-gray-100">
+                                    <div class="font-bold text-gray-900 leading-relaxed text-[14px]"><?= cleanInput($pa['activity']) ?></div>
+                                </td>
+                                <td class="px-5 py-4 border-l border-gray-100">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-bold">
+                                        <i class="fas fa-user-helmet-safety text-slate-500"></i>
+                                        <?= cleanInput($pa['engineer_name']) ?>
+                                    </span>
+                                </td>
+                                <td class="px-5 py-4 text-center border-l border-gray-100">
+                                    <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-[11px] font-bold text-gray-700 shadow-xs">
+                                        <i class="far fa-calendar text-gray-400 mr-0.5"></i>
+                                        <?= $tglFmt ?>
+                                    </span>
+                                </td>
+                                <td class="px-5 py-4 text-center border-l border-gray-100">
+                                    <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 text-white font-black text-[11px] shadow-sm shadow-orange-500/30 border border-orange-600">
+                                        <i class="fas fa-gears animate-spin-slow text-[10px]"></i>
+                                        IN PROGRESS
+                                    </span>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
     <!-- ============ 🔹 DAILY ENGINEERING SUMMARY REPORT (FORMAT CUSTOMER KERTAS - PALING ATAS!) 🔹 ============ -->
     <div class="bg-white rounded-premium border border-gray-200 shadow-sm overflow-hidden mb-8 animate-slide-up">
         <!-- HEADER: Judul Besar + Tanggal (seperti kertas SUMMARY) -->
@@ -432,11 +601,23 @@ require_once __DIR__ . '/includes/navbar.php';
 
         <div class="p-5 lg:p-8 space-y-8">
             <!-- ─────────────── ① KEY PERFORMANCE INDICATORS (KPIs) TABLE ─────────────── -->
-            <section>
-                <h2 class="font-display text-xl lg:text-2xl font-black text-gray-900 mb-4 flex items-center gap-2.5">
-                    <span class="w-8 h-8 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-sm shadow-md shadow-emerald-500/30">1</span>
-                    KEY PERFORMANCE INDICATORS <span class="text-gray-400 font-bold text-lg">(KPIs)</span>
-                </h2>
+            <section id="sec_kpi" class="mb-6">
+                <button type="button" onclick="toggleDashSection('kpi')"
+                        class="w-full text-left mb-3 p-0 bg-transparent hover:bg-slate-50/80 -mx-2 px-2 py-1.5 rounded-lg transition group">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center flex-wrap gap-x-3 gap-y-1">
+                            <span class="w-7 h-7 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-[13px] shadow-sm shadow-emerald-500/30 shrink-0 font-black">1</span>
+                            <h2 class="font-display text-lg lg:text-xl font-black text-gray-900 tracking-wide">
+                                KEY PERFORMANCE INDICATORS <span class="text-slate-400 font-black">(KPIs)</span>
+                            </h2>
+                            <span class="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full ml-1 hidden md:inline-flex items-center gap-0.5">
+                                <i class="fas fa-hand-pointer text-[8px]"></i> Klik sembunyikan
+                            </span>
+                        </div>
+                        <i id="kpi_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[13px] group-hover:text-slate-600"></i>
+                    </div>
+                </button>
+                <div id="kpi_group" class="transition-all duration-200 overflow-hidden">
                 <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
                     <table class="w-full text-sm">
                         <thead>
@@ -476,6 +657,7 @@ require_once __DIR__ . '/includes/navbar.php';
                             </tr>
                         </tbody>
                     </table>
+                </div>
                 </div>
             </section>
 
@@ -703,12 +885,13 @@ require_once __DIR__ . '/includes/navbar.php';
                 </div>
             </section>
 
-            <!-- JS: TOGGLE COLLAPSE SECTION UTILITY & CHILLER (state simpan localStorage) -->
+            <!-- JS: TOGGLE COLLAPSE SEMUA SECTION DASHBOARD (state simpan localStorage) -->
+            <!-- Section list: kpi, utility, chiller, engact (section dalam kertas), swro, engactcards (4 card divisi supervisor) -->
             <script>
             (function(){
-                const SECTIONS = ['utility','chiller'];
-                // Default: utility OPEN (terbuka), chiller CLOSED (sesuai FOTO "bisa disembunyikan kalo di klik")
-                const DEFAULTS = { utility: true, chiller: false };
+                const SECTIONS = ['kpi','utility','chiller','engact','swro','engactcards'];
+                // Default state: SEMUA TERBUKA default (chiller = coming soon TETAP TERTUTUP)
+                const DEFAULTS = { kpi: true, utility: true, chiller: false, engact: true, swro: true, engactcards: true };
                 function apply(key, open){
                     const grp = document.getElementById(key + '_group');
                     const chv = document.getElementById(key + '_chev');
@@ -741,11 +924,23 @@ require_once __DIR__ . '/includes/navbar.php';
             </script>
 
             <!-- ─────────────── ③ ENGINEERING ACTIVITIES TABLE (FOTO MOBILE 19.16 BADGE BIRU NOMOR ③) ─────────────── -->
-            <section class="mb-6">
-                <h2 class="font-display text-lg lg:text-xl font-black text-gray-900 mb-3 flex items-center gap-2">
-                    <span class="w-7 h-7 rounded-md bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white text-[13px] shadow-sm shadow-sky-500/30 shrink-0 font-black">3</span>
-                    ENGINEERING <span class="text-gray-400 font-bold">ACTIVITIES</span>
-                </h2>
+            <section id="sec_engact" class="mb-6">
+                <button type="button" onclick="toggleDashSection('engact')"
+                        class="w-full text-left mb-3 p-0 bg-transparent hover:bg-slate-50/80 -mx-2 px-2 py-1.5 rounded-lg transition group">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center flex-wrap gap-x-3 gap-y-1">
+                            <span class="w-7 h-7 rounded-md bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white text-[13px] shadow-sm shadow-sky-500/30 shrink-0 font-black">3</span>
+                            <h2 class="font-display text-lg lg:text-xl font-black text-gray-900 tracking-wide">
+                                ENGINEERING <span class="text-slate-400 font-black">ACTIVITIES</span>
+                            </h2>
+                            <span class="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full ml-1 hidden md:inline-flex items-center gap-0.5">
+                                <i class="fas fa-hand-pointer text-[8px]"></i> Klik sembunyikan
+                            </span>
+                        </div>
+                        <i id="engact_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[13px] group-hover:text-slate-600"></i>
+                    </div>
+                </button>
+                <div id="engact_group" class="transition-all duration-200 overflow-hidden">
                 <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
                     <table class="w-full text-sm">
                         <thead>
@@ -838,6 +1033,7 @@ require_once __DIR__ . '/includes/navbar.php';
                         </tbody>
                     </table>
                 </div>
+                </div>
             </section>
 
             <!-- Tanda tangan mini (Prepared / Reviewed / Approved) seperti kertas -->
@@ -860,18 +1056,26 @@ require_once __DIR__ . '/includes/navbar.php';
     </div>
 
     <!-- ============ ④ SWRO SYSTEM (WATER TREATMENT REVERSE OSMOSIS) ============ -->
-    <div class="bg-surface rounded-premium border border-sky-200/70 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 60ms">
-        <div class="px-5 lg:px-6 py-4 border-b border-sky-100 bg-gradient-to-r from-white via-sky-50/50 to-white">
-            <div class="flex items-end justify-between gap-3">
+    <div id="sec_swro" class="bg-surface rounded-premium border border-sky-200/70 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 60ms">
+        <button type="button" onclick="toggleDashSection('swro')"
+                class="w-full text-left px-5 lg:px-6 py-4 border-b border-sky-100 bg-gradient-to-r from-white via-sky-50/50 to-white hover:via-sky-50 transition group">
+            <div class="flex items-center justify-between gap-3">
                 <div>
                     <p class="text-[11px] font-black uppercase tracking-[0.25em] text-sky-700 mb-1">WATER TREATMENT</p>
-                    <h2 class="font-display text-xl lg:text-2xl font-black text-primary flex items-center gap-2">
-                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-blue-700 flex items-center justify-center text-white shadow-md shadow-sky-500/25 text-sm">④</span>
-                        <?= T('dash_swro_title', 'SWRO (Reverse Osmosis)') ?>
-                    </h2>
+                    <div class="flex items-center flex-wrap gap-x-3 gap-y-1">
+                        <span class="w-7 h-7 rounded-md bg-gradient-to-br from-sky-400 to-blue-700 flex items-center justify-center text-white shadow-sm shadow-sky-500/25 shrink-0 text-[13px] font-black">4</span>
+                        <h2 class="font-display text-lg lg:text-xl font-black text-primary tracking-wide">
+                            <?= T('dash_swro_title', 'SWRO (Reverse Osmosis)') ?>
+                        </h2>
+                        <span class="text-[9px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded-full ml-1 hidden md:inline-flex items-center gap-0.5">
+                            <i class="fas fa-hand-pointer text-[8px]"></i> Klik sembunyikan
+                        </span>
+                    </div>
                 </div>
+                <i id="swro_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[13px] group-hover:text-sky-700"></i>
             </div>
-        </div>
+        </button>
+        <div id="swro_group" class="transition-all duration-200 overflow-hidden">
         <div class="p-5 lg:p-6">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <?php
@@ -902,23 +1106,32 @@ require_once __DIR__ . '/includes/navbar.php';
                 <?php } ?>
             </div>
         </div>
+        </div>
     </div>
 
     <!-- ============ ④ BOTTLING PLANT ============ -->
     <!-- ============ ⑤ ENGINEERING ACTIVITIES - HANYA SUPERVISOR / MANAGER YANG DAPAT LIHAT ============ -->
     <?php if (in_array($userRole, ['supervisor','manager','admin'], true)): ?>
     <div class="bg-surface rounded-premium border border-accent/20 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 120ms">
-        <div class="px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-white via-amber-50/30 to-white">
-            <div class="flex items-end justify-between gap-3">
+        <button type="button" onclick="toggleDashSection('engactcards')"
+                class="w-full text-left px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-white via-amber-50/30 to-white hover:via-amber-50 transition group">
+            <div class="flex items-center justify-between gap-3">
                 <div>
                     <p class="text-[11px] font-black uppercase tracking-[0.25em] text-accent mb-1"><?= T('dash_act_subtitle', 'Staff') ?></p>
-                    <h2 class="font-display text-xl lg:text-2xl font-black text-primary flex items-center gap-2">
-                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-gray-800 flex items-center justify-center text-white shadow-md text-sm">⑥</span>
-                        <?= T('dash_act_title', 'ENG ACTIVITY') ?>
-                    </h2>
+                    <div class="flex items-center flex-wrap gap-x-3 gap-y-1">
+                        <span class="w-7 h-7 rounded-md bg-gradient-to-br from-primary to-gray-800 flex items-center justify-center text-white shadow-sm shrink-0 text-[13px] font-black">6</span>
+                        <h2 class="font-display text-lg lg:text-xl font-black text-primary tracking-wide">
+                            <?= T('dash_act_title', 'ENG ACTIVITY') ?>
+                        </h2>
+                        <span class="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full ml-1 hidden md:inline-flex items-center gap-0.5">
+                            <i class="fas fa-hand-pointer text-[8px]"></i> Klik sembunyikan
+                        </span>
+                    </div>
                 </div>
+                <i id="engactcards_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[13px] group-hover:text-amber-700"></i>
             </div>
-        </div>
+        </button>
+        <div id="engactcards_group" class="transition-all duration-200 overflow-hidden">
         <div class="p-5 lg:p-6 space-y-3 sm:space-y-4">
             <?php
             $actCards = [
@@ -1021,6 +1234,7 @@ HTML;
 HTML;
             }
             ?>
+        </div>
         </div>
     </div>
     <?php endif; ?>
