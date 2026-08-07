@@ -63,7 +63,7 @@ $vendorSum = $db->fetchAll("SELECT
 function _xls4Esc($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 if (isset($_GET['export']) && (string)$_GET['export'] === '1') {
     header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-    $fname = 'Laporan-Keuangan-Transport-' . date('Ymd-His') . '.xlsx';
+    $fname = 'Laporan-Keuangan-Transport-' . date('Ymd-His') . '.xls';
     header('Content-Disposition: attachment; filename="' . $fname . '"');
     header('Cache-Control: max-age=0');
     echo "\xEF\xBB\xBF";

@@ -158,7 +158,7 @@ if (isset($_GET['export']) && (string)$_GET['export'] === '1') {
     header('Cache-Control: max-age=0');
     echo "\xEF\xBB\xBF";
     if ($type === 'driver') {
-        $fname = 'Data-Driver-Sopir-' . date('Ymd-His') . '.xlsx';
+        $fname = 'Data-Driver-Sopir-' . date('Ymd-His') . '.xls';
         header('Content-Disposition: attachment; filename="' . $fname . '"');
         _xls2Header('🪪 Data Driver / Sopir Operasional');
         echo '<div class="meta"><strong>The St. Regis Bali — Engineering Dept</strong> | Search: '._xls2Esc($search ?: '-').' | Export: '.date('d M Y H:i:s').'</div>';
@@ -187,7 +187,7 @@ if (isset($_GET['export']) && (string)$_GET['export'] === '1') {
         }
         echo '</tbody></table></body></html>';
     } else {
-        $fname = 'Data-Kendaraan-Unit-' . date('Ymd-His') . '.xlsx';
+        $fname = 'Data-Kendaraan-Unit-' . date('Ymd-His') . '.xls';
         header('Content-Disposition: attachment; filename="' . $fname . '"');
         _xls2Header('🚗 Data Kendaraan / Unit Mobil Operasional');
         echo '<div class="meta"><strong>The St. Regis Bali — Engineering Dept</strong> | Search: '._xls2Esc($search ?: '-').' | Export: '.date('d M Y H:i:s').'</div>';

@@ -127,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 function _xls3Esc($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 if (isset($_GET['export']) && (string)$_GET['export'] === '1') {
     header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-    $fname = 'Job-Daily-Trip-' . date('Ymd-His') . '.xlsx';
+    $fname = 'Job-Daily-Trip-' . date('Ymd-His') . '.xls';
     header('Content-Disposition: attachment; filename="' . $fname . '"');
     header('Cache-Control: max-age=0');
     echo "\xEF\xBB\xBF";

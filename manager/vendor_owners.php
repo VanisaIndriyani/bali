@@ -92,7 +92,7 @@ $statInv     = max(0, $statTotal - $statOwner - $statVendor);
 function _xlsEsc($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 if (isset($_GET['export']) && (string)$_GET['export'] === '1') {
     header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-    $fname = 'Data-Owner-Vendor-' . date('Ymd-His') . '.xlsx';
+    $fname = 'Data-Owner-Vendor-' . date('Ymd-His') . '.xls';
     header('Content-Disposition: attachment; filename="' . $fname . '"');
     header('Cache-Control: max-age=0');
     echo "\xEF\xBB\xBF";
