@@ -66,7 +66,6 @@ include __DIR__ . '/includes/sidebar.php';
             ['label'=>'Konsumsi Gas LPG','unit'=>'Kg','val'=>'456,5','sub'=>'Bulan Ini'],
             ['label'=>'Konsumsi Air Bersih','unit'=>'m³','val'=>'3.210,8','sub'=>'Bulan Ini'],
             ['label'=>'Suhu Rata-rata Outdoor','unit'=>'°C','val'=>'29,8','sub'=>'Hari Ini'],
-            ['label'=>'Produksi Solar Panel','unit'=>'kWh','val'=>'450,0','sub'=>'Proyeksi Harian'],
         ];
         foreach ($energyStats as $s): ?>
         <div class="rounded-xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm">

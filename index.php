@@ -520,10 +520,10 @@ require_once __DIR__ . '/includes/navbar.php';
         <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
                 <p class="text-sm text-secondary mb-1">
-                    <i class="fas fa-calendar-day mr-1.5 text-accent"></i><?= formatDate($today) ?>
+                    <i class="fas fa-calendar-day mr-1.5 text-slate-400"></i><?= formatDate($today) ?>
                 </p>
                 <h1 class="font-display text-2xl lg:text-3xl font-bold text-primary mb-1">
-                    <?= T('wel_back', 'Selamat Datang') ?>, <?= $userRole === 'engineer' ? T('wel_role_engineer_brand', 'Engineering Department') : cleanInput($userName) ?> <span class="text-accent">👋</span>
+                    <?= T('wel_back', 'Selamat Datang') ?>, <?= $userRole === 'engineer' ? T('wel_role_engineer_brand', 'Engineering Department') : cleanInput($userName) ?>
                 </h1>
                 <p class="text-secondary">
                     <?php
@@ -536,9 +536,9 @@ require_once __DIR__ . '/includes/navbar.php';
             <?php if ($userRole === 'engineer' || $userRole === 'supervisor' || $userRole === 'manager'): ?>
                 <?php if ($userRole !== 'manager'): ?>
                 <?php $todayLogHref = BASE_URL . 'engineer/daily_log_form.php?date=' . urlencode($today); ?>
-                <a href="<?= $todayLogHref ?>" class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-white font-bold text-sm shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 hover:-translate-y-0.5 transition-all duration-300">
+                <a href="<?= $todayLogHref ?>" class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-sm hover:shadow-md hover:-translate-y-0.5 transition">
                     <i class="fas fa-pen-ruler"></i>
-                    <span><?= $todayData ? T('wel_edit_log', 'Edit Daily Log Hari Ini') : T('wel_fill_log', '✍️ Isi Daily Log Hari Ini') ?></span>
+                    <span><?= $todayData ? T('wel_edit_log', 'Edit Daily Log Hari Ini') : T('wel_fill_log', 'Isi Daily Log Hari Ini') ?></span>
                 </a>
                 <?php endif; ?>
             <?php endif; ?>
