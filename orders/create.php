@@ -349,16 +349,16 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <button type="button" onclick="addItemRow()" class="btn-gold-outline text-sm"><i class="fas fa-plus mr-1"></i><?= T('order_btn_add_item', '+ Tambah Item') ?></button>
             </div>
             <div class="overflow-x-auto -mx-5 sm:-mx-7 px-5 sm:px-7">
-                <table class="w-full min-w-[900px] border-collapse">
+                <table class="w-full min-w-[1100px] border-collapse table-fixed">
                     <thead>
                         <tr class="border-b border-border bg-slate-50/80">
-                            <th class="text-left p-3 text-xs font-black uppercase tracking-wider text-secondary w-10">No</th>
-                            <th class="text-left p-3 text-xs font-black uppercase tracking-wider text-secondary"><?= T('order_th_name', 'Nama Item') ?> *</th>
-                            <th class="text-left p-3 text-xs font-black uppercase tracking-wider text-secondary"><?= T('order_th_spec', 'Spesifikasi / Ket') ?></th>
-                            <th class="text-right p-3 text-xs font-black uppercase tracking-wider text-secondary w-28"><?= T('order_th_qty', 'Qty') ?></th>
-                            <th class="text-left p-3 text-xs font-black uppercase tracking-wider text-secondary w-28"><?= T('order_th_unit', 'Satuan') ?></th>
-                            <th class="text-right p-3 text-xs font-black uppercase tracking-wider text-secondary w-44"><?= T('order_th_price', 'Harga Satuan (Rp)') ?></th>
-                            <th class="text-right p-3 text-xs font-black uppercase tracking-wider text-secondary w-44"><?= T('order_th_subtotal', 'Subtotal') ?></th>
+                            <th class="text-left p-3 text-[11px] font-black uppercase tracking-wider text-secondary w-14">No</th>
+                            <th class="text-left p-3 text-[11px] font-black uppercase tracking-wider text-secondary w-[30%]"><?= T('order_th_name', 'Nama Item') ?> <span class="text-red-500">*</span></th>
+                            <th class="text-left p-3 text-[11px] font-black uppercase tracking-wider text-secondary w-[25%]"><?= T('order_th_spec', 'Spesifikasi / Ket') ?></th>
+                            <th class="text-right p-3 text-[11px] font-black uppercase tracking-wider text-secondary w-24"><?= T('order_th_qty', 'Qty') ?></th>
+                            <th class="text-left p-3 text-[11px] font-black uppercase tracking-wider text-secondary w-28"><?= T('order_th_unit', 'Satuan') ?></th>
+                            <th class="text-right p-3 text-[11px] font-black uppercase tracking-wider text-secondary w-48"><?= T('order_th_price', 'Harga Satuan (Rp)') ?></th>
+                            <th class="text-right p-3 text-[11px] font-black uppercase tracking-wider text-secondary w-44"><?= T('order_th_subtotal', 'Subtotal') ?></th>
                             <th class="w-16"></th>
                         </tr>
                     </thead>
@@ -417,16 +417,18 @@ function addItemRow(prefill = {}){
     const price= prefill.price ?? 0;
     const tr = document.createElement('tr');
     tr.className = 'border-b border-border/60 hover:bg-slate-50/50 transition';
+    const baseInputCls = 'w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-[13px] leading-5 font-sans text-slate-800 placeholder:text-slate-400 placeholder:font-normal placeholder:text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/70 shadow-sm transition focus:bg-slate-50';
+    const qtyPriceCls = 'w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-[13px] leading-5 font-mono text-slate-800 text-right font-semibold placeholder:text-slate-400 placeholder:font-normal placeholder:text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/70 shadow-sm transition focus:bg-slate-50';
     tr.innerHTML = `
-        <td class="p-3 font-black text-secondary text-sm align-middle">${no}</td>
-        <td class="p-3 align-middle"><input type="text" name="item_name[]" value="${name.replace(/"/g,'&quot;')}" required placeholder="<?= T('order_ph_itemname', 'Nama barang / jasa') ?>" class="form-input !py-2 !text-sm"></td>
-        <td class="p-3 align-middle"><input type="text" name="item_desc[]" value="${desc.replace(/"/g,'&quot;')}" placeholder="<?= T('order_ph_itemdesc', 'Spesifikasi, merk, dll') ?>" class="form-input !py-2 !text-sm"></td>
-        <td class="p-3 align-middle"><input type="number" step="0.01" min="0" name="item_qty[]" data-qty value="${qty}" oninput="calcRow(this.closest('tr'))" class="form-input !py-2 !text-sm !text-right"></td>
-        <td class="p-3 align-middle"><input type="text" name="item_unit[]" value="${unit.replace(/"/g,'&quot;')}" placeholder="<?= T('order_ph_itemunit', 'pcs / kg / m / liter') ?>" class="form-input !py-2 !text-sm"></td>
-        <td class="p-3 align-middle"><input type="text" name="item_price[]" data-price value="${price}" oninput="calcRow(this.closest('tr'))" class="form-input !py-2 !text-sm !text-right font-mono" placeholder="0"></td>
-        <td class="p-3 align-middle text-right font-bold text-primary" data-subtotal data-v="0">Rp 0</td>
+        <td class="p-3 align-middle font-black text-secondary text-[13px]">${no}</td>
+        <td class="p-3 align-middle"><input type="text" name="item_name[]" value="${name.replace(/"/g,'&quot;')}" required placeholder="Nama barang / sparepart / jasa" class="${baseInputCls}"></td>
+        <td class="p-3 align-middle"><input type="text" name="item_desc[]" value="${desc.replace(/"/g,'&quot;')}" placeholder="Spesifikasi, merk, tipe, dll" class="${baseInputCls}"></td>
+        <td class="p-3 align-middle"><input type="number" step="0.01" min="0" name="item_qty[]" data-qty value="${qty}" oninput="calcRow(this.closest('tr'))" class="${qtyPriceCls}"></td>
+        <td class="p-3 align-middle"><input type="text" name="item_unit[]" value="${unit.replace(/"/g,'&quot;')}" placeholder="pcs / kg / m / liter / box" class="${baseInputCls}"></td>
+        <td class="p-3 align-middle"><input type="text" name="item_price[]" data-price value="${price}" oninput="calcRow(this.closest('tr'))" class="${qtyPriceCls}" placeholder="0"></td>
+        <td class="p-3 align-middle text-right font-bold text-primary font-sans" data-subtotal data-v="0">Rp 0</td>
         <td class="p-3 align-middle text-center">
-            <button type="button" onclick="this.closest('tr').remove(); recalcNo(); calcGrand();" class="w-8 h-8 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 border border-red-200 inline-flex items-center justify-center" title="<?= T('order_btn_hapus_baris', 'Hapus baris') ?>"><i class="fas fa-trash text-xs"></i></button>
+            <button type="button" onclick="this.closest('tr').remove(); recalcNo(); calcGrand();" class="w-9 h-9 rounded-xl text-red-600 hover:bg-red-50 hover:text-red-700 border border-red-200 inline-flex items-center justify-center shadow-sm hover:shadow transition" title="<?= T('order_btn_hapus_baris', 'Hapus baris') ?>"><i class="fas fa-trash text-[13px]"></i></button>
         </td>
     `;
     tbody.appendChild(tr);
