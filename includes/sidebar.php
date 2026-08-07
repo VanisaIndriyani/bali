@@ -34,8 +34,12 @@ $isEngActivities = ($page ?? '') === 'engineering_activities' || ($currentDir ==
 $isMasterCostCode = ($currentDir === 'manager' && $currentFile === 'master_cost_codes.php');
 $isAnyDataMaster = $isMasterCostCode;
 $isUsersPage = ($currentDir === 'manager' && $currentFile === 'users.php');
+$isVendorOwners = ($currentDir === 'manager' && $currentFile === 'vendor_owners.php');
+$isDrivers = ($currentDir === 'manager' && $currentFile === 'drivers.php');
+$isJobDaily = ($currentDir === 'manager' && $currentFile === 'job_daily.php');
+$isFinanceTransport = ($currentDir === 'manager' && $currentFile === 'finance_transport.php');
 
-$isAnyManagerArea = $isUsersPage || $isEngActivities || $isAnyDataMaster;
+$isAnyManagerArea = $isUsersPage || $isEngActivities || $isAnyDataMaster || $isVendorOwners || $isDrivers || $isJobDaily || $isFinanceTransport;
 $isAnyDailyLogArea = $isDailyLog;
 $isAnyApprovalArea = $isReview;
 $isAnyLogisticArea = $isOrderIndex || $isOrderCreate || $isOrderDetail || $isOrderApprove;
@@ -187,7 +191,7 @@ $sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
             <div class="h-px my-3 bg-slate-100 mx-1"></div>
             <?php
             $dmDefaultOpen = ($isAnyDataMaster) ? 'true' : 'false';
-            $managerMenuCount = 3;
+            $managerMenuCount = 7;
             $isManagerAreaActive = $isAnyManagerArea;
             ?>
             <div class="nav-section !mb-1"><span>Manager Area</span></div>
@@ -200,6 +204,27 @@ $sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
                 <span class="<?= $sbIconBase ?> <?= $isEngActivities ? $sbIconActive : '' ?>"><i class="fas fa-layer-group text-[15px]"></i></span>
                 <span class="nav-label">Engineering Activities</span>
             </a>
+
+            <div class="h-px my-1.5 mx-1 bg-slate-50"></div>
+
+            <a href="<?= BASE_URL ?>manager/vendor_owners.php" class="<?= $sbBase ?> <?= $isVendorOwners ? $sbBaseActive : '' ?>">
+                <span class="<?= $sbIconBase ?> <?= $isVendorOwners ? $sbIconActive : '' ?>"><i class="fas fa-building-columns text-[15px]"></i></span>
+                <span class="nav-label">Data Owner / Vendor</span>
+            </a>
+            <a href="<?= BASE_URL ?>manager/drivers.php" class="<?= $sbBase ?> <?= $isDrivers ? $sbBaseActive : '' ?>">
+                <span class="<?= $sbIconBase ?> <?= $isDrivers ? $sbIconActive : '' ?>"><i class="fas fa-id-card text-[15px]"></i></span>
+                <span class="nav-label">Driver & Kendaraan</span>
+            </a>
+            <a href="<?= BASE_URL ?>manager/job_daily.php" class="<?= $sbBase ?> <?= $isJobDaily ? $sbBaseActive : '' ?>">
+                <span class="<?= $sbIconBase ?> <?= $isJobDaily ? $sbIconActive : '' ?>"><i class="fas fa-clipboard-list text-[15px]"></i></span>
+                <span class="nav-label">Job Daily Trip</span>
+            </a>
+            <a href="<?= BASE_URL ?>manager/finance_transport.php" class="<?= $sbBase ?> <?= $isFinanceTransport ? $sbBaseActive : '' ?>">
+                <span class="<?= $sbIconBase ?> <?= $isFinanceTransport ? $sbIconActive : '' ?>"><i class="fas fa-wallet text-[15px]"></i></span>
+                <span class="nav-label">Laporan Keuangan</span>
+            </a>
+
+            <div class="h-px my-1.5 mx-1 bg-slate-50"></div>
 
             <?php
             $isDmActive = $isAnyDataMaster;
