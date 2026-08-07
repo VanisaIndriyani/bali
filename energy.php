@@ -111,7 +111,7 @@ include __DIR__ . '/includes/sidebar.php';
                     Lihat Semua <i class="fas fa-arrow-right text-[10px]"></i>
                 </a>
             </div>
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto pb-3 pr-2">
                 <table class="w-full text-sm min-w-[650px]">
                     <thead class="bg-slate-50 border-b-2 border-slate-200">
                         <tr class="text-left text-secondary text-xs">

@@ -253,7 +253,6 @@ input:focus, textarea:focus, select:focus {
     align-items: stretch;
     background: #f5f5f5;
     overflow-y: visible;
-    overflow-x: clip;
 }
 
 /* ============ SIDEBAR SUPERVISOR (PUTIH DOMINAN + AKSEN EMAS) ============ */
