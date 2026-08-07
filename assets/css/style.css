@@ -1189,8 +1189,8 @@ input[type="file"]::file-selector-button:hover {
 
 /* ---------- FONT DISPLAY TITLE ---------- */
 .font-display {
-    font-family: 'Playfair Display', Georgia, serif;
-    letter-spacing: -0.02em;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif !important;
+    letter-spacing: -0.01em;
 }
 
 /* ---------- GRID LAYOUT FORM ITEM ---------- */
