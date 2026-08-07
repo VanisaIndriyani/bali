@@ -444,6 +444,31 @@ try {
 }
 $progressCount = count($progressActivities);
 
+// ============== 🔹 TAMBAHAN: MASUKKAN JUGA DATA MASTER DEFAULT PROGRESS KE actsGRP (Section 3 Engineering Activities) 🔹 ==============
+// Tujuan: Section ③ ENGINEERING ACTIVITIES (yang 3 kolom: Department / Detail / Status) TIDAK LAGI menampilkan "- No Data -"
+//         padahal user sudah menambahkan Master Activity status_default='progress' seperti foto "Pemindahan posisi new FCU FB office In Progress"
+try {
+    $_tmpMastersAct = $db->fetchAll("SELECT division, activity_name, sort_order, created_at, status_default FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+    $_existingTitleAct = [];
+    foreach (['operation','maintenance','project','landscape'] as $dv) {
+        if (!isset($actsGRP[$dv]) || !is_array($actsGRP[$dv])) $actsGRP[$dv] = [];
+        foreach ($actsGRP[$dv] as $_r) { $_existingTitleAct[$dv][mb_strtolower(trim((string)($_r['title'] ?? '')))] = true; }
+    }
+    foreach ($_tmpMastersAct as $_m) {
+        $dv = (string)($_m['division'] ?? 'operation');
+        if (!in_array($dv,['operation','maintenance','project','landscape'], true)) $dv = 'operation';
+        if (!isset($actsGRP[$dv]) || !is_array($actsGRP[$dv])) $actsGRP[$dv] = [];
+        $title = trim((string)($_m['activity_name'] ?? ''));
+        if ($title === '') continue;
+        $key = mb_strtolower($title);
+        if (isset($_existingTitleAct[$dv][$key])) continue; // hindari dobel dengan daily log title
+        $st = (string)($_m['status_default'] ?? 'progress');
+        $actsGRP[$dv][] = ['title' => $title, 'status' => ($st === 'complete' ? 'complete' : 'progress'), 'date' => (string)($_m['created_at'] ?? ''), 'eng' => '- (Master Activity)'];
+        $_existingTitleAct[$dv][$key] = true;
+    }
+    unset($_tmpMastersAct, $_existingTitleAct, $dv, $_m, $title, $key, $st);
+} catch (Throwable $e) {}
+
 // --- Reusable: render TABLE DAFTAR AKTIVITAS PEKERJAAN (untuk ditempel di bawah chart modal) ---
 function renderActivityTable($list, $themeClass, $iconName, $emptyMsg, $labelSingular) {
     $html = '';
@@ -516,138 +541,6 @@ require_once __DIR__ . '/includes/navbar.php';
                     <span><?= $todayData ? T('wel_edit_log', 'Edit Daily Log Hari Ini') : T('wel_fill_log', '✍️ Isi Daily Log Hari Ini') ?></span>
                 </a>
                 <?php endif; ?>
-            <?php endif; ?>
-        </div>
-    </div>
-
-    <!-- ============ 🔴 ENGINEERING ACTIVITIES: IN PROGRESS (DASHBOARD WIDGET BARU) 🔴 ============ -->
-    <div class="bg-white rounded-premium border border-gray-200 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 40ms">
-        <div class="px-5 lg:px-8 pt-6 pb-5 border-b border-gray-200 bg-gradient-to-br from-white via-orange-50/30 to-white relative overflow-hidden">
-            <div class="absolute -left-5 -top-6 opacity-[0.07] text-[130px] leading-none text-orange-500 pointer-events-none select-none"><i class="fas fa-list-check"></i></div>
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <p class="text-[11px] font-black uppercase tracking-[0.35em] text-orange-700 mb-2"><i class="fas fa-bolt mr-1"></i> FOKUS HARI INI</p>
-                    <h1 class="font-display text-2xl lg:text-4xl font-black text-gray-900 tracking-tight leading-tight">
-                        AKTIVITAS DALAM <span class="text-orange-600">PROGRESS</span>
-                    </h1>
-                    <p class="text-sm text-gray-500 mt-2">
-                        Menampilkan <b class="text-orange-700">2 SUMBER DATA</b>:
-                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-black mx-1">📝 LOG HARIAN</span> = pekerjaan yang sedang dikerjakan dari Daily Log bulan ini.
-                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[11px] font-black mx-1">📚 MASTER</span> = daftar template Default Progress dari Master Activity (seperti foto kamu).
-                        Jika status diubah menjadi <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-[4px] text-[11px] font-black mx-0.5">COMPLETE</span> di Manager — otomatis <b>hilang</b> dari daftar ini.
-                    </p>
-                </div>
-                <div class="flex items-center gap-2.5">
-                    <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-md shadow-orange-500/25 font-black text-sm">
-                        <i class="fas fa-gears animate-spin-slow text-[13px]"></i>
-                        TOTAL PROGRESS:
-                        <span class="font-black text-lg leading-none ml-0.5"><?= $progressCount ?></span>
-                    </span>
-                    <?php if (in_array($userRole, ['manager','admin','supervisor'], true)): ?>
-                    <a href="<?= BASE_URL ?>manager/activities.php" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-gray-800 transition">
-                        <i class="fas fa-arrow-right-to-bracket"></i>
-                        BUKA ENGINEERING ACTIVITIES
-                    </a>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-        <div class="p-5 lg:p-7">
-            <?php if ($progressCount === 0): ?>
-                <div class="py-14 px-6 rounded-2xl border-2 border-dashed border-gray-200 bg-gradient-to-br from-gray-50 to-white text-center">
-                    <div class="w-20 h-20 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-4xl text-emerald-600 mx-auto mb-4 shadow-sm">
-                        <i class="fas fa-check-double"></i>
-                    </div>
-                    <h3 class="font-black text-xl text-gray-800 mb-2">SEMUA AKTIVITAS SELESAI! 🎉</h3>
-                    <p class="text-sm text-gray-500 leading-relaxed max-w-lg mx-auto">
-                        Tidak ada pekerjaan Engineering yang masih berstatus <b>In Progress</b> untuk bulan ini.
-                        Semua pekerjaan sudah ditandai <b class="text-emerald-600">Complete</b>. Bagus! 👏
-                    </p>
-                </div>
-            <?php else: ?>
-                <div class="overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 text-gray-800 text-[11px] uppercase tracking-[0.12em] font-black">
-                                <th class="px-5 py-4 text-left font-black w-14">NO</th>
-                                <th class="px-5 py-4 text-left font-black w-40 border-l border-gray-300">DIVISI</th>
-                                <th class="px-5 py-4 text-left font-black border-l border-gray-300">NAMA PEKERJAAN / AKTIVITAS</th>
-                                <th class="px-5 py-4 text-left font-black w-44 border-l border-gray-300">ENGINEER</th>
-                                <th class="px-5 py-4 text-left font-black w-40 border-l border-gray-300">SUMBER DATA</th>
-                                <th class="px-5 py-4 text-center font-black w-36 border-l border-gray-300">TANGGAL</th>
-                                <th class="px-5 py-4 text-center font-black w-40 border-l border-gray-300">STATUS</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100 align-top">
-                            <?php
-                            $no = 0;
-                            foreach ($progressActivities as $pa):
-                                $no++;
-                                $div = $pa['division'] ?? 'operation';
-                                $info = $divInfo[$div] ?? $divInfo['operation'];
-                                $src = $pa['source'] ?? 'daily_log';
-                                $tgl = $pa['log_date'] ?? '';
-                                if (strlen($tgl) > 0) { try { $tglObj = new DateTime($tgl); $tglFmt = $tglObj->format('d M Y'); } catch (Throwable $e) { $tglFmt = $tgl; } } else { $tglFmt = '-'; }
-                                $bgStripe = ($no % 2 === 0) ? ' bg-gray-50/40' : '';
-                            ?>
-                            <tr class="hover:bg-orange-50/40 transition-colors<?= $bgStripe ?>">
-                                <td class="px-5 py-4 text-gray-500 font-black text-sm leading-none">
-                                    <span class="w-7 h-7 inline-flex items-center justify-center rounded-md bg-white border border-gray-200 shadow-xs"><?= $no ?></span>
-                                </td>
-                                <td class="px-5 py-4 border-l border-gray-100">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-10 h-10 rounded-lg <?= $info['bg'] ?> border border-gray-200 flex items-center justify-center text-lg shadow-xs"><?= $info['icon'] ?></span>
-                                        <div class="flex flex-col gap-0.5">
-                                            <span class="inline-block px-2 py-0.5 rounded border text-[10px] font-black tracking-wider <?= $info['chip'] ?>"><?= $info['label'] ?></span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="px-5 py-4 border-l border-gray-100">
-                                    <div class="font-bold text-gray-900 leading-relaxed text-[14px]"><?= cleanInput($pa['activity']) ?></div>
-                                </td>
-                                <td class="px-5 py-4 border-l border-gray-100">
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-bold">
-                                        <i class="fas fa-user-helmet-safety text-slate-500"></i>
-                                        <?= cleanInput($pa['engineer_name']) ?>
-                                    </span>
-                                </td>
-                                <td class="px-5 py-4 border-l border-gray-100">
-                                    <?php if ($src === 'daily_log'): ?>
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-700 border border-emerald-200 text-[11px] font-black shadow-xs">
-                                            <i class="fas fa-file-pen text-emerald-600"></i>
-                                            LOG HARIAN
-                                        </span>
-                                    <?php else: ?>
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-br from-sky-50 to-sky-100 text-sky-700 border border-sky-200 text-[11px] font-black shadow-xs">
-                                            <i class="fas fa-database text-sky-600"></i>
-                                            MASTER TEMPLATE
-                                        </span>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="px-5 py-4 text-center border-l border-gray-100">
-                                    <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-[11px] font-bold text-gray-700 shadow-xs">
-                                        <i class="far fa-calendar text-gray-400 mr-0.5"></i>
-                                        <?= $tglFmt ?>
-                                    </span>
-                                </td>
-                                <td class="px-5 py-4 text-center border-l border-gray-100">
-                                    <?php if ($src === 'daily_log'): ?>
-                                        <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 text-white font-black text-[11px] shadow-sm shadow-orange-500/30 border border-orange-600">
-                                            <i class="fas fa-gears animate-spin-slow text-[10px]"></i>
-                                            IN PROGRESS
-                                        </span>
-                                    <?php else: ?>
-                                        <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 text-white font-black text-[11px] shadow-sm shadow-sky-500/30 border border-sky-600">
-                                            <i class="fas fa-list-check text-[10px]"></i>
-                                            TUGAS BARU
-                                        </span>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
             <?php endif; ?>
         </div>
     </div>
@@ -1929,6 +1822,133 @@ HTML;
     </div>
 </div>
 <!-- ============ END 6+5 = 11 MODAL GRAFIK ============ -->
+
+<!-- ============ 🔴 ENGINEERING ACTIVITIES: IN PROGRESS (DIPINDAH KE PALING BAWAH DASHBOARD) 🔴 ============ -->
+<div class="bg-white rounded-premium border border-gray-200 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 90ms">
+    <div class="px-5 lg:px-8 pt-6 pb-5 border-b border-gray-200 bg-gradient-to-br from-white via-orange-50/30 to-white relative overflow-hidden">
+        <div class="absolute -left-5 -top-6 opacity-[0.07] text-[130px] leading-none text-orange-500 pointer-events-none select-none"><i class="fas fa-list-check"></i></div>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <p class="text-[11px] font-black uppercase tracking-[0.35em] text-orange-700 mb-2"><i class="fas fa-bolt mr-1"></i> FOKUS HARI INI</p>
+                <h1 class="font-display text-2xl lg:text-4xl font-black text-gray-900 tracking-tight leading-tight">
+                    AKTIVITAS DALAM <span class="text-orange-600">PROGRESS</span>
+                </h1>
+               
+            </div>
+            <div class="flex items-center gap-2.5">
+                <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-md shadow-orange-500/25 font-black text-sm">
+                    <i class="fas fa-gears animate-spin-slow text-[13px]"></i>
+                    TOTAL PROGRESS:
+                    <span class="font-black text-lg leading-none ml-0.5"><?= $progressCount ?></span>
+                </span>
+                <?php if (in_array($userRole, ['manager','admin','supervisor'], true)): ?>
+                <a href="<?= BASE_URL ?>manager/activities.php" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-gray-800 transition">
+                    <i class="fas fa-arrow-right-to-bracket"></i>
+                    BUKA ENGINEERING ACTIVITIES
+                </a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <div class="p-5 lg:p-7">
+        <?php if ($progressCount === 0): ?>
+            <div class="py-14 px-6 rounded-2xl border-2 border-dashed border-gray-200 bg-gradient-to-br from-gray-50 to-white text-center">
+                <div class="w-20 h-20 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-4xl text-emerald-600 mx-auto mb-4 shadow-sm">
+                    <i class="fas fa-check-double"></i>
+                </div>
+                <h3 class="font-black text-xl text-gray-800 mb-2">SEMUA AKTIVITAS SELESAI! 🎉</h3>
+                <p class="text-sm text-gray-500 leading-relaxed max-w-lg mx-auto">
+                    Tidak ada pekerjaan Engineering yang masih berstatus <b>In Progress</b> untuk bulan ini.
+                    Semua pekerjaan sudah ditandai <b class="text-emerald-600">Complete</b>. Bagus! 👏
+                </p>
+            </div>
+        <?php else: ?>
+            <div class="overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 text-gray-800 text-[11px] uppercase tracking-[0.12em] font-black">
+                            <th class="px-5 py-4 text-left font-black w-14">NO</th>
+                            <th class="px-5 py-4 text-left font-black w-40 border-l border-gray-300">DIVISI</th>
+                            <th class="px-5 py-4 text-left font-black border-l border-gray-300">NAMA PEKERJAAN / AKTIVITAS</th>
+                            <th class="px-5 py-4 text-left font-black w-44 border-l border-gray-300">ENGINEER</th>
+                            <th class="px-5 py-4 text-left font-black w-40 border-l border-gray-300">SUMBER DATA</th>
+                            <th class="px-5 py-4 text-center font-black w-36 border-l border-gray-300">TANGGAL</th>
+                            <th class="px-5 py-4 text-center font-black w-40 border-l border-gray-300">STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 align-top">
+                        <?php
+                        $no = 0;
+                        foreach ($progressActivities as $pa):
+                            $no++;
+                            $div = $pa['division'] ?? 'operation';
+                            $info = $divInfo[$div] ?? $divInfo['operation'];
+                            $src = $pa['source'] ?? 'daily_log';
+                            $tgl = $pa['log_date'] ?? '';
+                            if (strlen($tgl) > 0) { try { $tglObj = new DateTime($tgl); $tglFmt = $tglObj->format('d M Y'); } catch (Throwable $e) { $tglFmt = $tgl; } } else { $tglFmt = '-'; }
+                            $bgStripe = ($no % 2 === 0) ? ' bg-gray-50/40' : '';
+                        ?>
+                        <tr class="hover:bg-orange-50/40 transition-colors<?= $bgStripe ?>">
+                            <td class="px-5 py-4 text-gray-500 font-black text-sm leading-none">
+                                <span class="w-7 h-7 inline-flex items-center justify-center rounded-md bg-white border border-gray-200 shadow-xs"><?= $no ?></span>
+                            </td>
+                            <td class="px-5 py-4 border-l border-gray-100">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-10 h-10 rounded-lg <?= $info['bg'] ?> border border-gray-200 flex items-center justify-center text-lg shadow-xs"><?= $info['icon'] ?></span>
+                                    <div class="flex flex-col gap-0.5">
+                                        <span class="inline-block px-2 py-0.5 rounded border text-[10px] font-black tracking-wider <?= $info['chip'] ?>"><?= $info['label'] ?></span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-5 py-4 border-l border-gray-100">
+                                <div class="font-bold text-gray-900 leading-relaxed text-[14px]"><?= cleanInput($pa['activity']) ?></div>
+                            </td>
+                            <td class="px-5 py-4 border-l border-gray-100">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-bold">
+                                    <i class="fas fa-user-helmet-safety text-slate-500"></i>
+                                    <?= cleanInput($pa['engineer_name']) ?>
+                                </span>
+                            </td>
+                            <td class="px-5 py-4 border-l border-gray-100">
+                                <?php if ($src === 'daily_log'): ?>
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-700 border border-emerald-200 text-[11px] font-black shadow-xs">
+                                        <i class="fas fa-file-pen text-emerald-600"></i>
+                                        LOG HARIAN
+                                    </span>
+                                <?php else: ?>
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-br from-sky-50 to-sky-100 text-sky-700 border border-sky-200 text-[11px] font-black shadow-xs">
+                                        <i class="fas fa-database text-sky-600"></i>
+                                        MASTER TEMPLATE
+                                    </span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="px-5 py-4 text-center border-l border-gray-100">
+                                <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-[11px] font-bold text-gray-700 shadow-xs">
+                                    <i class="far fa-calendar text-gray-400 mr-0.5"></i>
+                                    <?= $tglFmt ?>
+                                </span>
+                            </td>
+                            <td class="px-5 py-4 text-center border-l border-gray-100">
+                                <?php if ($src === 'daily_log'): ?>
+                                    <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 text-white font-black text-[11px] shadow-sm shadow-orange-500/30 border border-orange-600">
+                                        <i class="fas fa-gears animate-spin-slow text-[10px]"></i>
+                                        IN PROGRESS
+                                    </span>
+                                <?php else: ?>
+                                    <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 text-white font-black text-[11px] shadow-sm shadow-sky-500/30 border border-sky-600">
+                                        <i class="fas fa-list-check text-[10px]"></i>
+                                        TUGAS BARU
+                                    </span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
 
 <?php if ($userRole === 'supervisor'): ?>
 <script>
