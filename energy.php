@@ -36,26 +36,28 @@ include __DIR__ . '/includes/sidebar.php';
         </div>
     </div>
 
-    <!-- FILTER PERIODE TANGGAL (placeholder) -->
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 p-4 sm:p-5 animate-slide-up" style="animation-delay: 60ms">
-        <div class="flex flex-col md:flex-row md:items-end gap-3">
-            <div class="md:w-44">
-                <label class="text-[11px] sm:text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">Tanggal Mulai</label>
-                <input type="date" value="<?= date('Y-m-01') ?>" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/70">
-            </div>
-            <div class="md:w-44">
-                <label class="text-[11px] sm:text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">Tanggal Akhir</label>
-                <input type="date" value="<?= date('Y-m-t') ?>" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/70">
-            </div>
-            <div class="md:w-44">
-                <button type="button" class="w-full px-4 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-bold shadow-sm hover:bg-slate-800 transition inline-flex items-center justify-center gap-2">
-                    <i class="fas fa-filter text-xs"></i> Terapkan
-                </button>
+    <!-- FILTER PERIODE TANGGAL (placeholder - TIDAK LEBAR PENUH, RAPI!) -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 animate-slide-up" style="animation-delay: 60ms">
+        <div class="p-4 sm:p-5 max-w-[720px]">
+            <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+                <div class="flex-1 min-w-0">
+                    <label class="text-[11px] sm:text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">Tanggal Mulai</label>
+                    <input type="date" value="<?= date('Y-m-01') ?>" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/70">
+                </div>
+                <div class="flex-1 min-w-0">
+                    <label class="text-[11px] sm:text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">Tanggal Akhir</label>
+                    <input type="date" value="<?= date('Y-m-t') ?>" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/70">
+                </div>
+                <div class="sm:shrink-0">
+                    <button type="button" class="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-bold shadow-sm hover:bg-slate-800 transition inline-flex items-center justify-center gap-2 whitespace-nowrap">
+                        <i class="fas fa-filter text-xs"></i> Terapkan
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- 6 STATISTIC CARDS ENERGY (SIMPEL TANPA ICON RAME, SAMA DENGAN ENERGY LOG SHEET!) -->
+    <!-- 6 STATISTIC CARDS ENERGY (SIMPEL! 2 BARIS x 3 KOLOM DI LAPTOP. UNIT DI BAWAH ANGKA SAMA SEMUA!) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3 mb-6 animate-slide-up" style="animation-delay: 80ms">
         <?php
         $energyStats = [
@@ -72,15 +74,19 @@ include __DIR__ . '/includes/sidebar.php';
             <?php if (!empty($s['sub'])): ?>
             <p class="text-[9px] font-bold text-slate-400 mt-0.5 leading-tight"><?= $s['sub'] ?></p>
             <?php endif; ?>
-            <p class="font-display text-xl sm:text-2xl font-black text-primary mt-2 leading-none">
-                <?= $s['val'] ?>
-                <span class="text-sm font-bold text-slate-400 ml-1"><?= $s['unit'] ?></span>
-            </p>
+            <div class="mt-2">
+                <p class="font-display text-xl sm:text-2xl font-black text-primary leading-none">
+                    <?= $s['val'] ?>
+                </p>
+                <p class="text-[12px] font-bold text-slate-400 mt-1.5 leading-tight">
+                    <?= $s['unit'] ?>
+                </p>
+            </div>
         </div>
         <?php endforeach; ?>
     </div>
 
-    <!-- CATATAN HARIAN MINGGU INI (FULL WIDTH, TIDAK ADA COL KANAN!) -->
+    <!-- CATATAN HARIAN MINGGU INI (FULL WIDTH, RAPI!) -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-slide-up mb-6" style="animation-delay: 100ms">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 border-b border-slate-200">
             <div>
@@ -96,7 +102,7 @@ include __DIR__ . '/includes/sidebar.php';
                 <thead class="bg-slate-50 border-b-2 border-slate-200">
                     <tr class="text-left text-secondary text-xs">
                         <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap">Tanggal</th>
-                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap w-[140px]">Shift</th>
+                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap w-[110px]">Shift</th>
                         <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[120px]">Listrik (kWh)</th>
                         <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[105px]">Solar (L)</th>
                         <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[100px]">Air (m³)</th>
@@ -116,8 +122,8 @@ include __DIR__ . '/includes/sidebar.php';
                     <tr class="hover:bg-slate-50 transition-colors">
                         <td class="px-3 sm:px-4 py-3 font-semibold text-primary whitespace-nowrap"><?= $r[0] ?></td>
                         <td class="px-3 sm:px-4 py-3">
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-semibold">
-                                Shift <?= $r[1] ?>
+                            <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-semibold">
+                                <?= $r[1] ?>
                             </span>
                         </td>
                         <td class="px-3 sm:px-4 py-3 text-right font-mono font-semibold text-slate-800 tabular-nums"><?= $r[2] ?></td>
