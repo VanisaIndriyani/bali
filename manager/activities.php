@@ -255,13 +255,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
 $engineers = $db->fetchAll("SELECT id, name, role FROM users WHERE LOWER(role) = 'engineer' AND (status = 'active' OR status IS NULL OR status = '') ORDER BY name ASC");
 
 function buildActCnt($db, $from, $to, $cat, $userId, $userRole) {
-    $col = match($cat) {
-        'operation'   => 'activity_operation',
-        'maintenance' => 'activity_maintenance',
-        'project'     => 'activity_project',
-        'landscape'   => 'activity_landscape',
-        default       => 'activity_operation'
-    };
+    $col = 'activity_operation';
+    if ($cat === 'operation') $col = 'activity_operation';
+    elseif ($cat === 'maintenance') $col = 'activity_maintenance';
+    elseif ($cat === 'project') $col = 'activity_project';
+    elseif ($cat === 'landscape') $col = 'activity_landscape';
     $where = "WHERE log_date BETWEEN ? AND ?";
     $params = [$from, $to];
     if ($userRole === 'engineer') {
@@ -642,13 +640,11 @@ require_once __DIR__ . '/../includes/navbar.php';
         <div class="flex flex-col gap-4 sm:gap-5 mb-6">
             <?php foreach ($colLeft as $idx => $c):
                 $rowsCard = $catDetailRows[$c['id']] ?? [];
-                $colItems = match($c['id']) {
-                    'operation'   => 'activity_operation_items',
-                    'maintenance' => 'activity_maintenance_items',
-                    'project'     => 'activity_project_items',
-                    'landscape'   => 'activity_landscape_items',
-                    default       => 'activity_operation_items',
-                };
+                $colItems = 'activity_operation_items';
+                if ($c['id'] === 'operation') $colItems = 'activity_operation_items';
+                elseif ($c['id'] === 'maintenance') $colItems = 'activity_maintenance_items';
+                elseif ($c['id'] === 'project') $colItems = 'activity_project_items';
+                elseif ($c['id'] === 'landscape') $colItems = 'activity_landscape_items';
                 $itemsAllPreview = '';
                 $collect = [];
                 if (count($rowsCard) > 0) {
@@ -730,13 +726,11 @@ require_once __DIR__ . '/../includes/navbar.php';
         $divKey = $c['id'];
         $masterRows = $masterRowsPerDiv[$divKey] ?? [];
         $masterCnt = (int)($masterCntPerDiv[$divKey] ?? 0);
-        $colItems = match($c['id']) {
-            'operation'   => 'activity_operation_items',
-            'maintenance' => 'activity_maintenance_items',
-            'project'     => 'activity_project_items',
-            'landscape'   => 'activity_landscape_items',
-            default       => 'activity_operation_items',
-        };
+        $colItems = 'activity_operation_items';
+        if ($c['id'] === 'operation') $colItems = 'activity_operation_items';
+        elseif ($c['id'] === 'maintenance') $colItems = 'activity_maintenance_items';
+        elseif ($c['id'] === 'project') $colItems = 'activity_project_items';
+        elseif ($c['id'] === 'landscape') $colItems = 'activity_landscape_items';
         $showMasterBox = ($masterCnt > 0);
     ?>
     <div id="modal-<?= htmlspecialchars($c['id']) ?>" class="fixed inset-0 z-[9999] hidden items-center justify-center p-4 animate-fade-in-modal"
