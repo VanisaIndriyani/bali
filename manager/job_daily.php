@@ -124,34 +124,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-function _xls3($s) { return '"' . str_replace(['"', "\t", "\n", "\r"], ['""', ' ', ' ', ' '], (string)$s) . '"'; }
+function _xls3Esc($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 if (isset($_GET['export']) && (string)$_GET['export'] === '1') {
     header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-    $fname = 'Job-Daily-Trip-' . date('Ymd-His') . '.xls';
+    $fname = 'Job-Daily-Trip-' . date('Ymd-His') . '.xlsx';
     header('Content-Disposition: attachment; filename="' . $fname . '"');
+    header('Cache-Control: max-age=0');
     echo "\xEF\xBB\xBF";
     $pl = ['today'=>'Today 1 Trip','driver'=>'Sopir KM','all'=>'All Data'];
     $plLabel = $pl[$preset] ?? 'Custom';
-    echo _xls3('Job Daily Trip Transport - The St. Regis Bali Engineering Dept') . "\n";
-    echo _xls3('Filter Preset: '.$plLabel) . "\t" . _xls3('Periode: '.$from.' sd '.$to) . "\t" . _xls3('Search: '.($search ?: '-')) . "\t" . _xls3('Export: '.date('d M Y H:i:s')) . "\n";
-    echo _xls3('Rekap Periode') . "\t" . _xls3('Total Trip: '.$statTrip) . "\t" . _xls3('Total KM: '.number_format($statKM,1,',','.')) . "\t" . _xls3('Total Jual: Rp '.number_format($statJual,0,',','.')) . "\t" . _xls3('Total Vendor: Rp '.number_format($statVendor,0,',','.')) . "\t" . _xls3('Laba Kotor: Rp '.number_format($statLaba,0,',','.')) . "\n\n";
+    echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>
+        body{font-family:Calibri,Arial,sans-serif;font-size:12px;color:#111;}
+        h1{font-size:18px;font-weight:900;color:#000;margin:0 0 6px;}
+        .meta{font-size:11px;color:#333;margin-bottom:10px;}
+        table{border-collapse:collapse;width:100%;margin-bottom:14px;}
+        th{background:#111827;color:#fff;font-weight:900;font-size:11px;text-align:left;padding:7px 9px;border:1px solid #0f172a;}
+        td{padding:6px 9px;border:1px solid #b4b4b4;vertical-align:top;}
+        tr:nth-child(even) td{background:#f8fafc;}
+        .num{text-align:right;font-family:"Consolas",monospace;}
+        .rupiah{text-align:right;font-family:"Consolas",monospace;font-weight:700;}
+        .laba{text-align:right;font-family:"Consolas",monospace;font-weight:900;color:#b45309;}
+        .rugi{text-align:right;font-family:"Consolas",monospace;font-weight:900;color:#991b1b;}
+        .titleHead{background:#4338ca;color:#fff;font-weight:900;padding:10px;border:1px solid #312e81;font-size:14px;}
+        .rekap td{background:#eef2ff;}
+        .rekap b{color:#312e81;}
+        .paidOk{color:#065f46;font-weight:900;}
+        .paidNo{color:#991b1b;font-weight:900;}
+    </style></head><body>';
+    echo '<h1>📋 Job Daily Trip Transport</h1>';
+    echo '<div class="meta"><strong>The St. Regis Bali — Engineering Dept</strong> | Preset Filter: <b>'.htmlspecialchars($plLabel,ENT_QUOTES,'UTF-8').'</b> | Periode <b>'.$from.' s/d '.$to.'</b> | Search: '.htmlspecialchars($search ?: '-',ENT_QUOTES,'UTF-8').' | Export: '.date('d M Y H:i:s').'</div>';
+
+    echo '<table class="rekap"><thead><tr><th colspan="6" class="titleHead">📊 REKAP PERIODE INI</th></tr></thead><tbody>';
+    $rekap = [
+        ['🎯 Total Trip (Unique)', $statTrip.' trip', '🛣️ Total Jarak (KM)', number_format($statKM,1,',','.').' KM'],
+        ['💰 Harga Jual Customer', 'Rp '.number_format($statJual,0,',','.'), '🧾 Harga Beli Vendor', 'Rp '.number_format($statVendor,0,',','.')],
+        ['⭐ Laba Kotor (Jual - Vendor)', '<b>Rp '.number_format($statLaba,0,',','.').'</b>', '🟦 Jumlah Data ditampilkan', count($rows).' baris'],
+    ];
+    foreach ($rekap as $rr) {
+        echo '<tr><td style="width:20%"><b>'.$rr[0].':</b></td><td class="num" style="width:30%">'.$rr[1].'</td><td style="width:20%"><b>'.$rr[2].':</b></td><td class="num" style="width:30%">'.$rr[3].'</td></tr>';
+    }
+    echo '</tbody></table>';
+
     $cols = ['No','ID','NO. TRIP','TANGGAL','CUSTOMER','RUTE ASAL','RUTE TUJUAN','PLAT NOMOR','UNIT','SOPIR 1','SOPIR 2','TRIP (x)','KM AWAL','KM AKHIR','TOTAL KM','HARGA JUAL (Rp)','HARGA BELI VENDOR (Rp)','FEE DRIVER (Rp)','LABA / RUGI (Rp)','STATUS TRIP','STATUS BAYAR','CATATAN'];
-    echo implode("\t", array_map('_xls3', $cols)) . "\n";
+    echo '<table><thead><tr><th colspan="'.count($cols).'" class="titleHead">🧾 LIST JOB DAILY TRIP ('.count($rows).' DATA)</th></tr><tr>';
+    foreach($cols as $c) echo '<th>'._xls3Esc($c).'</th>';
+    echo '</tr></thead><tbody>';
     $n = 0;
     foreach ($rows as $r) { $n++;
         $laba = (float)($r['price_sell'] ?? 0) - (float)($r['price_vendor'] ?? 0) - (float)($r['fee_driver'] ?? 0);
         $st = ['draft'=>'DRAFT','in_progress'=>'ON PROGRESS','completed'=>'COMPLETED','cancelled'=>'CANCELLED'][$r['status']] ?? strtoupper((string)$r['status']);
         $pay = strtoupper((string)($r['payment_status'] ?? 'unpaid'));
-        $row = [
-            $n, (int)$r['id'], (string)($r['trip_no'] ?? '#'.$r['id']), (string)($r['trip_date'] ?? ''),
-            (string)($r['customer_name'] ?? ''), (string)($r['route_from'] ?? ''), (string)($r['route_to'] ?? ''),
-            (string)($r['plat_no'] ?? ''), (string)($r['vehicle_name'] ?? ''), (string)($r['driver_name'] ?? ''), (string)($r['driver2_name'] ?? ''),
-            (int)($r['trip_count'] ?? 1), (float)($r['km_start'] ?? 0), (float)($r['km_end'] ?? 0), (float)($r['total_km'] ?? 0),
-            (float)($r['price_sell'] ?? 0), (float)($r['price_vendor'] ?? 0), (float)($r['fee_driver'] ?? 0), $laba, $st, $pay,
-            preg_replace('/\s+/',' ',(string)($r['notes'] ?? ''))
-        ];
-        echo implode("\t", array_map('_xls3', $row)) . "\n";
+        $labaCls = $laba >= 0 ? 'laba' : 'rugi';
+        echo '<tr>';
+        echo '<td class="num">'._xls3Esc($n).'</td>';
+        echo '<td class="num">'._xls3Esc((int)$r['id']).'</td>';
+        echo '<td><b>'._xls3Esc((string)($r['trip_no'] ?? '#'.$r['id'])).'</b></td>';
+        echo '<td>'._xls3Esc((string)($r['trip_date'] ?? '')).'</td>';
+        echo '<td>'._xls3Esc((string)($r['customer_name'] ?? '')).'</td>';
+        echo '<td>'._xls3Esc((string)($r['route_from'] ?? '')).'</td>';
+        echo '<td>'._xls3Esc((string)($r['route_to'] ?? '')).'</td>';
+        echo '<td><b style="background:#0369a1;color:#fff;padding:2px 6px;border-radius:4px;">'._xls3Esc(strtoupper((string)($r['plat_no'] ?? ''))).'</b></td>';
+        echo '<td>'._xls3Esc((string)($r['vehicle_name'] ?? '')).'</td>';
+        echo '<td>'._xls3Esc((string)($r['driver_name'] ?? '')).'</td>';
+        echo '<td>'._xls3Esc((string)($r['driver2_name'] ?? '')).'</td>';
+        echo '<td class="num">'._xls3Esc((int)($r['trip_count'] ?? 1)).'</td>';
+        echo '<td class="num">'._xls3Esc(number_format((float)($r['km_start'] ?? 0),1,',','.')).'</td>';
+        echo '<td class="num">'._xls3Esc(number_format((float)($r['km_end'] ?? 0),1,',','.')).'</td>';
+        echo '<td class="num"><b>'._xls3Esc(number_format((float)($r['total_km'] ?? 0),1,',','.')).'</b></td>';
+        echo '<td class="rupiah" style="color:#065f46;">Rp '._xls3Esc(number_format((float)($r['price_sell'] ?? 0),0,',','.')).'</td>';
+        echo '<td class="rupiah" style="color:#991b1b;">Rp '._xls3Esc(number_format((float)($r['price_vendor'] ?? 0),0,',','.')).'</td>';
+        echo '<td class="rupiah" style="color:#92400e;">Rp '._xls3Esc(number_format((float)($r['fee_driver'] ?? 0),0,',','.')).'</td>';
+        echo '<td class="'.$labaCls.'">Rp '._xls3Esc(number_format($laba,0,',','.')).'</td>';
+        echo '<td>'._xls3Esc($st).'</td>';
+        $badgeCls = $pay === 'PAID' ? 'paidOk' : 'paidNo';
+        echo '<td class="'.$badgeCls.'">'._xls3Esc($pay).'</td>';
+        echo '<td>'._xls3Esc(preg_replace('/\s+/',' ',(string)($r['notes'] ?? ''))).'</td>';
+        echo '</tr>';
     }
+    echo '</tbody></table></body></html>';
     exit;
 }
 

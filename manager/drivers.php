@@ -139,37 +139,85 @@ $ownerOptions = $db->fetchAll("SELECT id,name FROM transport_vendors WHERE is_ac
 $statDriver = (int)$db->fetchOne("SELECT COUNT(*) FROM transport_drivers WHERE is_active=1")['COUNT(*)'];
 $statMobil  = (int)$db->fetchOne("SELECT COUNT(*) FROM transport_vehicles WHERE is_active=1")['COUNT(*)'];
 
-function _xls2($s) { return '"' . str_replace(['"', "\t", "\n", "\r"], ['""', ' ', ' ', ' '], (string)$s) . '"'; }
+function _xls2Esc($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+function _xls2Header($title) {
+    echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>
+        body{font-family:Calibri,Arial,sans-serif;font-size:12px;color:#111;}
+        h1{font-size:18px;font-weight:900;color:#000;margin:0 0 6px;}
+        .meta{font-size:11px;color:#333;margin-bottom:14px;}
+        table{border-collapse:collapse;width:100%;}
+        th{background:#0f172a;color:#fff;font-weight:900;font-size:11px;text-align:left;padding:7px 9px;border:1px solid #0f172a;}
+        td{padding:6px 9px;border:1px solid #b4b4b4;vertical-align:top;}
+        tr:nth-child(even) td{background:#f8fafc;}
+        .num{text-align:right;font-family:"Consolas",monospace;}
+        .titleHead{background:#0f766e;color:#fff;font-weight:900;padding:8px 10px;border:1px solid #115e59;font-size:13px;}
+    </style></head><body><h1>'._xls2Esc($title).'</h1>';
+}
 if (isset($_GET['export']) && (string)$_GET['export'] === '1') {
     header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+    header('Cache-Control: max-age=0');
+    echo "\xEF\xBB\xBF";
     if ($type === 'driver') {
-        $fname = 'Data-Driver-Sopir-' . date('Ymd-His') . '.xls';
+        $fname = 'Data-Driver-Sopir-' . date('Ymd-His') . '.xlsx';
         header('Content-Disposition: attachment; filename="' . $fname . '"');
-        echo "\xEF\xBB\xBF";
-        echo _xls2('Data Driver / Sopir Operasional - The St. Regis Bali Engineering Dept') . "\n";
-        echo _xls2('Search: '.($search !== '' ? $search : '-')) . "\t" . _xls2('Export: '.date('d M Y H:i:s')) . "\n\n";
+        _xls2Header('🪪 Data Driver / Sopir Operasional');
+        echo '<div class="meta"><strong>The St. Regis Bali — Engineering Dept</strong> | Search: '._xls2Esc($search ?: '-').' | Export: '.date('d M Y H:i:s').'</div>';
         $cols = ['No','ID','NAMA LENGKAP','NO HP','NO KTP','TIPE SIM','BERLAKU SAMPAI SIM','ALAMAT','TANGGAL GABUNG','GAJI POKOK (Rp)','RATE PER KM (Rp)','STATUS','CATATAN'];
-        echo implode("\t", array_map('_xls2', $cols)) . "\n";
+        echo '<table><thead><tr><th colspan="'.count($cols).'" class="titleHead">LIST DATA DRIVER / SOPIR ('.count($rows).' DATA)</th></tr><tr>';
+        foreach($cols as $c) echo '<th>'._xls2Esc($c).'</th>';
+        echo '</tr></thead><tbody>';
         $n = 0;
         foreach ($rows as $r) { $n++;
             $st = ((int)$r['is_active']===1)?'AKTIF':'NON AKTIF';
-            $row = [$n,(int)$r['id'],$r['fullname'],$r['phone'],$r['id_card'],$r['sim_type'],(string)($r['sim_expiry'] ?? ''),preg_replace('/\s+/',' ',(string)($r['address'] ?? '')),(string)($r['join_date'] ?? ''),(float)($r['base_salary'] ?? 0),(float)($r['rate_per_km'] ?? 0),$st,preg_replace('/\s+/',' ',(string)($r['notes'] ?? ''))];
-            echo implode("\t", array_map('_xls2', $row)) . "\n";
+            echo '<tr>';
+            echo '<td class="num">'._xls2Esc($n).'</td>';
+            echo '<td class="num">'._xls2Esc((int)$r['id']).'</td>';
+            echo '<td><strong>'._xls2Esc($r['fullname']).'</strong></td>';
+            echo '<td>'._xls2Esc($r['phone']).'</td>';
+            echo '<td class="num">'._xls2Esc($r['id_card']).'</td>';
+            echo '<td>'._xls2Esc($r['sim_type']).'</td>';
+            echo '<td>'._xls2Esc((string)($r['sim_expiry'] ?? '')).'</td>';
+            echo '<td>'._xls2Esc(preg_replace('/\s+/',' ',(string)($r['address'] ?? ''))).'</td>';
+            echo '<td>'._xls2Esc((string)($r['join_date'] ?? '')).'</td>';
+            echo '<td class="num">'._xls2Esc(number_format((float)($r['base_salary'] ?? 0),0,',','.')).'</td>';
+            echo '<td class="num">'._xls2Esc(number_format((float)($r['rate_per_km'] ?? 0),0,',','.')).'</td>';
+            echo '<td><strong>'._xls2Esc($st).'</strong></td>';
+            echo '<td>'._xls2Esc(preg_replace('/\s+/',' ',(string)($r['notes'] ?? ''))).'</td>';
+            echo '</tr>';
         }
+        echo '</tbody></table></body></html>';
     } else {
-        $fname = 'Data-Kendaraan-Unit-' . date('Ymd-His') . '.xls';
+        $fname = 'Data-Kendaraan-Unit-' . date('Ymd-His') . '.xlsx';
         header('Content-Disposition: attachment; filename="' . $fname . '"');
-        echo "\xEF\xBB\xBF";
-        echo _xls2('Data Kendaraan / Unit Mobil Operasional - The St. Regis Bali Engineering Dept') . "\n";
-        echo _xls2('Search: '.($search !== '' ? $search : '-')) . "\t" . _xls2('Export: '.date('d M Y H:i:s')) . "\n\n";
+        _xls2Header('🚗 Data Kendaraan / Unit Mobil Operasional');
+        echo '<div class="meta"><strong>The St. Regis Bali — Engineering Dept</strong> | Search: '._xls2Esc($search ?: '-').' | Export: '.date('d M Y H:i:s').'</div>';
         $cols = ['No','ID','PLAT NOMOR','MERK','TIPE / MODEL','TAHUN','WARNA','KAPASITAS (org)','NO RANGKA (Chasis)','NO MESIN','OWNER / VENDOR','STNK BERLAKU S/D','KIR BERLAKU S/D','PAJAK BERLAKU S/D','STATUS','CATATAN'];
-        echo implode("\t", array_map('_xls2', $cols)) . "\n";
+        echo '<table><thead><tr><th colspan="'.count($cols).'" class="titleHead">LIST DATA KENDARAAN / UNIT MOBIL ('.count($rows).' UNIT)</th></tr><tr>';
+        foreach($cols as $c) echo '<th>'._xls2Esc($c).'</th>';
+        echo '</tr></thead><tbody>';
         $n = 0;
         foreach ($rows as $r) { $n++;
             $st = ((int)$r['is_active']===1)?'AKTIF':'NON AKTIF';
-            $row = [$n,(int)$r['id'],$r['plat_no'],$r['merk'] ?? '',$r['type_name'] ?? '',$r['year'] ?? '',$r['color'] ?? '',(int)($r['capacity'] ?? 0),$r['chasis_no'] ?? '',$r['engine_no'] ?? '',$r['owner_name'] ?? '',(string)($r['stnk_date'] ?? ''),(string)($r['kir_date'] ?? ''),(string)($r['tax_date'] ?? ''),$st,preg_replace('/\s+/',' ',(string)($r['notes'] ?? ''))];
-            echo implode("\t", array_map('_xls2', $row)) . "\n";
+            echo '<tr>';
+            echo '<td class="num">'._xls2Esc($n).'</td>';
+            echo '<td class="num">'._xls2Esc((int)$r['id']).'</td>';
+            echo '<td><strong style="background:#0369a1;color:#fff;padding:2px 6px;border-radius:4px;">'._xls2Esc(strtoupper($r['plat_no'])).'</strong></td>';
+            echo '<td>'._xls2Esc($r['merk'] ?? '').'</td>';
+            echo '<td>'._xls2Esc($r['type_name'] ?? '').'</td>';
+            echo '<td class="num">'._xls2Esc($r['year'] ?? '').'</td>';
+            echo '<td>'._xls2Esc($r['color'] ?? '').'</td>';
+            echo '<td class="num">'._xls2Esc((int)($r['capacity'] ?? 0)).'</td>';
+            echo '<td class="num">'._xls2Esc($r['chasis_no'] ?? '').'</td>';
+            echo '<td class="num">'._xls2Esc($r['engine_no'] ?? '').'</td>';
+            echo '<td>'._xls2Esc($r['owner_name'] ?? '').'</td>';
+            echo '<td>'._xls2Esc((string)($r['stnk_date'] ?? '')).'</td>';
+            echo '<td>'._xls2Esc((string)($r['kir_date'] ?? '')).'</td>';
+            echo '<td>'._xls2Esc((string)($r['tax_date'] ?? '')).'</td>';
+            echo '<td><strong>'._xls2Esc($st).'</strong></td>';
+            echo '<td>'._xls2Esc(preg_replace('/\s+/',' ',(string)($r['notes'] ?? ''))).'</td>';
+            echo '</tr>';
         }
+        echo '</tbody></table></body></html>';
     }
     exit;
 }
