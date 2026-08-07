@@ -15,7 +15,7 @@ $pageSubtitle = 'Form Input & Daftar Catatan Konsumsi Energi Harian (Listrik, So
 include __DIR__ . '/includes/header.php';
 include __DIR__ . '/includes/sidebar.php';
 ?>
-<div class="main-content px-4 sm:px-6 lg:px-8 py-6 max-w-[1500px] mx-auto">
+<div class="main-content px-4 sm:px-6 lg:px-8 py-6 max-w-[1800px] mx-auto">
     <!-- BREADCRUMB -->
     <div class="mb-4 flex items-center gap-2 text-xs font-semibold text-slate-500">
         <a href="<?= BASE_URL ?>index.php" class="hover:text-primary transition"><i class="fas fa-house mr-1"></i> Dashboard</a>
@@ -28,11 +28,7 @@ include __DIR__ . '/includes/sidebar.php';
     <!-- HEADER JUDUL -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 animate-slide-up">
         <div>
-            <p class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1 flex items-center gap-1.5">
-              
-            </p>
-            <h1 class="font-display text-2xl lg:text-3xl font-bold text-primary mb-1"> Energy Log Sheet</h1>
-           
+            <h1 class="font-display text-2xl lg:text-3xl font-bold text-primary mb-1">Energy Log Sheet</h1>
         </div>
         <div class="flex items-center gap-2 self-start sm:self-end flex-wrap">
             <a href="<?= BASE_URL ?>energy.php" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-card bg-white border border-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-50 hover:-translate-y-0.5 transition shadow-sm">
@@ -51,15 +47,15 @@ include __DIR__ . '/includes/sidebar.php';
     <div class="bg-white rounded-premium border border-slate-200 shadow-sm mb-6 p-4 sm:p-5 animate-slide-up" style="animation-delay: 60ms">
         <div class="flex flex-col md:flex-row md:items-end gap-3 flex-wrap">
             <div class="md:w-44">
-                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">Tanggal</label>
+                <label class="text-[11px] sm:text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">Tanggal</label>
                 <input type="date" value="<?= date('Y-m-d') ?>" class="w-full px-3 py-2.5 rounded-card border border-border bg-muted/50 text-primary text-sm font-bold focus:outline-none focus:border-slate-600 focus:ring-2 focus:ring-slate-200">
             </div>
             <div class="md:w-44">
-                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">s/d Tanggal (Opsional)</label>
+                <label class="text-[11px] sm:text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">s/d Tanggal (Opsional)</label>
                 <input type="date" value="<?= date('Y-m-d') ?>" class="w-full px-3 py-2.5 rounded-card border border-border bg-muted/50 text-primary text-sm font-bold focus:outline-none focus:border-slate-600 focus:ring-2 focus:ring-slate-200">
             </div>
             <div class="md:w-44">
-                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">Shift</label>
+                <label class="text-[11px] sm:text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">Shift</label>
                 <select class="w-full px-3 py-2.5 rounded-card border border-border bg-muted/50 text-primary text-sm font-bold focus:outline-none focus:border-slate-600 focus:ring-2 focus:ring-slate-200">
                     <option value="">Semua Shift</option>
                     <option>Pagi (07.00 - 15.00)</option>
@@ -87,34 +83,36 @@ include __DIR__ . '/includes/sidebar.php';
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total Entri</p>
-            <p class="font-display text-2xl font-black text-primary mt-1">186</p>
+            <p class="font-display text-xl sm:text-2xl font-black text-primary mt-1">186</p>
         </div>
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total kWh</p>
-            <p class="font-display text-2xl font-black text-primary mt-1">62.847,5</p>
+            <p class="font-display text-xl sm:text-2xl font-black text-primary mt-1">62.847,5</p>
         </div>
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total Solar</p>
-            <p class="font-display text-2xl font-black text-primary mt-1">14.520,0 L</p>
+            <p class="font-display text-xl sm:text-2xl font-black text-primary mt-1">14.520,0 L</p>
         </div>
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total Gas</p>
-            <p class="font-display text-2xl font-black text-primary mt-1">2.300,0 Kg</p>
+            <p class="font-display text-xl sm:text-2xl font-black text-primary mt-1">2.300,0 Kg</p>
         </div>
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total Air</p>
-            <p class="font-display text-2xl font-black text-primary mt-1">16.185,4 m³</p>
+            <p class="font-display text-xl sm:text-2xl font-black text-primary mt-1">16.185,4 m³</p>
         </div>
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">PIC Aktif</p>
-            <p class="font-display text-2xl font-black text-primary mt-1">5 Orang</p>
+            <p class="font-display text-xl sm:text-2xl font-black text-primary mt-1">5 Orang</p>
         </div>
     </div>
 
     <!-- TABLE LIST LOG SHEET (DATA STATIS + PLACEHOLDER) -->
     <div class="bg-white rounded-premium border border-slate-200 shadow-sm overflow-hidden mb-6 animate-slide-up" style="animation-delay: 90ms">
-        <div class="px-4 sm:px-5 pt-3 text-[11px] text-slate-500 italic font-semibold flex items-center gap-1 bg-slate-50/50 border-b border-slate-100 pb-2">
-            <i class="fas fa-hand-point-right text-indigo-500"></i> Scroll ke kanan untuk melihat kolom <strong>PIC</strong> &amp; <strong>Aksi</strong> yang ada di sisi kanan tabel <i class="fas fa-arrow-right text-indigo-500 ml-1"></i>
+        <div class="px-3 sm:px-5 py-2.5 text-[11px] sm:text-xs text-slate-500 italic font-semibold flex flex-wrap items-center gap-1.5 bg-slate-50/70 border-b border-slate-100">
+            <i class="fas fa-hand-point-right text-indigo-500 flex-shrink-0"></i>
+            <span class="flex-shrink">Scroll ke kanan untuk melihat kolom <strong class="not-italic text-slate-700">PIC</strong> &amp; <strong class="not-italic text-slate-700">Aksi</strong> yang ada di sisi kanan tabel</span>
+            <i class="fas fa-arrow-right text-indigo-500 flex-shrink-0"></i>
         </div>
         <div class="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
             <table class="w-full text-sm min-w-[1700px]">
