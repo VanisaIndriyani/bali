@@ -376,6 +376,7 @@ function fetchProgressActivities($db, $userRole, $userId, $dateFrom, $dateTo) {
                     'log_date'     => (string)($row['log_date'] ?? ''),
                     'engineer_name'=> (string)($row['engineer_name'] ?? '-'),
                     'daily_log_id' => (int)($row['dlid'] ?? 0),
+                    'source'       => 'daily_log',
                 ];
             }
         }
@@ -393,6 +394,54 @@ $divInfo = [
     'landscape'   => ['label'=>'LANDSCAPE',   'icon'=>'🌱', 'col'=>'text-emerald-700','bg'=>'bg-emerald-50','chip'=>'bg-emerald-100 border-emerald-200 text-emerald-700'],
 ];
 $progressActivities = fetchProgressActivities($db, $userRole, $userId, $monthStart, $today);
+
+// ============== 🔹 TAMBAHAN: DATA MASTER DEFAULT IN PROGRESS (TABLE activity_masters) 🔹 ==============
+// Sesuai request user: Master Activity status_default = 'progress' (seperti foto "Pemindahan posisi new FCU FB office - In Progress")
+// yang BELUM dipakai di Daily Log juga harus MUNCUL di Dashboard Widget Progress!
+try {
+    $masterWhere = "WHERE status_default = 'progress'";
+    $masterParams = [];
+    if ($userRole === 'engineer') {
+        // Engineer tidak punya filter master, tapi show semua biar tau daftar progress
+    }
+    $masterRows = $db->fetchAll("SELECT id as mid, division, activity_name, sort_order, created_at
+                                  FROM activity_masters $masterWhere
+                                  ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC", $masterParams);
+    $titleUsedDaily = [];
+    foreach ($progressActivities as $pd) { if ($pd['source'] === 'daily_log') $titleUsedDaily[mb_strtolower(trim((string)($pd['activity'] ?? '')))] = true; }
+    $idxDaily = count($progressActivities);
+    foreach ($masterRows as $m) {
+        $title = trim((string)($m['activity_name'] ?? ''));
+        if ($title === '') continue;
+        $keyLower = mb_strtolower($title);
+        if (isset($titleUsedDaily[$keyLower])) continue; // skip kalau sudah muncul di daily log (hindari dobel)
+        $idxDaily++;
+        $progressActivities[] = [
+            'division'      => (string)($m['division'] ?? 'operation'),
+            'activity'      => $title,
+            'log_date'      => (string)($m['created_at'] ?? ''),
+            'engineer_name' => '- (Belum ditugaskan)',
+            'daily_log_id'  => 0,
+            'source'        => 'master_template',
+            'master_id'     => (int)($m['mid'] ?? 0),
+            'sort_order'    => (int)($m['sort_order'] ?? 0),
+        ];
+    }
+    // Re-sort: Daily Log paling atas (sort date desc), Master Template paling bawah urut sort_order ASC
+    $dailyPart = []; $masterPart = [];
+    foreach ($progressActivities as $pa) {
+        if (($pa['source'] ?? 'daily_log') === 'master_template') $masterPart[] = $pa;
+        else $dailyPart[] = $pa;
+    }
+    usort($masterPart, function($a,$b){
+        $sa = (int)($a['sort_order'] ?? 0); $sb = (int)($b['sort_order'] ?? 0);
+        if ($sa === $sb) return (int)($a['master_id'] ?? 0) - (int)($b['master_id'] ?? 0);
+        return $sa - $sb;
+    });
+    $progressActivities = array_merge($dailyPart, $masterPart);
+} catch (Throwable $e) {
+    // jika table activity_masters belum ada, ignore
+}
 $progressCount = count($progressActivities);
 
 // --- Reusable: render TABLE DAFTAR AKTIVITAS PEKERJAAN (untuk ditempel di bawah chart modal) ---
@@ -482,7 +531,10 @@ require_once __DIR__ . '/includes/navbar.php';
                         AKTIVITAS DALAM <span class="text-orange-600">PROGRESS</span>
                     </h1>
                     <p class="text-sm text-gray-500 mt-2">
-                        Hanya menampilkan pekerjaan yang <b class="text-orange-700">BELUM SELESAI</b>. Jika status diubah menjadi <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-[4px] text-[11px] font-black mx-0.5">COMPLETE</span> di Manager — otomatis <b>hilang</b> dari daftar ini.
+                        Menampilkan <b class="text-orange-700">2 SUMBER DATA</b>:
+                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-black mx-1">📝 LOG HARIAN</span> = pekerjaan yang sedang dikerjakan dari Daily Log bulan ini.
+                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[11px] font-black mx-1">📚 MASTER</span> = daftar template Default Progress dari Master Activity (seperti foto kamu).
+                        Jika status diubah menjadi <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-[4px] text-[11px] font-black mx-0.5">COMPLETE</span> di Manager — otomatis <b>hilang</b> dari daftar ini.
                     </p>
                 </div>
                 <div class="flex items-center gap-2.5">
@@ -520,8 +572,9 @@ require_once __DIR__ . '/includes/navbar.php';
                                 <th class="px-5 py-4 text-left font-black w-14">NO</th>
                                 <th class="px-5 py-4 text-left font-black w-40 border-l border-gray-300">DIVISI</th>
                                 <th class="px-5 py-4 text-left font-black border-l border-gray-300">NAMA PEKERJAAN / AKTIVITAS</th>
-                                <th class="px-5 py-4 text-left font-black w-48 border-l border-gray-300">ENGINEER</th>
-                                <th class="px-5 py-4 text-center font-black w-40 border-l border-gray-300">TANGGAL LOG</th>
+                                <th class="px-5 py-4 text-left font-black w-44 border-l border-gray-300">ENGINEER</th>
+                                <th class="px-5 py-4 text-left font-black w-40 border-l border-gray-300">SUMBER DATA</th>
+                                <th class="px-5 py-4 text-center font-black w-36 border-l border-gray-300">TANGGAL</th>
                                 <th class="px-5 py-4 text-center font-black w-40 border-l border-gray-300">STATUS</th>
                             </tr>
                         </thead>
@@ -532,6 +585,7 @@ require_once __DIR__ . '/includes/navbar.php';
                                 $no++;
                                 $div = $pa['division'] ?? 'operation';
                                 $info = $divInfo[$div] ?? $divInfo['operation'];
+                                $src = $pa['source'] ?? 'daily_log';
                                 $tgl = $pa['log_date'] ?? '';
                                 if (strlen($tgl) > 0) { try { $tglObj = new DateTime($tgl); $tglFmt = $tglObj->format('d M Y'); } catch (Throwable $e) { $tglFmt = $tgl; } } else { $tglFmt = '-'; }
                                 $bgStripe = ($no % 2 === 0) ? ' bg-gray-50/40' : '';
@@ -557,6 +611,19 @@ require_once __DIR__ . '/includes/navbar.php';
                                         <?= cleanInput($pa['engineer_name']) ?>
                                     </span>
                                 </td>
+                                <td class="px-5 py-4 border-l border-gray-100">
+                                    <?php if ($src === 'daily_log'): ?>
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-700 border border-emerald-200 text-[11px] font-black shadow-xs">
+                                            <i class="fas fa-file-pen text-emerald-600"></i>
+                                            LOG HARIAN
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-br from-sky-50 to-sky-100 text-sky-700 border border-sky-200 text-[11px] font-black shadow-xs">
+                                            <i class="fas fa-database text-sky-600"></i>
+                                            MASTER TEMPLATE
+                                        </span>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="px-5 py-4 text-center border-l border-gray-100">
                                     <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-[11px] font-bold text-gray-700 shadow-xs">
                                         <i class="far fa-calendar text-gray-400 mr-0.5"></i>
@@ -564,10 +631,17 @@ require_once __DIR__ . '/includes/navbar.php';
                                     </span>
                                 </td>
                                 <td class="px-5 py-4 text-center border-l border-gray-100">
-                                    <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 text-white font-black text-[11px] shadow-sm shadow-orange-500/30 border border-orange-600">
-                                        <i class="fas fa-gears animate-spin-slow text-[10px]"></i>
-                                        IN PROGRESS
-                                    </span>
+                                    <?php if ($src === 'daily_log'): ?>
+                                        <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 text-white font-black text-[11px] shadow-sm shadow-orange-500/30 border border-orange-600">
+                                            <i class="fas fa-gears animate-spin-slow text-[10px]"></i>
+                                            IN PROGRESS
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 text-white font-black text-[11px] shadow-sm shadow-sky-500/30 border border-sky-600">
+                                            <i class="fas fa-list-check text-[10px]"></i>
+                                            TUGAS BARU
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
