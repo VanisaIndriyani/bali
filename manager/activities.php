@@ -252,7 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     redirect('manager/activities.php');
 }
 
-$engineers = $db->fetchAll("SELECT id, name, role FROM users WHERE LOWER(role) = 'engineer' AND (status = 'active' OR status IS NULL OR status = '') ORDER BY name ASC");
+$engineers = $db->fetchAll("SELECT id, name, role FROM users WHERE status = 'active' OR status IS NULL OR status = '' ORDER BY name ASC");
 
 function buildActCnt($db, $from, $to, $cat, $userId, $userRole) {
     $col = 'activity_operation';
@@ -486,9 +486,17 @@ require_once __DIR__ . '/../includes/navbar.php';
                     </label>
                     <select name="engineer_id" id="engineer_id_activity"
                             class="w-full px-3.5 py-3 rounded-card border border-slate-300 bg-white text-primary font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition appearance-none pr-10">
-                        <option value="">-- Pilih Staff Engineer --</option>
-                        <?php foreach ($engineers as $e): ?>
-                            <option value="<?= (int)$e['id'] ?>"><?= htmlspecialchars($e['name']) ?></option>
+                        <option value="">-- Pilih Staff / Engineer --</option>
+                        <?php foreach ($engineers as $e):
+                            $roleLabel = '';
+                            $rClean = strtolower((string)($e['role'] ?? ''));
+                            if ($rClean === 'engineer') $roleLabel = ' (Staff Engineer)';
+                            elseif ($rClean === 'supervisor') $roleLabel = ' (Supervisor)';
+                            elseif ($rClean === 'manager') $roleLabel = ' (Manager)';
+                            elseif ($rClean === 'admin') $roleLabel = ' (Admin)';
+                            else $roleLabel = '';
+                        ?>
+                            <option value="<?= (int)$e['id'] ?>"><?= htmlspecialchars($e['name'] . $roleLabel) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
