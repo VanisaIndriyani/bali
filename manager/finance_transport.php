@@ -60,86 +60,64 @@ $vendorSum = $db->fetchAll("SELECT
     GROUP BY v.id, v.type, v.name
     ORDER BY vendor_bill DESC LIMIT 50", [$from, $to, 'cancelled']);
 
-function _xls4Esc($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+function _csv4($s) {
+    $s = (string)$s;
+    $s = str_replace(["\r", "\n"], [' ', ' '], $s);
+    if (strpos($s, ';') !== false || strpos($s, '"') !== false || strpos($s, ',') !== false) {
+        $s = '"' . str_replace('"', '""', $s) . '"';
+    }
+    return $s;
+}
 if (isset($_GET['export']) && (string)$_GET['export'] === '1') {
-    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-    $fname = 'Laporan-Keuangan-Transport-' . date('Ymd-His') . '.xls';
+    header('Content-Type: text/csv; charset=UTF-8');
+    $fname = 'Laporan-Keuangan-Transport-' . date('Ymd-His') . '.csv';
     header('Content-Disposition: attachment; filename="' . $fname . '"');
     header('Cache-Control: max-age=0');
     echo "\xEF\xBB\xBF";
-    echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>
-        body{font-family:Calibri,Arial,sans-serif;font-size:12px;color:#111;}
-        h1{font-size:20px;font-weight:900;color:#111827;margin:0 0 6px;}
-        .meta{font-size:11px;color:#333;margin-bottom:14px;}
-        table{border-collapse:collapse;width:100%;margin-bottom:18px;}
-        th{background:#312e81;color:#fff;font-weight:900;font-size:11px;text-align:left;padding:7px 9px;border:1px solid #1e1b4b;}
-        td{padding:6px 9px;border:1px solid #b4b4b4;vertical-align:top;}
-        tr:nth-child(even) td{background:#f5f3ff;}
-        .num{text-align:right;font-family:"Consolas",monospace;}
-        .rupiah{text-align:right;font-family:"Consolas",monospace;font-weight:700;}
-        .titleHead{background:#312e81;color:#fff;font-weight:900;padding:10px 12px;border:1px solid #1e1b4b;font-size:14px;}
-        .sHead{background:#1e3a8a;color:#fff;font-weight:900;padding:8px 10px;border:1px solid #1e40af;font-size:13px;}
-        .rowBig td{font-weight:900;font-size:13px;background:#c7d2fe !important;color:#1e1b4b;}
-        .green{color:#065f46;}
-        .red{color:#991b1b;}
-        .amber{color:#92400e;}
-        .bgLaba{background:#ecfdf5 !important;}
-    </style></head><body>';
-    echo '<h1>👛 LAPORAN KEUANGAN TRANSPORT</h1>';
-    echo '<div class="meta"><strong>The St. Regis Bali — Engineering Dept</strong> | Preset: <b>'.strtoupper($preset).'</b> | Periode <b>'.$from.' s/d '.$to.'</b> | Export: '.date('d M Y H:i:s').'</div>';
 
     $paidRev  = (float)($sumRow['paid_revenue'] ?? 0);
     $unpaidRev= (float)($sumRow['unpaid_revenue'] ?? 0);
-    echo '<table><thead><tr><th colspan="4" class="titleHead">1) 🔢 RINGKASAN KEUANGAN PERIODE INI</th></tr></thead><tbody>';
-    $ring = [
-        ['Total Trip (completed + draft)', (int)($sumRow['total_trip'] ?? 0), 'Total Trip Count (akumulasi per trip x jumlah)', (int)($sumRow['total_trip_count'] ?? 0)],
-        ['Total Jarak (KM)', number_format((float)($sumRow['total_km'] ?? 0),1,',','.'), '—', '—'],
-        ['<b>💰 TOTAL PENDAPATAN</b> (Harga Jual Customer)', '<b class="rupiah green">Rp '.number_format($totalSell,0,',','.').'</b>', 'Sudah Dibayar / Paid', '<span class="green"><b>Rp '.number_format($paidRev,0,',','.').'</b></span>'],
-        ['—', '—', 'Belum Dibayar / Unpaid', '<span class="red"><b>Rp '.number_format($unpaidRev,0,',','.').'</b></span>'],
-        ['<b class="red">🧾 BIAYA BELI KE VENDOR</b>', '<b class="rupiah red">Rp '.number_format($totalVendor,0,',','.').'</b>', '<b class="amber">💳 FEE / GAJI SOPIR</b>', '<b class="rupiah amber">Rp '.number_format($totalDriver,0,',','.').'</b>'],
-    ];
-    foreach ($ring as $rr) {
-        echo '<tr><td style="width:28%">'.$rr[0].'</td><td class="num" style="width:22%">'.$rr[1].'</td><td style="width:28%">'.$rr[2].'</td><td class="num" style="width:22%">'.$rr[3].'</td></tr>';
-    }
-    echo '<tr class="rowBig"><td>⭐ Laba Kotor (Jual - Vendor)</td><td class="num">Rp '.number_format($labaKotor,0,',','.').'</td><td>🟢 Laba Bersih (Jual - Vendor - Driver)</td><td class="num">Rp '.number_format($labaBersih,0,',','.').'</td></tr>';
-    echo '</tbody></table>';
+    $out = [];
+    $out[] = ['LAPORAN KEUANGAN TRANSPORT - The St. Regis Bali Engineering Dept','','','',''];
+    $out[] = ['Preset: '.strtoupper($preset), 'Periode: '.$from.' s/d '.$to, 'Export: '.date('d M Y H:i:s'),'',''];
+    $out[] = ['','','','',''];
+    $out[] = ['=== 1) RINGKASAN KEUANGAN PERIODE INI ===','','','',''];
+    $out[] = ['Total Trip (completed + draft)', (int)($sumRow['total_trip'] ?? 0), 'Total Trip Count (akumulasi)', (int)($sumRow['total_trip_count'] ?? 0),''];
+    $out[] = ['Total Jarak (KM)', number_format((float)($sumRow['total_km'] ?? 0),1,',','.').' KM','','',''];
+    $out[] = ['TOTAL PENDAPATAN (Harga Jual Customer)', 'Rp '.number_format($totalSell,0,',','.'),'','',''];
+    $out[] = ['  - Sudah Dibayar / Paid', 'Rp '.number_format($paidRev,0,',','.'), '  - Belum Dibayar / Unpaid', 'Rp '.number_format($unpaidRev,0,',','.'),''];
+    $out[] = ['BIAYA BELI KE VENDOR', 'Rp '.number_format($totalVendor,0,',','.'), 'FEE / GAJI SOPIR', 'Rp '.number_format($totalDriver,0,',','.'),''];
+    $out[] = ['⭐ Laba Kotor (Jual - Vendor)', 'Rp '.number_format($labaKotor,0,',','.'), '🟢 Laba Bersih (Jual - Vendor - Driver)', 'Rp '.number_format($labaBersih,0,',','.'),''];
+    $out[] = ['','','','',''];
+    $out[] = ['','','','',''];
 
-    echo '<table><thead><tr><th colspan="4" class="sHead">2) 👷 STATISTIK SOPIR (Preset: Sopir KM sesuai catatan)</th></tr><tr><th>No</th><th>Nama Sopir</th><th class="num">Total Trip (x)</th><th class="num">Total Jarak (KM)</th><th class="num">Total Fee Driver (Rp)</th></tr></thead><tbody>';
+    $out[] = ['=== 2) STATISTIK SOPIR (Preset: Sopir KM sesuai catatan) ===','','','',''];
+    $out[] = ['No','Nama Sopir','Total Trip (x)','Total Jarak (KM)','Total Fee Driver (Rp)'];
     $n = 0;
     foreach ($driverSum as $dr) {
         if ((int)($dr['trip_count'] ?? 0) === 0 && (float)($dr['sum_km'] ?? 0) === 0) continue;
         $n++;
-        echo '<tr>';
-        echo '<td class="num">'._xls4Esc($n).'</td>';
-        echo '<td><b>'._xls4Esc($dr['fullname']).'</b></td>';
-        echo '<td class="num">'._xls4Esc((int)$dr['trip_count']).'</td>';
-        echo '<td class="num">'._xls4Esc(number_format((float)($dr['sum_km'] ?? 0),1,',','.')).'</td>';
-        echo '<td class="rupiah">Rp '._xls4Esc(number_format((float)($dr['sum_fee'] ?? 0),0,',','.')).'</td>';
-        echo '</tr>';
+        $out[] = [$n,$dr['fullname'],(int)$dr['trip_count'],number_format((float)($dr['sum_km'] ?? 0),1,',','.'), 'Rp '.number_format((float)($dr['sum_fee'] ?? 0),0,',','.')];
     }
-    if ($n === 0) echo '<tr><td colspan="5" style="color:#64748b;">Belum ada data sopir untuk periode ini.</td></tr>';
-    echo '</tbody></table>';
+    if ($n === 0) $out[] = ['(Belum ada data sopir periode ini)','','','',''];
+    $out[] = ['','','','',''];
+    $out[] = ['','','','',''];
 
-    echo '<table><thead><tr><th colspan="4" class="sHead">3) 🏢 TAGIHAN OWNER / VENDOR (Harga Beli ke Vendor per Owner)</th></tr><tr><th>No</th><th>Nama Owner / Vendor</th><th>Tipe</th><th class="num">Total Tagihan Vendor (Rp)</th></tr></thead><tbody>';
+    $out[] = ['=== 3) TAGIHAN OWNER / VENDOR (Harga Beli ke Vendor per Owner) ===','','','',''];
+    $out[] = ['No','Nama Owner / Vendor','Tipe','Total Tagihan Vendor (Rp)',''];
     $nv = 0;
     foreach ($vendorSum as $v) {
         if ((float)($v['vendor_bill'] ?? 0) <= 0) continue;
         $nv++;
         $_t = (string)($v['type'] ?? 'vendor');
-        if ($_t === 'owner') $tl = '<span class="green"><b>OWNER ASET</b></span>';
-        elseif ($_t === 'investor') $tl = '<span class="amber"><b>INVESTOR</b></span>';
-        else $tl = '<span class="red"><b>VENDOR KERJASAMA</b></span>';
-        echo '<tr>';
-        echo '<td class="num">'._xls4Esc($nv).'</td>';
-        echo '<td><b>'._xls4Esc($v['name']).'</b></td>';
-        echo '<td>'.$tl.'</td>';
-        echo '<td class="rupiah">Rp '._xls4Esc(number_format((float)($v['vendor_bill']),0,',','.')).'</td>';
-        echo '</tr>';
+        if ($_t === 'owner') $tl = 'OWNER ASET';
+        elseif ($_t === 'investor') $tl = 'INVESTOR';
+        else $tl = 'VENDOR KERJASAMA';
+        $out[] = [$nv,$v['name'],$tl,'Rp '.number_format((float)($v['vendor_bill']),0,',','.'),''];
     }
-    if ($nv === 0) echo '<tr><td colspan="4" style="color:#64748b;">Belum ada tagihan vendor untuk periode ini.</td></tr>';
-    echo '</tbody></table>';
+    if ($nv === 0) $out[] = ['(Belum ada tagihan vendor periode ini)','','','',''];
 
-    echo '</body></html>';
+    foreach ($out as $rr) { echo implode(';', array_map('_csv4', $rr)) . "\r\n"; }
     exit;
 }
 

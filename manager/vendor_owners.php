@@ -89,10 +89,17 @@ $statOwner   = (int)$db->fetchOne("SELECT COUNT(*) FROM transport_vendors WHERE 
 $statVendor  = (int)$db->fetchOne("SELECT COUNT(*) FROM transport_vendors WHERE type='vendor'")['COUNT(*)'];
 $statInv     = max(0, $statTotal - $statOwner - $statVendor);
 
-function _xlsEsc($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+function _csv($s) {
+    $s = (string)$s;
+    $s = str_replace(["\r", "\n"], [' ', ' '], $s);
+    if (strpos($s, ';') !== false || strpos($s, '"') !== false || strpos($s, ',') !== false) {
+        $s = '"' . str_replace('"', '""', $s) . '"';
+    }
+    return $s;
+}
 if (isset($_GET['export']) && (string)$_GET['export'] === '1') {
-    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-    $fname = 'Data-Owner-Vendor-' . date('Ymd-His') . '.xls';
+    header('Content-Type: text/csv; charset=UTF-8');
+    $fname = 'Data-Owner-Vendor-' . date('Ymd-His') . '.csv';
     header('Content-Disposition: attachment; filename="' . $fname . '"');
     header('Cache-Control: max-age=0');
     echo "\xEF\xBB\xBF";
@@ -100,46 +107,25 @@ if (isset($_GET['export']) && (string)$_GET['export'] === '1') {
     if ($filterType === 'owner') $fLabel = 'Owner Aset';
     elseif ($filterType === 'vendor') $fLabel = 'Vendor Kerjasama';
     elseif ($filterType === 'investor') $fLabel = 'Investor';
-    echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>
-        body{font-family:Calibri,Arial,sans-serif;font-size:12px;color:#111;}
-        h1{font-size:18px;font-weight:900;color:#000;margin:0 0 6px;}
-        .meta{font-size:11px;color:#333;margin-bottom:14px;}
-        table{border-collapse:collapse;width:100%;}
-        th{background:#0f172a;color:#fff;font-weight:900;font-size:11px;text-align:left;padding:7px 9px;border:1px solid #0f172a;}
-        td{padding:6px 9px;border:1px solid #b4b4b4;vertical-align:top;}
-        tr:nth-child(even) td{background:#f8fafc;}
-        .num{text-align:right;font-family:"Consolas",monospace;}
-        .titleHead{background:#4338ca;color:#fff;font-weight:900;padding:8px 10px;border:1px solid #312e81;font-size:13px;}
-    </style></head><body>';
-    echo '<h1>📋 Data Owner / Vendor / Investor</h1><div class="meta"><strong>The St. Regis Bali — Engineering Dept</strong> | Filter Tipe: '._xlsEsc($fLabel).' | Search: '._xlsEsc($search ?: '-').' | Export: '.date('d M Y H:i:s').'</div>';
-    $cols = ['No','ID','TIPE','NAMA','PIC','NO HP / WA','EMAIL','NAMA BANK','NO REKENING','ATAS NAMA REK','SHARE %','ALAMAT','STATUS','CATATAN','DIBUAT TGL'];
-    echo '<table><thead><tr><th colspan="'.count($cols).'" class="titleHead">LIST DATA OWNER / VENDOR / INVESTOR ('.count($rows).' DATA)</th></tr><tr>';
-    foreach($cols as $c) echo '<th>'._xlsEsc($c).'</th>';
-    echo '</tr></thead><tbody>';
+    $rows_csv = [];
+    $rows_csv[] = ['DATA OWNER / VENDOR / INVESTOR - The St. Regis Bali Engineering Dept','','','','','','','','','','','','','',''];
+    $rows_csv[] = ['Filter Tipe: '.$fLabel, 'Search: '.($search !== '' ? $search : '-'), 'Export: '.date('d M Y H:i:s'),'','','','','','','','','','','',''];
+    $rows_csv[] = ['','','','','','','','','','','','','','',''];
+    $rows_csv[] = ['No','ID','TIPE','NAMA','PIC','NO HP / WA','EMAIL','NAMA BANK','NO REKENING','ATAS NAMA REK','SHARE %','ALAMAT','STATUS','CATATAN','DIBUAT TGL'];
     $n = 0;
     foreach ($rows as $r) {
         $n++;
         $_typ = strtoupper((string)($r['type'] ?? 'vendor'));
         $_st = ((int)$r['is_active'] === 1) ? 'AKTIF' : 'NON AKTIF';
-        echo '<tr>';
-        echo '<td class="num">'._xlsEsc($n).'</td>';
-        echo '<td class="num">'._xlsEsc((int)$r['id']).'</td>';
-        echo '<td><strong>'._xlsEsc($_typ).'</strong></td>';
-        echo '<td>'._xlsEsc($r['name']).'</td>';
-        echo '<td>'._xlsEsc($r['pic_name']).'</td>';
-        echo '<td>'._xlsEsc($r['phone']).'</td>';
-        echo '<td>'._xlsEsc($r['email']).'</td>';
-        echo '<td>'._xlsEsc($r['bank_name']).'</td>';
-        echo '<td class="num">'._xlsEsc($r['bank_account']).'</td>';
-        echo '<td>'._xlsEsc($r['bank_holder']).'</td>';
-        echo '<td class="num">'._xlsEsc(number_format((float)($r['share_pct'] ?? 0),2,',','.')).' %</td>';
-        echo '<td>'._xlsEsc(preg_replace('/\s+/',' ',(string)($r['address'] ?? ''))).'</td>';
-        echo '<td><strong>'._xlsEsc($_st).'</strong></td>';
-        echo '<td>'._xlsEsc(preg_replace('/\s+/',' ',(string)($r['notes'] ?? ''))).'</td>';
-        echo '<td>'._xlsEsc((string)($r['created_at'] ?? '')).'</td>';
-        echo '</tr>';
+        $rows_csv[] = [
+            $n, (int)$r['id'], $_typ, $r['name'], $r['pic_name'], $r['phone'], $r['email'],
+            $r['bank_name'], $r['bank_account'], $r['bank_holder'],
+            number_format((float)($r['share_pct'] ?? 0),2,',','.').' %',
+            preg_replace('/\s+/',' ',(string)($r['address'] ?? '')),
+            $_st, preg_replace('/\s+/',' ',(string)($r['notes'] ?? '')), (string)($r['created_at'] ?? '')
+        ];
     }
-    echo '</tbody></table></body></html>';
+    foreach ($rows_csv as $rr) { echo implode(';', array_map('_csv', $rr)) . "\r\n"; }
     exit;
 }
 
