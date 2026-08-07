@@ -124,6 +124,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+function _xls3($s) { return '"' . str_replace(['"', "\t", "\n", "\r"], ['""', ' ', ' ', ' '], (string)$s) . '"'; }
+if (isset($_GET['export']) && (string)$_GET['export'] === '1') {
+    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+    $fname = 'Job-Daily-Trip-' . date('Ymd-His') . '.xls';
+    header('Content-Disposition: attachment; filename="' . $fname . '"');
+    echo "\xEF\xBB\xBF";
+    $pl = ['today'=>'Today 1 Trip','driver'=>'Sopir KM','all'=>'All Data'];
+    $plLabel = $pl[$preset] ?? 'Custom';
+    echo _xls3('Job Daily Trip Transport - The St. Regis Bali Engineering Dept') . "\n";
+    echo _xls3('Filter Preset: '.$plLabel) . "\t" . _xls3('Periode: '.$from.' sd '.$to) . "\t" . _xls3('Search: '.($search ?: '-')) . "\t" . _xls3('Export: '.date('d M Y H:i:s')) . "\n";
+    echo _xls3('Rekap Periode') . "\t" . _xls3('Total Trip: '.$statTrip) . "\t" . _xls3('Total KM: '.number_format($statKM,1,',','.')) . "\t" . _xls3('Total Jual: Rp '.number_format($statJual,0,',','.')) . "\t" . _xls3('Total Vendor: Rp '.number_format($statVendor,0,',','.')) . "\t" . _xls3('Laba Kotor: Rp '.number_format($statLaba,0,',','.')) . "\n\n";
+    $cols = ['No','ID','NO. TRIP','TANGGAL','CUSTOMER','RUTE ASAL','RUTE TUJUAN','PLAT NOMOR','UNIT','SOPIR 1','SOPIR 2','TRIP (x)','KM AWAL','KM AKHIR','TOTAL KM','HARGA JUAL (Rp)','HARGA BELI VENDOR (Rp)','FEE DRIVER (Rp)','LABA / RUGI (Rp)','STATUS TRIP','STATUS BAYAR','CATATAN'];
+    echo implode("\t", array_map('_xls3', $cols)) . "\n";
+    $n = 0;
+    foreach ($rows as $r) { $n++;
+        $laba = (float)($r['price_sell'] ?? 0) - (float)($r['price_vendor'] ?? 0) - (float)($r['fee_driver'] ?? 0);
+        $st = ['draft'=>'DRAFT','in_progress'=>'ON PROGRESS','completed'=>'COMPLETED','cancelled'=>'CANCELLED'][$r['status']] ?? strtoupper((string)$r['status']);
+        $pay = strtoupper((string)($r['payment_status'] ?? 'unpaid'));
+        $row = [
+            $n, (int)$r['id'], (string)($r['trip_no'] ?? '#'.$r['id']), (string)($r['trip_date'] ?? ''),
+            (string)($r['customer_name'] ?? ''), (string)($r['route_from'] ?? ''), (string)($r['route_to'] ?? ''),
+            (string)($r['plat_no'] ?? ''), (string)($r['vehicle_name'] ?? ''), (string)($r['driver_name'] ?? ''), (string)($r['driver2_name'] ?? ''),
+            (int)($r['trip_count'] ?? 1), (float)($r['km_start'] ?? 0), (float)($r['km_end'] ?? 0), (float)($r['total_km'] ?? 0),
+            (float)($r['price_sell'] ?? 0), (float)($r['price_vendor'] ?? 0), (float)($r['fee_driver'] ?? 0), $laba, $st, $pay,
+            preg_replace('/\s+/',' ',(string)($r['notes'] ?? ''))
+        ];
+        echo implode("\t", array_map('_xls3', $row)) . "\n";
+    }
+    exit;
+}
+
 $_GET['_inline_header'] = 1;
 $pageHeaderActive = 'job_daily';
 include __DIR__ . '/../includes/header.php';
@@ -331,7 +362,11 @@ include __DIR__ . '/../includes/sidebar.php';
 </div>
 
 <script>
-function exportExcel(){ alert('Export Excel Job Daily: akan generate file .xlsx sesuai periode filter + 3 preset (Today / Sopir KM / All) sesuai catatan kertas.'); }
+function exportExcel(){
+    const params = new URLSearchParams(window.location.search);
+    params.set('export', '1');
+    window.location.href = '?' + params.toString();
+}
 function openTrip(data){
     const isNew = typeof data === 'number' && data === 0;
     const d = isNew ? {id:0,trip_no:'',trip_date:'<?= date('Y-m-d') ?>',customer_name:'',route_from:'',route_to:'',vehicle_id:0,driver_id:0,driver2_id:0,km_start:0,km_end:0,total_km:0,trip_count:1,price_sell:0,price_vendor:0,fee_driver:0,status:'completed',payment_status:'unpaid',notes:''} : data;

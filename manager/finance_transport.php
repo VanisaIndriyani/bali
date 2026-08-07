@@ -60,6 +60,62 @@ $vendorSum = $db->fetchAll("SELECT
     GROUP BY v.id, v.type, v.name
     ORDER BY vendor_bill DESC LIMIT 50", [$from, $to, 'cancelled']);
 
+function _xls4($s) { return '"' . str_replace(['"', "\t", "\n", "\r"], ['""', ' ', ' ', ' '], (string)$s) . '"'; }
+if (isset($_GET['export']) && (string)$_GET['export'] === '1') {
+    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+    $fname = 'Laporan-Keuangan-Transport-' . date('Ymd-His') . '.xls';
+    header('Content-Disposition: attachment; filename="' . $fname . '"');
+    echo "\xEF\xBB\xBF";
+
+    echo _xls4('LAPORAN KEUANGAN TRANSPORT - The St. Regis Bali Engineering Dept') . "\n";
+    echo _xls4('Periode: '.$from.' sd '.$to) . "\t" . _xls4('Preset Filter: '.strtoupper($preset)) . "\t" . _xls4('Export: '.date('d M Y H:i:s')) . "\n\n";
+
+    echo _xls4('=== RINGKASAN KEUANGAN ===') . "\n";
+    $ring = [
+        ['Total Trip (Completed/Draft)', (int)($sumRow['total_trip'] ?? 0)],
+        ['Total Trip Count (akumulasi)', (int)($sumRow['total_trip_count'] ?? 0)],
+        ['Total Jarak (KM)', number_format((float)($sumRow['total_km'] ?? 0),1,',','.').' KM'],
+        ['', ''],
+        ['💰 TOTAL PENDAPATAN (HARGA JUAL)', 'Rp '.number_format($totalSell,0,',','.')],
+        ['   ✅ Sudah Dibayar (Paid)', 'Rp '.number_format((float)($sumRow['paid_revenue'] ?? 0),0,',','.')],
+        ['   ⏳ Belum Dibayar (Unpaid)', 'Rp '.number_format((float)($sumRow['unpaid_revenue'] ?? 0),0,',','.')],
+        ['', ''],
+        ['🧾 BIAYA BELI KE VENDOR (pengeluaran)', 'Rp '.number_format($totalVendor,0,',','.')],
+        ['💳 FEE / GAJI SOPIR (pengeluaran)', 'Rp '.number_format($totalDriver,0,',','.')],
+        ['', ''],
+        ['💵 LABA KOTOR (Jual - Vendor)', 'Rp '.number_format($labaKotor,0,',','.')],
+        ['🟢 LABA BERSIH (Jual - Vendor - Driver)', 'Rp '.number_format($labaBersih,0,',','.')],
+    ];
+    foreach ($ring as $rr) echo _xls4($rr[0]) . "\t" . _xls4($rr[1]) . "\n";
+    echo "\n\n";
+
+    echo _xls4('=== STATISTIK SOPIR (Preset Sopir KM sesuai catatan) ===') . "\n";
+    echo _xls4('No') . "\t" . _xls4('Nama Sopir') . "\t" . _xls4('Total Trip (x)') . "\t" . _xls4('Total Jarak (KM)') . "\t" . _xls4('Total Fee Driver (Rp)') . "\n";
+    $n = 0;
+    foreach ($driverSum as $dr) {
+        if ((int)($dr['trip_count'] ?? 0) === 0 && (float)($dr['sum_km'] ?? 0) === 0) continue;
+        $n++;
+        echo _xls4($n) . "\t" . _xls4($dr['fullname']) . "\t" . _xls4((int)$dr['trip_count']) . "\t" . _xls4(number_format((float)($dr['sum_km'] ?? 0),1,',','.')) . "\t" . _xls4('Rp '.number_format((float)($dr['sum_fee'] ?? 0),0,',','.')) . "\n";
+    }
+    if ($n === 0) echo _xls4('-') . "\t" . _xls4('Belum ada data sopir') . "\n";
+    echo "\n\n";
+
+    echo _xls4('=== TAGIHAN OWNER / VENDOR (Harga Beli ke Vendor per Owner) ===') . "\n";
+    echo _xls4('No') . "\t" . _xls4('Nama Owner / Vendor') . "\t" . _xls4('Tipe') . "\t" . _xls4('Total Tagihan Vendor (Rp)') . "\n";
+    $nv = 0;
+    foreach ($vendorSum as $v) {
+        if ((float)($v['vendor_bill'] ?? 0) <= 0) continue;
+        $nv++;
+        $_t = (string)($v['type'] ?? 'vendor');
+        if ($_t === 'owner') $tl = 'Owner Aset';
+        elseif ($_t === 'investor') $tl = 'Investor';
+        else $tl = 'Vendor Kerjasama';
+        echo _xls4($nv) . "\t" . _xls4($v['name']) . "\t" . _xls4($tl) . "\t" . _xls4('Rp '.number_format((float)($v['vendor_bill']),0,',','.')) . "\n";
+    }
+    if ($nv === 0) echo _xls4('-') . "\t" . _xls4('Belum ada tagihan vendor') . "\n";
+    exit;
+}
+
 $_GET['_inline_header'] = 1;
 $pageHeaderActive = 'finance_transport';
 include __DIR__ . '/../includes/header.php';
@@ -88,7 +144,7 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
-            <button type="button" onclick="alert('Export Laporan PDF / Excel: dalam pengembangan — akan cetak laporan periode ini lengkap.')" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-bold shadow-sm transition">
+            <button type="button" onclick="window.location.href='?export=1&preset=<?= urlencode($preset) ?>&from=<?= urlencode($from) ?>&to=<?= urlencode($to) ?>'" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-bold shadow-sm transition">
                 <i class="fas fa-file-excel"></i> Export Laporan
             </button>
         </div>

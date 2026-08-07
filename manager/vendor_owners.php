@@ -89,6 +89,31 @@ $statOwner   = (int)$db->fetchOne("SELECT COUNT(*) FROM transport_vendors WHERE 
 $statVendor  = (int)$db->fetchOne("SELECT COUNT(*) FROM transport_vendors WHERE type='vendor'")['COUNT(*)'];
 $statInv     = max(0, $statTotal - $statOwner - $statVendor);
 
+function _xls($s) { return '"' . str_replace(['"', "\t", "\n", "\r"], ['""', ' ', ' ', ' '], (string)$s) . '"'; }
+if (isset($_GET['export']) && (string)$_GET['export'] === '1') {
+    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+    $fname = 'Data-Owner-Vendor-' . date('Ymd-His') . '.xls';
+    header('Content-Disposition: attachment; filename="' . $fname . '"');
+    echo "\xEF\xBB\xBF";
+    $fLabel = 'All';
+    if ($filterType === 'owner') $fLabel = 'Owner Aset';
+    elseif ($filterType === 'vendor') $fLabel = 'Vendor Kerjasama';
+    elseif ($filterType === 'investor') $fLabel = 'Investor';
+    echo _xls('Data Owner / Vendor / Investor - The St. Regis Bali Engineering Dept') . "\n";
+    echo _xls('Filter Tipe: '.$fLabel) . "\t" . _xls('Search: '.($search !== '' ? $search : '-')) . "\t" . _xls('Export: '.date('d M Y H:i:s')) . "\n\n";
+    $cols = ['No','ID','TIPE','NAMA','PIC','NO HP / WA','EMAIL','NAMA BANK','NO REKENING','ATAS NAMA REK','SHARE %','ALAMAT','STATUS','CATATAN','DIBUAT TGL'];
+    echo implode("\t", array_map('_xls', $cols)) . "\n";
+    $n = 0;
+    foreach ($rows as $r) {
+        $n++;
+        $_typ = strtoupper((string)($r['type'] ?? 'vendor'));
+        $_st = ((int)$r['is_active'] === 1) ? 'AKTIF' : 'NON AKTIF';
+        $row = [$n,(int)$r['id'],$_typ,$r['name'],$r['pic_name'],$r['phone'],$r['email'],$r['bank_name'],$r['bank_account'],$r['bank_holder'],(float)($r['share_pct'] ?? 0),preg_replace('/\s+/',' ',(string)($r['address'] ?? '')),$_st,preg_replace('/\s+/',' ',(string)($r['notes'] ?? '')),(string)($r['created_at'] ?? '')];
+        echo implode("\t", array_map('_xls', $row)) . "\n";
+    }
+    exit;
+}
+
 $_GET['_inline_header'] = 1;
 $pageHeaderActive = 'vendor_owners';
 include __DIR__ . '/../includes/header.php';
@@ -116,9 +141,14 @@ include __DIR__ . '/../includes/sidebar.php';
                 </div>
             </div>
         </div>
-        <button type="button" onclick="openVendor(0)" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold shadow-sm transition shadow-slate-900/10">
-            <i class="fas fa-plus-circle"></i> Tambah Data Owner / Vendor
-        </button>
+        <div class="flex items-center gap-2 flex-wrap">
+            <button type="button" onclick="window.location.href='?export=1<?= $search !== '' ? '&search=' . urlencode($search) : '' ?>&type=<?= urlencode($filterType) ?>'" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-bold shadow-sm transition">
+                <i class="fas fa-file-excel"></i> Export Excel
+            </button>
+            <button type="button" onclick="openVendor(0)" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold shadow-sm transition shadow-slate-900/10">
+                <i class="fas fa-plus-circle"></i> Tambah Data Owner / Vendor
+            </button>
+        </div>
     </div>
 </div>
 

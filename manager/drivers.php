@@ -139,6 +139,41 @@ $ownerOptions = $db->fetchAll("SELECT id,name FROM transport_vendors WHERE is_ac
 $statDriver = (int)$db->fetchOne("SELECT COUNT(*) FROM transport_drivers WHERE is_active=1")['COUNT(*)'];
 $statMobil  = (int)$db->fetchOne("SELECT COUNT(*) FROM transport_vehicles WHERE is_active=1")['COUNT(*)'];
 
+function _xls2($s) { return '"' . str_replace(['"', "\t", "\n", "\r"], ['""', ' ', ' ', ' '], (string)$s) . '"'; }
+if (isset($_GET['export']) && (string)$_GET['export'] === '1') {
+    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+    if ($type === 'driver') {
+        $fname = 'Data-Driver-Sopir-' . date('Ymd-His') . '.xls';
+        header('Content-Disposition: attachment; filename="' . $fname . '"');
+        echo "\xEF\xBB\xBF";
+        echo _xls2('Data Driver / Sopir Operasional - The St. Regis Bali Engineering Dept') . "\n";
+        echo _xls2('Search: '.($search !== '' ? $search : '-')) . "\t" . _xls2('Export: '.date('d M Y H:i:s')) . "\n\n";
+        $cols = ['No','ID','NAMA LENGKAP','NO HP','NO KTP','TIPE SIM','BERLAKU SAMPAI SIM','ALAMAT','TANGGAL GABUNG','GAJI POKOK (Rp)','RATE PER KM (Rp)','STATUS','CATATAN'];
+        echo implode("\t", array_map('_xls2', $cols)) . "\n";
+        $n = 0;
+        foreach ($rows as $r) { $n++;
+            $st = ((int)$r['is_active']===1)?'AKTIF':'NON AKTIF';
+            $row = [$n,(int)$r['id'],$r['fullname'],$r['phone'],$r['id_card'],$r['sim_type'],(string)($r['sim_expiry'] ?? ''),preg_replace('/\s+/',' ',(string)($r['address'] ?? '')),(string)($r['join_date'] ?? ''),(float)($r['base_salary'] ?? 0),(float)($r['rate_per_km'] ?? 0),$st,preg_replace('/\s+/',' ',(string)($r['notes'] ?? ''))];
+            echo implode("\t", array_map('_xls2', $row)) . "\n";
+        }
+    } else {
+        $fname = 'Data-Kendaraan-Unit-' . date('Ymd-His') . '.xls';
+        header('Content-Disposition: attachment; filename="' . $fname . '"');
+        echo "\xEF\xBB\xBF";
+        echo _xls2('Data Kendaraan / Unit Mobil Operasional - The St. Regis Bali Engineering Dept') . "\n";
+        echo _xls2('Search: '.($search !== '' ? $search : '-')) . "\t" . _xls2('Export: '.date('d M Y H:i:s')) . "\n\n";
+        $cols = ['No','ID','PLAT NOMOR','MERK','TIPE / MODEL','TAHUN','WARNA','KAPASITAS (org)','NO RANGKA (Chasis)','NO MESIN','OWNER / VENDOR','STNK BERLAKU S/D','KIR BERLAKU S/D','PAJAK BERLAKU S/D','STATUS','CATATAN'];
+        echo implode("\t", array_map('_xls2', $cols)) . "\n";
+        $n = 0;
+        foreach ($rows as $r) { $n++;
+            $st = ((int)$r['is_active']===1)?'AKTIF':'NON AKTIF';
+            $row = [$n,(int)$r['id'],$r['plat_no'],$r['merk'] ?? '',$r['type_name'] ?? '',$r['year'] ?? '',$r['color'] ?? '',(int)($r['capacity'] ?? 0),$r['chasis_no'] ?? '',$r['engine_no'] ?? '',$r['owner_name'] ?? '',(string)($r['stnk_date'] ?? ''),(string)($r['kir_date'] ?? ''),(string)($r['tax_date'] ?? ''),$st,preg_replace('/\s+/',' ',(string)($r['notes'] ?? ''))];
+            echo implode("\t", array_map('_xls2', $row)) . "\n";
+        }
+    }
+    exit;
+}
+
 $_GET['_inline_header'] = 1;
 $pageHeaderActive = 'drivers';
 include __DIR__ . '/../includes/header.php';
@@ -380,7 +415,10 @@ include __DIR__ . '/../includes/sidebar.php';
 const owners = <?= json_encode(array_map(fn($r)=>['id'=>(int)$r['id'],'name'=>$r['name']], $ownerOptions)) ?>;
 const currentTab = <?= json_encode($type) ?>;
 function openExport(){
-    alert('Fitur Export Excel sedang dalam pengembangan — akan generate file .xlsx list Driver & Kendaraan semua data.');
+    const params = new URLSearchParams(window.location.search);
+    params.set('export', '1');
+    params.set('tab', currentTab);
+    window.location.href = '?' + params.toString();
 }
 function openDriver(data){
     const isNew = typeof data === 'number' && data === 0;
