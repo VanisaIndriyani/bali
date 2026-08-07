@@ -40,11 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (mb_strlen($name) < 2) $errors[] = 'Nama lengkap minimal 2 karakter';
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Format email tidak valid';
-        if ($position === '') $position = match($role) {
-            'manager' => 'Engineering Manager',
-            'supervisor' => 'Engineering Supervisor',
-            default => 'Engineering Staff',
-        };
+        if ($position === '') {
+            if ($role === 'manager') $position = 'Engineering Manager';
+            elseif ($role === 'supervisor') $position = 'Engineering Supervisor';
+            else $position = 'Engineering Staff';
+        }
 
         if ($id > 0) {
             // EDIT MODE
@@ -172,12 +172,14 @@ if ($filterRole !== 'all' || $search !== '') {
 // HELPER: Render Badge Role
 $fnRoleBadge = function($role) {
     $role = strtolower((string)$role);
-    return match($role) {
-        'manager' => '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 text-white text-[11px] font-black shadow-sm border border-purple-300/30"><i class="fas fa-crown text-[10px]"></i> MANAGER</span>',
-        'supervisor' => '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white text-[11px] font-black shadow-sm border border-blue-300/30"><i class="fas fa-user-shield text-[10px]"></i> SUPERVISOR</span>',
-        'admin' => '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-br from-rose-500 to-rose-700 text-white text-[11px] font-black shadow-sm border border-rose-300/30"><i class="fas fa-user-lock text-[10px]"></i> ADMIN</span>',
-        default => '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white text-[11px] font-black shadow-sm border border-emerald-300/30"><i class="fas fa-hard-hat text-[10px]"></i> STAFF / ENGINEER</span>',
-    };
+    if ($role === 'manager') {
+        return '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 text-white text-[11px] font-black shadow-sm border border-purple-300/30"><i class="fas fa-crown text-[10px]"></i> MANAGER</span>';
+    } elseif ($role === 'supervisor') {
+        return '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white text-[11px] font-black shadow-sm border border-blue-300/30"><i class="fas fa-user-shield text-[10px]"></i> SUPERVISOR</span>';
+    } elseif ($role === 'admin') {
+        return '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-br from-rose-500 to-rose-700 text-white text-[11px] font-black shadow-sm border border-rose-300/30"><i class="fas fa-user-lock text-[10px]"></i> ADMIN</span>';
+    }
+    return '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white text-[11px] font-black shadow-sm border border-emerald-300/30"><i class="fas fa-hard-hat text-[10px]"></i> STAFF / ENGINEER</span>';
 };
 
 require_once __DIR__ . '/../includes/header.php';
