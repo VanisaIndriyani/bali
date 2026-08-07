@@ -80,7 +80,7 @@ include __DIR__ . '/includes/sidebar.php';
     </div>
 
     <!-- 6 QUICK INFO CARDS MINI (FILTER RESULT) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3 mb-6">
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total Entri</p>
             <p class="font-display text-xl sm:text-2xl font-black text-primary mt-1">186</p>
@@ -115,19 +115,19 @@ include __DIR__ . '/includes/sidebar.php';
             <i class="fas fa-arrow-right text-indigo-500 flex-shrink-0"></i>
         </div>
         <div class="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 pb-3 pr-2">
-            <table class="w-full text-sm min-w-[1700px]">
+            <table class="w-full text-sm min-w-[950px] table-auto border-collapse">
                 <thead class="bg-slate-50 border-b-2 border-slate-200">
                     <tr class="text-left text-secondary text-xs">
-                        <th class="px-4 sm:px-5 py-3.5 font-bold whitespace-nowrap w-12">#</th>
-                        <th class="px-4 sm:px-5 py-3.5 font-bold whitespace-nowrap">Tanggal</th>
-                        <th class="px-4 sm:px-5 py-3.5 font-bold whitespace-nowrap">Shift</th>
-                        <th class="px-4 sm:px-5 py-3.5 font-bold text-right whitespace-nowrap">PLN (kWh)</th>
-                        <th class="px-4 sm:px-5 py-3.5 font-bold text-right whitespace-nowrap">Genset (kWh)</th>
-                        <th class="px-4 sm:px-5 py-3.5 font-bold text-right whitespace-nowrap">Solar (L)</th>
-                        <th class="px-4 sm:px-5 py-3.5 font-bold text-right whitespace-nowrap">Gas (Kg)</th>
-                        <th class="px-4 sm:px-5 py-3.5 font-bold text-right whitespace-nowrap">Air (m³)</th>
-                        <th class="px-4 sm:px-5 py-3.5 font-bold whitespace-nowrap">PIC</th>
-                        <th class="px-4 sm:px-5 py-3.5 font-bold text-right whitespace-nowrap">Aksi</th>
+                        <th class="px-3 sm:px-4 py-3.5 font-bold whitespace-nowrap w-12 text-center">#</th>
+                        <th class="px-3 sm:px-4 py-3.5 font-bold whitespace-nowrap">Tanggal</th>
+                        <th class="px-3 sm:px-4 py-3.5 font-bold whitespace-nowrap w-[220px]">Shift</th>
+                        <th class="px-3 sm:px-4 py-3.5 font-bold text-right whitespace-nowrap w-[110px]">PLN (kWh)</th>
+                        <th class="px-3 sm:px-4 py-3.5 font-bold text-right whitespace-nowrap w-[115px]">Genset (kWh)</th>
+                        <th class="px-3 sm:px-4 py-3.5 font-bold text-right whitespace-nowrap w-[105px]">Solar (L)</th>
+                        <th class="px-3 sm:px-4 py-3.5 font-bold text-right whitespace-nowrap w-[100px]">Gas (Kg)</th>
+                        <th class="px-3 sm:px-4 py-3.5 font-bold text-right whitespace-nowrap w-[100px]">Air (m³)</th>
+                        <th class="px-3 sm:px-4 py-3.5 font-bold whitespace-nowrap w-[200px]">PIC</th>
+                        <th class="px-3 sm:px-4 py-3.5 pr-3 sm:pr-4 font-bold text-right whitespace-nowrap w-[130px]">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -144,29 +144,29 @@ include __DIR__ . '/includes/sidebar.php';
                     ];
                     foreach ($logs as $i => $r): ?>
                     <tr class="hover:bg-slate-50 transition-colors group">
-                        <td class="px-4 sm:px-5 py-3.5 text-xs font-bold text-slate-500 align-top"><?= ($i+1) ?>.</td>
-                        <td class="px-4 sm:px-5 py-3.5 font-bold text-primary whitespace-nowrap align-top"><?= $r[0] ?></td>
-                        <td class="px-4 sm:px-5 py-3.5 align-top">
+                        <td class="px-3 sm:px-4 py-3 text-xs font-bold text-slate-500 align-top text-center"><?= ($i+1) ?>.</td>
+                        <td class="px-3 sm:px-4 py-3 font-bold text-primary whitespace-nowrap align-top"><?= $r[0] ?></td>
+                        <td class="px-3 sm:px-4 py-3 align-top">
                             <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold">
                                 <i class="fas fa-clock mr-1.5 text-slate-400 text-[10px]"></i><?= $r[1] ?>
                             </span>
                         </td>
-                        <td class="px-4 sm:px-5 py-3.5 text-right font-mono font-bold text-primary align-top"><?= $r[2] ?></td>
-                        <td class="px-4 sm:px-5 py-3.5 text-right font-mono font-bold text-slate-600 align-top"><?= $r[3] ?></td>
-                        <td class="px-4 sm:px-5 py-3.5 text-right font-mono font-bold text-primary align-top"><?= $r[4] ?></td>
-                        <td class="px-4 sm:px-5 py-3.5 text-right font-mono font-bold text-slate-600 align-top"><?= $r[5] ?></td>
-                        <td class="px-4 sm:px-5 py-3.5 text-right font-mono font-bold text-primary align-top"><?= $r[6] ?></td>
-                        <td class="px-4 sm:px-5 py-3.5 text-xs text-slate-700 font-semibold align-top"><?= $r[7] ?></td>
-                        <td class="px-4 sm:px-5 py-3.5 pr-5 text-right whitespace-nowrap align-top">
-                            <div class="flex gap-1.5 justify-end">
-                                <button type="button" onclick="alert('Edit Log segera hadir!')" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition">
-                                    <i class="fas fa-pencil"></i>
+                        <td class="px-3 sm:px-4 py-3 text-right font-mono font-bold text-primary align-top tabular-nums"><?= $r[2] ?></td>
+                        <td class="px-3 sm:px-4 py-3 text-right font-mono font-bold text-slate-600 align-top tabular-nums"><?= $r[3] ?></td>
+                        <td class="px-3 sm:px-4 py-3 text-right font-mono font-bold text-primary align-top tabular-nums"><?= $r[4] ?></td>
+                        <td class="px-3 sm:px-4 py-3 text-right font-mono font-bold text-slate-600 align-top tabular-nums"><?= $r[5] ?></td>
+                        <td class="px-3 sm:px-4 py-3 text-right font-mono font-bold text-primary align-top tabular-nums"><?= $r[6] ?></td>
+                        <td class="px-3 sm:px-4 py-3 text-xs text-slate-700 font-semibold align-top whitespace-nowrap"><?= $r[7] ?></td>
+                        <td class="px-3 sm:px-4 py-3 pr-3 sm:pr-4 text-right whitespace-nowrap align-top">
+                            <div class="flex gap-1.5 justify-end items-center">
+                                <button type="button" onclick="alert('Edit Log segera hadir!')" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition" title="Edit">
+                                    <i class="fas fa-pencil text-xs"></i>
                                 </button>
-                                <button type="button" onclick="alert('Lihat Detail segera hadir!')" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition">
-                                    <i class="fas fa-eye"></i>
+                                <button type="button" onclick="alert('Lihat Detail segera hadir!')" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition" title="Lihat Detail">
+                                    <i class="fas fa-eye text-xs"></i>
                                 </button>
-                                <button type="button" onclick="return confirm('Yakin hapus log tanggal <?= $r[0] ?> shift <?= $r[1] ?>? (PLACEHOLDER - belum tersambung DB)')" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-white text-slate-600 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition">
-                                    <i class="fas fa-trash"></i>
+                                <button type="button" onclick="return confirm('Yakin hapus log tanggal <?= $r[0] ?> shift <?= $r[1] ?>? (PLACEHOLDER - belum tersambung DB)')" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition" title="Hapus">
+                                    <i class="fas fa-trash text-xs"></i>
                                 </button>
                             </div>
                         </td>

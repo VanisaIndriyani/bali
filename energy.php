@@ -62,7 +62,7 @@ include __DIR__ . '/includes/sidebar.php';
     </div>
 
     <!-- 6 STATISTIC CARDS ENERGY (DOMINAN PUTIH!) -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 animate-slide-up" style="animation-delay: 80ms">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-4 mb-6 animate-slide-up" style="animation-delay: 80ms">
         <?php
         $energyStats = [
             ['icon'=>'fa-bolt','iconColor'=>'text-amber-500','iconBg'=>'bg-amber-50 border-amber-200','label'=>'Konsumsi Listrik','unit'=>'kWh','val'=>'12,450.25','delta'=>'▲ +3.2%','deltaColor'=>'text-rose-600','subtitle'=>'Bulan Ini'],
