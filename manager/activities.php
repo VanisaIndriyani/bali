@@ -426,7 +426,91 @@ foreach ($cats as $c) {
 
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/navbar.php';
+
+// ✨ PRINT SIMPLE LISTS STYLE CSS + AREA HIDDEN (VISIBLE HANYA SAAT PRINT)
+$printAllActs = [];
+foreach (['operation','maintenance','project','landscape'] as $dv) {
+    foreach ($mastersByDiv[$dv] ?? [] as $mm) $printAllActs[] = $mm;
+}
+if (empty($printAllActs)) {
+    $printAllActs = array_values($allMasters);
+}
 ?>
+<!-- =================================================== -->
+<!-- 🖨️ PRINT ONLY AREA (VISIBLE HANYA SAAT PRINT MODE) -->
+<!-- =================================================== -->
+<div class="print-only-area" id="printListsArea">
+    <style>
+        @media print {
+            @page { size: A4; margin: 0mm !important; }
+            html, body { background: #1e3a8a !important; margin: 0 !important; padding: 0 !important; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body > *:not(.print-only-area) { display: none !important; }
+            #sidebar-toggle-btn, .sidebar, .top-navbar, .page-shell, .page-header, .card-premium, .modal, .toast-container, .flash-container, script { display: none !important; }
+            .print-only-area { display: block !important; position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; min-height: 100vh !important; background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important; padding: 24px 18px 120px 18px !important; visibility: visible !important; box-sizing: border-box; }
+            .print-only-area * { visibility: visible !important; box-sizing: border-box; }
+        }
+    </style>
+    <div class="min-h-screen" style="background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%); color:#fff;">
+        <!-- 🔝 HEADER BAR PERSIS MICROSOFT LISTS (MOBILE STYLE) -->
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-4">
+                <div class="w-8 h-8 flex items-center justify-center text-white">
+                    <i class="fas fa-chevron-left text-xl"></i>
+                </div>
+                <div class="text-white text-sm font-semibold opacity-90 tracking-wide">Lists</div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1.5 text-white opacity-95">
+                    <i class="far fa-user text-base"></i>
+                    <span class="text-sm font-semibold">2</span>
+                </div>
+                <div class="text-white opacity-90">
+                    <i class="fas fa-ellipsis-h text-lg"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 📝 JUDUL BESAR PUTIH PERSIS LISTS -->
+        <h1 class="text-white font-black tracking-tight mb-7 leading-none" style="font-size: 38px; line-height: 1.05;">
+            Engineering Operation
+        </h1>
+
+        <!-- 📋 LOOP SEMUA ACTIVITY = CARD PUTIH ROW PERSIS LISTS -->
+        <div class="flex flex-col gap-3">
+            <?php foreach ($printAllActs as $idx => $actRow):
+                $nm = trim((string)($actRow['activity_name'] ?? ''));
+                if ($nm === '') continue;
+            ?>
+            <div class="bg-white rounded-[14px] px-4 py-3.5 shadow-lg flex items-center gap-3.5" style="box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+                <!-- ⚪ Radio Button Lingkaran Kosong KIRI -->
+                <div class="w-7 h-7 rounded-full border-[2.5px] border-slate-400 shrink-0 flex items-center justify-center bg-white"></div>
+                <!-- 📝 TEXT TENGAH 2 BARIS -->
+                <div class="flex-1 min-w-0 leading-snug" style="color:#1e293b;">
+                    <div class="text-[17px] font-semibold break-words line-clamp-2" style="color:#0f172a;"><?= htmlspecialchars($nm) ?></div>
+                </div>
+                <!-- ⭐ Star Icon KANAN ATAS -->
+                <div class="shrink-0 text-slate-400 pb-6">
+                    <i class="far fa-star text-xl"></i>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+
+        <!-- 🔽 BOTTOM FLOATING + ADD A TASK -->
+        <div style="position: fixed; left: 0; right: 0; bottom: 0; background: linear-gradient(180deg, rgba(30,64,175,0.0) 0%, rgba(30,64,175,0.98) 35%, #1e3a8a 100%); padding: 40px 18px 22px 18px;">
+            <div class="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/15 px-5 py-4 flex items-center gap-4">
+                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                    <i class="fas fa-plus text-white text-lg"></i>
+                </div>
+                <div class="text-white text-[18px] font-semibold tracking-wide">Add a Task</div>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    /* 🔒 DEFAULT HIDE PRINT AREA DI MODE WEB */
+    .print-only-area { display: none !important; }
+</style>
 <div class="page-shell page-shell--6xl">
     <div class="page-header flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 animate-fade-in">
         <div>
@@ -440,6 +524,11 @@ require_once __DIR__ . '/../includes/navbar.php';
             <p class="text-sm text-secondary mt-2"><?= T('eng_act_subtitle', 'Ringkasan 4 divisi Operation, Maintenance, Project dan Landscape per bulan.') ?></p>
         </div>
         <div class="flex flex-wrap gap-2.5 self-start">
+            <button type="button" onclick="window.print()"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-sky-600 via-blue-700 to-blue-900 hover:from-sky-700 hover:via-blue-800 hover:to-blue-950 text-white text-sm font-bold shadow hover:shadow-lg transition-all"
+                    title="Cetak simple list engineering operation seperti Microsoft Lists">
+                <i class="fas fa-print"></i> 🖨️ Cetak Lists
+            </button>
             <a href="<?= BASE_URL ?>reports/pdf.php" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 hover:from-rose-600 hover:to-rose-800 text-white text-sm font-bold shadow hover:shadow-lg transition-all">
                 <i class="far fa-file-pdf"></i> <?= T('btn_export_pdf', 'Export PDF') ?>
             </a>
