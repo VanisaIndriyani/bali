@@ -25,16 +25,9 @@
 
 <h2>1. KEY PERFORMANCE INDICATORS (KPIs)</h2>
 <table>
-    <thead>
-        <tr>
-            <th>METRIC</th>
-            <th>LAST YEAR (LY)</th>
-            <th>TODAY</th>
-            <th>ITR</th>
-            <th>M&amp;U</th>
-            <th>GITB RANK</th>
-        </tr>
-    </thead>
+    <thead><tr>
+        <th>METRIC</th><th>LAST YEAR (LY)</th><th>TODAY</th><th>ITR</th><th>M&amp;U</th><th>GITB RANK</th>
+    </tr></thead>
     <tbody>
     <?php foreach ($kpiData as $r) { ?>
         <tr>
@@ -51,71 +44,62 @@
 
 <h2>2. UTILITY USAGE SUMMARY</h2>
 <table>
-    <thead>
-        <tr>
-            <th>UTILITY</th>
-            <th>PERIOD</th>
-            <th>USAGE</th>
-            <th>COST (Rp.)</th>
-        </tr>
-    </thead>
+    <thead><tr>
+        <th>UTILITY</th><th>PERIOD</th><th>USAGE</th><th>COST (Rp.)</th>
+    </tr></thead>
     <tbody>
         <tr>
             <td rowspan="2" class="bold cen mid">ELECTRICITY</td>
             <td class="cen">(LY)</td>
             <td class="num"><?=repFmtIndo($elecLY, 0)?> kWh</td>
-            <td class="num"><?=repFmtRupiah($elecLY * $tarifListrik)?></td>
+            <td class="num"><?=repFmtRupiah($elecLY * $TARIF_LISTRIK)?></td>
         </tr>
         <tr>
             <td class="cen">(TODAY)</td>
             <td class="num"><?=repFmtIndo($elecToday, 0)?> kWh</td>
-            <td class="num"><?=repFmtRupiah($elecToday * $tarifListrik)?></td>
+            <td class="num"><?=repFmtRupiah($elecToday * $TARIF_LISTRIK)?></td>
         </tr>
         <tr>
             <td rowspan="2" class="bold cen mid">WATER</td>
             <td class="cen">(LY)</td>
             <td class="num"><?=repFmtIndo($waterLY, 0)?> m3</td>
-            <td class="num"><?=repFmtRupiah($waterLY * $tarifAir)?></td>
+            <td class="num"><?=repFmtRupiah($waterLY * $TARIF_AIR)?></td>
         </tr>
         <tr>
             <td class="cen">(TODAY)</td>
             <td class="num"><?=repFmtIndo($waterToday, 0)?> m3</td>
-            <td class="num"><?=repFmtRupiah($waterToday * $tarifAir)?></td>
+            <td class="num"><?=repFmtRupiah($waterToday * $TARIF_AIR)?></td>
         </tr>
         <tr>
             <td rowspan="2" class="bold cen mid">GAS</td>
             <td class="cen">(LY)</td>
             <td class="num"><?=repFmtIndo($gasLY, 0)?> kg</td>
-            <td class="num"><?=repFmtRupiah($gasLY * $tarifGas)?></td>
+            <td class="num"><?=repFmtRupiah($gasLY * $TARIF_GAS)?></td>
         </tr>
         <tr>
             <td class="cen">(TODAY)</td>
             <td class="num"><?=repFmtIndo($gasToday, 0)?> kg</td>
-            <td class="num"><?=repFmtRupiah($gasToday * $tarifGas)?></td>
+            <td class="num"><?=repFmtRupiah($gasToday * $TARIF_GAS)?></td>
         </tr>
         <tr>
             <td rowspan="2" class="bold cen mid">FUEL</td>
             <td class="cen">(LY)</td>
             <td class="num"><?=repFmtIndo($fuelLY, 0)?> Liter</td>
-            <td class="num"><?=repFmtRupiah($fuelLY * $tarifFuel)?></td>
+            <td class="num"><?=repFmtRupiah($fuelLY * $TARIF_FUEL)?></td>
         </tr>
         <tr>
             <td class="cen">(TODAY)</td>
             <td class="num"><?=repFmtIndo($fuelToday, 0)?> Liter</td>
-            <td class="num"><?=repFmtRupiah($fuelToday * $tarifFuel)?></td>
+            <td class="num"><?=repFmtRupiah($fuelToday * $TARIF_FUEL)?></td>
         </tr>
     </tbody>
 </table>
 
 <h2>3. ENGINEERING ACTIVITIES</h2>
 <table>
-    <thead>
-        <tr>
-            <th>DEPARTMENT</th>
-            <th>ACTIVITY DETAIL</th>
-            <th>STATUS</th>
-        </tr>
-    </thead>
+    <thead><tr>
+        <th>DEPARTMENT</th><th>ACTIVITY DETAIL</th><th>STATUS</th>
+    </tr></thead>
     <tbody>
     <?php foreach ($divisions as $d) {
         $list = $actByDiv[$d] ?? [];

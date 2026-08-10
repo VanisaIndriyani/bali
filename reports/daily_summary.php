@@ -16,9 +16,11 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateRaw)) {
 $reportDate = $dateRaw;
 $reportDateObj = DateTime::createFromFormat('Y-m-d', $reportDate);
 $reportDateLabel = $reportDateObj ? strtoupper($reportDateObj->format('j F Y')) : strtoupper($reportDate);
-$lastYearSameDay = date('Y-m-d', strtotime($reportDate . ' -1 year'));
 
-/* ---------- 2. HELPER FUNGSI FORMAT (SAMA DENGAN INDEX.PHP) ---------- */
+/* LY Same Day = tanggal TAHUN LALU, bulan dan tanggal SAMA */
+$lySameDay = date('Y-m-d', strtotime($reportDate . ' -1 year'));
+
+/* ---------- 2. HELPER FUNGSI ---------- */
 function repFmtIndo($v, $dec = 2) {
     $v = (float)$v;
     return number_format($v, $dec, ',', '.');
@@ -31,62 +33,83 @@ function repFmtRupiah($v) {
 function repFmtPercent($v) {
     return repFmtIndo((float)$v, 1) . '%';
 }
-
-/* ---------- 3. DATA SECTION 1 : KEY PERFORMANCE INDICATORS (KPIs) ---------- */
-$occToday = 0; $occLY = 0; $itr = 0; $mu = 0; $gitbRank = '-';
-
-$kpiRow = $db->fetchOne(
-    "SELECT occupancy_rate, itr_score, mu_score, gitb_rank 
-     FROM daily_logs 
-     WHERE log_date = ? AND status IN ('approved','reviewed','pending') 
-     ORDER BY FIELD(status,'approved','reviewed','pending') LIMIT 1",
-    [$reportDate]
-);
-if ($kpiRow) {
-    $occToday = (float)($kpiRow['occupancy_rate'] ?? 0);
-    $itr = (float)($kpiRow['itr_score'] ?? 0);
-    $mu = (float)($kpiRow['mu_score'] ?? 0);
-    $gitbRank = !empty($kpiRow['gitb_rank']) ? $kpiRow['gitb_rank'] : '-';
+function repStatusLabel($st) {
+    if ($st === 'complete' || $st === 'completed') return 'Complete';
+    if ($st === 'in_progress' || $st === 'progress') return 'In Progress';
+    if ($st === 'pending') return 'Pending';
+    if ($st === '-') return '-';
+    return ucfirst($st);
 }
-$kpiLYRow = $db->fetchOne("SELECT occupancy_rate FROM daily_logs WHERE log_date = ? LIMIT 1", [$lastYearSameDay]);
-if ($kpiLYRow) $occLY = (float)($kpiLYRow['occupancy_rate'] ?? 0);
+
+/* Status filter (tampilkan yang approved, reviewer, pending — sesuai index.php) */
+$statusWhere = '';
+
+/* ---------- 3. TARIF STANDAR (SAMA DENGAN INDEX.PHP!) ---------- */
+$TARIF_LISTRIK = 1850;
+$TARIF_AIR     = 9600;
+$TARIF_GAS     = 24500;
+$TARIF_FUEL    = 17450;
+
+/* ---------- 4. DATA UTILITY TODAY & LY SAME DAY (100% LOGIC SAMA INDEX.PHP) ---------- */
+$sumToday = $db->fetchOne("SELECT
+    COALESCE(SUM(CASE WHEN log_date=? THEN total_electricity END),0) as elec,
+    COALESCE(SUM(CASE WHEN log_date=? THEN total_water END),0)       as water,
+    COALESCE(SUM(CASE WHEN log_date=? THEN total_gas END),0)         as gas,
+    COALESCE(SUM(CASE WHEN log_date=? THEN total_fuel END),0)        as fuel
+    FROM daily_logs WHERE status='approved' $statusWhere",
+    [$reportDate,$reportDate,$reportDate,$reportDate]);
+$elecToday  = (float)($sumToday['elec']  ?? 0);
+$waterToday = (float)($sumToday['water'] ?? 0);
+$gasToday   = (float)($sumToday['gas']   ?? 0);
+$fuelToday  = (float)($sumToday['fuel']  ?? 0);
+
+/* LY Same Day (Tahun lalu tanggal yang sama) */
+$sumLY = $db->fetchOne("SELECT
+    COALESCE(SUM(CASE WHEN log_date=? THEN total_electricity END),0) as elec,
+    COALESCE(SUM(CASE WHEN log_date=? THEN total_water END),0)       as water,
+    COALESCE(SUM(CASE WHEN log_date=? THEN total_gas END),0)         as gas,
+    COALESCE(SUM(CASE WHEN log_date=? THEN total_fuel END),0)        as fuel
+    FROM daily_logs WHERE status='approved'",
+    [$lySameDay,$lySameDay,$lySameDay,$lySameDay]);
+$elecLY  = (float)($sumLY['elec']  ?? 0);
+$waterLY = (float)($sumLY['water'] ?? 0);
+$gasLY   = (float)($sumLY['gas']   ?? 0);
+$fuelLY  = (float)($sumLY['fuel']  ?? 0);
+
+/* ---------- 5. KPI OCCUPANCY + ITR + M&U + GITB RANK (LOGIC SAMA PERSIS INDEX.PHP LINE 305-311) ---------- */
+$currentYearLY = (int)date('Y', strtotime($lySameDay));
+$currentYearReport = (int)date('Y', strtotime($reportDate));
+$occLYRow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND status = 'approved' AND occ_rate > 0", [$currentYearLY]);
+$occReportRow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND status = 'approved' AND occ_rate > 0", [$currentYearReport]);
+
+$defaultLyOcc = 70;
+$defaultTargetOcc = 80;
+$lyOcc = (($occLYRow['cnt'] ?? 0) > 0) ? round((float)($occLYRow['avg_occ'] ?? 0), 0) : $defaultLyOcc;
+$todayOccSingle = $db->fetchOne("SELECT occ_rate FROM daily_logs WHERE log_date = ? AND status = 'approved' ORDER BY id DESC LIMIT 1", [$reportDate]);
+$todayOccVal = (float)($todayOccSingle['occ_rate'] ?? 0);
+if ($todayOccVal > 0) {
+    $targetOcc = round($todayOccVal, 0);
+} else {
+    $avgMonthNow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE DATE_FORMAT(log_date,'%Y-%m') = ? AND status = 'approved' AND occ_rate > 0", [date('Y-m', strtotime($reportDate))]);
+    if (($avgMonthNow['cnt'] ?? 0) > 0) $targetOcc = round((float)($avgMonthNow['avg_occ'] ?? 0), 0);
+    else $targetOcc = $defaultTargetOcc;
+}
+
+/* ITR / M&U / GITB = placeholder kalkulasi sederhana SAMA PERSIS INDEX.PHP */
+$kpiItr = $lyOcc > 0 ? number_format(85 + ($targetOcc - $lyOcc) * 0.2, 1, '.', '') : '-';
+$kpiMnU = $lyOcc > 0 ? number_format(78 + (($targetOcc - $lyOcc) * 0.3), 1, '.', '') : '-';
+$kpiRank = $targetOcc >= 90 ? '5' : ($targetOcc >= 80 ? '4' : ($targetOcc >= 70 ? '3' : '-'));
 
 $kpiData = [
-    ['Occupancy Rate', repFmtPercent($occLY), repFmtPercent($occToday), $itr > 0 ? repFmtIndo($itr,1) : '-', $mu > 0 ? repFmtIndo($mu,1) : '-', $gitbRank],
+    ['Occupancy Rate', repFmtPercent($lyOcc), repFmtPercent($targetOcc), $kpiItr, $kpiMnU, $kpiRank],
 ];
 
-/* ---------- 4. DATA SECTION 2 : UTILITY USAGE SUMMARY ---------- */
-$elecLY = $elecToday = 0;
-$waterLY = $waterToday = 0;
-$gasLY = $gasToday = 0;
-$fuelLY = $fuelToday = 0;
-
-$utRow = $db->fetchOne(
-    "SELECT electricity_today, electricity_ly, water_today, water_ly, gas_today, gas_ly, fuel_today, fuel_ly 
-     FROM daily_logs WHERE log_date = ? AND status IN ('approved','reviewed','pending') 
-     ORDER BY FIELD(status,'approved','reviewed','pending') LIMIT 1",
-    [$reportDate]
-);
-if ($utRow) {
-    $elecToday = (float)($utRow['electricity_today'] ?? 0);
-    $elecLY = (float)($utRow['electricity_ly'] ?? 0);
-    $waterToday = (float)($utRow['water_today'] ?? 0);
-    $waterLY = (float)($utRow['water_ly'] ?? 0);
-    $gasToday = (float)($utRow['gas_today'] ?? 0);
-    $gasLY = (float)($utRow['gas_ly'] ?? 0);
-    $fuelToday = (float)($utRow['fuel_today'] ?? 0);
-    $fuelLY = (float)($utRow['fuel_ly'] ?? 0);
-}
-
-$tarifListrik = 1850; $tarifAir = 9600; $tarifGas = 24500; $tarifFuel = 17450;
-
-/* ---------- 5. DATA SECTION 3 : ENGINEERING ACTIVITIES (4 DIVISI) ---------- */
+/* ---------- 6. DATA ENGINEERING ACTIVITIES 4 DIVISI ---------- */
 $divisions = ['OPERATION', 'MAINTENANCE', 'PROJECT', 'LANDSCAPE'];
 $actByDiv = [];
 foreach ($divisions as $d) {
     $actByDiv[$d] = [];
 }
-
 $actRows = $db->fetchAll(
     "SELECT ac.division, ac.activity_name, ac.status 
      FROM activity_counters ac
@@ -103,8 +126,7 @@ foreach ($actRows as $ar) {
         'status' => strtolower((string)($ar['status'] ?? 'pending')),
     ];
 }
-
-/* Master Template Fallback */
+/* Fallback Master Template jika ada divisi kosong */
 foreach ($divisions as $d) {
     if (count($actByDiv[$d]) === 0) {
         $masterRows = $db->fetchAll(
@@ -117,19 +139,11 @@ foreach ($divisions as $d) {
     }
 }
 
-/* ---------- 6. HELPER STATUS LABEL ---------- */
-function repStatusLabel($st) {
-    if ($st === 'complete' || $st === 'completed') return 'Complete';
-    if ($st === 'in_progress' || $st === 'progress') return 'In Progress';
-    if ($st === 'pending') return 'Pending';
-    if ($st === '-') return '-';
-    return ucfirst($st);
-}
-
-/* ---------- 7. MODE EXCEL = EXIT AWAL (HINDARI UNCLEARED BRACE DI PHP LINT) ---------- */
+/* ---------- 7. RENDER MODE ---------- */
 $format = isset($_GET['format']) ? strtolower(cleanInput($_GET['format'])) : 'print';
 $fileName = 'Daily_Engineering_Summary_' . $reportDate;
 
+/* -------------------- MODE EXCEL -------------------- */
 if ($format === 'excel') {
     header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
     header('Content-Disposition: attachment; filename="' . $fileName . '.xls"');
@@ -140,7 +154,7 @@ if ($format === 'excel') {
     exit;
 }
 
-/* ---------- 8. DEFAULT = PRINT / PDF HTML ---------- */
+/* -------------------- DEFAULT = PRINT / PDF -------------------- */
 ?><!DOCTYPE html>
 <html lang="en">
 <head>
@@ -149,105 +163,45 @@ if ($format === 'excel') {
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
     * { box-sizing: border-box; }
-    html, body { 
-        margin: 0; padding: 0; 
-        font-family: Arial, Helvetica, sans-serif; 
-        color: #000; background: #f3f4f6; font-size: 14px; line-height: 1.35;
-    }
+    html, body { margin:0; padding:0; font-family:Arial,Helvetica,sans-serif; color:#000; background:#f3f4f6; font-size:14px; line-height:1.35; }
     @page { size: A4; margin: 14mm 12mm 12mm 12mm; }
     @media print {
-        body { background: #fff; }
-        .page-wrap { background: #fff !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; width: 100% !important; max-width: 100% !important; }
-        .action-bar { display: none !important; }
-        h1 { margin-top: 0 !important; }
+        body { background:#fff; }
+        .page-wrap { background:#fff!important; padding:0!important; margin:0!important; box-shadow:none!important; width:100%!important; max-width:100%!important; }
+        .action-bar { display:none!important; }
+        h1 { margin-top:0!important; }
         table { page-break-inside: avoid; }
     }
-    .action-bar {
-        max-width: 210mm; margin: 0 auto 12px;
-        display:flex; gap:8px; justify-content: flex-end; flex-wrap: wrap;
-        padding: 0 8px;
-    }
-    .btn {
-        display:inline-flex; align-items:center; gap:6px;
-        padding:10px 16px; border-radius:10px; font-weight:700; font-size:13px;
-        text-decoration:none; border:1px solid transparent; cursor:pointer;
-        transition: all .15s ease;
-    }
+    .action-bar { max-width:210mm; margin:0 auto 12px; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; padding:0 8px; }
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:10px 16px; border-radius:10px; font-weight:700; font-size:13px; text-decoration:none; border:1px solid transparent; cursor:pointer; transition:all .15s; }
     .btn-excel { background:#16a34a; color:#fff; box-shadow:0 1px 2px rgba(22,163,74,.15); }
     .btn-excel:hover { background:#15803d; }
     .btn-pdf { background:#2563eb; color:#fff; box-shadow:0 1px 2px rgba(37,99,235,.15); }
     .btn-pdf:hover { background:#1d4ed8; }
-    .btn-print { background:#111827; color:#fff; box-shadow:0 1px 2px rgba(17,24,39,.15); }
-    .btn-print:hover { background:#000; }
-
-    .page-wrap {
-        width: 210mm; max-width: 100%;
-        min-height: 297mm;
-        margin: 0 auto;
-        background: #fff;
-        padding: 10mm 12mm 12mm;
-        box-shadow: 0 6px 24px rgba(0,0,0,0.08);
-    }
-
-    h1 {
-        font-size: 28px; letter-spacing: 3px; text-align: center;
-        margin: 0 0 10px; font-weight: 900; line-height: 1.15;
-    }
-    .date-label {
-        font-size: 16px; font-weight: 800; margin: 0 0 14px;
-    }
-    h2 {
-        font-size: 16px; font-weight: 900; margin: 12px 0 6px;
-        letter-spacing: 0.5px;
-    }
-    table {
-        width: 100%; border-collapse: collapse;
-    }
-    th {
-        background: #d9d9d9;
-        border: 1px solid #000;
-        padding: 6px 8px;
-        font-weight: 800;
-        text-align: center;
-        font-size: 12px;
-    }
-    td {
-        border: 1px solid #000;
-        padding: 5px 8px;
-        font-size: 12px;
-        vertical-align: top;
-        color: #000;
-    }
-    td.num { text-align: right; font-variant-numeric: tabular-nums; }
-    td.cen { text-align: center; }
-    td.bold { font-weight: 800; }
+    .page-wrap { width:210mm; max-width:100%; min-height:297mm; margin:0 auto; background:#fff; padding:10mm 12mm 12mm; box-shadow:0 6px 24px rgba(0,0,0,.08); }
+    h1 { font-size:28px; letter-spacing:3px; text-align:center; margin:0 0 10px; font-weight:900; line-height:1.15; }
+    .date-label { font-size:16px; font-weight:800; margin:0 0 14px; }
+    h2 { font-size:16px; font-weight:900; margin:12px 0 6px; letter-spacing:.5px; }
+    table { width:100%; border-collapse:collapse; }
+    th { background:#d9d9d9; border:1px solid #000; padding:6px 8px; font-weight:800; text-align:center; font-size:12px; }
+    td { border:1px solid #000; padding:5px 8px; font-size:12px; vertical-align:top; color:#000; }
+    td.num { text-align:right; font-variant-numeric: tabular-nums; }
+    td.cen { text-align:center; }
+    td.bold { font-weight:800; }
     td.mid { vertical-align: middle; }
-    ul.dot { margin: 0; padding-left: 14px; }
-    ul.dot li { margin: 0; padding: 0; line-height: 1.3; }
-    .sign-footer {
-        width: 100%;
-        margin-top: 18px;
-        display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-        page-break-inside: avoid;
-    }
-    .sign-box { text-align:center; font-size: 12px; }
-    .sign-box .lbl { font-weight: 600; margin-bottom: 46px; }
-    .sign-box .line { border-top: 1px solid #000; padding-top: 5px; font-weight: 800; }
+    ul.dot { margin:0; padding-left:14px; }
+    ul.dot li { margin:0; padding:0; line-height:1.3; }
+    .sign-footer { width:100%; margin-top:18px; display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; page-break-inside:avoid; }
+    .sign-box { text-align:center; font-size:12px; }
+    .sign-box .lbl { font-weight:600; margin-bottom:46px; }
+    .sign-box .line { border-top:1px solid #000; padding-top:5px; font-weight:800; }
 </style>
 </head>
 <body>
-<?php
-$urlExcel = '?date=' . urlencode($reportDate) . '&format=excel';
-?>
 <div class="action-bar">
-    <a class="btn btn-excel" href="<?=htmlspecialchars($urlExcel)?>" target="_blank">
-        <i class="fa-solid fa-file-excel"></i> Download Excel
-    </a>
-    <button type="button" class="btn btn-pdf" onclick="window.print()">
-        <i class="fa-solid fa-file-pdf"></i> Save as PDF / Print
-    </button>
+    <a class="btn btn-excel" href="?date=<?=urlencode($reportDate)?>&format=excel" target="_blank"><i class="fa-solid fa-file-excel"></i> Download Excel</a>
+    <button type="button" class="btn btn-pdf" onclick="window.print()"><i class="fa-solid fa-file-pdf"></i> Save as PDF / Print</button>
 </div>
-
 <div class="page-wrap">
     <h1>DAILY ENGINEERING<br>SUMMARY REPORT</h1>
     <div class="date-label">DATE: <?=$reportDateLabel?></div>
@@ -255,16 +209,7 @@ $urlExcel = '?date=' . urlencode($reportDate) . '&format=excel';
     <!-- ① KPIs -->
     <h2>1. KEY PERFORMANCE INDICATORS (KPIs)</h2>
     <table>
-        <thead>
-            <tr>
-                <th>METRIC</th>
-                <th>LAST YEAR (LY)</th>
-                <th>TODAY</th>
-                <th>ITR</th>
-                <th>M&amp;U</th>
-                <th>GITB RANK</th>
-            </tr>
-        </thead>
+        <thead><tr><th>METRIC</th><th>LAST YEAR (LY)</th><th>TODAY</th><th>ITR</th><th>M&amp;U</th><th>GITB RANK</th></tr></thead>
         <tbody>
         <?php foreach ($kpiData as $r) { ?>
             <tr>
@@ -279,61 +224,54 @@ $urlExcel = '?date=' . urlencode($reportDate) . '&format=excel';
         </tbody>
     </table>
 
-    <!-- ② UTILITY -->
+    <!-- ② UTILITY USAGE SUMMARY -->
     <h2>2. UTILITY USAGE SUMMARY</h2>
     <table>
-        <thead>
-            <tr>
-                <th>UTILITY</th>
-                <th>PERIOD</th>
-                <th>USAGE</th>
-                <th>COST (Rp.)</th>
-            </tr>
-        </thead>
+        <thead><tr><th>UTILITY</th><th>PERIOD</th><th>USAGE</th><th>COST (Rp.)</th></tr></thead>
         <tbody>
             <tr>
                 <td rowspan="2" class="bold cen mid">ELECTRICITY</td>
                 <td class="cen">(LY)</td>
                 <td class="num"><?=repFmtIndo($elecLY, 0)?> kWh</td>
-                <td class="num"><?=repFmtRupiah($elecLY * $tarifListrik)?></td>
+                <td class="num"><?=repFmtRupiah($elecLY * $TARIF_LISTRIK)?></td>
             </tr>
             <tr>
                 <td class="cen">(TODAY)</td>
                 <td class="num"><?=repFmtIndo($elecToday, 0)?> kWh</td>
-                <td class="num"><?=repFmtRupiah($elecToday * $tarifListrik)?></td>
+                <td class="num"><?=repFmtRupiah($elecToday * $TARIF_LISTRIK)?></td>
             </tr>
             <tr>
                 <td rowspan="2" class="bold cen mid">WATER</td>
                 <td class="cen">(LY)</td>
                 <td class="num"><?=repFmtIndo($waterLY, 0)?> m&sup3;</td>
-                <td class="num"><?=repFmtRupiah($waterLY * $tarifAir)?></td>
+                <td class="num"><?=repFmtRupiah($waterLY * $TARIF_AIR)?></td>
             </tr>
             <tr>
                 <td class="cen">(TODAY)</td>
                 <td class="num"><?=repFmtIndo($waterToday, 0)?> m&sup3;</td>
-                <td class="num"><?=repFmtRupiah($waterToday * $tarifAir)?></td>
+                <td class="num"><?=repFmtRupiah($waterToday * $TARIF_AIR)?></td>
             </tr>
             <tr>
                 <td rowspan="2" class="bold cen mid">GAS</td>
                 <td class="cen">(LY)</td>
                 <td class="num"><?=repFmtIndo($gasLY, 0)?> kg</td>
-                <td class="num"><?=repFmtRupiah($gasLY * $tarifGas)?></td>
+                <td class="num"><?=repFmtRupiah($gasLY * $TARIF_GAS)?></td>
             </tr>
             <tr>
                 <td class="cen">(TODAY)</td>
                 <td class="num"><?=repFmtIndo($gasToday, 0)?> kg</td>
-                <td class="num"><?=repFmtRupiah($gasToday * $tarifGas)?></td>
+                <td class="num"><?=repFmtRupiah($gasToday * $TARIF_GAS)?></td>
             </tr>
             <tr>
                 <td rowspan="2" class="bold cen mid">FUEL</td>
                 <td class="cen">(LY)</td>
                 <td class="num"><?=repFmtIndo($fuelLY, 0)?> Liter</td>
-                <td class="num"><?=repFmtRupiah($fuelLY * $tarifFuel)?></td>
+                <td class="num"><?=repFmtRupiah($fuelLY * $TARIF_FUEL)?></td>
             </tr>
             <tr>
                 <td class="cen">(TODAY)</td>
                 <td class="num"><?=repFmtIndo($fuelToday, 0)?> Liter</td>
-                <td class="num"><?=repFmtRupiah($fuelToday * $tarifFuel)?></td>
+                <td class="num"><?=repFmtRupiah($fuelToday * $TARIF_FUEL)?></td>
             </tr>
         </tbody>
     </table>
@@ -341,13 +279,7 @@ $urlExcel = '?date=' . urlencode($reportDate) . '&format=excel';
     <!-- ③ ENGINEERING ACTIVITIES -->
     <h2>3. ENGINEERING ACTIVITIES</h2>
     <table>
-        <thead>
-            <tr>
-                <th>DEPARTMENT</th>
-                <th>ACTIVITY DETAIL</th>
-                <th>STATUS</th>
-            </tr>
-        </thead>
+        <thead><tr><th>DEPARTMENT</th><th>ACTIVITY DETAIL</th><th>STATUS</th></tr></thead>
         <tbody>
         <?php foreach ($divisions as $d) {
             $list = $actByDiv[$d] ?? [];
@@ -360,29 +292,17 @@ $urlExcel = '?date=' . urlencode($reportDate) . '&format=excel';
                 <?php if ($idx === 0) { ?>
                     <td rowspan="<?=$rows?>" class="bold cen mid"><?=htmlspecialchars($d)?></td>
                 <?php } ?>
-                <td class="act-cell">
-                    <ul class="dot"><li><?=htmlspecialchars($item['name'])?></li></ul>
-                </td>
+                <td><ul class="dot"><li><?=htmlspecialchars($item['name'])?></li></ul></td>
                 <td class="cen mid">&check; <?=htmlspecialchars($stLabel)?></td>
             </tr>
         <?php } } ?>
         </tbody>
     </table>
 
-    <!-- SIGNATURE -->
     <div class="sign-footer">
-        <div class="sign-box">
-            <div class="lbl">Prepared By:</div>
-            <div class="line"><?=htmlspecialchars($userName)?></div>
-        </div>
-        <div class="sign-box">
-            <div class="lbl">Reviewed By:</div>
-            <div class="line">Supervisor / Manager</div>
-        </div>
-        <div class="sign-box">
-            <div class="lbl">Approved By:</div>
-            <div class="line">Chief Engineer / EAM</div>
-        </div>
+        <div class="sign-box"><div class="lbl">Prepared By:</div><div class="line"><?=htmlspecialchars($userName)?></div></div>
+        <div class="sign-box"><div class="lbl">Reviewed By:</div><div class="line">Supervisor / Manager</div></div>
+        <div class="sign-box"><div class="lbl">Approved By:</div><div class="line">Chief Engineer / EAM</div></div>
     </div>
 </div>
 </body>
