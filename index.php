@@ -542,15 +542,30 @@ require_once __DIR__ . '/includes/navbar.php';
                 </a>
                 <?php endif; ?>
                 <div class="inline-flex flex-wrap items-center gap-2">
-                    <input type="date" id="rep_date" value="<?= $today ?>" class="px-3 py-3.5 rounded-xl bg-white border border-slate-300 text-sm font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-500 transition" onchange="updateReportLinks()">
-                    <a id="btn_excel" href="<?= BASE_URL ?>reports/daily_summary.php?date=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm hover:shadow-md hover:-translate-y-0.5 transition">
-                        <i class="fas fa-file-excel"></i>
-                        <span>Excel</span>
-                    </a>
-                    <button type="button" onclick="window.open('<?= BASE_URL ?>reports/daily_summary.php?date=' + (document.getElementById('rep_date')?.value || '<?=$today?>'), '_blank')" class="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm hover:shadow-md hover:-translate-y-0.5 transition">
-                        <i class="fas fa-file-pdf"></i>
-                        <span>PDF / Print</span>
-                    </button>
+                    <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 shadow-sm">
+                        <i class="fas fa-calendar-day text-slate-500 text-[13px]"></i>
+                        <input type="date" id="rep_date" value="<?= $today ?>" class="px-1 py-1.5 text-sm font-semibold text-slate-700 bg-transparent border-0 outline-none focus:ring-0" onchange="updateReportLinks()">
+                    </div>
+                    <div class="inline-flex flex-wrap items-center gap-1.5">
+                        <a id="btn_excel_energy" href="<?= BASE_URL ?>reports/daily_summary.php?date=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[12px] shadow-sm hover:shadow-md transition">
+                            <i class="fas fa-file-excel text-[13px]"></i>
+                            <span>Energy</span>
+                        </a>
+                        <button type="button" id="btn_pdf_energy" onclick="window.open('<?= BASE_URL ?>reports/daily_summary.php?date=<?= urlencode($today) ?>', '_blank')" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[12px] shadow-sm hover:shadow-md transition">
+                            <i class="fas fa-file-pdf text-[13px]"></i>
+                            <span>Print</span>
+                        </button>
+                        <?php if (in_array($userRole, ['supervisor','manager','admin'])): ?>
+                        <a id="btn_xls_activity" href="<?= BASE_URL ?>reports/activity_export.php?date=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[12px] shadow-sm hover:shadow-md transition">
+                            <i class="fas fa-list-check text-[13px]"></i>
+                            <span>Activity</span>
+                        </a>
+                        <?php endif; ?>
+                        <a id="btn_xls_order" href="<?= BASE_URL ?>reports/order_export.php?date=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-[12px] shadow-sm hover:shadow-md transition">
+                            <i class="fas fa-truck-ramp-box text-[13px]"></i>
+                            <span>Order</span>
+                        </a>
+                    </div>
                 </div>
             <?php endif; ?>
         </div>
@@ -642,47 +657,8 @@ require_once __DIR__ . '/includes/navbar.php';
 
                 <!-- CONTENT (BISA DISHIDDEN / DITAMPILKAN) -->
                 <div id="utility_group" class="transition-all duration-200 overflow-hidden">
-                    <!-- 1) 2 BADGE OCCUPANCY (FOTO MOBILE 19.13 ATAS: LY KUNING + NOW HIJAU) -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3 animate-slide-up">
-                        <!-- BADGE LY TAHUN LALU -->
-                        <div class="rounded-lg border border-amber-200 bg-amber-50/50 px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between gap-2 shadow-sm">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <span class="w-7 h-7 shrink-0 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 text-white flex items-center justify-center text-[10px] font-black shadow-sm">LY</span>
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.15em] text-amber-700 leading-tight">LY (Tahun Lalu) • <?= $lastYear ?></p>
-                                </div>
-                            </div>
-                            <div class="shrink-0 text-right leading-none flex items-baseline gap-0.5">
-                                <span class="hidden sm:inline text-[9px] font-bold text-amber-600/70 tracking-wider">OCC</span>
-                                <span class="font-display text-lg sm:text-[22px] font-black text-amber-700 leading-none tracking-wide"><?= $occLYDisp ?></span>
-                                <span class="text-[10px] font-black text-amber-700">%</span>
-                            </div>
-                        </div>
-                        <!-- BADGE TODAY HARI INI -->
-                        <div class="rounded-lg border border-emerald-200 bg-emerald-50/50 px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between gap-2 shadow-sm">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <span class="w-7 h-7 shrink-0 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center text-[10px] font-black shadow-sm">NOW</span>
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.15em] text-emerald-700 leading-tight">NOW (Hari Ini) • <?= date('d/m/Y') ?></p>
-                                </div>
-                            </div>
-                            <div class="shrink-0 text-right leading-none flex items-baseline gap-0.5">
-                                <span class="hidden sm:inline text-[9px] font-bold text-emerald-700/70 tracking-wider">OCC</span>
-                                <span class="font-display text-lg sm:text-[22px] font-black text-emerald-700 leading-none tracking-wide mr-0.5"><?= $occNowDisp ?></span>
-                                <span class="text-[10px] font-black text-emerald-700">%</span>
-                                <?php if (($targetOcc > 0) && ($lyOcc > 0) && ($targetOcc != $lyOcc)):
-                                    $up = $targetOcc > $lyOcc;
-                                ?>
-                                <span class="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-white/80 border border-emerald-200 text-[8px] font-black <?= $up ? 'text-emerald-700' : 'text-rose-700' ?> align-middle">
-                                    <i class="fas fa-arrow-<?= $up ? 'up-right' : 'down-right' ?> text-[7px]"></i>
-                                    <?= $up ? '+' : '-' ?><?= abs($targetOcc - $lyOcc) ?>%
-                                </span>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- 2) 4 CARD USAGE 2x2 GRID (FOTO MOBILE 19.13 TENGAH: BACKGROUND PASTEL WARNA KATEGORI BUKAN PUTIH!) -->
+                    <!-- 2) 4 CARD USAGE 2x2 GRID -->
                     <?php
                     if (!isset($utilRows) || !is_array($utilRows)) {
                         $utilRows = [
@@ -1023,28 +999,25 @@ require_once __DIR__ . '/includes/navbar.php';
     </div>
 
     <!-- ============ ④ SWRO SYSTEM (WATER TREATMENT REVERSE OSMOSIS) ============ -->
-    <div id="sec_swro" class="bg-surface rounded-premium border border-sky-200/70 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 60ms">
+    <div id="sec_swro" class="bg-surface rounded-premium border border-sky-200/70 shadow-sm overflow-hidden mb-7 animate-slide-up" style="animation-delay: 60ms">
         <button type="button" onclick="toggleDashSection('swro')"
-                class="w-full text-left px-5 lg:px-6 py-4 border-b border-sky-100 bg-gradient-to-r from-white via-sky-50/50 to-white hover:via-sky-50 transition group">
+                class="w-full text-left px-4 lg:px-5 py-3 border-b border-sky-100 bg-gradient-to-r from-white via-sky-50/50 to-white hover:via-sky-50 transition group">
             <div class="flex items-center justify-between gap-3">
                 <div>
-                    <p class="text-[11px] font-black uppercase tracking-[0.25em] text-sky-700 mb-1">WATER TREATMENT</p>
+                    <p class="text-[10px] font-black uppercase tracking-[0.2em] text-sky-700 mb-0.5">WATER TREATMENT</p>
                     <div class="flex items-center flex-wrap gap-x-3 gap-y-1">
-                        <span class="w-7 h-7 rounded-md bg-gradient-to-br from-sky-400 to-blue-700 flex items-center justify-center text-white shadow-sm shadow-sky-500/25 shrink-0 text-[13px] font-black">4</span>
-                        <h2 class="font-display text-lg lg:text-xl font-black text-primary tracking-wide">
+                        <span class="w-6 h-6 rounded-md bg-gradient-to-br from-sky-400 to-blue-700 flex items-center justify-center text-white shadow-sm shadow-sky-500/25 shrink-0 text-[11px] font-black">4</span>
+                        <h2 class="font-display text-[15px] lg:text-base font-black text-primary tracking-wide">
                             <?= T('dash_swro_title', 'SWRO (Reverse Osmosis)') ?>
                         </h2>
-                        <span class="text-[9px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded-full ml-1 hidden md:inline-flex items-center gap-0.5">
-                            <i class="fas fa-hand-pointer text-[8px]"></i> Klik sembunyikan
-                        </span>
                     </div>
                 </div>
-                <i id="swro_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[13px] group-hover:text-sky-700"></i>
+                <i id="swro_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[12px] group-hover:text-sky-700"></i>
             </div>
         </button>
         <div id="swro_group" class="transition-all duration-200 overflow-hidden">
-        <div class="p-5 lg:p-6">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="p-3 sm:p-4 lg:p-5">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
                 <?php
                 $swMonthly = $db->fetchOne("SELECT COALESCE(SUM(swro_watermeter),0) as wm, COALESCE(SUM(swro_kwh),0) as kwh, COALESCE(AVG(NULLIF(swro_tds,0)),0) as tds FROM daily_logs WHERE log_date BETWEEN ? AND ? AND status='approved' $statusWhere", [$monthStart, $today]);
                 $swToday = $utilTodaySingle ? [
@@ -1060,15 +1033,15 @@ require_once __DIR__ . '/includes/navbar.php';
                 foreach ($swCards as $sc) {
                     [$lbl, $todayVal, $icon, $grad, $bg, $bor, $col, $monthVal] = $sc;
                 ?>
-                    <div class="rounded-2xl border <?= $bor ?> <?= $bg ?>/40 p-4 sm:p-5 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.01] cursor-pointer transition-all" onclick="openModal('swro')">
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-9 h-9 rounded-xl bg-gradient-to-br <?= $grad ?> flex items-center justify-center text-white shadow">
-                                <span class="text-sm"><?= $icon ?></span>
+                    <div class="rounded-lg border <?= $bor ?> <?= $bg ?>/50 px-3 py-2.5 sm:px-3.5 sm:py-3 hover:shadow-md transition cursor-pointer" onclick="openModal('swro')">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <div class="w-7 h-7 rounded-lg bg-gradient-to-br <?= $grad ?> flex items-center justify-center text-white shadow-sm shrink-0">
+                                <span class="text-[12px]"><?= $icon ?></span>
                             </div>
-                            <p class="font-bold text-primary text-xs sm:text-sm uppercase tracking-wide"><?= $lbl ?></p>
+                            <p class="font-bold text-primary text-[11px] sm:text-[12px] uppercase tracking-wide leading-tight"><?= $lbl ?></p>
                         </div>
-                        <p class="text-2xl lg:text-3xl font-black text-primary leading-none mb-1"><?= $todayVal ?></p>
-                        <p class="text-[11px] font-bold <?= $col ?>"><i class="far fa-calendar-alt mr-1"></i> Bulan Ini: <?= $monthVal ?></p>
+                        <p class="text-xl sm:text-2xl font-black text-primary leading-none mb-1"><?= $todayVal ?></p>
+                        <p class="text-[10px] font-bold <?= $col ?> leading-tight"><i class="far fa-calendar-alt mr-1"></i> Bulan Ini: <?= $monthVal ?></p>
                     </div>
                 <?php } ?>
             </div>
@@ -1079,122 +1052,64 @@ require_once __DIR__ . '/includes/navbar.php';
     <!-- ============ ④ BOTTLING PLANT ============ -->
     <!-- ============ ⑤ ENGINEERING ACTIVITIES - HANYA SUPERVISOR / MANAGER YANG DAPAT LIHAT ============ -->
     <?php if (in_array($userRole, ['supervisor','manager','admin'], true)): ?>
-    <div class="bg-surface rounded-premium border border-accent/20 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 120ms">
+    <div class="bg-surface rounded-premium border border-accent/20 shadow-sm overflow-hidden mb-7 animate-slide-up" style="animation-delay: 120ms">
         <button type="button" onclick="toggleDashSection('engactcards')"
-                class="w-full text-left px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-white via-amber-50/30 to-white hover:via-amber-50 transition group">
+                class="w-full text-left px-4 lg:px-5 py-3 border-b border-accent/20 bg-gradient-to-r from-white via-amber-50/30 to-white hover:via-amber-50 transition group">
             <div class="flex items-center justify-between gap-3">
                 <div>
-                    <p class="text-[11px] font-black uppercase tracking-[0.25em] text-accent mb-1"><?= T('dash_act_subtitle', 'Staff') ?></p>
+                    <p class="text-[10px] font-black uppercase tracking-[0.2em] text-accent mb-0.5"><?= T('dash_act_subtitle', 'Staff') ?></p>
                     <div class="flex items-center flex-wrap gap-x-3 gap-y-1">
-                        <span class="w-7 h-7 rounded-md bg-gradient-to-br from-primary to-gray-800 flex items-center justify-center text-white shadow-sm shrink-0 text-[13px] font-black">6</span>
-                        <h2 class="font-display text-lg lg:text-xl font-black text-primary tracking-wide">
+                        <span class="w-6 h-6 rounded-md bg-gradient-to-br from-primary to-gray-800 flex items-center justify-center text-white shadow-sm shrink-0 text-[11px] font-black">6</span>
+                        <h2 class="font-display text-[15px] lg:text-base font-black text-primary tracking-wide">
                             <?= T('dash_act_title', 'ENG ACTIVITY') ?>
                         </h2>
-                        <span class="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full ml-1 hidden md:inline-flex items-center gap-0.5">
-                            <i class="fas fa-hand-pointer text-[8px]"></i> Klik sembunyikan
-                        </span>
                     </div>
                 </div>
-                <i id="engactcards_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[13px] group-hover:text-amber-700"></i>
+                <i id="engactcards_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[12px] group-hover:text-amber-700"></i>
             </div>
         </button>
         <div id="engactcards_group" class="transition-all duration-200 overflow-hidden">
-        <div class="p-5 lg:p-6 space-y-3 sm:space-y-4">
+        <div class="p-3 sm:p-4 lg:p-5 grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3">
             <?php
             $actCards = [
-                [
-                    'operation',
-                    T('dash_act_operation', 'OPERATION'),
-                    'fas fa-gears',
-                    'from-blue-400 to-blue-600',
-                    'bg-blue-50',
-                    'border-blue-200',
-                    'text-blue-700',
-                    (int)($todayAct['op'] ?? 0),
-                    (int)($activitySum['op'] ?? 0),
-                    true
-                ],
-                [
-                    'maintenance',
-                    T('dash_act_maintenance', 'MAINTENANCE'),
-                    'fas fa-wrench',
-                    'from-emerald-400 to-emerald-600',
-                    'bg-emerald-50',
-                    'border-emerald-200',
-                    'text-emerald-700',
-                    (int)($todayAct['maint'] ?? 0),
-                    (int)($activitySum['maint'] ?? 0),
-                    false
-                ],
-                [
-                    'project',
-                    T('dash_act_project', 'PROJECT'),
-                    'fas fa-diagram-project',
-                    'from-violet-400 to-violet-600',
-                    'bg-violet-50',
-                    'border-violet-200',
-                    'text-violet-700',
-                    (int)($todayAct['proj'] ?? 0),
-                    (int)($activitySum['proj'] ?? 0),
-                    false
-                ],
-                [
-                    'landscape',
-                    T('dash_act_landscape', 'LANDSCAPE'),
-                    'fas fa-leaf',
-                    'from-teal-400 to-teal-600',
-                    'bg-teal-50',
-                    'border-teal-200',
-                    'text-teal-700',
-                    (int)($todayAct['land'] ?? 0),
-                    (int)($activitySum['land'] ?? 0),
-                    false
-                ],
+                ['operation',   T('dash_act_operation',   'OPERATION'),   'fas fa-gears',            'from-blue-400 to-blue-600',       'bg-blue-50',    'border-blue-200',    'text-blue-700',    (int)($todayAct['op'] ?? 0),    (int)($activitySum['op'] ?? 0)],
+                ['maintenance', T('dash_act_maintenance', 'MAINTENANCE'),'fas fa-wrench',           'from-emerald-400 to-emerald-600', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-700', (int)($todayAct['maint'] ?? 0), (int)($activitySum['maint'] ?? 0)],
+                ['project',     T('dash_act_project',     'PROJECT'),    'fas fa-diagram-project',  'from-violet-400 to-violet-600',   'bg-violet-50',  'border-violet-200',  'text-violet-700',  (int)($todayAct['proj'] ?? 0),  (int)($activitySum['proj'] ?? 0)],
+                ['landscape',   T('dash_act_landscape',   'LANDSCAPE'),  'fas fa-leaf',             'from-teal-400 to-teal-600',       'bg-teal-50',    'border-teal-200',    'text-teal-700',    (int)($todayAct['land'] ?? 0),  (int)($activitySum['land'] ?? 0)],
             ];
-            $actCountLabel = T('dash_act_count', 'aktivitas');
             foreach ($actCards as $ac) {
-                [$modalId, $label, $icon, $grad, $bg, $bor, $col, $todayCnt, $monthCnt, $isFirst] = $ac;
+                [$modalId, $label, $icon, $grad, $bg, $bor, $col, $todayCnt, $monthCnt] = $ac;
+                $todayBar = $todayCnt > 0 ? min(100, max(8, ($todayCnt / max(1, max($todayCnt, $monthCnt, 10))) * 100)) : 0;
+                $monthBar = $monthCnt > 0 ? min(100, max(8, ($monthCnt / max(1, max($todayCnt, $monthCnt, 10))) * 100)) : 0;
                 echo <<<HTML
-            <div class="rounded-2xl border {$bor} {$bg}/40 p-4 sm:p-5 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-0.5 hover:scale-[1.005] cursor-pointer transition-all duration-300" onclick="openModal('{$modalId}')">
-                <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div class="flex items-center gap-3 sm:w-64 shrink-0">
-                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br {$grad} flex items-center justify-center text-white shadow-md shrink-0">
-                            <i class="{$icon}"></i>
+            <div class="rounded-lg border {$bor} {$bg}/40 p-2.5 sm:p-3 hover:shadow-md transition cursor-pointer" onclick="openModal('{$modalId}')">
+                <div class="flex items-start justify-between gap-2 mb-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br {$grad} flex items-center justify-center text-white shadow-sm shrink-0">
+                            <i class="{$icon} text-[13px]"></i>
                         </div>
-                        <div>
-                            <p class="font-black text-primary uppercase tracking-wider text-sm">{$label}</p>
-                            <p class="text-[10px] font-bold uppercase tracking-widest text-secondary">This Month</p>
+                        <div class="min-w-0">
+                            <p class="font-black uppercase tracking-wide text-[12px] text-primary leading-tight">{$label}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-secondary leading-tight">This Month</p>
                         </div>
                     </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-end justify-between gap-4">
-                            <div class="flex items-baseline gap-3">
-                                <div class="flex items-baseline gap-1.5">
-                                    <p class="text-xs text-secondary font-bold uppercase tracking-wide">Today</p>
-                                    <p class="text-3xl lg:text-4xl font-black text-primary leading-none">{$todayCnt}</p>
-                                    <span class="text-[11px] font-bold text-secondary mb-1">{$actCountLabel}</span>
-                                </div>
-                                <div class="w-px h-8 bg-border shrink-0 hidden sm:block"></div>
-                                <div class="flex items-baseline gap-1.5">
-                                    <p class="text-xs text-secondary font-bold uppercase tracking-wide">Month</p>
-                                    <p class="text-2xl lg:text-3xl font-black text-primary/70 leading-none">{$monthCnt}</p>
-                                    <span class="text-[11px] font-bold text-secondary mb-1">total</span>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-1 shrink-0">
-                                <i class="fas fa-chevron-right {$col} text-sm opacity-70"></i>
-                            </div>
-                        </div>
-                        <div class="mt-3 h-2 w-full bg-white/60 rounded-full overflow-hidden border {$bor}/40">
-HTML;
-                $todayBar = $todayCnt > 0 ? min(100, max(5, ($todayCnt / max(1, max($todayCnt, $monthCnt, 10))) * 100)) : 0;
-                $monthBar = $monthCnt > 0 ? min(100, max(5, ($monthCnt / max(1, max($todayCnt, $monthCnt, 10))) * 100)) : 0;
-                echo <<<HTML
-                            <div class="h-full w-full relative">
-                                <div class="absolute inset-y-0 left-0 bg-gradient-to-r {$grad} opacity-20 rounded-full" style="width: {$monthBar}%"></div>
-                                <div class="absolute inset-y-0 left-0 bg-gradient-to-r {$grad} rounded-full shadow-sm" style="width: {$todayBar}%"></div>
-                            </div>
-                        </div>
+                    <div class="flex items-baseline gap-1.5 shrink-0">
+                        <span class="text-[10px] text-secondary font-bold uppercase">Month</span>
+                        <span class="text-lg font-black text-primary/70 leading-none tabular-nums">{$monthCnt}</span>
+                    </div>
+                </div>
+                <div class="flex items-end justify-between gap-3 mb-1.5">
+                    <div class="flex items-baseline gap-1.5 min-w-0">
+                        <span class="text-[10px] text-secondary font-bold uppercase shrink-0">Today</span>
+                        <span class="text-xl sm:text-2xl font-black text-primary leading-none tabular-nums">{$todayCnt}</span>
+                        <span class="text-[10px] font-bold text-secondary shrink-0">aktivitas</span>
+                    </div>
+                    <i class="fas fa-chevron-right {$col} text-[11px] opacity-70 shrink-0 mb-1"></i>
+                </div>
+                <div class="h-1.5 w-full bg-white/70 rounded-full overflow-hidden border {$bor}/40">
+                    <div class="h-full w-full relative">
+                        <div class="absolute inset-y-0 left-0 bg-gradient-to-r {$grad} opacity-20 rounded-full" style="width: {$monthBar}%"></div>
+                        <div class="absolute inset-y-0 left-0 bg-gradient-to-r {$grad} rounded-full shadow-sm" style="width: {$todayBar}%"></div>
                     </div>
                 </div>
             </div>
@@ -2310,6 +2225,37 @@ function renderModalChart(name) {
 }
 
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAllModals(); });
+
+/* ---------- UPDATE LINK TOMBOL DOWNLOAD + SAVE TANGGAL KE LOCALSTORAGE ---------- */
+(function () {
+    const BASE = '<?= BASE_URL ?>';
+    const TODAY_DEF = '<?= $today ?>';
+    function el(id) { return document.getElementById(id); }
+    window.updateReportLinks = function () {
+        const inp = el('rep_date');
+        const v = (inp && inp.value) ? inp.value : TODAY_DEF;
+        try { localStorage.setItem('report_date_last', v); } catch (e) {}
+        const enc = encodeURIComponent(v);
+        if (el('btn_excel_energy')) el('btn_excel_energy').href = BASE + 'reports/daily_summary.php?date=' + enc + '&format=excel';
+        if (el('btn_pdf_energy')) {
+            el('btn_pdf_energy').onclick = function () { window.open(BASE + 'reports/daily_summary.php?date=' + enc, '_blank'); };
+        }
+        if (el('btn_xls_activity')) el('btn_xls_activity').href = BASE + 'reports/activity_export.php?date=' + enc + '&format=excel';
+        if (el('btn_xls_order')) el('btn_xls_order').href = BASE + 'reports/order_export.php?date=' + enc + '&format=excel';
+    };
+    document.addEventListener('DOMContentLoaded', function () {
+        const inp = el('rep_date');
+        if (inp) {
+            try {
+                const saved = localStorage.getItem('report_date_last');
+                if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) {
+                    inp.value = saved;
+                    window.updateReportLinks();
+                }
+            } catch (e) {}
+        }
+    });
+})();
 </script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
