@@ -67,21 +67,34 @@ $sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
 <div class="app-layout is-sidebar-expanded" id="appLayout">
 <aside id="sidebar" class="sidebar sidebar-expanded !bg-white !border-r !border-slate-200 !shadow-none">
     <div class="sidebar-inner !p-0 !bg-white">
-        <div class="sidebar-brand !border-b !border-slate-100 !px-4 !pt-4 !pb-4 min-h-[88px]">
+        <div class="sidebar-brand !border-b !border-slate-100 !px-4 !pt-4 !pb-4 min-h-[88px] relative overflow-hidden group/brand">
             <button type="button" id="sidebarToggle" class="sidebar-toggle hidden md:inline-flex sidebar-btn-topright" aria-label="Toggle Sidebar" title="Collapse / Expand">
                 <i class="fas fa-bars-staggered transition-transform duration-300"></i>
             </button>
             <button type="button" id="sidebarToggleMobile" class="sidebar-toggle-mobile md:hidden sidebar-btn-topright" aria-label="Close Sidebar" title="Close">
                 <i class="fas fa-xmark"></i>
             </button>
-            <div class="flex items-start justify-start h-full !pt-1 !pr-14">
-                <a href="<?= BASE_URL ?>index.php" class="no-underline block">
-                    <h1 class="font-display text-[20px] leading-tight font-black tracking-wide text-slate-900">
-                        Engineering
-                        <span class="block text-[19px] mt-0.5">Report</span>
-                    </h1>
-                </a>
-            </div>
+            <div class="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-sky-400/10 via-sky-500/5 to-transparent blur-2xl pointer-events-none group-hover/brand:from-sky-500/20 transition-all duration-500"></div>
+            <div class="absolute -left-4 -bottom-4 w-16 h-16 rounded-full bg-gradient-to-br from-amber-400/10 via-amber-500/5 to-transparent blur-xl pointer-events-none"></div>
+            <a href="<?= BASE_URL ?>index.php" class="no-underline block relative z-10">
+                <div class="flex items-center gap-3 h-full !pt-1 !pr-14 group/logo">
+                    <div class="shrink-0 relative">
+                        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-sky-500 via-sky-600 to-blue-700 flex items-center justify-center shadow-lg shadow-sky-500/25 group-hover/logo:shadow-sky-500/40 transition-all duration-300 group-hover/logo:-translate-y-0.5 group-hover/logo:scale-[1.03]">
+                            <i class="fas fa-industry text-white text-[18px] relative z-10"></i>
+                            <div class="absolute inset-0 rounded-2xl bg-gradient-to-t from-white/0 via-white/0 to-white/15"></div>
+                        </div>
+                        <div class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center border-[3px] border-white shadow-sm">
+                            <i class="fas fa-file-pen text-white text-[7px]"></i>
+                        </div>
+                    </div>
+                    <div class="min-w-0 flex-1 leading-tight">
+                        <h1 class="font-display text-[18px] leading-none font-black tracking-wide text-slate-900 mb-1">
+                            Engineering
+                        </h1>
+                        <span class="block text-[17px] leading-none font-black bg-gradient-to-r from-sky-600 via-sky-700 to-blue-700 bg-clip-text text-transparent">Report</span>
+                    </div>
+                </div>
+            </a>
         </div>
 
         <nav class="sidebar-nav !px-3 !py-3 !space-y-0.5">
