@@ -427,7 +427,7 @@ foreach ($cats as $c) {
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/navbar.php';
 
-// ✨ PRINT SIMPLE LISTS STYLE CSS + AREA HIDDEN (VISIBLE HANYA SAAT PRINT)
+// ✨ PRINT SIMPLE LISTS STYLE DATA
 $printAllActs = [];
 foreach (['operation','maintenance','project','landscape'] as $dv) {
     foreach ($mastersByDiv[$dv] ?? [] as $mm) $printAllActs[] = $mm;
@@ -435,42 +435,121 @@ foreach (['operation','maintenance','project','landscape'] as $dv) {
 if (empty($printAllActs)) {
     $printAllActs = array_values($allMasters);
 }
+
+// ===================================================
+// 🖨️ CSS PRINT GLOBAL (HARUS DI ATAS, URUTAN BENAR: DEFAULT MODE WEB DULU → BARU @media PRINT)
+// ===================================================
 ?>
-<!-- =================================================== -->
-<!-- 🖨️ PRINT ONLY AREA (VISIBLE HANYA SAAT PRINT MODE) -->
-<!-- =================================================== -->
-<div class="print-only-area" id="printListsArea">
-    <style>
-        @media print {
-            @page { size: A4; margin: 0mm !important; }
-            html, body { background: #1e3a8a !important; margin: 0 !important; padding: 0 !important; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            body > *:not(.print-only-area) { display: none !important; }
-            #sidebar-toggle-btn, .sidebar, .top-navbar, .page-shell, .page-header, .card-premium, .modal, .toast-container, .flash-container, script { display: none !important; }
-            .print-only-area { display: block !important; position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; min-height: 100vh !important; background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important; padding: 24px 18px 120px 18px !important; visibility: visible !important; box-sizing: border-box; }
-            .print-only-area * { visibility: visible !important; box-sizing: border-box; }
-        }
-    </style>
+<style>
+/* ✅ DEFAULT MODE WEB: Hide area print */
+.print-only-area { display: none !important; visibility: hidden !important; }
+
+/* ✅ MODE PRINT: Override BALIK & Hide SEMUA ELEMEN LAIN (PASTIKAN TIDAK ADA NAMA HOTEL / SIDEBAR / NAVBAR MASUK) */
+@media print {
+    @page {
+        size: A4;
+        margin: 0 !important;
+    }
+    html, body {
+        background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        color: #fff !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        -webkit-filter: opacity(1) !important;
+    }
+    body > *:not(.print-only-area) { display: none !important; visibility: hidden !important; }
+    .sidebar, .sidebar-brand, .mobile-topbar, .main-wrapper, .page-shell, .page-header, .card-premium, .modal, .toast-container, .flash-container,
+    script, style:not(.keep-in-print), #sidebarBackdrop, #sidebarToggle, #sidebarToggleMobile, #sidebarOpenBtn,
+    nav, .bg-surface, .border-b, .top-navbar, .navbar, [class*="brand"]:not(.print-only-brand) {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    /* ✨ FORCE SHOW PRINT AREA — PRIORITAS TERTINGGI */
+    body > .print-only-area,
+    .print-only-area,
+    .print-only-area * {
+        display: block !important;
+        visibility: visible !important;
+        box-sizing: border-box !important;
+    }
+    .print-only-area {
+        position: relative !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        min-height: 100vh !important;
+        background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important;
+        padding: 24px 18px 120px 18px !important;
+        page-break-after: avoid;
+    }
+    .print-only-area .flex  { display: flex !important; }
+    .print-only-area .inline-flex { display: inline-flex !important; }
+    .print-only-area .items-center { align-items: center !important; }
+    .print-only-area .justify-between { justify-content: space-between !important; }
+    .print-only-area .flex-col { flex-direction: column !important; }
+    .print-only-area .shrink-0 { flex-shrink: 0 !important; }
+    .print-only-area .flex-1 { flex: 1 1 0% !important; }
+    .print-only-area .min-w-0 { min-width: 0 !important; }
+    .print-only-area .break-words { word-wrap: break-word !important; overflow-wrap: break-word !important; }
+    .print-only-area .leading-none { line-height: 1 !important; }
+    .print-only-area .leading-snug { line-height: 1.375 !important; }
+    .print-only-area .gap-3 { gap: 0.75rem !important; }
+    .print-only-area .gap-3\.5 { gap: 0.875rem !important; }
+    .print-only-area .gap-4 { gap: 1rem !important; }
+    .print-only-area .mb-6 { margin-bottom: 1.5rem !important; }
+    .print-only-area .mb-7 { margin-bottom: 1.75rem !important; }
+    .print-only-area .px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
+    .print-only-area .py-3\.5 { padding-top: 0.875rem !important; padding-bottom: 0.875rem !important; }
+    .print-only-area .pb-6 { padding-bottom: 1.5rem !important; }
+    .print-only-area .w-7 { width: 1.75rem !important; }
+    .print-only-area .h-7 { height: 1.75rem !important; }
+    .print-only-area .w-8 { width: 2rem !important; }
+    .print-only-area .h-8 { height: 2rem !important; }
+    .print-only-area .rounded-full { border-radius: 9999px !important; }
+    .print-only-area .font-black { font-weight: 900 !important; }
+    .print-only-area .font-semibold { font-weight: 600 !important; }
+    .print-only-area .tracking-tight { letter-spacing: -0.025em !important; }
+    .print-only-area .tracking-wide { letter-spacing: 0.025em !important; }
+    .print-only-area .opacity-90 { opacity: 0.9 !important; }
+    .print-only-area .opacity-95 { opacity: 0.95 !important; }
+    .print-only-area .text-white { color: #fff !important; }
+    .print-only-area .text-slate-400 { color: #94a3b8 !important; }
+    .print-only-area i, .print-only-area svg { display: inline-block !important; }
+    .print-only-area .min-h-screen { min-height: 100vh !important; }
+    .print-only-area .rounded-\[14px\] { border-radius: 14px !important; }
+    .print-only-area .shadow-lg { box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important; }
+}
+</style>
+<?php
+// ===================================================
+// 🖨️ PRINT ONLY AREA (TAMPIL HANYA SAAT PRINT)
+// ===================================================
+?>
+<div class="print-only-area">
     <div class="min-h-screen" style="background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%); color:#fff;">
         <!-- 🔝 HEADER BAR PERSIS MICROSOFT LISTS (MOBILE STYLE) -->
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-4">
-                <div class="w-8 h-8 flex items-center justify-center text-white">
+                <div class="w-8 h-8 inline-flex items-center justify-center text-white">
                     <i class="fas fa-chevron-left text-xl"></i>
                 </div>
                 <div class="text-white text-sm font-semibold opacity-90 tracking-wide">Lists</div>
             </div>
             <div class="flex items-center gap-3">
-                <div class="flex items-center gap-1.5 text-white opacity-95">
+                <div class="inline-flex items-center gap-1.5 text-white opacity-95">
                     <i class="far fa-user text-base"></i>
                     <span class="text-sm font-semibold">2</span>
                 </div>
-                <div class="text-white opacity-90">
+                <div class="text-white opacity-90 inline-flex items-center">
                     <i class="fas fa-ellipsis-h text-lg"></i>
                 </div>
             </div>
         </div>
 
-        <!-- 📝 JUDUL BESAR PUTIH PERSIS LISTS -->
+        <!-- 📝 JUDUL BESAR PUTIH PERSIS LISTS - TIDAK ADA NAMA HOTEL SAMA SEKALI! -->
         <h1 class="text-white font-black tracking-tight mb-7 leading-none" style="font-size: 38px; line-height: 1.05;">
             Engineering Operation
         </h1>
@@ -481,15 +560,15 @@ if (empty($printAllActs)) {
                 $nm = trim((string)($actRow['activity_name'] ?? ''));
                 if ($nm === '') continue;
             ?>
-            <div class="bg-white rounded-[14px] px-4 py-3.5 shadow-lg flex items-center gap-3.5" style="box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+            <div class="bg-white rounded-[14px] px-4 py-3.5 shadow-lg flex items-center gap-3.5" style="background-color:#ffffff !important; color:#0f172a !important; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
                 <!-- ⚪ Radio Button Lingkaran Kosong KIRI -->
-                <div class="w-7 h-7 rounded-full border-[2.5px] border-slate-400 shrink-0 flex items-center justify-center bg-white"></div>
+                <div class="w-7 h-7 rounded-full border-[2.5px] border-slate-400 shrink-0 inline-flex items-center justify-center" style="background-color:#ffffff !important; border-color:#94a3b8 !important;"></div>
                 <!-- 📝 TEXT TENGAH 2 BARIS -->
-                <div class="flex-1 min-w-0 leading-snug" style="color:#1e293b;">
-                    <div class="text-[17px] font-semibold break-words line-clamp-2" style="color:#0f172a;"><?= htmlspecialchars($nm) ?></div>
+                <div class="flex-1 min-w-0 leading-snug" style="color:#1e293b !important;">
+                    <div style="font-size:17px; font-weight:600; color:#0f172a !important; word-wrap:break-word; line-height:1.375;"><?= htmlspecialchars($nm) ?></div>
                 </div>
                 <!-- ⭐ Star Icon KANAN ATAS -->
-                <div class="shrink-0 text-slate-400 pb-6">
+                <div class="shrink-0 pb-6 inline-flex items-center" style="color:#94a3b8 !important;">
                     <i class="far fa-star text-xl"></i>
                 </div>
             </div>
@@ -498,19 +577,15 @@ if (empty($printAllActs)) {
 
         <!-- 🔽 BOTTOM FLOATING + ADD A TASK -->
         <div style="position: fixed; left: 0; right: 0; bottom: 0; background: linear-gradient(180deg, rgba(30,64,175,0.0) 0%, rgba(30,64,175,0.98) 35%, #1e3a8a 100%); padding: 40px 18px 22px 18px;">
-            <div class="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/15 px-5 py-4 flex items-center gap-4">
-                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <div class="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/15 px-5 py-4 flex items-center gap-4" style="background-color: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.15);">
+                <div class="w-8 h-8 rounded-full bg-white/20 inline-flex items-center justify-center shrink-0" style="background-color: rgba(255,255,255,0.20);">
                     <i class="fas fa-plus text-white text-lg"></i>
                 </div>
-                <div class="text-white text-[18px] font-semibold tracking-wide">Add a Task</div>
+                <div class="text-white font-semibold tracking-wide" style="color:#ffffff !important; font-size:18px;">Add a Task</div>
             </div>
         </div>
     </div>
 </div>
-<style>
-    /* 🔒 DEFAULT HIDE PRINT AREA DI MODE WEB */
-    .print-only-area { display: none !important; }
-</style>
 <div class="page-shell page-shell--6xl">
     <div class="page-header flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 animate-fade-in">
         <div>
