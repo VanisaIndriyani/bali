@@ -773,7 +773,7 @@ require_once __DIR__ . '/includes/navbar.php';
                     <?php endforeach; ?>
                     </div>
 
-                    <!-- 3) 4 CARD TOTAL BIAYA RUPIAH (WA 18.21: "ini langsung isi rupiahnya") -->
+                    <!-- 4 CARD TOTAL BIAYA RUPIAH (Rp dipindah menempel didepan angka, tidak dipisah tag!) -->
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
                         <?php foreach ($utilRows as $ur):
                             [$label, $icon, $col, $iconBg, $lyVal, $nowVal, $unit, $costLY, $costNow, $cardBg, $cardBorder, $dividerBorder] = array_pad(array_slice($ur, 0, 13), 13, '');
@@ -783,29 +783,26 @@ require_once __DIR__ . '/includes/navbar.php';
                             elseif ($label === 'GAS') $shortName = 'Gas LPG';
                             elseif ($label === 'FUEL') $shortName = 'Solar BBM';
                             $costDiff = (float)$costNow - (float)$costLY;
-                            $diffClass = $costDiff > 0 ? 'text-rose-600' : 'text-emerald-600';
                             $diffSign = $costDiff > 0 ? '+ Rp ' : ($costDiff < 0 ? '- Rp ' : 'Rp ');
                             $diffAbs = abs($costDiff);
                         ?>
-                        <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition">
+                        <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm hover:shadow-md transition">
                             <div class="flex items-center justify-between mb-2.5">
                                 <span class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full">
-                                    <span class="text-[11px]"><?= $icon ?></span>
                                     <?= $shortName ?>
                                 </span>
                                 <span class="text-[8px] font-black text-slate-400 uppercase">HARI INI</span>
                             </div>
-                            <div class="flex items-baseline gap-1 leading-none mb-1">
-                                <p class="font-mono font-black text-[20px] sm:text-2xl text-slate-900">Rp</p>
-                                <p class="font-mono font-black text-[19px] sm:text-xl text-primary tracking-tight"><?= fmtRupiah($costNow) ?></p>
-                            </div>
+                            <p class="font-mono font-black text-[20px] sm:text-2xl text-primary leading-none tracking-tight mb-1">
+                                Rp <?= fmtRupiah($costNow) ?>
+                            </p>
                             <div class="mt-2.5 pt-2.5 border-t border-dashed border-slate-200 flex items-center justify-between">
                                 <span class="text-[9px] text-slate-500 font-semibold">LY Same Day</span>
                                 <span class="text-[9px] font-bold text-slate-600 font-mono">Rp <?= fmtRupiah($costLY) ?></span>
                             </div>
                             <div class="flex items-center justify-between mt-0.5">
                                 <span class="text-[9px] text-slate-500 font-semibold">Selisih</span>
-                                <span class="text-[9px] font-black <?= $diffClass ?> font-mono">
+                                <span class="text-[9px] font-black text-slate-700 font-mono">
                                     <?= $diffSign . fmtRupiah($diffAbs) ?>
                                 </span>
                             </div>
