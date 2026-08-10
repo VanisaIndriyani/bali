@@ -8,7 +8,7 @@ $userId = (int)($user['id'] ?? 0);
 $userRole = (string)($user['role'] ?? 'engineer');
 $userName = (string)($user['name'] ?? 'User');
 
-/* ---------- 1. PARAMETER TANGGAL LAPORAN ---------- */
+/* ---------- 1. PARAMETER TANGGAL ---------- */
 $dateRaw = $_GET['date'] ?? '';
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateRaw)) {
     $dateRaw = date('Y-m-d');
@@ -16,134 +16,136 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateRaw)) {
 $reportDate = $dateRaw;
 $reportDateObj = DateTime::createFromFormat('Y-m-d', $reportDate);
 $reportDateLabel = $reportDateObj ? strtoupper($reportDateObj->format('j F Y')) : strtoupper($reportDate);
-
-/* LY Same Day = tanggal TAHUN LALU, bulan dan tanggal SAMA */
 $lySameDay = date('Y-m-d', strtotime($reportDate . ' -1 year'));
 
-/* ---------- 2. HELPER FUNGSI ---------- */
-function repFmtIndo($v, $dec = 2) {
-    $v = (float)$v;
-    return number_format($v, $dec, ',', '.');
-}
-function repFmtRupiah($v) {
-    $v = (float)$v;
-    if ($v == 0) return '0';
-    return number_format($v, 0, ',', '.');
-}
-function repFmtPercent($v) {
-    return repFmtIndo((float)$v, 1) . '%';
-}
+/* ---------- 2. HELPER ---------- */
+function repFmtIndo($v, $dec = 2) { $v=(float)$v; return number_format($v, $dec, ',', '.'); }
+function repFmtRupiah($v) { $v=(float)$v; if ($v==0) return '0'; return number_format($v, 0, ',', '.'); }
+function repFmtPercent($v) { return repFmtIndo((float)$v, 1).'%'; }
 function repStatusLabel($st) {
-    if ($st === 'complete' || $st === 'completed') return 'Complete';
-    if ($st === 'in_progress' || $st === 'progress') return 'In Progress';
-    if ($st === 'pending') return 'Pending';
-    if ($st === '-') return '-';
+    if ($st==='complete'||$st==='completed') return 'Complete';
+    if ($st==='in_progress'||$st==='progress') return 'In Progress';
+    if ($st==='pending') return 'Pending';
+    if ($st==='-') return '-';
     return ucfirst($st);
 }
-
-/* Status filter (tampilkan yang approved, reviewer, pending — sesuai index.php) */
-$statusWhere = '';
-
-/* ---------- 3. TARIF STANDAR (SAMA DENGAN INDEX.PHP!) ---------- */
-$TARIF_LISTRIK = 1850;
-$TARIF_AIR     = 9600;
-$TARIF_GAS     = 24500;
-$TARIF_FUEL    = 17450;
-
-/* ---------- 4. DATA UTILITY TODAY & LY SAME DAY (100% LOGIC SAMA INDEX.PHP) ---------- */
-$sumToday = $db->fetchOne("SELECT
-    COALESCE(SUM(CASE WHEN log_date=? THEN total_electricity END),0) as elec,
-    COALESCE(SUM(CASE WHEN log_date=? THEN total_water END),0)       as water,
-    COALESCE(SUM(CASE WHEN log_date=? THEN total_gas END),0)         as gas,
-    COALESCE(SUM(CASE WHEN log_date=? THEN total_fuel END),0)        as fuel
-    FROM daily_logs WHERE status='approved' $statusWhere",
-    [$reportDate,$reportDate,$reportDate,$reportDate]);
-$elecToday  = (float)($sumToday['elec']  ?? 0);
-$waterToday = (float)($sumToday['water'] ?? 0);
-$gasToday   = (float)($sumToday['gas']   ?? 0);
-$fuelToday  = (float)($sumToday['fuel']  ?? 0);
-
-/* LY Same Day (Tahun lalu tanggal yang sama) */
-$sumLY = $db->fetchOne("SELECT
-    COALESCE(SUM(CASE WHEN log_date=? THEN total_electricity END),0) as elec,
-    COALESCE(SUM(CASE WHEN log_date=? THEN total_water END),0)       as water,
-    COALESCE(SUM(CASE WHEN log_date=? THEN total_gas END),0)         as gas,
-    COALESCE(SUM(CASE WHEN log_date=? THEN total_fuel END),0)        as fuel
-    FROM daily_logs WHERE status='approved'",
-    [$lySameDay,$lySameDay,$lySameDay,$lySameDay]);
-$elecLY  = (float)($sumLY['elec']  ?? 0);
-$waterLY = (float)($sumLY['water'] ?? 0);
-$gasLY   = (float)($sumLY['gas']   ?? 0);
-$fuelLY  = (float)($sumLY['fuel']  ?? 0);
-
-/* ---------- 5. KPI OCCUPANCY + ITR + M&U + GITB RANK (LOGIC SAMA PERSIS INDEX.PHP LINE 305-311) ---------- */
-$currentYearLY = (int)date('Y', strtotime($lySameDay));
-$currentYearReport = (int)date('Y', strtotime($reportDate));
-$occLYRow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND status = 'approved' AND occ_rate > 0", [$currentYearLY]);
-$occReportRow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND status = 'approved' AND occ_rate > 0", [$currentYearReport]);
-
-$defaultLyOcc = 70;
-$defaultTargetOcc = 80;
-$lyOcc = (($occLYRow['cnt'] ?? 0) > 0) ? round((float)($occLYRow['avg_occ'] ?? 0), 0) : $defaultLyOcc;
-$todayOccSingle = $db->fetchOne("SELECT occ_rate FROM daily_logs WHERE log_date = ? AND status = 'approved' ORDER BY id DESC LIMIT 1", [$reportDate]);
-$todayOccVal = (float)($todayOccSingle['occ_rate'] ?? 0);
-if ($todayOccVal > 0) {
-    $targetOcc = round($todayOccVal, 0);
-} else {
-    $avgMonthNow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE DATE_FORMAT(log_date,'%Y-%m') = ? AND status = 'approved' AND occ_rate > 0", [date('Y-m', strtotime($reportDate))]);
-    if (($avgMonthNow['cnt'] ?? 0) > 0) $targetOcc = round((float)($avgMonthNow['avg_occ'] ?? 0), 0);
-    else $targetOcc = $defaultTargetOcc;
+/* Heuristik status dari JUDUL ACTIVITY (100% SAMA INDEX.PHP LINE 321-324) */
+function repActHeurStatus($title) {
+    $t = trim((string)$title);
+    if (strlen($t) < 1) return 'complete';
+    $tl = strtolower($t);
+    $isProg = (strpos($tl,'progress')!==false) || (strpos($tl,'install')!==false)
+           || (strpos($tl,'perbaikan')!==false) || (strpos($tl,'new ')!==false)
+           || (strpos($tl,'buat')!==false) || (strpos($tl,'meeting')!==false);
+    return $isProg ? 'progress' : 'complete';
 }
 
-/* ITR / M&U / GITB = placeholder kalkulasi sederhana SAMA PERSIS INDEX.PHP */
-$kpiItr = $lyOcc > 0 ? number_format(85 + ($targetOcc - $lyOcc) * 0.2, 1, '.', '') : '-';
-$kpiMnU = $lyOcc > 0 ? number_format(78 + (($targetOcc - $lyOcc) * 0.3), 1, '.', '') : '-';
-$kpiRank = $targetOcc >= 90 ? '5' : ($targetOcc >= 80 ? '4' : ($targetOcc >= 70 ? '3' : '-'));
+/* ---------- 3. TARIF ---------- */
+$TARIF_LISTRIK = 1850; $TARIF_AIR = 9600; $TARIF_GAS = 24500; $TARIF_FUEL = 17450;
 
-$kpiData = [
-    ['Occupancy Rate', repFmtPercent($lyOcc), repFmtPercent($targetOcc), $kpiItr, $kpiMnU, $kpiRank],
-];
+/* ---------- 4. DATA UTILITY (WRAP TRY/CATCH SUPAYA TABLE TIDAK ADA = TIDAK FATAL ERROR) ---------- */
+$elecToday = $waterToday = $gasToday = $fuelToday = 0;
+$elecLY = $waterLY = $gasLY = $fuelLY = 0;
+try {
+    $sumToday = $db->fetchOne("SELECT
+        COALESCE(SUM(CASE WHEN log_date=? THEN total_electricity END),0) as elec,
+        COALESCE(SUM(CASE WHEN log_date=? THEN total_water END),0)       as water,
+        COALESCE(SUM(CASE WHEN log_date=? THEN total_gas END),0)         as gas,
+        COALESCE(SUM(CASE WHEN log_date=? THEN total_fuel END),0)        as fuel
+        FROM daily_logs WHERE status='approved'",
+        [$reportDate,$reportDate,$reportDate,$reportDate]);
+    if ($sumToday) {
+        $elecToday  = (float)($sumToday['elec']  ?? 0);
+        $waterToday = (float)($sumToday['water'] ?? 0);
+        $gasToday   = (float)($sumToday['gas']   ?? 0);
+        $fuelToday  = (float)($sumToday['fuel']  ?? 0);
+    }
+    $sumLY = $db->fetchOne("SELECT
+        COALESCE(SUM(CASE WHEN log_date=? THEN total_electricity END),0) as elec,
+        COALESCE(SUM(CASE WHEN log_date=? THEN total_water END),0)       as water,
+        COALESCE(SUM(CASE WHEN log_date=? THEN total_gas END),0)         as gas,
+        COALESCE(SUM(CASE WHEN log_date=? THEN total_fuel END),0)        as fuel
+        FROM daily_logs WHERE status='approved'",
+        [$lySameDay,$lySameDay,$lySameDay,$lySameDay]);
+    if ($sumLY) {
+        $elecLY  = (float)($sumLY['elec']  ?? 0);
+        $waterLY = (float)($sumLY['water'] ?? 0);
+        $gasLY   = (float)($sumLY['gas']   ?? 0);
+        $fuelLY  = (float)($sumLY['fuel']  ?? 0);
+    }
+} catch (Exception $e) { /* utility kosong */ }
 
-/* ---------- 6. DATA ENGINEERING ACTIVITIES 4 DIVISI ---------- */
+/* ---------- 5. KPI OCCUPANCY + ITR + M&U + GITB ---------- */
+$kpiData = [['Occupancy Rate','- %','- %','-','-','-']];
+try {
+    $currentYearLY = (int)date('Y', strtotime($lySameDay));
+    $currentYearReport = (int)date('Y', strtotime($reportDate));
+    $occLYRow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND status = 'approved' AND occ_rate > 0", [$currentYearLY]);
+    $occReportRow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND status = 'approved' AND occ_rate > 0", [$currentYearReport]);
+    $defaultLyOcc = 70; $defaultTargetOcc = 80;
+    $lyOcc = (($occLYRow['cnt'] ?? 0) > 0) ? round((float)($occLYRow['avg_occ'] ?? 0), 0) : $defaultLyOcc;
+    $todayOccSingle = $db->fetchOne("SELECT occ_rate FROM daily_logs WHERE log_date = ? AND status = 'approved' ORDER BY id DESC LIMIT 1", [$reportDate]);
+    $todayOccVal = (float)($todayOccSingle['occ_rate'] ?? 0);
+    if ($todayOccVal > 0) {
+        $targetOcc = round($todayOccVal, 0);
+    } else {
+        $avgMonthNow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE DATE_FORMAT(log_date,'%Y-%m') = ? AND status = 'approved' AND occ_rate > 0", [date('Y-m', strtotime($reportDate))]);
+        if (($avgMonthNow['cnt'] ?? 0) > 0) $targetOcc = round((float)($avgMonthNow['avg_occ'] ?? 0), 0);
+        else $targetOcc = $defaultTargetOcc;
+    }
+    $kpiItr = $lyOcc > 0 ? number_format(85 + ($targetOcc - $lyOcc) * 0.2, 1, '.', '') : '-';
+    $kpiMnU = $lyOcc > 0 ? number_format(78 + (($targetOcc - $lyOcc) * 0.3), 1, '.', '') : '-';
+    $kpiRank = $targetOcc >= 90 ? '5' : ($targetOcc >= 80 ? '4' : ($targetOcc >= 70 ? '3' : '-'));
+    $kpiData = [
+        ['Occupancy Rate', repFmtPercent($lyOcc), repFmtPercent($targetOcc), $kpiItr, $kpiMnU, $kpiRank],
+    ];
+} catch (Exception $e) { /* KPI tetap isi default - */ }
+
+/* ---------- 6. ENGINEERING ACTIVITIES PER DIVISI -------------- */
+/*  NAMA TABLE ASLI = daily_log_activities (dla), KATEGORI = dla.category (lowercase), TITLE = dla.activity_title */
 $divisions = ['OPERATION', 'MAINTENANCE', 'PROJECT', 'LANDSCAPE'];
 $actByDiv = [];
-foreach ($divisions as $d) {
-    $actByDiv[$d] = [];
-}
-$actRows = $db->fetchAll(
-    "SELECT ac.division, ac.activity_name, ac.status 
-     FROM activity_counters ac
-     INNER JOIN daily_logs dl ON dl.id = ac.daily_log_id
-     WHERE dl.log_date = ? AND dl.status IN ('approved','reviewed','pending')
-     ORDER BY FIELD(ac.division,'OPERATION','MAINTENANCE','PROJECT','LANDSCAPE'), ac.id ASC",
-    [$reportDate]
-);
-foreach ($actRows as $ar) {
-    $d = strtoupper((string)($ar['division'] ?? ''));
-    if (!in_array($d, $divisions)) continue;
-    $actByDiv[$d][] = [
-        'name' => (string)($ar['activity_name'] ?? '-'),
-        'status' => strtolower((string)($ar['status'] ?? 'pending')),
-    ];
-}
-/* Fallback Master Template jika ada divisi kosong */
-foreach ($divisions as $d) {
-    if (count($actByDiv[$d]) === 0) {
-        $masterRows = $db->fetchAll(
-            "SELECT activity_name FROM activity_masters WHERE LOWER(division) = ? AND status = 'active' ORDER BY id ASC LIMIT 4",
-            [strtolower($d)]
-        );
-        foreach ($masterRows as $mr) {
-            $actByDiv[$d][] = ['name' => (string)($mr['activity_name'] ?? '-'), 'status' => 'in_progress'];
+foreach ($divisions as $d) $actByDiv[$d] = [];
+try {
+    $actRows = $db->fetchAll(
+        "SELECT dla.category, dla.activity_title
+         FROM daily_log_activities dla
+         INNER JOIN daily_logs dl ON dl.id = dla.daily_log_id
+         WHERE dl.log_date = ? AND dl.status IN ('approved','reviewed','pending')
+         ORDER BY FIELD(dla.category,'operation','maintenance','project','landscape'), dla.id ASC",
+        [$reportDate]
+    );
+    foreach ($actRows as $ar) {
+        $d = strtoupper((string)($ar['category'] ?? ''));
+        if (!in_array($d, $divisions)) continue;
+        $title = (string)($ar['activity_title'] ?? '-');
+        if (strlen(trim($title)) < 1) continue;
+        $actByDiv[$d][] = ['name' => $title, 'status' => repActHeurStatus($title)];
+    }
+} catch (Exception $e) { /* daily_log_activities table not exists */ }
+
+/* Fallback ke activity_masters per divisi jika kosong — wrap try/catch juga */
+try {
+    foreach ($divisions as $d) {
+        if (count($actByDiv[$d]) === 0) {
+            $masterRows = $db->fetchAll(
+                "SELECT activity_name, status_default FROM activity_masters WHERE LOWER(division) = ? AND status = 'active' ORDER BY sort_order ASC, id ASC LIMIT 4",
+                [strtolower($d)]
+            );
+            foreach ($masterRows as $mr) {
+                $name = (string)($mr['activity_name'] ?? '-');
+                $statusRaw = strtolower((string)($mr['status_default'] ?? 'progress'));
+                $status = in_array($statusRaw,['complete','completed','progress','pending']) ? $statusRaw : repActHeurStatus($name);
+                $actByDiv[$d][] = ['name' => $name, 'status' => $status];
+            }
         }
     }
-}
+} catch (Exception $e) { /* activity_masters table not exists = biarkan kosong */ }
 
 /* ---------- 7. RENDER MODE ---------- */
 $format = isset($_GET['format']) ? strtolower(cleanInput($_GET['format'])) : 'print';
 $fileName = 'Daily_Engineering_Summary_' . $reportDate;
 
-/* -------------------- MODE EXCEL -------------------- */
 if ($format === 'excel') {
     header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
     header('Content-Disposition: attachment; filename="' . $fileName . '.xls"');
@@ -153,8 +155,6 @@ if ($format === 'excel') {
     require __DIR__ . '/_daily_summary_xls.php';
     exit;
 }
-
-/* -------------------- DEFAULT = PRINT / PDF -------------------- */
 ?><!DOCTYPE html>
 <html lang="en">
 <head>
@@ -224,7 +224,7 @@ if ($format === 'excel') {
         </tbody>
     </table>
 
-    <!-- ② UTILITY USAGE SUMMARY -->
+    <!-- ② UTILITY -->
     <h2>2. UTILITY USAGE SUMMARY</h2>
     <table>
         <thead><tr><th>UTILITY</th><th>PERIOD</th><th>USAGE</th><th>COST (Rp.)</th></tr></thead>
