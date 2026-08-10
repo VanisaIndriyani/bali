@@ -70,16 +70,6 @@ $uploadsDir = realpath(__DIR__ . '/../assets/uploads');
 body { font-family: 'Segoe UI', Tahoma, sans-serif; color: #111; background: #f5f5f5; padding: 20px; }
 .wrapper { max-width: 900px; margin: 0 auto; background: #fff; padding: 40px; box-shadow: 0 2px 20px rgba(0,0,0,0.08); }
 .header { display: flex; align-items: center; gap: 20px; padding-bottom: 20px; border-bottom: 2px solid #111; margin-bottom: 25px; }
-.logo { width: 70px; height: 70px; object-fit: contain; border: 1px solid #e5e5e5; border-radius: 12px; padding: 4px; background: #fff; }
-.logo-fallback {
-    width: 70px; height: 70px; flex-shrink: 0;
-    background: linear-gradient(135deg, #c9a227, #8a6e14);
-    color: #fff; border-radius: 12px;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-family: 'Playfair Display', Georgia, serif;
-    font-size: 26px; font-weight: 800; letter-spacing: 1px;
-    box-shadow: 0 6px 14px rgba(201,162,39,0.32);
-}
 .header-text h1 { font-family: Georgia, serif; font-size: 24px; font-weight: 700; letter-spacing: 1px; }
 .header-text p { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #555; margin-top: 3px; }
 .header-text .sub { font-size: 10px; letter-spacing: 1.5px; margin-top: 2px; color: #888; }

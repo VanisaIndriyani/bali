@@ -85,7 +85,7 @@ foreach ($summaryData as $row) {
 }
 
 $modeLabel = $viewType === 'monthly' ? 'Bulanan' : 'Harian';
-$fileName = 'STREGIS_BALI_Dashboard_Konsumsi_' . $modeLabel . '_' . date('Ymd', strtotime($dateFrom)) . '-' . date('Ymd', strtotime($dateTo));
+$fileName = 'EngineeringReport_Dashboard_Konsumsi_' . $modeLabel . '_' . date('Ymd', strtotime($dateFrom)) . '-' . date('Ymd', strtotime($dateTo));
 
 header('Content-Type: application/vnd.ms-excel; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $fileName . '.xls"');
@@ -102,6 +102,7 @@ function ecell($v) {
 }
 
 ob_start();
+echo "\xEF\xBB\xBF";
 ?>
 <!DOCTYPE html>
 <html>
@@ -113,8 +114,8 @@ ob_start();
 <title><?= ecell($fileName) ?></title>
 <style>
     body { font-family: Calibri, Arial, sans-serif; color:#1f2937; background:#fff; }
-    table { border-collapse: collapse; width: 100%; }
-    td, th { border: 1px solid #d1d5db; padding: 7px 10px; vertical-align: top; }
+    table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+    td, th { border: 1px solid #d1d5db; padding: 7px 10px; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
     th { background: #fafafa; color:#1f2937; text-align:left; font-weight:bold; border-bottom: 2px solid #c9a227; }
     .h1 { font-size: 22px; font-weight: bold; color:#1f2937; margin:0; font-family: Georgia, 'Times New Roman', serif; letter-spacing:1px; }
     .h2 { font-size: 10px; color:#6b7280; margin:3px 0 0; text-transform: uppercase; letter-spacing:0.2em; }
@@ -150,6 +151,9 @@ ob_start();
     </div>
 
     <table class="meta" style="margin-bottom:18px; width:100%;">
+        <colgroup>
+            <col style="width:150px;"><col style="width:280px;"><col style="width:150px;"><col style="width:*;">
+        </colgroup>
         <tr><td>Periode Laporan</td><td>: <?= ecell(formatDate($dateFrom)) ?> s/d <?= ecell(formatDate($dateTo)) ?></td>
             <td>Dicetak Tanggal</td><td>: <?= ecell(formatDate(date('Y-m-d'))) ?> <?= ecell(date('H:i')) ?></td></tr>
         <tr><td>Mode Tampilan</td><td>: <?= ecell($modeLabel) ?> (<?= ecell($viewType) ?>)</td>
@@ -157,6 +161,9 @@ ob_start();
     </table>
 
     <table class="stat" style="width:100%; margin-bottom: 12px;">
+        <colgroup>
+            <col style="width:25%;"><col style="width:25%;"><col style="width:25%;"><col style="width:25%;">
+        </colgroup>
         <tr>
             <td style="width:25%;"><div class="box" style="border-left-color:#d97706;">
                 <div class="lbl">⚡ TOTAL LISTRIK</div>
@@ -180,6 +187,9 @@ ob_start();
     <div class="h-section">■ RANGKUMAN KONSUMSI <?= ecell(strtoupper($modeLabel)) ?> — PERIODE <?= ecell(ecell(formatDate($dateFrom))) ?> S/D <?= ecell(formatDate($dateTo)) ?></div>
     <?php if (count($summaryData) > 0): ?>
     <table style="width:100%;">
+        <colgroup>
+            <col style="width:22%;"><col style="width:16%;"><col style="width:21%;"><col style="width:21%;"><col style="width:20%;">
+        </colgroup>
         <thead>
             <tr>
                 <th style="width:20%;"><?= $viewType === 'monthly' ? 'Bulan' : 'Tanggal' ?></th>
@@ -217,6 +227,14 @@ ob_start();
     <br><div class="h-section">■ DETAIL DAILY LOG APPROVED</div>
     <?php if (count($detailData) > 0): ?>
     <table style="width:100%;">
+        <colgroup>
+            <col style="width:5%;"><col style="width:11%;">
+            <?php if ($userRole === 'supervisor'): ?>
+                <col style="width:12%;"><col style="width:11%;"><col style="width:10%;">
+            <?php endif; ?>
+            <col style="width:9%;"><col style="width:9%;"><col style="width:9%;">
+            <col style="width:13%;"><col style="width:10%;"><col style="width:11%;">
+        </colgroup>
         <thead>
             <tr>
                 <th style="width:5%;">No</th>

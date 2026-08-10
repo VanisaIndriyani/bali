@@ -54,9 +54,9 @@ echo "\xEF\xBB\xBF";
 <style>
 * { font-family: Calibri, Arial, sans-serif; }
 body { padding: 15px; }
-table { border-collapse: collapse; width: 100%; }
+table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 th { background: #111; color: #fff; padding: 10px 12px; font-weight: 700; font-size: 11px; text-align: left; border: 1px solid #111; }
-td { padding: 8px 12px; font-size: 11px; border: 1px solid #d0d0d0; vertical-align: top; }
+td { padding: 8px 12px; font-size: 11px; border: 1px solid #d0d0d0; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
 tr:nth-child(even) td { background: #fafafa; }
 .title { font-size: 20px; font-weight: 800; color: #111; margin-bottom: 4px; font-family: Georgia, serif; }
 .subtitle { font-size: 11px; color: #666; margin-bottom: 15px; letter-spacing: 1px; }
@@ -91,6 +91,9 @@ tr:nth-child(even) td { background: #fafafa; }
 <div class="subtitle">ENGINEERING DEPARTMENT • DAILY LOG REPORT</div>
 
 <table class="meta">
+<colgroup>
+    <col style="width:160px;"><col style="width:*;">
+</colgroup>
 <tr><td class="label">Periode Laporan</td><td><?= formatDate($dateFrom) ?> s/d <?= formatDate($dateTo) ?></td></tr>
 <tr><td class="label">Dibuat Oleh</td><td><?= cleanInput($user['name']) ?> (<?= $user['role'] === 'engineer' ? 'Engineer' : 'Supervisor' ?>)</td></tr>
 <tr><td class="label">Tanggal Export</td><td><?= formatDateTime(date('Y-m-d H:i:s')) ?></td></tr>
@@ -110,6 +113,20 @@ tr:nth-child(even) td { background: #fafafa; }
 
 <div class="section-title">Rekapitulasi Data</div>
 <table>
+<colgroup>
+    <col style="width:45px;">
+    <col style="width:110px;">
+    <?php if ($isSupervisor): ?>
+        <col style="width:140px;"><col style="width:120px;">
+    <?php endif; ?>
+    <col style="width:110px;">
+    <col style="width:100px;">
+    <col style="width:100px;">
+    <col style="width:90px;">
+    <?php if ($isSupervisor): ?>
+        <col style="width:140px;">
+    <?php endif; ?>
+</colgroup>
 <thead>
 <tr>
     <th style="width:30px" class="center">NO</th>
