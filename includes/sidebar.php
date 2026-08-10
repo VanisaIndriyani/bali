@@ -67,11 +67,11 @@ $sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
 <div class="app-layout is-sidebar-expanded" id="appLayout">
 <aside id="sidebar" class="sidebar sidebar-expanded !bg-white !border-r !border-slate-200 !shadow-none">
     <div class="sidebar-inner !p-0 !bg-white">
-        <div class="sidebar-brand !border-b !border-slate-100 !px-4 !pt-4 !pb-4 min-h-[88px] relative overflow-hidden group/brand">
-            <button type="button" id="sidebarToggle" class="sidebar-toggle hidden md:inline-flex sidebar-btn-topright" aria-label="Toggle Sidebar" title="Collapse / Expand">
+        <div class="sidebar-brand !border-b !border-slate-100 !px-4 !pt-4 !pb-4 min-h-[88px] relative group/brand">
+            <button type="button" id="sidebarToggle" class="sidebar-toggle hidden md:inline-flex sidebar-btn-topright z-50" aria-label="Toggle Sidebar" title="Collapse / Expand">
                 <i class="fas fa-bars-staggered transition-transform duration-300"></i>
             </button>
-            <button type="button" id="sidebarToggleMobile" class="sidebar-toggle-mobile md:hidden sidebar-btn-topright" aria-label="Close Sidebar" title="Close">
+            <button type="button" id="sidebarToggleMobile" class="sidebar-toggle-mobile md:hidden sidebar-btn-topright z-50" aria-label="Close Sidebar" title="Close">
                 <i class="fas fa-xmark"></i>
             </button>
             <div class="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-sky-400/10 via-sky-500/5 to-transparent blur-2xl pointer-events-none group-hover/brand:from-sky-500/20 transition-all duration-500"></div>
@@ -87,12 +87,10 @@ $sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
                             <i class="fas fa-file-pen text-white text-[7px]"></i>
                         </div>
                     </div>
-                    <div class="min-w-0 flex-1 leading-tight">
-                        <h1 class="font-display text-[18px] leading-none font-black tracking-wide text-slate-900 mb-1">
-                            Engineering
-                        </h1>
+                    <span class="nav-label min-w-0 flex-1 leading-tight block">
+                        <span class="font-display text-[18px] leading-none font-black tracking-wide text-slate-900 mb-1 block">Engineering</span>
                         <span class="block text-[17px] leading-none font-black bg-gradient-to-r from-sky-600 via-sky-700 to-blue-700 bg-clip-text text-transparent">Report</span>
-                    </div>
+                    </span>
                 </div>
             </a>
         </div>
