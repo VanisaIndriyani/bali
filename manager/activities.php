@@ -289,9 +289,9 @@ function renderActItems($jsonItems, $maxItems = null) {
         $text = htmlspecialchars(trim((string)$it['t']));
         $status = ($it['s'] ?? 'progress') === 'complete' ? 'complete' : 'progress';
         if ($status === 'complete') {
-            $badge = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 ml-1.5 whitespace-nowrap shrink-0"><i class="fas fa-check-circle text-[9px]"></i> Complete</span>';
+            $badge = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 ml-1.5 whitespace-nowrap shrink-0"><i class="fa-solid fa-circle-check text-[8px]"></i> Done</span>';
         } else {
-            $badge = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 ml-1.5 whitespace-nowrap shrink-0"><i class="fas fa-spinner fa-spin text-[9px]"></i> In Progress</span>';
+            $badge = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black text-amber-700 bg-amber-50 border border-amber-200 ml-1.5 whitespace-nowrap shrink-0"><i class="fa-regular fa-clock text-[8px]"></i> Progress</span>';
         }
         $out[] = '<div class="flex items-start gap-1 text-xs text-primary leading-relaxed"><span class="text-slate-400 font-black shrink-0 mt-0.5">•</span><span class="flex-1 min-w-0 break-words">'.$text.'</span>'.$badge.'</div>';
     }
@@ -911,27 +911,27 @@ if (empty($printAllActs)) {
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md"></div>
         <div class="relative w-full max-w-4xl max-h-[88vh] bg-white rounded-3xl shadow-[0_30px_100px_-20px_rgba(30,41,59,0.45)] overflow-hidden flex flex-col animate-slide-up-modal border-2 border-slate-200">
             <!-- HEADER MODAL GRADIENT -->
-            <div class="bg-gradient-to-br <?= $c['iconBox'] ?> p-6 sm:p-7 text-white relative overflow-hidden">
+            <div class="bg-gradient-to-br <?= $c['iconBox'] ?> p-4 sm:p-5 text-white relative overflow-hidden">
                 <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
                 <div class="absolute -right-20 bottom-0 w-60 h-60 bg-black/10 rounded-full blur-3xl"></div>
-                <div class="relative flex items-start justify-between gap-4">
-                    <div class="flex items-center gap-4">
-                        <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center ring-2 ring-white/40 shadow-lg shrink-0">
-                            <i class="<?= $c['icon'] ?> text-2xl sm:text-3xl"></i>
+                <div class="relative flex items-start justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center ring-2 ring-white/40 shadow-lg shrink-0">
+                            <i class="<?= $c['icon'] ?> text-lg sm:text-xl"></i>
                         </div>
                         <div>
-                            <p class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.25em] text-white/85 mb-1.5">DETAIL REKAP BULAN INI • <?= date('M Y') ?></p>
-                            <h4 class="font-display text-2xl sm:text-3xl font-black tracking-wide leading-tight">Divisi <?= $c['label'] ?></h4>
-                            <div class="flex flex-wrap items-center gap-3 mt-2">
-                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white text-xs font-bold">
-                                    <i class="fas fa-list-check"></i> Total Data: <span class="font-black text-white"><?= count($rows) ?> aktivitas</span>
+                            <p class="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.25em] text-white/85 mb-1">DETAIL REKAP BULAN INI • <?= date('M Y') ?></p>
+                            <h4 class="font-display text-lg sm:text-xl font-black tracking-wide leading-tight">Divisi <?= $c['label'] ?></h4>
+                            <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white text-[11px] font-bold">
+                                    <i class="fas fa-list-check text-[10px]"></i> Total: <span class="font-black text-white"><?= count($rows) ?></span>
                                 </span>
-                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white text-slate-800 text-xs font-black shadow">
-                                    <i class="<?= $c['icon'] ?> <?= $c['color'] ?>"></i> Total Counters: <?= number_format($totalSum, 0, ',', '.') ?>
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white text-slate-800 text-[11px] font-black shadow">
+                                    <i class="<?= $c['icon'] ?> <?= $c['color'] ?> text-[10px]"></i> Counters: <?= number_format($totalSum, 0, ',', '.') ?>
                                 </span>
                                 <?php if ($showMasterBox): ?>
-                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-black shadow">
-                                    <i class="fas fa-database"></i> Master Template: <?= $masterCnt ?>
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-5 border border-sky-200 text-sky-700 text-[11px] font-black shadow">
+                                    <i class="fas fa-database text-[10px]"></i> Master: <?= $masterCnt ?>
                                 </span>
                                 <?php endif; ?>
                             </div>
@@ -939,40 +939,40 @@ if (empty($printAllActs)) {
                     </div>
                     <button type="button"
                             onclick="closeModal('<?= htmlspecialchars($c['id']) ?>')"
-                            class="shrink-0 w-11 h-11 rounded-2xl bg-white/20 hover:bg-white text-white hover:text-rose-600 border border-white/30 backdrop-blur-sm flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 shadow-md"
+                            class="shrink-0 w-9 h-9 rounded-xl bg-white/20 hover:bg-white text-white hover:text-rose-600 border border-white/30 backdrop-blur-sm flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 shadow-md"
                             aria-label="Tutup modal">
-                        <i class="fas fa-xmark text-xl font-black"></i>
+                        <i class="fas fa-xmark text-lg font-black"></i>
                     </button>
                 </div>
             </div>
 
             <!-- BODY MODAL -->
-            <div class="flex-1 overflow-y-auto p-5 sm:p-7 bg-gradient-to-b from-slate-50 to-white">
+            <div class="flex-1 overflow-y-auto p-3.5 sm:p-5 bg-gradient-to-b from-slate-50 to-white">
                 <?php if (empty($rows) && !$showMasterBox): ?>
-                    <div class="text-center py-16 px-6">
-                        <div class="w-20 h-20 mx-auto mb-5 rounded-3xl bg-slate-100 flex items-center justify-center text-slate-400">
-                            <i class="far fa-folder-open text-3xl"></i>
+                    <div class="text-center py-12 px-4">
+                        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                            <i class="far fa-folder-open text-2xl"></i>
                         </div>
-                        <h5 class="text-xl font-black text-slate-700 mb-2">Belum ada data aktivitas divisi <?= $c['label'] ?></h5>
-                        <p class="text-sm text-slate-500 mb-6">Isi counters terlebih dahulu melalui Form Manager Isi Activity Counters di atas.</p>
+                        <h5 class="text-lg font-black text-slate-700 mb-1.5">Belum ada data aktivitas divisi <?= $c['label'] ?></h5>
+                        <p class="text-[12px] text-slate-500 mb-5">Isi counters terlebih dahulu melalui Form Manager Isi Activity Counters di atas.</p>
                         <button type="button"
                                 onclick="closeModal('<?= htmlspecialchars($c['id']) ?>')"
-                                class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 hover:from-slate-800 hover:to-black text-white text-sm font-bold shadow-lg shadow-slate-500/20 transition">
-                            <i class="fas fa-arrow-left"></i> Kembali
+                                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 hover:from-slate-800 hover:to-black text-white text-[12px] font-bold shadow-lg shadow-slate-500/20 transition">
+                            <i class="fas fa-arrow-left text-[11px]"></i> Kembali
                         </button>
                     </div>
                 <?php else: ?>
                     <?php if (!empty($rows)): ?>
                     <div class="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
-                        <table class="w-full text-sm">
+                        <table class="w-full text-[13px]">
                             <thead class="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                                 <tr>
-                                    <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-10">#</th>
-                                    <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-20">Ref ID</th>
-                                    <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-28">Tanggal</th>
-                                    <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500 w-40">Nama Staff</th>
-                                    <th class="px-3 py-3 text-left text-[10px] font-black uppercase tracking-widest text-slate-500">Activity Detail<br><span class="text-[9px] font-bold text-slate-500">(Daftar Aktivitas + Status)</span></th>
-                                    <th class="px-3 py-3 text-right text-[10px] font-black uppercase tracking-widest text-slate-500 pr-3 w-32">Counters<br><span class="text-[9px] text-slate-600 font-bold">Divisi <?= $c['label'] ?></span></th>
+                                    <th class="px-2.5 py-2 text-left text-[9px] font-black uppercase tracking-widest text-slate-500 w-10">#</th>
+                                    <th class="px-2.5 py-2 text-left text-[9px] font-black uppercase tracking-widest text-slate-500 w-20">Ref ID</th>
+                                    <th class="px-2.5 py-2 text-left text-[9px] font-black uppercase tracking-widest text-slate-500 w-28">Tanggal</th>
+                                    <th class="px-2.5 py-2 text-left text-[9px] font-black uppercase tracking-widest text-slate-500 w-40">Nama Staff</th>
+                                    <th class="px-2.5 py-2 text-left text-[9px] font-black uppercase tracking-widest text-slate-500">Activity Detail<br><span class="text-[8px] font-bold text-slate-500">(Daftar Aktivitas + Status)</span></th>
+                                    <th class="px-2.5 py-2 text-right text-[9px] font-black uppercase tracking-widest text-slate-500 pr-2.5 w-28">Counters<br><span class="text-[8px] text-slate-600 font-bold">Divisi <?= $c['label'] ?></span></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -984,36 +984,36 @@ if (empty($printAllActs)) {
                                     $actRowHtml = renderActItems($r[$colItems] ?? '');
                                 ?>
                                 <tr class="hover:bg-slate-50 transition-colors group">
-                                    <td class="px-3 py-3 text-xs font-bold text-slate-400 align-top"><?= $no++ ?>.</td>
-                                    <td class="px-3 py-3 align-top">
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-900/5 border border-slate-200 text-[11px] font-mono font-bold text-slate-700">
+                                    <td class="px-2.5 py-2 text-[11px] font-bold text-slate-400 align-top"><?= $no++ ?>.</td>
+                                    <td class="px-2.5 py-2 align-top">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-900/5 border border-slate-200 text-[10px] font-mono font-bold text-slate-700">
                                             #<?= (int)$r['id'] ?>
                                         </span>
                                     </td>
-                                    <td class="px-3 py-3 align-top">
+                                    <td class="px-2.5 py-2 align-top">
                                         <div class="flex flex-col">
-                                            <span class="text-xs font-bold text-primary"><?= date('d M Y', strtotime($r['log_date'])) ?></span>
-                                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"><?= date('l', strtotime($r['log_date'])) ?></span>
+                                            <span class="text-[11px] font-bold text-primary"><?= date('d M Y', strtotime($r['log_date'])) ?></span>
+                                            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400"><?= date('l', strtotime($r['log_date'])) ?></span>
                                         </div>
                                     </td>
-                                    <td class="px-3 py-3 align-top">
-                                        <div class="flex items-center gap-2">
-                                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center font-black text-[11px] shadow-sm ring-2 ring-white shrink-0">
+                                    <td class="px-2.5 py-2 align-top">
+                                        <div class="flex items-center gap-1.5">
+                                            <div class="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center font-black text-[10px] shadow-sm ring-2 ring-white shrink-0">
                                                 <?= strtoupper(mb_substr((string)$r['engineer_name'], 0, 1) ?: '?') ?>
                                             </div>
-                                            <span class="text-xs font-bold text-primary leading-tight"><?= htmlspecialchars($r['engineer_name']) ?></span>
+                                            <span class="text-[11px] font-bold text-primary leading-tight"><?= htmlspecialchars($r['engineer_name']) ?></span>
                                         </div>
                                     </td>
-                                    <td class="px-3 py-3 align-top min-w-[300px]">
+                                    <td class="px-2.5 py-2 align-top min-w-[280px]">
                                         <?php if ($actRowHtml === ''): ?>
-                                            <span class="inline-block text-[11px] italic text-slate-400 font-semibold">(tidak ada detail activity manual)</span>
+                                            <span class="inline-block text-[10px] italic text-slate-400 font-semibold">(tidak ada detail activity manual)</span>
                                         <?php else: ?>
                                             <?= $actRowHtml ?>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="px-3 py-3 pr-3 text-right align-top">
-                                        <span class="inline-flex items-center justify-end gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 border border-slate-300 text-base font-black text-slate-700 shadow-sm">
-                                            <i class="<?= $c['icon'] ?> text-[12px] text-slate-500"></i>
+                                    <td class="px-2.5 py-2 pr-2.5 text-right align-top">
+                                        <span class="inline-flex items-center justify-end gap-1 px-2 py-1 rounded-lg bg-slate-100 border border-slate-300 text-sm font-black text-slate-700 shadow-sm">
+                                            <i class="<?= $c['icon'] ?> text-[11px] text-slate-500"></i>
                                             <?= number_format((int)($r['cnt'] ?? 0), 0, ',', '.') ?>
                                         </span>
                                     </td>
@@ -1022,14 +1022,14 @@ if (empty($printAllActs)) {
                             </tbody>
                             <tfoot class="bg-gradient-to-r from-slate-50 to-slate-100 border-t-2 border-slate-300">
                                 <tr>
-                                    <td colspan="5" class="px-3 py-3.5 text-right">
-                                        <span class="text-[11px] font-black uppercase tracking-widest text-slate-500 mr-1.5 flex items-center justify-end gap-1.5">
-                                            <i class="fas fa-calculator"></i> TOTAL COUNTERS DIVISI <?= $c['label'] ?> BULAN INI:
+                                    <td colspan="5" class="px-2.5 py-2.5 text-right">
+                                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-500 mr-1 flex items-center justify-end gap-1">
+                                            <i class="fas fa-calculator text-[10px]"></i> TOTAL DIVISI <?= $c['label'] ?>:
                                         </span>
                                     </td>
-                                    <td class="px-3 py-3.5 pr-3 text-right">
-                                        <span class="inline-flex items-center justify-end gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-br <?= $c['iconBox'] ?> text-white text-lg font-black shadow-lg shadow-slate-500/10 ring-2 ring-white/80">
-                                            <i class="<?= $c['icon'] ?>"></i>
+                                    <td class="px-2.5 py-2.5 pr-2.5 text-right">
+                                        <span class="inline-flex items-center justify-end gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-br <?= $c['iconBox'] ?> text-white text-base font-black shadow-lg shadow-slate-500/10 ring-2 ring-white/80">
+                                            <i class="<?= $c['icon'] ?> text-[13px]"></i>
                                             <?= number_format($totalSum, 0, ',', '.') ?>
                                         </span>
                                     </td>
@@ -1040,25 +1040,25 @@ if (empty($printAllActs)) {
                     <?php endif; ?>
 
                     <?php if ($showMasterBox): ?>
-                    <div class="mt-7 border-t-2 border-dashed border-slate-200 pt-7">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white shadow shadow-sky-500/30">
-                                <i class="fas fa-database text-sm"></i>
+                    <div class="mt-5 border-t-2 border-dashed border-slate-200 pt-5">
+                        <div class="flex items-center gap-2.5 mb-3">
+                            <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white shadow shadow-sky-500/30">
+                                <i class="fas fa-database text-[13px]"></i>
                             </div>
                             <div>
-                                <p class="text-[11px] font-black uppercase tracking-[0.2em] text-sky-700">MASTER TEMPLATE</p>
-                                <h6 class="font-black text-lg text-primary">Daftar Master Activity Divisi <?= $c['label'] ?> (<?= $masterCnt ?>)</h6>
+                                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-sky-700">MASTER TEMPLATE</p>
+                                <h6 class="font-black text-[15px] text-primary">Daftar Master Activity Divisi <?= $c['label'] ?> (<?= $masterCnt ?>)</h6>
                             </div>
                         </div>
                         <div class="overflow-x-auto rounded-2xl border border-sky-200 bg-gradient-to-br from-white to-sky-50/40 shadow-sm">
-                            <table class="w-full text-sm">
+                            <table class="w-full text-[13px]">
                                 <thead class="bg-gradient-to-r from-sky-100 to-sky-50 border-b border-sky-200">
                                     <tr>
-                                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-sky-800 w-12">#</th>
-                                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-sky-800 w-20">Urutan</th>
-                                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-sky-800">Nama Master Activity</th>
-                                        <th class="px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest text-sky-800 w-44">Status Default</th>
-                                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-sky-800 w-40">Dibuat Tgl</th>
+                                        <th class="px-3 py-2 text-left text-[9px] font-black uppercase tracking-widest text-sky-800 w-12">#</th>
+                                        <th class="px-3 py-2 text-left text-[9px] font-black uppercase tracking-widest text-sky-800 w-20">Urutan</th>
+                                        <th class="px-3 py-2 text-left text-[9px] font-black uppercase tracking-widest text-sky-800">Nama Master Activity</th>
+                                        <th class="px-3 py-2 text-center text-[9px] font-black uppercase tracking-widest text-sky-800 w-40">Status Default</th>
+                                        <th class="px-3 py-2 text-left text-[9px] font-black uppercase tracking-widest text-sky-800 w-36">Dibuat Tgl</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-sky-100">
@@ -1071,27 +1071,27 @@ if (empty($printAllActs)) {
                                         if ($crAt !== '') { try { $dtM = new DateTime($crAt); $crFmt = $dtM->format('d M Y'); } catch (Throwable $e) { $crFmt = $crAt; } } else { $crFmt = '-'; }
                                     ?>
                                     <tr class="hover:bg-sky-50 transition-colors">
-                                        <td class="px-4 py-3 align-top text-slate-500 font-black text-xs"><?= $_nMaster ?>.</td>
-                                        <td class="px-4 py-3 align-top">
-                                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white border border-sky-200 text-sky-700 font-black shadow-xs">
+                                        <td class="px-3 py-2 align-top text-slate-500 font-black text-[11px]"><?= $_nMaster ?>.</td>
+                                        <td class="px-3 py-2 align-top">
+                                            <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-white border border-sky-200 text-sky-700 font-black shadow-xs text-[12px]">
                                                 <?= (int)($mr['sort_order'] ?? 0) ?>
                                             </span>
                                         </td>
-                                        <td class="px-4 py-3 align-top font-bold text-slate-800"><?= htmlspecialchars(trim((string)($mr['activity_name'] ?? ''))) ?></td>
-                                        <td class="px-4 py-3 align-top text-center">
+                                        <td class="px-3 py-2 align-top font-bold text-slate-800 text-[12px]"><?= htmlspecialchars(trim((string)($mr['activity_name'] ?? ''))) ?></td>
+                                        <td class="px-3 py-2 align-top text-center">
                                             <?php if ($stM === 'complete'): ?>
-                                                <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-black">
-                                                    <i class="fas fa-check-circle text-[10px]"></i> COMPLETE
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-black">
+                                                    <i class="fa-solid fa-circle-check text-[9px]"></i> DONE
                                                 </span>
                                             <?php else: ?>
-                                                <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-black">
-                                                    <i class="fas fa-spinner fa-spin text-[10px]"></i> IN PROGRESS
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-black">
+                                                    <i class="fa-regular fa-clock text-[9px]"></i> PROGRESS
                                                 </span>
                                             <?php endif; ?>
                                         </td>
-                                        <td class="px-4 py-3 align-top text-xs text-slate-600 font-semibold">
+                                        <td class="px-3 py-2 align-top text-[11px] text-slate-600 font-semibold">
                                             <span class="inline-flex items-center gap-1">
-                                                <i class="far fa-calendar text-slate-400"></i> <?= $crFmt ?>
+                                                <i class="far fa-calendar text-slate-400 text-[10px]"></i> <?= $crFmt ?>
                                             </span>
                                         </td>
                                     </tr>
@@ -1102,23 +1102,23 @@ if (empty($printAllActs)) {
                     </div>
                     <?php endif; ?>
 
-                    <div class="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-                        <p class="text-[11px] font-semibold text-slate-500 flex items-center gap-2">
-                            <i class="fas fa-info-circle text-slate-400"></i> Data diurutkan dari tanggal terbaru (DESC). Total Running Sum bulan ini sudah ditampilkan di atas kanan.
+                    <div class="mt-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2">
+                        <p class="text-[10px] font-semibold text-slate-500 flex items-center gap-1.5">
+                            <i class="fas fa-info-circle text-slate-400 text-[10px]"></i> Data diurutkan dari tanggal terbaru. Running sum sudah ditampilkan di atas kanan.
                         </p>
-                        <div class="flex items-center gap-2 sm:gap-3 justify-end flex-wrap">
+                        <div class="flex items-center gap-2 justify-end flex-wrap">
                             <button type="button"
                                     onclick="closeModal('<?= htmlspecialchars($c['id']) ?>')"
-                                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold shadow-sm transition">
-                                <i class="fas fa-xmark"></i> Tutup
+                                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-[12px] font-bold shadow-sm transition">
+                                <i class="fas fa-xmark text-[11px]"></i> Tutup
                             </button>
                             <a href="<?= BASE_URL ?>reports/excel.php?cat=<?= urlencode($c['id']) ?>&month=<?= date('Y-m') ?>" target="_blank" rel="noopener noreferrer"
-                               class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white text-sm font-bold shadow-md hover:shadow-lg transition">
-                                <i class="far fa-file-excel"></i> Export Excel
+                               class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white text-[12px] font-bold shadow-md hover:shadow-lg transition">
+                                <i class="far fa-file-excel text-[11px]"></i> Excel
                             </a>
                             <a href="<?= BASE_URL ?>reports/pdf.php?cat=<?= urlencode($c['id']) ?>&month=<?= date('Y-m') ?>" target="_blank" rel="noopener noreferrer"
-                               class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 hover:from-rose-600 hover:to-rose-800 text-white text-sm font-bold shadow-md hover:shadow-lg transition">
-                                <i class="far fa-file-pdf"></i> Export PDF
+                               class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 hover:from-rose-600 hover:to-rose-800 text-white text-[12px] font-bold shadow-md hover:shadow-lg transition">
+                                <i class="far fa-file-pdf text-[11px]"></i> PDF
                             </a>
                         </div>
                     </div>
@@ -1212,8 +1212,8 @@ if (empty($printAllActs)) {
                             </label>
                             <select name="status_default" id="masterStatusDefault"
                                     class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-bold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition appearance-none pr-8">
-                                <option value="progress">⏳ In Progress</option>
-                                <option value="complete">✅ Complete</option>
+                                <option value="progress">Progress</option>
+                                <option value="complete">Done</option>
                             </select>
                         </div>
                         <div class="md:col-span-1">
@@ -1289,12 +1289,12 @@ if (empty($printAllActs)) {
                                     </td>
                                     <td class="px-3 py-3 text-center align-top pt-4">
                                         <?php if (($m['status_default'] ?? 'progress') === 'complete'): ?>
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-black shadow-sm">
-                                                <i class="fas fa-check-circle text-[10px]"></i> Complete
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-black shadow-sm">
+                                                <i class="fa-solid fa-circle-check text-[9px]"></i> Done
                                             </span>
                                         <?php else: ?>
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-black shadow-sm">
-                                                <i class="fas fa-spinner fa-spin text-[10px]"></i> In Progress
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-black shadow-sm">
+                                                <i class="fa-regular fa-clock text-[9px]"></i> Progress
                                             </span>
                                         <?php endif; ?>
                                     </td>

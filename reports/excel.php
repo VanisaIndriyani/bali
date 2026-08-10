@@ -38,7 +38,7 @@ $logs = $db->fetchAll(
     $params
 );
 
-$filename = 'DailyLog_StRegisBali_' . $dateFrom . '_to_' . $dateTo;
+$filename = 'DailyLog_EngineeringReport_' . $dateFrom . '_to_' . $dateTo;
 
 header('Content-Type: application/vnd.ms-excel; charset=utf-8');
 header('Content-Disposition: attachment;filename="' . $filename . '.xls"');
@@ -87,7 +87,7 @@ tr:nth-child(even) td { background: #fafafa; }
 </style>
 </head>
 <body>
-<div class="title">ST. REGIS BALI</div>
+<div class="title">Engineering Report</div>
 <div class="subtitle">ENGINEERING DEPARTMENT • DAILY LOG REPORT</div>
 
 <table class="meta">
@@ -215,7 +215,7 @@ $totE += $l['total_electricity']; $totW += $l['total_water']; $totG += $l['total
 <?php endif; ?>
 
 <div style="margin-top:30px; padding-top:15px; border-top:2px solid #111; font-size:10px; color:#888; text-align:center;">
-    * Dokumen ini di-generate otomatis oleh sistem Daily Log St. Regis Bali Engineering Department • Terakhir diupdate: <?= date('Y-m-d H:i:s') ?>
+    * Dokumen ini di-generate otomatis oleh sistem Daily Log Engineering Department • Terakhir diupdate: <?= date('Y-m-d H:i:s') ?>
 </div>
 </body>
 </html>

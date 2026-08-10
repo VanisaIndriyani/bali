@@ -88,21 +88,13 @@ $periodLabel = formatDate($dateFrom) . ' s/d ' . formatDate($dateTo);
 $modeLabel = $viewType === 'monthly' ? 'Bulanan' : 'Harian';
 $fileName = 'Dashboard_Konsumsi_' . $modeLabel . '_' . date('Ymd', strtotime($dateFrom)) . '-' . date('Ymd', strtotime($dateTo));
 
-$logoPath = realpath(__DIR__ . '/../logo.jpeg');
 $logoSrc = '';
-if ($logoPath && is_file($logoPath)) {
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mime = @finfo_file($finfo, $logoPath) ?: 'image/jpeg';
-    finfo_close($finfo);
-    $logoSrc = 'data:' . $mime . ';base64,' . base64_encode((string)file_get_contents($logoPath));
-}
-$logoAbs = BASE_URL . 'logo.jpeg';
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title><?= $fileName ?> - St. Regis Bali Engineering</title>
+    <title><?= $fileName ?> - Engineering Report</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -176,11 +168,8 @@ $logoAbs = BASE_URL . 'logo.jpeg';
 
     <div class="page">
         <div class="header">
-            <div class="logo-box">
-                <img src="<?= $logoSrc ?: $logoAbs ?>" alt="St. Regis Bali" onerror="this.onerror=null;this.src='<?= $logoAbs ?>'">
-            </div>
             <div class="header-text">
-                <h1>ST. REGIS BALI</h1>
+                <h1>Engineering Report</h1>
                 <p>Engineering Department — Laporan Dashboard Konsumsi Energi</p>
             </div>
         </div>

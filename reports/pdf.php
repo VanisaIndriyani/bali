@@ -47,7 +47,7 @@ foreach ($logs as $l) {
     }
 }
 
-$filename = 'DailyLog_StRegisBali_' . $dateFrom . '_to_' . $dateTo . '.pdf';
+$filename = 'DailyLog_EngineeringReport_' . $dateFrom . '_to_' . $dateTo . '.pdf';
 header('Content-Type: text/html; charset=utf-8');
 
 function imgDataUri($pathAbs) {
@@ -57,8 +57,7 @@ function imgDataUri($pathAbs) {
     $data = @file_get_contents($pathAbs);
     return $data ? 'data:'.$mime.';base64,'.base64_encode($data) : '';
 }
-$logoPath = realpath(__DIR__ . '/../logo.jpeg');
-$logoSrc = $logoPath ? imgDataUri($logoPath) : '';
+$logoSrc = '';
 $uploadsDir = realpath(__DIR__ . '/../assets/uploads');
 ?>
 <!DOCTYPE html>
@@ -138,13 +137,8 @@ tr:nth-child(even) td { background: #fafafa; }
 <button class="print-btn" onclick="window.print()"><i class="fas fa-print"></i> Cetak / Save PDF</button>
 <div class="wrapper">
     <div class="header">
-        <?php if ($logoSrc): ?>
-            <img src="<?= $logoSrc ?>" class="logo" alt="St. Regis Bali Logo">
-        <?php else: ?>
-            <div class="logo-fallback" title="St. Regis Bali">SR</div>
-        <?php endif; ?>
         <div class="header-text">
-            <h1>ST. REGIS BALI</h1>
+            <h1>Engineering Report</h1>
             <p>Engineering Department</p>
             <div class="sub">Laporan Daily Log Engineering</div>
         </div>
@@ -281,7 +275,7 @@ tr:nth-child(even) td { background: #fafafa; }
     <?php endif; ?>
 
     <div class="footer-notes">
-        Dokumen ini dicetak otomatis dari sistem Daily Log St. Regis Bali Engineering Department • Laporan ini sah tanpa tanda tangan fisik jika sudah ada approval digital
+        Dokumen ini dicetak otomatis dari sistem Daily Log Engineering Department • Laporan ini sah tanpa tanda tangan fisik jika sudah ada approval digital
     </div>
 </div>
 </body>

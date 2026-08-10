@@ -109,7 +109,7 @@ ob_start();
 <meta http-equiv="Content-Type" content="application/vnd.ms-excel; charset=utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="ProgId" content="Excel.Sheet">
-<meta name="Generator" content="St. Regis Bali Engineering Daily Log — Powered by Native PHP SpreadsheetML Export">
+<meta name="Generator" content="Engineering Report — Powered by Native PHP SpreadsheetML Export">
 <title><?= ecell($fileName) ?></title>
 <style>
     body { font-family: Calibri, Arial, sans-serif; color:#1f2937; background:#fff; }
@@ -142,11 +142,8 @@ ob_start();
 <div class="wrap">
     <div class="brand">
         <table style="border:none; margin:0; width:auto;"><tr>
-            <td style="border:none; padding:0; width:60px;">
-                <img src="<?= ecell(BASE_URL . 'logo.jpeg') ?>" alt="Logo" width="50" height="50" onerror="this.style.display='none';">
-            </td>
             <td style="border:none; padding:0;">
-                <div class="h1">ST. REGIS BALI</div>
+                <div class="h1">Engineering Report</div>
                 <div class="h2">Engineering Department — Dashboard Konsumsi Energi (Mode <?= ecell($modeLabel) ?>)</div>
             </td>
         </tr></table>
