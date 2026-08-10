@@ -23,7 +23,7 @@ $allMasters = $db->fetchAll(
 );
 
 $divisions = ['operation','maintenance','project','landscape'];
-$divLabelMap = ['operation'=>'OPERATION','maintenance'=>'MAINTENANCE','project'=>'PROJECT','landscape'=>'LANDSCAPE'];
+$divLabelMap = ['operation'=>'operation','maintenance'=>'maintenance','project'=>'project','landscape'=>'landscape'];
 $mastersByDiv = [];
 foreach ($divisions as $dv) $mastersByDiv[$dv] = [];
 foreach ($allMasters as $m) {
@@ -53,191 +53,289 @@ echo "\xEF\xBB\xBF";
 <meta charset="UTF-8">
 <title>Engineering Operation Lists - Engineering Report</title>
 <style>
-    @page { size: A4; margin: 0; }
+    @page { size: A4; margin: 12mm 14mm 16mm 14mm; }
     * { -webkit-box-sizing: border-box; box-sizing: border-box; }
     html, body {
-        margin: 0; padding: 0; width: 100%; min-height: 100%;
-        background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important;
-        color: #ffffff !important;
+        margin: 0; padding: 0;
+        background: #ffffff !important;
+        color: #0f172a !important;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+        font-feature-settings: "cv11", "ss01";
     }
     .wrap {
         width: 100%;
         min-height: 100vh;
-        padding: 28px 30px 110px 30px;
-        background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important;
+        background: #ffffff !important;
+        padding: 6px 0 18px 0;
         position: relative;
     }
-    .hdr {
-        display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 26px; color: #ffffff;
-    }
-    .hdr .left { display: flex; align-items: center; gap: 18px; }
-    .hdr .left .chev { width: 34px; height: 34px; display:flex; align-items:center; justify-content:center; color: #fff; }
-    .hdr .left .chev i { font-size: 20px; }
-    .hdr .left .lbl { color: #ffffff; font-size: 16px; font-weight: 600; opacity: 0.92; letter-spacing: 0.5px; }
-    .hdr .right { display: flex; align-items: center; gap: 14px; }
-    .hdr .right .users { display: inline-flex; align-items: center; gap: 7px; color: #fff; opacity: 0.95; }
-    .hdr .right .users i { font-size: 16px; }
-    .hdr .right .users span { font-size: 15px; font-weight: 600; }
-    .hdr .right .dots { color: #ffffff; opacity: 0.9; }
-    .hdr .right .dots i { font-size: 20px; }
 
-    .tag {
-        display: inline-block; padding: 5px 12px;
-        background: rgba(255,255,255,0.12);
-        border: 1px solid rgba(255,255,255,0.22);
+    /* ====== META TOP BAR (super slim) ====== */
+    .meta-top {
+        display: flex; align-items: center; justify-content: space-between;
+        padding-bottom: 12px; margin-bottom: 18px;
+        border-bottom: 1px solid #e2e8f0;
+        color: #64748b; font-size: 10px;
+        letter-spacing: 0.6px; font-weight: 600;
+        text-transform: uppercase;
+    }
+    .meta-top .lft { display: flex; align-items: center; gap: 10px; }
+    .meta-top .dot { width:6px; height:6px; border-radius:50%; background:#94a3b8; display:inline-block;}
+    .meta-top .rgt { text-align: right; }
+
+    /* ====== HEADER LISTS SIMPLE (NO HERO, NO NAVBAR) ====== */
+    .head-block {
+        margin-bottom: 28px;
+    }
+    .eyebrow {
+        display: inline-flex; align-items: center; gap: 10px;
+        color: #475569; font-size: 10px; font-weight: 800;
+        letter-spacing: 2.5px; text-transform: uppercase;
+        padding: 0 0 8px 0;
+        margin-bottom: 8px;
+    }
+    .eyebrow .pill {
+        display: inline-block; padding: 2px 10px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
         border-radius: 999px;
-        color: #ffffff;
-        font-size: 12px; font-weight: 700;
-        letter-spacing: 1.5px;
-        margin-bottom: 16px;
+        font-size: 9.5px;
+        letter-spacing: 1px;
+        font-weight: 700;
     }
     .title-hero {
-        color: #ffffff;
+        color: #0f172a;
         font-weight: 900;
-        letter-spacing: -0.025em;
-        line-height: 1.05;
-        font-size: 44px;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+        font-size: 40px;
         margin: 0 0 10px 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .title-hero .accent {
+        color: #0ea5e9;
     }
     .subtitle-hero {
-        color: rgba(255,255,255,0.88);
-        font-size: 14px; font-weight: 500;
-        letter-spacing: 0.5px;
-        margin: 0 0 30px 0;
+        color: #64748b;
+        font-size: 12.5px; font-weight: 500;
+        letter-spacing: 0.2px;
+        margin: 0 0 0 0;
+        line-height: 1.5;
+    }
+    .summary-row {
+        display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap;
+    }
+    .chip {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 5px 11px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        color: #475569;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+    }
+    .chip strong { color: #0f172a; font-weight: 800; }
+    .chip .icn { color: #94a3b8; font-size: 10px; }
+
+    /* ====== SECTION DIVIDER SLIM ====== */
+    .divider-section {
+        display: flex; align-items: center; gap: 10px;
+        margin: 28px 0 12px 0;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .divider-section .lbl {
+        color: #334155;
+        font-size: 11px; font-weight: 800;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+    }
+    .divider-section .dotdiv {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #cbd5e1;
+        box-shadow: inset 0 0 0 2px #fff, 0 0 0 1px #e2e8f0;
+    }
+    .divider-section .cnt {
+        color: #94a3b8; font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+        margin-left: auto;
     }
 
-    .items { display: flex; flex-direction: column; gap: 12px; }
+    /* ====== ITEM LIST (PURE WHITE + SLATE BORDER, NO BG COLOR) ====== */
+    .items { display: flex; flex-direction: column; gap: 9px; }
     .item {
         background: #ffffff !important;
         color: #0f172a !important;
         border-radius: 14px;
-        padding: 16px 18px;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-        display: flex; align-items: flex-start; gap: 16px;
+        border: 1px solid #e2e8f0;
+        padding: 14px 16px;
+        display: flex; align-items: flex-start; gap: 14px;
         page-break-inside: avoid;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+        transition: border-color .15s ease;
     }
+    .item:hover { border-color: #cbd5e1; }
+
     .radio {
-        width: 28px; height: 28px;
+        width: 24px; height: 24px;
         border-radius: 50%;
-        border: 3px solid #94a3b8 !important;
+        border: 2px solid #cbd5e1 !important;
         background: #ffffff !important;
         flex-shrink: 0;
-        margin-top: 3px;
+        margin-top: 2px;
     }
     .text {
         flex: 1 1 auto;
         min-width: 0;
         color: #0f172a !important;
-        line-height: 1.4;
+        line-height: 1.5;
     }
     .text .name {
-        font-size: 17px;
+        font-size: 14.5px;
         font-weight: 600;
         color: #0f172a !important;
         word-wrap: break-word;
         overflow-wrap: break-word;
+        letter-spacing: 0.1px;
     }
     .text .meta {
-        margin-top: 6px;
-        font-size: 12px;
-        font-weight: 500;
-        color: #64748b;
-        letter-spacing: 0.4px;
+        margin-top: 5px;
+        display: inline-flex; align-items: center; gap: 8px;
+        flex-wrap: wrap;
     }
+    .text .meta .t {
+        font-size: 10px;
+        font-weight: 600;
+        color: #94a3b8;
+        letter-spacing: 0.2px;
+        text-transform: lowercase;
+    }
+    .text .meta .t strong {
+        font-weight: 700;
+        color: #64748b;
+    }
+    .text .meta .sep {
+        width: 3px; height: 3px; border-radius: 50%; background: #e2e8f0; display: inline-block;
+    }
+    .text .meta .st-badge {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 9.5px;
+        font-weight: 800;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+    }
+    .text .meta .st-progress {
+        color: #92400e;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+    }
+    .text .meta .st-done {
+        color: #166534;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+    }
+    .text .meta .st-progress::before { content:""; display:inline-block; width:5px; height:5px; border-radius:50%; background:#f59e0b; }
+    .text .meta .st-done::before { content:""; display:inline-block; width:5px; height:5px; border-radius:50%; background:#22c55e; }
+
     .star {
         flex-shrink: 0;
-        padding-top: 3px;
-        color: #94a3b8 !important;
+        padding-top: 2px;
+        color: #cbd5e1 !important;
         align-self: flex-start;
     }
-    .star i { font-size: 22px; }
+    .star i { font-size: 19px; }
 
     .empty {
-        padding: 40px 20px; text-align: center;
-        color: rgba(255,255,255,0.85);
-        background: rgba(255,255,255,0.08);
-        border: 1px solid rgba(255,255,255,0.2);
+        padding: 42px 22px; text-align: center;
+        color: #64748b;
+        background: #ffffff;
+        border: 1px dashed #cbd5e1;
         border-radius: 14px;
-        font-size: 15px; font-weight: 500;
+        font-size: 12.5px; font-weight: 500;
+        letter-spacing: 0.2px;
+    }
+    .empty .big {
+        font-size: 32px; color: #cbd5e1; margin-bottom: 10px;
     }
 
-    .footer-float {
-        position: fixed;
-        left: 0; right: 0; bottom: 0;
-        background: linear-gradient(180deg, rgba(30,64,175,0.0) 0%, rgba(30,64,175,0.98) 35%, #1e3a8a 100%);
-        padding: 50px 30px 26px 30px;
-        z-index: 10;
+    /* ====== FOOTER SLIM (NO FLOATING + NO BLUR BG) ====== */
+    .foot-note {
+        margin-top: 36px;
+        padding-top: 14px;
+        border-top: 1px dashed #e2e8f0;
+        color: #94a3b8; font-size: 9.5px; letter-spacing: 0.5px; font-weight: 500;
+        display: flex; align-items: center; justify-content: space-between;
     }
-    .footer-float .add {
-        background: rgba(255,255,255,0.12) !important;
-        border: 1px solid rgba(255,255,255,0.2) !important;
-        border-radius: 18px;
-        padding: 16px 22px;
-        display: flex; align-items: center; gap: 18px;
-        backdrop-filter: blur(6px);
-    }
-    .footer-float .plus {
-        width: 34px; height: 34px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.22) !important;
-        color: #ffffff !important;
-        display: flex; align-items: center; justify-content: center;
-        flex-shrink: 0;
-    }
-    .footer-float .plus i { font-size: 18px; }
-    .footer-float .txt {
-        color: #ffffff !important;
-        font-size: 19px; font-weight: 600; letter-spacing: 0.6px;
-    }
-    .meta-foot {
-        position: fixed; left: 30px; right: 30px; top: 10px;
-        display: flex; justify-content: space-between; align-items: center;
-        color: rgba(255,255,255,0.55); font-size: 10px; letter-spacing: 1px; font-weight: 600;
-        z-index: 11;
-    }
-    .divider-section {
-        margin: 24px 0 14px 0;
-        color: rgba(255,255,255,0.85);
-        font-size: 11px; font-weight: 800; letter-spacing: 2.5px;
+    .foot-note .lft, .foot-note .rgt { display:flex; align-items:center; gap:8px; }
+    .foot-note .brand-mark {
+        color: #334155; font-weight: 800; letter-spacing: 1.5px; font-size: 10px;
         text-transform: uppercase;
-        padding-bottom: 6px;
-        border-bottom: 1px solid rgba(255,255,255,0.18);
     }
-    .badge-div {
-        display: inline-block; padding: 2px 8px; border-radius: 999px;
-        background: rgba(255,255,255,0.15);
-        color: #fff; font-size: 10px; font-weight: 700;
-        letter-spacing: 1.5px; margin-left: 8px;
+    .foot-note .brand-mark em {
+        font-style: normal;
+        background: linear-gradient(90deg, #0ea5e9, #6366f1);
+        -webkit-background-clip: text; background-clip: text;
+        color: transparent;
+    }
+
+    @media print {
+        body { background: #fff !important; }
     }
 </style>
 </head>
 <body>
-<div class="meta-foot">
-    <div>ENGINEERING REPORT • LISTS</div>
-    <div>EXPORT: <?= date('Y-m-d H:i') ?></div>
-</div>
 <div class="wrap">
-    <div class="hdr">
-        <div class="left">
-            <div class="chev"><i class="fas fa-chevron-left" aria-hidden="true"></i></div>
-            <div class="lbl">Lists <span class="badge-div"><?= $monthLabel ?></span></div>
+
+    <!-- ============== META TOP BAR ============== -->
+    <div class="meta-top">
+        <div class="lft">
+            <span class="dot"></span>
+            <span>Engineering Report</span>
+            <span class="dot"></span>
+            <span>lists export</span>
         </div>
-        <div class="right">
-            <div class="users"><i class="far fa-user" aria-hidden="true"></i><span><?= count($printAllActs) ?></span></div>
-            <div class="dots"><i class="fas fa-ellipsis-h" aria-hidden="true"></i></div>
+        <div class="rgt">
+            print • <?= date('d M Y') ?>
         </div>
     </div>
 
-    <div class="tag">ENGINEERING DEPARTMENT</div>
-    <h1 class="title-hero">Engineering Operation</h1>
-    <div class="subtitle-hero">Daftar aktivitas master untuk dijalankan tim engineering • Total <?= count($printAllActs) ?> item</div>
+    <!-- ============== HEADER ============== -->
+    <div class="head-block">
+        <div class="eyebrow">
+            <span>Engineering Department</span>
+            <span class="pill"><?= htmlspecialchars($monthLabel) ?></span>
+        </div>
 
+        <h1 class="title-hero">
+            Engineering <span class="accent">Operation</span>
+        </h1>
+        <p class="subtitle-hero">
+            daftar aktivitas master untuk dijalankan tim engineering • dikelompokkan per divisi, urut sesuai priority order number.
+        </p>
+
+        <div class="summary-row">
+            <div class="chip"><i class="icn far fa-clipboard-list"></i> total item <strong><?= count($printAllActs) ?></strong></div>
+            <?php foreach ($divisions as $dv):
+                $c = count($mastersByDiv[$dv] ?? []); if ($c <= 0) continue;
+            ?>
+            <div class="chip"><i class="icn fas fa-layer-group"></i> <?= strtolower($divLabelMap[$dv] ?? $dv) ?> <strong><?= $c ?></strong></div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <!-- ============== ITEMS ============== -->
     <?php if (empty($printAllActs)): ?>
-        <div class="empty">Belum ada activity master. Silakan tambah melalui tombol ⚙️ Kelola Master di halaman Manager Activities.</div>
+        <div class="empty">
+            <div class="big"><i class="far fa-folder-open"></i></div>
+            belum ada activity master untuk periode ini.<br>tambah data melalui tombol ⚙️ kelola master di halaman manager activities.
+        </div>
     <?php else: ?>
         <div class="items">
             <?php
@@ -250,11 +348,15 @@ echo "\xEF\xBB\xBF";
                 $dv = (string)($actRow['division'] ?? 'operation');
                 $sort = (int)($actRow['sort_order'] ?? 0);
                 $st = strtolower((string)($actRow['status_default'] ?? 'progress'));
+
                 if ($dv !== $curDiv && $division === 'all'):
                     $curDiv = $dv;
+                    $cntCur = count($mastersByDiv[$dv] ?? 0);
             ?>
-                <div class="divider-section" style="margin-top:<?= $idx === 1 ? '0' : '24' ?>px;">
-                    <?= $divLabelMap[$dv] ?? strtoupper($dv) ?>
+                <div class="divider-section" style="margin-top:<?= $idx === 1 ? '0' : '28' ?>px;">
+                    <span class="dotdiv"></span>
+                    <span class="lbl"><?= strtolower($divLabelMap[$dv] ?? $dv) ?></span>
+                    <span class="cnt"><?= $cntCur ?> activities</span>
                 </div>
             <?php endif; ?>
             <div class="item">
@@ -262,7 +364,11 @@ echo "\xEF\xBB\xBF";
                 <div class="text">
                     <div class="name"><?= htmlspecialchars($nm) ?></div>
                     <div class="meta">
-                        Div. <?= strtoupper($dv) ?> • Order #<?= $sort ?> • Status: <?= $st === 'complete' ? 'Done' : 'Progress' ?>
+                        <span class="t">divisi <strong><?= strtolower($dv) ?></strong></span>
+                        <span class="sep"></span>
+                        <span class="t">order <strong>#<?= $sort ?></strong></span>
+                        <span class="sep"></span>
+                        <span class="st-badge <?= $st === 'complete' ? 'st-done' : 'st-progress' ?>"><?= $st === 'complete' ? 'done' : 'progress' ?></span>
                     </div>
                 </div>
                 <div class="star" aria-hidden="true"><i class="far fa-star"></i></div>
@@ -270,27 +376,22 @@ echo "\xEF\xBB\xBF";
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
-</div>
-<div class="footer-float">
-    <div class="add">
-        <div class="plus"><i class="fas fa-plus" aria-hidden="true"></i></div>
-        <div class="txt">Add a Task</div>
+
+    <!-- ============== FOOTER ============== -->
+    <div class="foot-note">
+        <div class="lft">
+            <span class="brand-mark">Engineering <em>Report</em></span>
+            <span>•</span>
+            <span>disediakan tanpa logo & branding hotel (format generic).</span>
+        </div>
+        <div class="rgt">
+            <span>last updated: <?= date('Y-m-d H:i') ?></span>
+        </div>
     </div>
+
 </div>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" media="all">
-<script>
-    // Auto suggest print on load
-    window.addEventListener('load', function () {
-        try {
-            setTimeout(function () {
-                if (window.matchMedia && window.matchMedia('print').matches === false) {
-                    // Optional: uncomment next line to auto-open print dialog
-                    // window.print();
-                }
-            }, 450);
-        } catch (e) {}
-    });
-</script>
 </body>
 </html>
 <?php
