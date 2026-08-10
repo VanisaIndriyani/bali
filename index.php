@@ -388,10 +388,10 @@ function fetchProgressActivities($db, $userRole, $userId, $dateFrom, $dateTo) {
     return $out;
 }
 $divInfo = [
-    'operation'   => ['label'=>'OPERATION',   'icon'=>'âš™ï¸', 'col'=>'text-blue-700',   'bg'=>'bg-blue-50', 'chip'=>'bg-blue-100 border-blue-200 text-blue-700'],
-    'maintenance' => ['label'=>'MAINTENANCE', 'icon'=>'ðŸ”§', 'col'=>'text-amber-700',  'bg'=>'bg-amber-50','chip'=>'bg-amber-100 border-amber-200 text-amber-700'],
-    'project'     => ['label'=>'PROJECT',     'icon'=>'ðŸ“‹', 'col'=>'text-violet-700', 'bg'=>'bg-violet-50','chip'=>'bg-violet-100 border-violet-200 text-violet-700'],
-    'landscape'   => ['label'=>'LANDSCAPE',   'icon'=>'ðŸŒ±', 'col'=>'text-emerald-700','bg'=>'bg-emerald-50','chip'=>'bg-emerald-100 border-emerald-200 text-emerald-700'],
+    'operation'   => ['label'=>'OPERATION',   'icon'=>'<i class="fas fa-gear"></i>', 'col'=>'text-blue-700',   'bg'=>'bg-blue-50', 'chip'=>'bg-blue-100 border-blue-200 text-blue-700'],
+    'maintenance' => ['label'=>'MAINTENANCE', 'icon'=>'<i class="fas fa-wrench"></i>', 'col'=>'text-amber-700',  'bg'=>'bg-amber-50','chip'=>'bg-amber-100 border-amber-200 text-amber-700'],
+    'project'     => ['label'=>'PROJECT',     'icon'=>'<i class="fas fa-diagram-project"></i>', 'col'=>'text-violet-700', 'bg'=>'bg-violet-50','chip'=>'bg-violet-100 border-violet-200 text-violet-700'],
+    'landscape'   => ['label'=>'LANDSCAPE',   'icon'=>'<i class="fas fa-leaf"></i>', 'col'=>'text-emerald-700','bg'=>'bg-emerald-50','chip'=>'bg-emerald-100 border-emerald-200 text-emerald-700'],
 ];
 $progressActivities = fetchProgressActivities($db, $userRole, $userId, $monthStart, $today);
 
@@ -1472,7 +1472,7 @@ HTML;
                                 </td>
                                 <td class="px-5 py-4 border-l border-gray-100">
                                     <div class="flex items-center gap-2">
-                                        <span class="w-10 h-10 rounded-lg <?= $info['bg'] ?> border border-gray-200 flex items-center justify-center text-lg shadow-xs"><?= $info['icon'] ?></span>
+                                        <span class="w-10 h-10 rounded-lg <?= $info['bg'] ?> border border-gray-200 flex items-center justify-center shadow-xs <?= $info['col'] ?> text-[15px]"><?= $info['icon'] ?></span>
                                         <div class="flex flex-col gap-0.5">
                                             <span class="inline-block px-2 py-0.5 rounded border text-[10px] font-black tracking-wider <?= $info['chip'] ?>"><?= $info['label'] ?></span>
                                         </div>
