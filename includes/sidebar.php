@@ -314,10 +314,11 @@ $sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
         <button type="button" id="sidebarOpenBtn" class="hamburger-btn" aria-label="Open Sidebar">
             <i class="fas fa-bars"></i>
         </button>
-        <a href="<?= BASE_URL ?>index.php" class="mobile-brand">
-            <img src="<?= BASE_URL ?>logo.jpeg" alt="Logo" class="w-9 h-9 object-cover rounded-lg bg-white ring-1 ring-slate-200 shadow-sm flex-shrink-0"
-                style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;">
-            <span class="font-display font-black text-slate-900 tracking-wide text-base">ST. REGIS BALI</span>
+        <a href="<?= BASE_URL ?>index.php" class="mobile-brand !gap-2">
+            <span class="font-display font-black tracking-wide text-base leading-none whitespace-nowrap">
+                <span class="text-slate-900">Engineering</span>
+                <span class="bg-gradient-to-r from-sky-600 via-sky-700 to-blue-700 bg-clip-text text-transparent">Report</span>
+            </span>
         </a>
         <a href="<?= BASE_URL ?>logout.php" class="logout-mobile" title="Logout">
             <i class="fas fa-right-from-bracket"></i>
