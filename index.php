@@ -556,28 +556,9 @@ require_once __DIR__ . '/includes/navbar.php';
         </div>
     </div>
 
-    <!-- ============ 🔹 DAILY ENGINEERING SUMMARY REPORT (FORMAT CUSTOMER KERTAS - PALING ATAS!) 🔹 ============ -->
-    <div class="bg-white rounded-premium border border-gray-200 shadow-sm overflow-hidden mb-8 animate-slide-up">
-        <!-- HEADER: Judul Besar + Tanggal (seperti kertas SUMMARY) -->
-        <div class="px-6 lg:px-10 pt-7 pb-5 border-b border-gray-200 bg-gradient-to-br from-white via-slate-50/40 to-white relative overflow-hidden">
-            <div class="absolute -left-6 -top-8 opacity-[0.08] text-[130px] leading-none text-gray-400 pointer-events-none select-none"><i class="fas fa-gears"></i></div>
-            <div class="absolute -right-6 -top-8 opacity-[0.08] text-[130px] leading-none text-gray-400 pointer-events-none select-none rotate-12"><i class="fas fa-gears"></i></div>
-            <p class="text-[11px] font-black uppercase tracking-[0.4em] text-amber-700 mb-3">ST. REGIS BALI — ENGINEERING DEPT.</p>
-            <h1 class="font-display text-3xl lg:text-5xl font-black text-gray-900 tracking-tight leading-tight mb-4">DAILY ENGINEERING<br>SUMMARY REPORT</h1>
-            <div class="flex flex-wrap items-center gap-5">
-                <div class="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-gray-900 text-white">
-                    <i class="fas fa-calendar-day text-amber-400"></i>
-                    <span class="text-sm font-bold uppercase tracking-[0.18em]">DATE:</span>
-                    <span class="font-display text-lg font-black"><?= strtoupper(date('j F Y', strtotime($today))) ?></span>
-                </div>
-                <div class="inline-flex items-center gap-2 text-gray-600 text-sm">
-                    <i class="fas fa-circle-check text-emerald-500"></i>
-                    <span><b>Format customer</b> — 3 tabel sederhana + grafik tetap tersedia di bawah ✅</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="p-5 lg:p-8 space-y-8">
+    <!-- ============ 🔹 3 SECTION RINGKASAN (KPIs + UTILITY + CHILLER) 🔹 ============ -->
+    <div class="bg-white rounded-premium border border-gray-200 shadow-sm overflow-hidden mb-7 animate-slide-up">
+        <div class="p-4 sm:p-5 lg:p-6 space-y-5">
             <!-- ─────────────── ① KEY PERFORMANCE INDICATORS (KPIs) TABLE ─────────────── -->
             <section id="sec_kpi" class="mb-6">
                 <button type="button" onclick="toggleDashSection('kpi')"
@@ -662,38 +643,38 @@ require_once __DIR__ . '/includes/navbar.php';
                 <!-- CONTENT (BISA DISHIDDEN / DITAMPILKAN) -->
                 <div id="utility_group" class="transition-all duration-200 overflow-hidden">
                     <!-- 1) 2 BADGE OCCUPANCY (FOTO MOBILE 19.13 ATAS: LY KUNING + NOW HIJAU) -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 mb-4 animate-slide-up">
-                        <!-- BADGE LY TAHUN LALU 2025 (FOTO MOBILE: Background krem badge) -->
-                        <div class="rounded-xl border-2 border-amber-100 bg-amber-50/70 p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-sm">
-                            <div class="flex items-center gap-2.5 min-w-0">
-                                <span class="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-white flex items-center justify-center text-[13px] font-black shadow-sm shadow-amber-500/25">LY</span>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3 animate-slide-up">
+                        <!-- BADGE LY TAHUN LALU -->
+                        <div class="rounded-lg border border-amber-200 bg-amber-50/50 px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between gap-2 shadow-sm">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="w-7 h-7 shrink-0 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 text-white flex items-center justify-center text-[10px] font-black shadow-sm">LY</span>
                                 <div class="min-w-0 flex-1">
-                                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-amber-700 leading-tight">LY (Tahun Lalu) • <?= $lastYear ?></p>
+                                    <p class="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.15em] text-amber-700 leading-tight">LY (Tahun Lalu) • <?= $lastYear ?></p>
                                 </div>
                             </div>
-                            <div class="shrink-0 text-right leading-none">
-                                <span class="text-[10px] font-bold text-amber-600/80 mr-0.5 tracking-wider">OCC</span>
-                                <span class="font-display text-2xl sm:text-[28px] font-black text-amber-700 leading-none tracking-wide"><?= $occLYDisp ?></span>
-                                <span class="text-[11px] font-black text-amber-700">%</span>
+                            <div class="shrink-0 text-right leading-none flex items-baseline gap-0.5">
+                                <span class="hidden sm:inline text-[9px] font-bold text-amber-600/70 tracking-wider">OCC</span>
+                                <span class="font-display text-lg sm:text-[22px] font-black text-amber-700 leading-none tracking-wide"><?= $occLYDisp ?></span>
+                                <span class="text-[10px] font-black text-amber-700">%</span>
                             </div>
                         </div>
-                        <!-- BADGE TODAY HARI INI (FOTO MOBILE: Background hijau mint) -->
-                        <div class="rounded-xl border-2 border-emerald-200 bg-emerald-50/70 p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-sm">
-                            <div class="flex items-center gap-2.5 min-w-0">
-                                <span class="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center text-[13px] font-black shadow-sm shadow-emerald-500/25">NOW</span>
+                        <!-- BADGE TODAY HARI INI -->
+                        <div class="rounded-lg border border-emerald-200 bg-emerald-50/50 px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between gap-2 shadow-sm">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="w-7 h-7 shrink-0 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center text-[10px] font-black shadow-sm">NOW</span>
                                 <div class="min-w-0 flex-1">
-                                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700 leading-tight">NOW (Hari Ini) • <?= date('d/m/Y') ?></p>
+                                    <p class="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.15em] text-emerald-700 leading-tight">NOW (Hari Ini) • <?= date('d/m/Y') ?></p>
                                 </div>
                             </div>
-                            <div class="shrink-0 text-right leading-none">
-                                <span class="text-[10px] font-bold text-emerald-700/80 mr-0.5 tracking-wider">OCC</span>
-                                <span class="font-display text-2xl sm:text-[28px] font-black text-emerald-700 leading-none tracking-wide mr-0.5"><?= $occNowDisp ?></span>
-                                <span class="text-[11px] font-black text-emerald-700">%</span>
+                            <div class="shrink-0 text-right leading-none flex items-baseline gap-0.5">
+                                <span class="hidden sm:inline text-[9px] font-bold text-emerald-700/70 tracking-wider">OCC</span>
+                                <span class="font-display text-lg sm:text-[22px] font-black text-emerald-700 leading-none tracking-wide mr-0.5"><?= $occNowDisp ?></span>
+                                <span class="text-[10px] font-black text-emerald-700">%</span>
                                 <?php if (($targetOcc > 0) && ($lyOcc > 0) && ($targetOcc != $lyOcc)):
                                     $up = $targetOcc > $lyOcc;
                                 ?>
-                                <span class="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded-full bg-white/80 border border-emerald-200 text-[9px] font-black <?= $up ? 'text-emerald-700' : 'text-rose-700' ?> align-middle">
-                                    <i class="fas fa-arrow-<?= $up ? 'up-right' : 'down-right' ?> text-[8px]"></i>
+                                <span class="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-white/80 border border-emerald-200 text-[8px] font-black <?= $up ? 'text-emerald-700' : 'text-rose-700' ?> align-middle">
+                                    <i class="fas fa-arrow-<?= $up ? 'up-right' : 'down-right' ?> text-[7px]"></i>
                                     <?= $up ? '+' : '-' ?><?= abs($targetOcc - $lyOcc) ?>%
                                 </span>
                                 <?php endif; ?>
@@ -725,7 +706,7 @@ require_once __DIR__ . '/includes/navbar.php';
                         $utilRows = $utilMapped;
                     }
                     ?>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 mb-4">
                     <?php foreach ($utilRows as $idx => $ur):
                         [$label, $icon, $col, $iconBg, $lyVal, $nowVal, $unit, $costLY, $costNow, $cardBg, $cardBorder, $dividerBorder] = array_pad(array_slice($ur, 0, 13), 13, '');
                         if (!$cardBg) { $cardBg = 'bg-slate-50'; $cardBorder = 'border-slate-200'; $dividerBorder = 'border-slate-200/60'; }
@@ -735,57 +716,56 @@ require_once __DIR__ . '/includes/navbar.php';
                         if ((float)$lyVal > 0) $delta = round((((float)$nowVal - (float)$lyVal) / (float)$lyVal) * 100, 1);
                         $deltaUp = $delta > 0;
                     ?>
-                        <!-- CARD UTILITY: WARNA PASTEL KATEGORI SESUAI FOTO MOBILE 19.13 (TIDAK PUTIH!) -->
-                        <div class="rounded-2xl border-2 <?= $cardBorder ?> <?= $cardBg ?> p-3.5 sm:p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-                            <div class="flex items-start justify-between gap-2.5 mb-3.5">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <span class="w-10 h-10 shrink-0 rounded-2xl bg-gradient-to-br <?= $iconBg ?> text-white flex items-center justify-center text-[17px] shadow-md">
-                                        <span class="drop-shadow-sm"><?= $icon ?></span>
+                        <div class="rounded-xl border <?= $cardBorder ?> <?= $cardBg ?> px-3 py-2.5 sm:px-3.5 sm:py-3 shadow-sm transition-all duration-150">
+                            <div class="flex items-start justify-between gap-2 mb-2.5">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="w-8 h-8 shrink-0 rounded-xl bg-gradient-to-br <?= $iconBg ?> text-white flex items-center justify-center text-[13px] shadow-sm">
+                                        <span><?= $icon ?></span>
                                     </span>
                                     <div class="min-w-0 flex-1">
-                                        <h3 class="font-black text-[17px] lg:text-lg text-gray-900 tracking-wide leading-tight uppercase"><?= $label ?></h3>
+                                        <h3 class="font-black text-[13px] lg:text-[14px] text-gray-900 tracking-wide leading-tight uppercase"><?= $label ?></h3>
                                     </div>
                                 </div>
-                                <a href="<?= BASE_URL ?>energy.php" class="shrink-0 w-8 h-8 rounded-xl bg-white/80 border <?= $cardBorder ?> hover:bg-white text-slate-500 hover:text-slate-800 flex items-center justify-center transition shadow-sm" title="Buka halaman Energy Dashboard detail">
-                                    <i class="fas fa-chevron-right text-[11px]"></i>
+                                <a href="<?= BASE_URL ?>energy.php" class="shrink-0 w-7 h-7 rounded-lg bg-white/80 border <?= $cardBorder ?> hover:bg-white text-slate-500 hover:text-slate-800 flex items-center justify-center transition shadow-sm" title="Energy">
+                                    <i class="fas fa-chevron-right text-[10px]"></i>
                                 </a>
                             </div>
 
                             <!-- LY AVG DAY -->
-                            <div class="mb-1.5">
-                                <div class="flex items-center justify-between mb-1">
-                                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">LY <span class="font-bold normal-case tracking-normal">• Avg/Day</span></p>
+                            <div class="mb-0.5">
+                                <div class="flex items-center justify-between mb-0.5">
+                                    <p class="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">LY <span class="font-bold normal-case tracking-normal">• Avg/Day</span></p>
                                 </div>
-                                <p class="font-mono font-black text-[19px] sm:text-2xl text-slate-700 leading-none">
+                                <p class="font-mono font-black text-[15px] sm:text-lg text-slate-700 leading-none">
                                     <?= $lyDisp ?>
-                                    <span class="text-[11px] font-bold text-slate-500 ml-0.5"><?= $unit ?></span>
+                                    <span class="text-[10px] font-bold text-slate-500 ml-0.5"><?= $unit ?></span>
                                 </p>
                             </div>
 
-                            <!-- DIVIDER DASHED (SESUI WARNA KATEGORI, FOTO MOBILE) -->
-                            <div class="border-t border-dashed <?= $dividerBorder ?> my-3"></div>
+                            <!-- DIVIDER DASHED -->
+                            <div class="border-t border-dashed <?= $dividerBorder ?> my-2"></div>
 
                             <!-- TODAY -->
                             <div>
-                                <div class="flex items-center justify-between mb-1">
-                                    <p class="text-[10px] font-black uppercase tracking-[0.18em] <?= $col ?>">TODAY</p>
-                                    <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full <?= $deltaUp ? 'bg-rose-50 border border-rose-200 text-rose-700' : 'bg-emerald-50 border border-emerald-200 text-emerald-700' ?>">
+                                <div class="flex items-center justify-between mb-0.5">
+                                    <p class="text-[9px] font-black uppercase tracking-[0.16em] <?= $col ?>">TODAY</p>
+                                    <span class="hidden sm:inline text-[8px] font-black px-1.5 py-0.5 rounded-full <?= $deltaUp ? 'bg-rose-50 border border-rose-200 text-rose-700' : 'bg-emerald-50 border border-emerald-200 text-emerald-700' ?>">
                                         <?php if ((float)$lyVal > 0):
-                                            echo ($deltaUp ? '▲ +' : '▼ ') . $delta . '%';
+                                            echo ($deltaUp ? '▲+' : '▼') . $delta . '%';
                                         else: echo '—'; endif; ?>
                                     </span>
                                 </div>
-                                <p class="font-mono font-black text-[22px] sm:text-2xl leading-none <?= $col ?> tracking-tight">
+                                <p class="font-mono font-black text-[17px] sm:text-[19px] leading-none <?= $col ?> tracking-tight">
                                     <?= $nowDisp ?>
-                                    <span class="text-[11px] font-bold opacity-80 ml-0.5"><?= $unit ?></span>
+                                    <span class="text-[10px] font-bold opacity-80 ml-0.5"><?= $unit ?></span>
                                 </p>
                             </div>
                         </div>
                     <?php endforeach; ?>
                     </div>
 
-                    <!-- 4 CARD TOTAL BIAYA RUPIAH (Rp dipindah menempel didepan angka, tidak dipisah tag!) -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-4">
+                    <!-- 4 CARD TOTAL BIAYA RUPIAH (Rp menempel didepan angka, font kecil 1 halaman) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
                         <?php foreach ($utilRows as $ur):
                             [$label, $icon, $col, $iconBg, $lyVal, $nowVal, $unit, $costLY, $costNow, $cardBg, $cardBorder, $dividerBorder] = array_pad(array_slice($ur, 0, 13), 13, '');
                             $shortName = $label;
@@ -797,17 +777,17 @@ require_once __DIR__ . '/includes/navbar.php';
                             $diffSign = $costDiff > 0 ? '+ Rp ' : ($costDiff < 0 ? '- Rp ' : 'Rp ');
                             $diffAbs = abs($costDiff);
                         ?>
-                        <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm hover:shadow-md transition">
-                            <div class="flex items-center justify-between mb-2.5">
-                                <span class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full">
+                        <div class="rounded-lg border border-slate-200 bg-white p-2 sm:p-2.5 shadow-sm transition">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="inline-flex items-center gap-1 text-[9px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full">
                                     <?= $shortName ?>
                                 </span>
                                 <span class="text-[8px] font-black text-slate-400 uppercase">HARI INI</span>
                             </div>
-                            <p class="font-mono font-black text-[20px] sm:text-2xl text-primary leading-none tracking-tight mb-1">
+                            <p class="font-mono font-black text-[16px] sm:text-lg text-primary leading-none tracking-tight mb-1">
                                 Rp <?= fmtRupiah($costNow) ?>
                             </p>
-                            <div class="mt-2.5 pt-2.5 border-t border-dashed border-slate-200 flex items-center justify-between">
+                            <div class="mt-1.5 pt-1.5 border-t border-dashed border-slate-200 flex items-center justify-between">
                                 <span class="text-[9px] text-slate-500 font-semibold">LY Same Day</span>
                                 <span class="text-[9px] font-bold text-slate-600 font-mono">Rp <?= fmtRupiah($costLY) ?></span>
                             </div>
@@ -821,10 +801,10 @@ require_once __DIR__ . '/includes/navbar.php';
                         <?php endforeach; ?>
                     </div>
 
-                    <!-- FOOTER INFO: TARIF STANDAR (FOTO MOBILE 19.16 footer) -->
-                    <p class="text-[10px] text-gray-500 bg-slate-50 rounded-xl p-2.5 border border-slate-200 leading-relaxed">
+                    <!-- FOOTER INFO: TARIF STANDAR -->
+                    <p class="text-[10px] text-gray-500 bg-slate-50 rounded-lg p-2 border border-slate-200 leading-relaxed">
                         <i class="fas fa-circle-info text-gray-400 mr-1 text-[10px]"></i>
-                        Cost dihitung otomatis dengan tarif standar (PLN Industri <strong class="text-slate-700">Rp 1.850/kWh</strong>, PDAM <strong class="text-slate-700">Rp 9.600/m³</strong>, LPG <strong class="text-slate-700">Rp 24.500/kg</strong>, Solar <strong class="text-slate-700">Rp 17.450/Liter</strong>) — bisa disesuaikan nanti.
+                        Tarif standar (PLN Industri <strong class="text-slate-700">Rp 1.850/kWh</strong>, PDAM <strong class="text-slate-700">Rp 9.600/m³</strong>, LPG <strong class="text-slate-700">Rp 24.500/kg</strong>, Solar <strong class="text-slate-700">Rp 17.450/Liter</strong>).
                     </p>
                 </div>
             </section>
@@ -905,6 +885,10 @@ require_once __DIR__ . '/includes/navbar.php';
                 };
             })();
             </script>
+
+        </div>
+    </div>
+    <!-- ============ AKHIR WRAPPER 3 SECTION RINGKASAN (KPIs + UTILITY + CHILLER) ============ -->
 
             <!-- ─────────────── ③ ENGINEERING ACTIVITIES TABLE (FOTO MOBILE 19.16 BADGE BIRU NOMOR ③) ─────────────── -->
             <section id="sec_engact" class="mb-6">
