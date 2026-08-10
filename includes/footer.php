@@ -1,7 +1,7 @@
 <?php
 $user = currentUser();
-$closeMain = $user && ($user['role'] ?? '') === 'supervisor';
-$closeApp = $closeMain;
+$closeMain = (bool)$user;
+$closeApp = (bool)$user;
 ?>
 <?php if ($closeMain): ?>
     </div><!-- .main-wrapper -->

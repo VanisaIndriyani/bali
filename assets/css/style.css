@@ -250,7 +250,7 @@ input:focus, textarea:focus, select:focus {
     flex-direction: row;
     width: 100%;
     min-height: 100vh;
-    align-items: stretch;
+    align-items: flex-start;
     background: #f5f5f5;
     overflow-y: visible;
 }
@@ -571,12 +571,12 @@ input:focus, textarea:focus, select:focus {
 }
 .logout-mobile:hover { background: #fee2e2; color: #ef4444; }
 
-.main-wrapper { flex: 1; width: 100%; min-width: 0; min-height: 100vh; display: flex; flex-direction: column; padding: 0 1rem 3rem 1rem; overflow-y: visible; }
+.main-wrapper { flex: 1; width: 100%; min-width: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: flex-start; padding: 0 1rem 3rem 1rem; overflow-y: visible; }
 @media (min-width: 640px) { .main-wrapper { padding: 0 1.5rem 4rem 1.5rem; } }
 @media (min-width: 1024px) { .main-wrapper { padding: 0 2rem 4.5rem 2rem; } }
 .flash-wrap { padding-top: 0.5rem; }
 
-.page-shell { width: 100%; max-width: 1280px; margin-left: auto; margin-right: auto; padding: 1.5rem 1rem 2rem; }
+.page-shell { width: 100%; max-width: 1280px; margin-left: auto; margin-right: auto; padding: 1.5rem 1rem 2rem; align-self: stretch; min-width: 0; }
 @media (min-width: 640px) { .page-shell { padding: 1.5rem 1.5rem 2.5rem; } }
 @media (min-width: 1024px) { .page-shell { padding: 2rem 2rem 3rem; } }
 .main-wrapper .page-shell { padding-left: 0; padding-right: 0; }
@@ -584,6 +584,29 @@ input:focus, textarea:focus, select:focus {
 .page-shell--5xl { max-width: 1024px; }
 .page-shell--4xl { max-width: 896px; }
 .page-shell--3xl { max-width: 768px; }
+
+/* ============ ANTI STRETCH: Card Grid / Flex TIDAK dipaksa tinggi sama ============ */
+.page-shell .grid,
+.page-shell [class*="grid-cols"] {
+    align-items: flex-start !important;
+    align-content: flex-start !important;
+}
+.page-shell .grid > *,
+.page-shell [class*="grid-cols"] > *,
+[class*="flex"] > [class*="self-start"] {
+    height: auto !important;
+    align-self: flex-start !important;
+    min-height: 0 !important;
+}
+/* Global anti stretch: semua grid/flex direct child natural height kecuali di modal */
+body:not(.modal-open) .grid > *:not(.modal-card):not(#modalOverlay > *) {
+    align-self: flex-start;
+}
+/* Pastikan wrapper flex-col default tidak memaksa child stretch lebar (kecuali page-shell explisit) */
+.main-wrapper > div:not(.page-shell):not(#modalOverlay):not(.sidebar-backdrop) {
+    align-self: stretch;
+    width: 100%;
+}
 
 /* ============ PRINT / EXPORT ============ */
 @media print {
@@ -1126,14 +1149,17 @@ input[type="file"]::file-selector-button:hover {
 }
 
 /* ---------- FLEX UTILITIES TAMBAHAN ---------- */
-.flex-1 { flex: 1 1 0%; }
+/*
+  ⚠️ NOTE: .flex-1 / .items-stretch / dll. SUDAH DIDEFINISIKAN OLEH TAILWIND CSS CDN.
+  JANGAN override manual disini agar TIDAK menyebabkan child dengan class flex-1
+  GROW BERLEBIHAN & memaksa tinggi card memanjang putih kosong.
+*/
 .flex-auto { flex: 1 1 auto; }
 .flex-none { flex: none; }
 .flex-wrap { flex-wrap: wrap; }
 .items-start { align-items: flex-start; }
 .items-end { align-items: flex-end; }
 .items-center { align-items: center; }
-.items-stretch { align-items: stretch; }
 .justify-start { justify-content: flex-start; }
 .justify-end { justify-content: flex-end; }
 .justify-center { justify-content: center; }
