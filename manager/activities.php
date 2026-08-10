@@ -8,6 +8,7 @@ $db = Database::getInstance();
 $user = currentUser();
 $userName = (string)($user['name']  ?? 'Manager');
 $userId = (int)($user['id']    ?? 0);
+$isManager = $user && strtolower((string)($user['role'] ?? '')) === 'manager';
 
 $monthStart = date('Y-m-01');
 $today = date('Y-m-d');
@@ -587,48 +588,48 @@ if (empty($printAllActs)) {
     </div>
 </div>
 <div class="page-shell page-shell--6xl">
-    <div class="page-header flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 animate-fade-in">
+    <div class="page-header flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5 animate-fade-in">
         <div>
-            <p class="text-[11px] font-black uppercase tracking-[0.25em] text-indigo-700 mb-2">MANAGER • <?= T('eng_act_header', 'DEPARTMENT PERFORMANCE') ?></p>
-            <h1 class="font-display text-3xl font-black text-primary flex items-center gap-3">
-                <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-800 flex items-center justify-center text-white shadow-md shadow-indigo-500/30">
-                    <span class="text-base font-black">3</span>
+            <p class="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-700 mb-1.5">MANAGER • <?= T('eng_act_header', 'DEPARTMENT PERFORMANCE') ?></p>
+            <h1 class="font-display text-2xl font-black text-primary flex items-center gap-2.5">
+                <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-800 flex items-center justify-center text-white shadow-md shadow-indigo-500/30">
+                    <span class="text-sm font-black">3</span>
                 </span>
-                <span class="tracking-wide"><?= T('eng_act_title', 'ENGINEERING') ?> <span class="font-semibold text-secondary/80 italic"><?= T('eng_act_activities', 'ACTIVITIES') ?></span></span>
+                <span class="tracking-wide"><?= T('eng_act_title', 'ENGINEERING') ?> <span class="font-semibold text-secondary/80 italic text-[19px]"><?= T('eng_act_activities', 'ACTIVITIES') ?></span></span>
             </h1>
-            <p class="text-sm text-secondary mt-2"><?= T('eng_act_subtitle', 'Ringkasan 4 divisi Operation, Maintenance, Project dan Landscape per bulan.') ?></p>
+            <p class="text-xs text-secondary mt-1.5"><?= T('eng_act_subtitle', 'Ringkasan 4 divisi Operation, Maintenance, Project dan Landscape per bulan.') ?></p>
         </div>
-        <div class="flex flex-wrap gap-2.5 self-start">
+        <div class="flex flex-wrap gap-2 self-start">
             <button type="button" onclick="window.print()"
-                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-sky-600 via-blue-700 to-blue-900 hover:from-sky-700 hover:via-blue-800 hover:to-blue-950 text-white text-sm font-bold shadow hover:shadow-lg transition-all"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-br from-sky-600 via-blue-700 to-blue-900 hover:from-sky-700 hover:via-blue-800 hover:to-blue-950 text-white text-[12px] font-bold shadow hover:shadow-lg transition-all"
                     title="Cetak simple list engineering operation seperti Microsoft Lists">
-                <i class="fas fa-print"></i> 🖨️ Cetak Lists
+                <i class="fas fa-print text-[11px]"></i> 🖨️ Cetak Lists
             </button>
-            <a href="<?= BASE_URL ?>reports/pdf.php" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 hover:from-rose-600 hover:to-rose-800 text-white text-sm font-bold shadow hover:shadow-lg transition-all">
-                <i class="far fa-file-pdf"></i> <?= T('btn_export_pdf', 'Export PDF') ?>
+            <a href="<?= BASE_URL ?>reports/pdf.php" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 hover:from-rose-600 hover:to-rose-800 text-white text-[12px] font-bold shadow hover:shadow-lg transition-all">
+                <i class="far fa-file-pdf text-[11px]"></i> <?= T('btn_export_pdf', 'Export PDF') ?>
             </a>
-            <a href="<?= BASE_URL ?>reports/excel.php" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white text-sm font-bold shadow hover:shadow-lg transition-all">
-                <i class="far fa-file-excel"></i> <?= T('btn_export_excel', 'Export Excel') ?>
+            <a href="<?= BASE_URL ?>reports/excel.php" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white text-[12px] font-bold shadow hover:shadow-lg transition-all">
+                <i class="far fa-file-excel text-[11px]"></i> <?= T('btn_export_excel', 'Export Excel') ?>
             </a>
             <button type="button" onclick="openMasterModal()"
-                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-700 hover:from-indigo-600 hover:to-purple-800 text-white text-sm font-bold shadow hover:shadow-lg transition-all">
-                <i class="fas fa-gear"></i> ⚙️ Kelola Master Activity
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-700 hover:from-indigo-600 hover:to-purple-800 text-white text-[12px] font-bold shadow hover:shadow-lg transition-all">
+                <i class="fas fa-gear text-[11px]"></i> ⚙️ Kelola Master
             </button>
-            <a href="<?= BASE_URL ?>index.php" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold shadow-sm transition-all">
-                <i class="fas fa-arrow-left"></i> <?= T('btn_back_dash', 'Kembali ke Dashboard') ?>
+            <a href="<?= BASE_URL ?>index.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[12px] font-semibold shadow-sm transition-all">
+                <i class="fas fa-arrow-left text-[11px]"></i> <?= T('btn_back_dash', 'Kembali') ?>
             </a>
         </div>
     </div>
 
-    <div class="card-premium p-5 sm:p-7 bg-white mb-8 animate-slide-up" style="animation-delay: 60ms">
-        <div class="mb-5 pb-4 border-b border-slate-100">
-            <div class="flex items-center gap-3 mb-1.5">
-                <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-white shadow-md shadow-amber-500/30">
-                    <i class="fas fa-pen-to-square"></i>
+    <div class="card-premium p-4 sm:p-5 bg-white mb-6 animate-slide-up" style="animation-delay: 60ms">
+        <div class="mb-4 pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2.5 mb-1">
+                <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-white shadow-md shadow-amber-500/30">
+                    <i class="fas fa-pen-to-square text-[14px]"></i>
                 </span>
                 <div>
-                    <h2 class="font-display text-xl font-black text-primary"><?= T('eng_act_input_title', 'Manager Isi Activity Counters') ?></h2>
-                    <p class="text-xs text-secondary mt-0.5"><?= T('eng_act_input_sub', 'Pilih tanggal dan engineer, lalu isi jumlah aktivitas per 4 divisi di bawah. Data akan masuk ke Daily Log otomatis.') ?></p>
+                    <h2 class="font-display text-lg font-black text-primary"><?= T('eng_act_input_title', 'Manager Isi Activity Counters') ?></h2>
+                    <p class="text-[11px] text-secondary mt-0.5"><?= T('eng_act_input_sub', 'Pilih tanggal dan engineer, lalu isi jumlah aktivitas per 4 divisi di bawah. Data akan masuk ke Daily Log otomatis.') ?></p>
                 </div>
             </div>
         </div>
@@ -636,20 +637,20 @@ if (empty($printAllActs)) {
         <form method="POST" action="<?= BASE_URL ?>manager/activities.php" novalidate>
             <input type="hidden" name="action" value="save_activity_counters">
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
                 <div>
-                    <label class="block text-[11px] font-black uppercase tracking-wider text-primary mb-2">
+                    <label class="block text-[10px] font-black uppercase tracking-wider text-primary mb-1.5">
                         <i class="far fa-calendar-day text-orange-600 mr-1"></i> <?= T('eng_act_field_date', 'Tanggal Aktivitas') ?>
                     </label>
                     <input type="date" name="log_date" id="log_date_activity" value="<?= htmlspecialchars($today) ?>"
-                           class="w-full px-3.5 py-3 rounded-card border border-slate-300 bg-white text-primary font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 transition">
+                           class="w-full px-3 py-2.5 rounded-card border border-slate-300 bg-white text-primary text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 transition">
                 </div>
                 <div>
-                    <label class="block text-[11px] font-black uppercase tracking-wider text-primary mb-2">
+                    <label class="block text-[10px] font-black uppercase tracking-wider text-primary mb-1.5">
                         <i class="fas fa-user-hard-hat text-blue-600 mr-1"></i> <?= T('eng_act_field_eng', 'Pilih Engineer / Staff') ?>
                     </label>
                     <select name="engineer_id" id="engineer_id_activity"
-                            class="w-full px-3.5 py-3 rounded-card border border-slate-300 bg-white text-primary font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition appearance-none pr-10">
+                            class="w-full px-3 py-2.5 rounded-card border border-slate-300 bg-white text-primary text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition appearance-none pr-10">
                         <option value="">-- Pilih Staff / Engineer --</option>
                         <?php foreach ($engineers as $e):
                             $roleLabel = '';
@@ -666,33 +667,33 @@ if (empty($printAllActs)) {
                 </div>
             </div>
 
-            <p class="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500 mb-3 pl-1 flex items-center gap-2">
-                <i class="fas fa-layer-group"></i> <?= T('eng_act_field_counters', 'Counters Aktivitas 4 Divisi') ?>
+            <p class="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 mb-2.5 pl-1 flex items-center gap-2">
+                <i class="fas fa-layer-group text-[11px]"></i> <?= T('eng_act_field_counters', 'Counters Aktivitas 4 Divisi') ?>
             </p>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
                 <!-- ========================================================== -->
                 <!-- 🔷 DIVISI 1: OPERATION                                     -->
                 <!-- ========================================================== -->
-                <div class="rounded-2xl border-2 border-slate-200 bg-white p-5 hover:shadow-lg transition">
-                    <div class="flex items-center justify-between mb-3">
+                <div class="rounded-2xl border-2 border-slate-200 bg-white p-3.5 hover:shadow-lg transition">
+                    <div class="flex items-center justify-between mb-2.5">
                         <label class="flex items-center gap-2">
-                            <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-md">
-                                <i class="fas fa-gears"></i>
+                            <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-md">
+                                <i class="fas fa-gears text-[14px]"></i>
                             </span>
                             <div>
-                                <span class="font-black text-primary tracking-wide text-xs uppercase block">Operation</span>
-                                <span class="text-[10px] text-slate-500">Counter & Daftar Activity</span>
+                                <span class="font-black text-primary tracking-wide text-[11px] uppercase block">Operation</span>
+                                <span class="text-[9px] text-slate-500">Counter & Daftar Activity</span>
                             </div>
                         </label>
                         <input type="number" min="0" step="1" name="activity_operation" value="0"
-                               class="w-24 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-500">
+                               class="w-20 px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white text-lg font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-500">
                     </div>
-                    <div class="space-y-2 pt-3 mt-3 border-t border-slate-200">
+                    <div class="space-y-2 pt-2.5 mt-2.5 border-t border-slate-200">
                         <div class="flex items-center justify-between mb-1">
-                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity</span>
+                            <span class="text-[10px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity</span>
                             <button type="button" onclick="addActRow('op')"
-                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm transition">
-                                <i class="fas fa-plus text-[10px]"></i> Tambah Activity
+                                class="text-[10px] font-black inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm transition">
+                                <i class="fas fa-plus text-[9px]"></i> Tambah
                             </button>
                         </div>
                         <div id="actRows_op" class="space-y-2" data-rows="0"><!-- JS isi rows dinamis --></div>
@@ -701,26 +702,26 @@ if (empty($printAllActs)) {
                 <!-- ========================================================== -->
                 <!-- 🟢 DIVISI 2: MAINTENANCE                                   -->
                 <!-- ========================================================== -->
-                <div class="rounded-2xl border-2 border-slate-200 bg-white p-5 hover:shadow-lg transition">
-                    <div class="flex items-center justify-between mb-3">
+                <div class="rounded-2xl border-2 border-slate-200 bg-white p-3.5 hover:shadow-lg transition">
+                    <div class="flex items-center justify-between mb-2.5">
                         <label class="flex items-center gap-2">
-                            <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white shadow-md">
-                                <i class="fas fa-wrench"></i>
+                            <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white shadow-md">
+                                <i class="fas fa-wrench text-[14px]"></i>
                             </span>
                             <div>
-                                <span class="font-black text-primary tracking-wide text-xs uppercase block">Maintenance</span>
-                                <span class="text-[10px] text-slate-500">Counter & Daftar Activity</span>
+                                <span class="font-black text-primary tracking-wide text-[11px] uppercase block">Maintenance</span>
+                                <span class="text-[9px] text-slate-500">Counter & Daftar Activity</span>
                             </div>
                         </label>
                         <input type="number" min="0" step="1" name="activity_maintenance" value="0"
-                               class="w-24 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-500">
+                               class="w-20 px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white text-lg font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-500">
                     </div>
-                    <div class="space-y-2 pt-3 mt-3 border-t border-slate-200">
+                    <div class="space-y-2 pt-2.5 mt-2.5 border-t border-slate-200">
                         <div class="flex items-center justify-between mb-1">
-                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity</span>
+                            <span class="text-[10px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity</span>
                             <button type="button" onclick="addActRow('mt')"
-                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm transition">
-                                <i class="fas fa-plus text-[10px]"></i> Tambah Activity
+                                class="text-[10px] font-black inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm transition">
+                                <i class="fas fa-plus text-[9px]"></i> Tambah
                             </button>
                         </div>
                         <div id="actRows_mt" class="space-y-2" data-rows="0"><!-- JS isi rows dinamis --></div>
@@ -729,26 +730,26 @@ if (empty($printAllActs)) {
                 <!-- ========================================================== -->
                 <!-- 🟣 DIVISI 3: PROJECT                                       -->
                 <!-- ========================================================== -->
-                <div class="rounded-2xl border-2 border-slate-200 bg-white p-5 hover:shadow-lg transition">
-                    <div class="flex items-center justify-between mb-3">
+                <div class="rounded-2xl border-2 border-slate-200 bg-white p-3.5 hover:shadow-lg transition">
+                    <div class="flex items-center justify-between mb-2.5">
                         <label class="flex items-center gap-2">
-                            <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white shadow-md">
-                                <i class="fas fa-diagram-project"></i>
+                            <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center text-white shadow-md">
+                                <i class="fas fa-diagram-project text-[14px]"></i>
                             </span>
                             <div>
-                                <span class="font-black text-primary tracking-wide text-xs uppercase block">Project</span>
-                                <span class="text-[10px] text-slate-500">Counter & Daftar Activity</span>
+                                <span class="font-black text-primary tracking-wide text-[11px] uppercase block">Project</span>
+                                <span class="text-[9px] text-slate-500">Counter & Daftar Activity</span>
                             </div>
                         </label>
                         <input type="number" min="0" step="1" name="activity_project" value="0"
-                               class="w-24 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-500">
+                               class="w-20 px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white text-lg font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-500">
                     </div>
-                    <div class="space-y-2 pt-3 mt-3 border-t border-slate-200">
+                    <div class="space-y-2 pt-2.5 mt-2.5 border-t border-slate-200">
                         <div class="flex items-center justify-between mb-1">
-                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity</span>
+                            <span class="text-[10px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity</span>
                             <button type="button" onclick="addActRow('pr')"
-                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm transition">
-                                <i class="fas fa-plus text-[10px]"></i> Tambah Activity
+                                class="text-[10px] font-black inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm transition">
+                                <i class="fas fa-plus text-[9px]"></i> Tambah
                             </button>
                         </div>
                         <div id="actRows_pr" class="space-y-2" data-rows="0"><!-- JS isi rows dinamis --></div>
@@ -757,26 +758,26 @@ if (empty($printAllActs)) {
                 <!-- ========================================================== -->
                 <!-- 🟩 DIVISI 4: LANDSCAPE                                     -->
                 <!-- ========================================================== -->
-                <div class="rounded-2xl border-2 border-slate-200 bg-white p-5 hover:shadow-lg transition">
-                    <div class="flex items-center justify-between mb-3">
+                <div class="rounded-2xl border-2 border-slate-200 bg-white p-3.5 hover:shadow-lg transition">
+                    <div class="flex items-center justify-between mb-2.5">
                         <label class="flex items-center gap-2">
-                            <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white shadow-md">
-                                <i class="fas fa-leaf"></i>
+                            <span class="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white shadow-md">
+                                <i class="fas fa-leaf text-[14px]"></i>
                             </span>
                             <div>
-                                <span class="font-black text-primary tracking-wide text-xs uppercase block">Landscape</span>
-                                <span class="text-[10px] text-slate-500">Counter & Daftar Activity</span>
+                                <span class="font-black text-primary tracking-wide text-[11px] uppercase block">Landscape</span>
+                                <span class="text-[9px] text-slate-500">Counter & Daftar Activity</span>
                             </div>
                         </label>
                         <input type="number" min="0" step="1" name="activity_landscape" value="0"
-                               class="w-24 px-3 py-2 rounded-xl border border-slate-300 bg-white text-xl font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-500">
+                               class="w-20 px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white text-lg font-black text-primary text-center focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-500">
                     </div>
-                    <div class="space-y-2 pt-3 mt-3 border-t border-slate-200">
+                    <div class="space-y-2 pt-2.5 mt-2.5 border-t border-slate-200">
                         <div class="flex items-center justify-between mb-1">
-                            <span class="text-[11px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity</span>
+                            <span class="text-[10px] font-bold uppercase text-slate-600 tracking-wide">📋 Daftar Activity</span>
                             <button type="button" onclick="addActRow('la')"
-                                class="text-[11px] font-black inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm transition">
-                                <i class="fas fa-plus text-[10px]"></i> Tambah Activity
+                                class="text-[10px] font-black inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-sm transition">
+                                <i class="fas fa-plus text-[9px]"></i> Tambah
                             </button>
                         </div>
                         <div id="actRows_la" class="space-y-2" data-rows="0"><!-- JS isi rows dinamis --></div>
@@ -784,32 +785,32 @@ if (empty($printAllActs)) {
                 </div>
             </div>
 
-            <div class="flex flex-col sm:flex-row sm:justify-end gap-3 pt-3 border-t border-slate-100">
-                <button type="reset" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-bold hover:bg-slate-50 transition shadow-sm">
-                    <i class="fas fa-rotate-left"></i> Reset
+            <div class="flex flex-col sm:flex-row sm:justify-end gap-2.5 pt-2.5 border-t border-slate-100">
+                <button type="reset" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-[12px] font-bold hover:bg-slate-50 transition shadow-sm">
+                    <i class="fas fa-rotate-left text-[11px]"></i> Reset
                 </button>
-                <button type="submit" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 hover:from-amber-500 hover:to-orange-700 text-white text-sm font-black shadow-lg shadow-amber-500/30 hover:shadow-xl transition">
-                    <i class="fas fa-cloud-arrow-up"></i> Simpan / Update Counters
+                <button type="submit" class="inline-flex items-center justify-center gap-1.5 px-5 py-2 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 hover:from-amber-500 hover:to-orange-700 text-white text-[12px] font-black shadow-lg shadow-amber-500/30 hover:shadow-xl transition">
+                    <i class="fas fa-cloud-arrow-up text-[11px]"></i> Simpan / Update
                 </button>
             </div>
         </form>
     </div>
 
-    <div class="card-premium p-5 sm:p-8 bg-white animate-slide-up" style="animation-delay: 90ms">
-        <div class="mb-6 pb-4 border-b border-slate-100">
+    <div class="card-premium p-4 sm:p-5 lg:p-6 bg-white animate-slide-up" style="animation-delay: 90ms">
+        <div class="mb-5 pb-3 border-b border-slate-100">
             <div class="flex items-center justify-between gap-3">
                 <div>
-                    <p class="text-[11px] font-black uppercase tracking-[0.25em] text-slate-500 mb-1.5 pl-1">4 DIVISI ENGINEERING</p>
-                    <h3 class="font-display text-xl lg:text-2xl font-black text-primary flex items-center gap-2">
-                        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-700 to-primary flex items-center justify-center text-white shadow-md text-sm">
-                            <i class="fas fa-layer-group text-xs"></i>
+                    <p class="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 mb-1 pl-1">4 DIVISI ENGINEERING</p>
+                    <h3 class="font-display text-lg lg:text-xl font-black text-primary flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-700 to-primary flex items-center justify-center text-white shadow-md text-[13px]">
+                            <i class="fas fa-layer-group text-[11px]"></i>
                         </span>
                         Rekap Aktivitas Bulan Ini
                     </h3>
                 </div>
             </div>
         </div>
-        <div class="flex flex-col gap-4 sm:gap-5 mb-6">
+        <div class="flex flex-col gap-3 sm:gap-4 mb-5">
             <?php foreach ($colLeft as $idx => $c):
                 $rowsCard = $catDetailRows[$c['id']] ?? [];
                 $colItems = 'activity_operation_items';
@@ -840,34 +841,34 @@ if (empty($printAllActs)) {
                     $itemsAllPreview = renderActItems($collect, 3);
                 }
             ?>
-            <div class="group rounded-2xl border-2 border-slate-200 bg-white p-4 sm:p-5 hover:shadow-2xl hover:-translate-y-0.5 hover:scale-[1.005] hover:ring-4 hover:ring-slate-300 transition-all duration-300 cursor-pointer active:scale-[0.998]"
+            <div class="group rounded-2xl border-2 border-slate-200 bg-white p-3 sm:p-4 hover:shadow-2xl hover:-translate-y-0.5 hover:scale-[1.005] hover:ring-4 hover:ring-slate-300 transition-all duration-300 cursor-pointer active:scale-[0.998]"
                  onclick="openModal('<?= htmlspecialchars($c['id']) ?>')"
                  role="button"
                  tabindex="0"
                  aria-label="Buka detail divisi <?= htmlspecialchars($c['label']) ?>"
                  onkeydown="if(event.key==='Enter'||event.key===' ')openModal('<?= htmlspecialchars($c['id']) ?>')">
-                <div class="flex flex-col gap-4">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div class="flex items-center gap-3 sm:gap-4 shrink-0 sm:w-56">
-                            <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br <?= $c['iconBox'] ?> flex items-center justify-center text-white shadow-lg ring-2 ring-white/90 shrink-0 group-hover:rotate-3 group-hover:scale-105 transition-transform duration-300">
-                                <i class="<?= $c['icon'] ?> text-xl sm:text-2xl"></i>
+                <div class="flex flex-col gap-3.5">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
+                        <div class="flex items-center gap-2.5 sm:gap-3 shrink-0 sm:w-52">
+                            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br <?= $c['iconBox'] ?> flex items-center justify-center text-white shadow-lg ring-2 ring-white/90 shrink-0 group-hover:rotate-3 group-hover:scale-105 transition-transform duration-300">
+                                <i class="<?= $c['icon'] ?> text-lg sm:text-xl"></i>
                             </div>
                             <div>
-                                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1"><?= $deptLabel ?></p>
-                                <p class="font-black uppercase tracking-wider text-base sm:text-lg text-primary leading-tight"><?= $c['label'] ?></p>
-                                <p class="text-[11px] font-bold uppercase tracking-widest text-secondary/70 mt-0.5">This Month • <?= date('M Y') ?></p>
+                                <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 mb-0.5"><?= $deptLabel ?></p>
+                                <p class="font-black uppercase tracking-wider text-sm sm:text-[15px] text-primary leading-tight"><?= $c['label'] ?></p>
+                                <p class="text-[10px] font-bold uppercase tracking-widest text-secondary/70 mt-0.5">This Month • <?= date('M Y') ?></p>
                             </div>
                         </div>
-                        <div class="flex-1 min-w-0 pl-0 sm:pl-8 sm:border-l sm:border-dashed sm:border-slate-300">
-                            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1.5"><?= $actDetailLabel ?></p>
-                            <div class="text-sm">
+                        <div class="flex-1 min-w-0 pl-0 sm:pl-7 sm:border-l sm:border-dashed sm:border-slate-300">
+                            <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1"><?= $actDetailLabel ?></p>
+                            <div class="text-[13px]">
                                 <?= $colRight[$idx] ?>
                             </div>
                         </div>
                     </div>
                     <?php if ($itemsAllPreview !== ''): ?>
-                    <div class="rounded-xl border border-dashed border-slate-300 bg-white/60 p-3.5">
-                        <p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 mb-2 flex items-center gap-1"><i class="fas fa-list-ul"></i> Preview Daftar Activity Terbaru</p>
+                    <div class="rounded-xl border border-dashed border-slate-300 bg-white/60 p-3">
+                        <p class="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500 mb-1.5 flex items-center gap-1"><i class="fas fa-list-ul text-[10px]"></i> Preview Daftar Activity Terbaru</p>
                         <?= $itemsAllPreview ?>
                     </div>
                     <?php endif; ?>
@@ -876,15 +877,15 @@ if (empty($printAllActs)) {
             <?php endforeach; ?>
         </div>
 
-        <div class="pt-6 sm:pt-8 border-t border-dashed border-slate-200">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-8">
+        <div class="pt-5 sm:pt-6 border-t border-dashed border-slate-200">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-7">
                 <div class="text-left">
-                    <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 mb-8"><?= $preparedLabel ?></p>
-                    <p class="font-bold text-base text-primary border-b-2 border-slate-900/80 pb-1 inline-block"><?= $preparedName ?></p>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 mb-7"><?= $preparedLabel ?></p>
+                    <p class="font-bold text-sm text-primary border-b-2 border-slate-900/80 pb-0.5 inline-block"><?= $preparedName ?></p>
                 </div>
                 <div class="text-right sm:text-right">
-                    <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 mb-8"><?= $reviewedLabel ?></p>
-                    <p class="font-bold text-base text-primary border-b-2 border-slate-900/80 pb-1 inline-block"><?= $reviewedName ?></p>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 mb-7"><?= $reviewedLabel ?></p>
+                    <p class="font-bold text-sm text-primary border-b-2 border-slate-900/80 pb-0.5 inline-block"><?= $reviewedName ?></p>
                 </div>
             </div>
         </div>
