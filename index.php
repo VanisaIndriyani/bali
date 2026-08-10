@@ -541,6 +541,17 @@ require_once __DIR__ . '/includes/navbar.php';
                     <span><?= $todayData ? T('wel_edit_log', 'Edit Daily Log Hari Ini') : T('wel_fill_log', 'Isi Daily Log Hari Ini') ?></span>
                 </a>
                 <?php endif; ?>
+                <div class="inline-flex flex-wrap items-center gap-2">
+                    <input type="date" id="rep_date" value="<?= $today ?>" class="px-3 py-3.5 rounded-xl bg-white border border-slate-300 text-sm font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-500 transition" onchange="updateReportLinks()">
+                    <a id="btn_excel" href="<?= BASE_URL ?>reports/daily_summary.php?date=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm hover:shadow-md hover:-translate-y-0.5 transition">
+                        <i class="fas fa-file-excel"></i>
+                        <span>Excel</span>
+                    </a>
+                    <button type="button" onclick="window.open('<?= BASE_URL ?>reports/daily_summary.php?date=' + (document.getElementById('rep_date')?.value || '<?=$today?>'), '_blank')" class="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm hover:shadow-md hover:-translate-y-0.5 transition">
+                        <i class="fas fa-file-pdf"></i>
+                        <span>PDF / Print</span>
+                    </button>
+                </div>
             <?php endif; ?>
         </div>
     </div>
@@ -852,6 +863,14 @@ require_once __DIR__ . '/includes/navbar.php';
             <!-- JS: TOGGLE COLLAPSE SEMUA SECTION DASHBOARD (state simpan localStorage) -->
             <!-- Section list: kpi, utility, chiller, engact (section dalam kertas), swro, engactcards (4 card divisi supervisor) -->
             <script>
+            // Update link report (Excel/PDF) saat user ganti tanggal di picker
+            function updateReportLinks() {
+                const inp = document.getElementById('rep_date');
+                if (!inp) return;
+                const d = inp.value || '<?=$today?>';
+                const btnX = document.getElementById('btn_excel');
+                if (btnX) btnX.href = '<?=BASE_URL?>reports/daily_summary.php?date=' + encodeURIComponent(d) + '&format=excel';
+            }
             (function(){
                 const SECTIONS = ['kpi','utility','chiller','engact','swro','engactcards'];
                 // Default state: SEMUA TERBUKA default (chiller = coming soon TETAP TERTUTUP)
