@@ -67,23 +67,21 @@ $sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
 <div class="app-layout is-sidebar-expanded" id="appLayout">
 <aside id="sidebar" class="sidebar sidebar-expanded !bg-white !border-r !border-slate-200 !shadow-none">
     <div class="sidebar-inner !p-0 !bg-white">
-        <div class="sidebar-brand !border-b !border-slate-100 !pb-4 !px-4">
+        <div class="sidebar-brand !border-b !border-slate-100 !px-4 !pt-4 !pb-4 min-h-[88px]">
             <button type="button" id="sidebarToggle" class="sidebar-toggle hidden md:inline-flex sidebar-btn-topright" aria-label="Toggle Sidebar" title="Collapse / Expand">
                 <i class="fas fa-bars-staggered transition-transform duration-300"></i>
             </button>
             <button type="button" id="sidebarToggleMobile" class="sidebar-toggle-mobile md:hidden sidebar-btn-topright" aria-label="Close Sidebar" title="Close">
                 <i class="fas fa-xmark"></i>
             </button>
-            <a href="<?= BASE_URL ?>index.php" class="brand-link brand-link--stacked group">
-                <div class="brand-logo animate-float" style="animation-delay: 0.1s; box-shadow: 0 4px 14px rgba(15,23,42,0.08); border-radius: 18px; background: white; padding: 3px; border: 1px solid rgba(226,232,240,0.9);">
-                    <img src="<?= BASE_URL ?>logo.jpeg" alt="St. Regis Bali" class="w-full h-full object-cover rounded-2xl"
-                        style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;">
-                </div>
-                <div class="brand-text text-center">
-                    <h1 class="font-display text-xl font-black tracking-wide leading-tight text-slate-900">ST. REGIS BALI</h1>
-                    <p class="text-[10px] font-bold tracking-[0.2em] uppercase mt-1 text-slate-500">Engineering Daily Log</p>
-                </div>
-            </a>
+            <div class="flex items-start justify-start h-full !pt-1 !pr-14">
+                <a href="<?= BASE_URL ?>index.php" class="no-underline block">
+                    <h1 class="font-display text-[20px] leading-tight font-black tracking-wide text-slate-900">
+                        Engineering
+                        <span class="block text-[19px] mt-0.5">Report</span>
+                    </h1>
+                </a>
+            </div>
         </div>
 
         <nav class="sidebar-nav !px-3 !py-3 !space-y-0.5">

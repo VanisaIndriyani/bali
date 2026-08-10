@@ -144,22 +144,114 @@ try {
 
 /* ---------- 7. RENDER MODE ---------- */
 $format = isset($_GET['format']) ? strtolower(cleanInput($_GET['format'])) : 'print';
-$fileName = 'Daily_Engineering_Summary_' . $reportDate;
+$fileName = 'Engineering_Report_' . $reportDate;
+
+/* ---------- HELPER ESCAPE CSV ---------- */
+function repCsvEscape($v) {
+    $v = (string)$v;
+    $v = str_replace(["\r\n","\r"], "\n", $v);
+    $v = preg_replace('/\s+/u', ' ', $v);
+    $v = trim($v);
+    if (strpos($v, ',') !== false || strpos($v, ';') !== false || strpos($v, "\n") !== false
+        || strpos($v, '"') !== false || strpos($v, '=') === 0 || strpos($v, '@') === 0) {
+        return '"' . str_replace('"', '""', $v) . '"';
+    }
+    return $v;
+}
 
 if ($format === 'excel') {
-    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-    header('Content-Disposition: attachment; filename="' . $fileName . '.xls"');
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="' . $fileName . '.csv"');
     header('Pragma: no-cache');
     header('Expires: 0');
     echo "\xEF\xBB\xBF";
-    require __DIR__ . '/_daily_summary_xls.php';
+
+    $sep = ';';
+    $out = '';
+
+    /* HEADER JUDUL LAPORAN (POLOS TANPA NAMA HOTEL!) */
+    $out .= 'ENGINEERING REPORT' . $sep . $sep . $sep . $sep . $sep . "\n";
+    $out .= 'DATE' . $sep . $reportDateLabel . $sep . $sep . $sep . $sep . $sep . "\n";
+    $out .= "\n";
+
+    /* 1. KPIs */
+    $out .= '1. KEY PERFORMANCE INDICATORS (KPIs)' . "\n";
+    $out .= repCsvEscape('METRIC') . $sep
+          . repCsvEscape('LAST YEAR (LY)') . $sep
+          . repCsvEscape('TODAY') . $sep
+          . repCsvEscape('ITR') . $sep
+          . repCsvEscape('M&U') . $sep
+          . repCsvEscape('GITB RANK') . "\n";
+    foreach ($kpiData as $r) {
+        $out .= repCsvEscape($r[0]) . $sep
+              . repCsvEscape($r[1]) . $sep
+              . repCsvEscape($r[2]) . $sep
+              . repCsvEscape($r[3]) . $sep
+              . repCsvEscape($r[4]) . $sep
+              . repCsvEscape($r[5]) . "\n";
+    }
+    $out .= "\n";
+
+    /* 2. UTILITY USAGE SUMMARY */
+    $out .= '2. UTILITY USAGE SUMMARY' . "\n";
+    $out .= repCsvEscape('UTILITY') . $sep
+          . repCsvEscape('PERIOD') . $sep
+          . repCsvEscape('USAGE') . $sep
+          . repCsvEscape('COST (Rp.)') . "\n";
+
+    $utilCsvRows = [
+        ['ELECTRICITY', 'kWh',   $elecLY,   $elecToday,   $TARIF_LISTRIK],
+        ['WATER',       'm3',    $waterLY,  $waterToday,  $TARIF_AIR],
+        ['GAS',         'kg',    $gasLY,    $gasToday,    $TARIF_GAS],
+        ['FUEL',        'Liter', $fuelLY,   $fuelToday,   $TARIF_FUEL],
+    ];
+    foreach ($utilCsvRows as $row) {
+        list($name, $unit, $ly, $today, $perUnit) = $row;
+        $usageLY = repFmtIndo($ly, 0) . ' ' . $unit;
+        $usageToday = repFmtIndo($today, 0) . ' ' . $unit;
+        $costLY = repFmtRupiah($ly * $perUnit);
+        $costToday = repFmtRupiah($today * $perUnit);
+        $out .= repCsvEscape($name) . $sep . repCsvEscape('(LY)') . $sep
+              . repCsvEscape($usageLY) . $sep . repCsvEscape($costLY) . "\n";
+        $out .= $sep . repCsvEscape('(TODAY)') . $sep
+              . repCsvEscape($usageToday) . $sep . repCsvEscape($costToday) . "\n";
+    }
+    $out .= "\n";
+
+    /* 3. ENGINEERING ACTIVITIES */
+    $out .= '3. ENGINEERING ACTIVITIES' . "\n";
+    $out .= repCsvEscape('DEPARTMENT') . $sep
+          . repCsvEscape('ACTIVITY DETAIL') . $sep
+          . repCsvEscape('STATUS') . "\n";
+    foreach ($divisions as $d) {
+        $list = $actByDiv[$d] ?? [];
+        if (count($list) === 0) $list = [['name' => '-', 'status' => '-']];
+        $first = true;
+        foreach ($list as $item) {
+            $st = 'v ' . repStatusLabel($item['status']);
+            $out .= ($first ? repCsvEscape($d) : '') . $sep
+                  . repCsvEscape($item['name']) . $sep
+                  . repCsvEscape($st) . "\n";
+            $first = false;
+        }
+    }
+    $out .= "\n\n";
+    $out .= repCsvEscape('Prepared By') . $sep . $sep
+          . repCsvEscape('Reviewed By') . $sep . $sep
+          . repCsvEscape('Approved By') . "\n";
+    $out .= "\n\n\n";
+    $out .= repCsvEscape($userName) . $sep . $sep
+          . repCsvEscape('Supervisor / Manager') . $sep . $sep
+          . repCsvEscape('Chief Engineer / EAM') . "\n";
+
+    echo $out;
     exit;
 }
 ?><!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Daily Engineering Summary - <?=$reportDate?></title>
+<title>Engineering Report - <?=$reportDate?></title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
     * { box-sizing: border-box; }
@@ -203,7 +295,7 @@ if ($format === 'excel') {
     <button type="button" class="btn btn-pdf" onclick="window.print()"><i class="fa-solid fa-file-pdf"></i> Save as PDF / Print</button>
 </div>
 <div class="page-wrap">
-    <h1>DAILY ENGINEERING<br>SUMMARY REPORT</h1>
+    <h1>ENGINEERING<br>REPORT</h1>
     <div class="date-label">DATE: <?=$reportDateLabel?></div>
 
     <!-- ① KPIs -->
