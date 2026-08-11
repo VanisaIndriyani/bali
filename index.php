@@ -155,6 +155,14 @@ $todayWater = (float)($todayBoth['water'] ?? 0);
 $todayGas   = (float)($todayBoth['gas']   ?? 0);
 $todayFuel  = (float)($todayBoth['fuel']  ?? 0);
 
+/* todayDailySingle = HANYA dari daily_logs SAJA (khusus kolom TIDAK ADA di energy_logs: occ_rate, swro_*, chiller_*, bottling_*) */
+try {
+    $todayDailySingle = $db->fetchOne("SELECT * FROM daily_logs WHERE log_date = ? AND status='approved' $statusWhere ORDER BY id DESC LIMIT 1", [$today]);
+} catch (\Throwable $ex) {
+    $todayDailySingle = null;
+}
+if (empty($todayDailySingle)) $todayDailySingle = null;
+
 $occLY = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND $approvedWhere AND occ_rate > 0", [$lastYear]);
 $occToday = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND $approvedWhere AND occ_rate > 0", [$currentYear]);
 
@@ -162,7 +170,7 @@ $defaultTargetOcc = 80;
 $defaultLyOcc = 70;
 $lyOcc = ($occLY['cnt'] > 0) ? round((float)$occLY['avg_occ'], 0) : $defaultLyOcc;
 $thisMonthOcc = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE log_date >= ? AND $approvedWhere AND occ_rate > 0", [$monthStart]);
-$todayOccVal = (float)($utilTodaySingle['occ_rate'] ?? 0);
+$todayOccVal = (float)($todayDailySingle['occ_rate'] ?? 0);
 if ($todayOccVal > 0) {
     $targetOcc = round($todayOccVal, 0);
 } elseif ($thisMonthOcc['cnt'] > 0) {
@@ -179,11 +187,6 @@ $lyElecAvg = $utilLY['log_count'] > 0 ? $utilLY['elec'] / max(1, $utilLY['log_co
 $lyWaterAvg = $utilLY['log_count'] > 0 ? $utilLY['water'] / max(1, $utilLY['log_count']) : 0;
 $lyGasAvg = $utilLY['log_count'] > 0 ? $utilLY['gas'] / max(1, $utilLY['log_count']) : 0;
 $lyFuelAvg = $utilLY['log_count'] > 0 ? $utilLY['fuel'] / max(1, $utilLY['log_count']) : 0;
-
-$todayElec = (float)($utilTodaySingle['total_electricity'] ?? 0);
-$todayWater = (float)($utilTodaySingle['total_water'] ?? 0);
-$todayGas = (float)($utilTodaySingle['total_gas'] ?? 0);
-$todayFuel = (float)($utilTodaySingle['total_fuel'] ?? 0);
 
 // ============ â‘¡ ENG ACTIVITY - Counters bulan ini ============
 // Catatan: Counter OTOMATIS dihitung dari child table daily_log_activities (baris per aktivitas), BUKAN dari parent counter column manual
@@ -1107,10 +1110,10 @@ require_once __DIR__ . '/includes/navbar.php';
             <div class="flex flex-col gap-2">
                 <?php
                 $swMonthly = $db->fetchOne("SELECT COALESCE(SUM(swro_watermeter),0) as wm, COALESCE(SUM(swro_kwh),0) as kwh, COALESCE(AVG(NULLIF(swro_tds,0)),0) as tds FROM daily_logs WHERE log_date BETWEEN ? AND ? AND status='approved' $statusWhere", [$monthStart, $today]);
-                $swToday = $utilTodaySingle ? [
-                    'wm' => (float)($utilTodaySingle['swro_watermeter'] ?? 0),
-                    'kwh' => (float)($utilTodaySingle['swro_kwh'] ?? 0),
-                    'tds' => (float)($utilTodaySingle['swro_tds'] ?? 0),
+                $swToday = $todayDailySingle ? [
+                    'wm' => (float)($todayDailySingle['swro_watermeter'] ?? 0),
+                    'kwh' => (float)($todayDailySingle['swro_kwh'] ?? 0),
+                    'tds' => (float)($todayDailySingle['swro_tds'] ?? 0),
                 ] : ['wm'=>0,'kwh'=>0,'tds'=>0];
                 $swCards = [
                     ['Watermeter (m³)', $swToday['wm'] > 0 ? formatNumber($swToday['wm'], 1) : '-', 'fas fa-droplet', 'from-sky-400 to-sky-600', 'bg-sky-50', 'border-sky-200', 'text-sky-700', (float)($swMonthly['wm'] ?? 0) > 0 ? formatNumber($swMonthly['wm'] ?? 0, 1).' m³' : '—'],
