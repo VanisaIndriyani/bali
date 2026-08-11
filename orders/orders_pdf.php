@@ -153,12 +153,6 @@ echo "\xEF\xBB\xBF";
     <h1>ENGINEERING<br>REPORT</h1>
     <div class="date-label">DATE: <?= htmlspecialchars($dateLabel) ?><?php if ($search !== ''): ?> &nbsp;•&nbsp; FILTER: <?= htmlspecialchars($filterLabelUpper) ?><?php else: ?> &nbsp;•&nbsp; <?= htmlspecialchars($filterLabelUpper) ?><?php endif; ?><?php if ($search !== ''): ?> &nbsp;•&nbsp; SEARCH: "<?= htmlspecialchars(strtoupper($search)) ?>"<?php endif; ?></div>
 
-    <div class="info-row">
-        <strong>Akses Login:</strong> <?= htmlspecialchars((string)($user['name'] ?? 'Unknown')) ?> (<?= htmlspecialchars(strtoupper($role)) ?>)
-        &nbsp;&nbsp;•&nbsp;&nbsp; <strong>Periode Export:</strong> <?= htmlspecialchars($dateLabel) ?>
-        &nbsp;&nbsp;•&nbsp;&nbsp; <strong>User Agent:</strong> <?= htmlspecialchars($_SERVER['HTTP_USER_AGENT'] ?? '-') ?>
-    </div>
-
     <!-- ① SUMMARY -->
     <h2>1. ORDER SUMMARY</h2>
     <table>
@@ -275,23 +269,6 @@ echo "\xEF\xBB\xBF";
         </tbody>
     </table>
 
-    <div class="sign-footer">
-        <div class="sign-box">
-            <div class="lbl">Dibuat oleh,</div>
-            <div class="line"><?= htmlspecialchars((string)($user['name'] ?? '________________')) ?></div>
-            <div style="margin-top:2px; font-size:10.5px; color:#4b5563;"><?= htmlspecialchars(strtoupper($role)) ?></div>
-        </div>
-        <div class="sign-box">
-            <div class="lbl">Disetujui oleh Supervisor,</div>
-            <div class="line">________________</div>
-            <div style="margin-top:2px; font-size:10.5px; color:#4b5563;">Engineering Supervisor</div>
-        </div>
-        <div class="sign-box">
-            <div class="lbl">Diketahui Manager,</div>
-            <div class="line">________________</div>
-            <div style="margin-top:2px; font-size:10.5px; color:#4b5563;">Engineering Manager</div>
-        </div>
-    </div>
 </div>
 </body>
 </html>
