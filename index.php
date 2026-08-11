@@ -800,6 +800,19 @@ require_once __DIR__ . '/includes/navbar.php';
                     <span class="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full ml-1 hidden md:inline-flex items-center gap-0.5">
                         <i class="fas fa-hand-pointer text-[8px]"></i> Klik sembunyikan
                     </span>
+                    <!-- Download PDF / Excel (match data dashboard 100%) -->
+                    <span class="ml-1 flex items-center gap-1 shrink-0" onclick="event.stopPropagation();">
+                        <a href="<?= BASE_URL ?>reports/dashboard_activities_pdf.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>" target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[9px] font-black transition"
+                           title="Download PDF Engineering Activities (match dashboard)">
+                            <i class="fas fa-file-pdf text-[8px]"></i> PDF
+                        </a>
+                        <a href="<?= BASE_URL ?>reports/dashboard_activities_excel.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>" target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[9px] font-black transition"
+                           title="Download Excel Engineering Activities (match dashboard)">
+                            <i class="fas fa-file-excel text-[8px]"></i> XLS
+                        </a>
+                    </span>
                 </div>
                 <i id="engact_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[11px] group-hover:text-slate-600"></i>
             </button>
