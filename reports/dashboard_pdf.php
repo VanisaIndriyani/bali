@@ -88,6 +88,82 @@ $periodLabel = formatDate($dateFrom) . ' s/d ' . formatDate($dateTo);
 $modeLabel = $viewType === 'monthly' ? 'Bulanan' : 'Harian';
 $fileName = 'Dashboard_Konsumsi_' . $modeLabel . '_' . date('Ymd', strtotime($dateFrom)) . '-' . date('Ymd', strtotime($dateTo));
 
+// ========== ENGINEERING ACTIVITIES DATA (100% MATCH DASHBOARD CARD #2) ==========
+function buildActivityListQueryDp($db, $userRole, $userId, $category, $dFrom, $dTo, $limit = 500) {
+    $baseWhere = "WHERE dla.category = ? AND dl.status = 'approved' AND dl.log_date BETWEEN ? AND ?";
+    $p = [$category, $dFrom, $dTo];
+    if ($userRole === 'engineer') { $baseWhere .= " AND dl.engineer_id = ?"; $p[] = $userId; }
+    $sql = "SELECT dla.id, dla.activity_title, DATE(dl.log_date) as log_date, u.name as engineer_name
+            FROM daily_log_activities dla
+            INNER JOIN daily_logs dl ON dl.id = dla.daily_log_id
+            LEFT JOIN users u ON u.id = dl.engineer_id
+            $baseWhere
+            ORDER BY dl.log_date DESC, dla.sort_order ASC, dla.id DESC
+            LIMIT $limit";
+    return $db->fetchAll($sql, $p);
+}
+function actGroupWithStatusDp(&$list) {
+    $out = [];
+    foreach ($list as $r) {
+        $t = trim((string)($r['activity_title'] ?? ''));
+        if (strlen($t) < 1) continue;
+        $tl = strtolower($t);
+        $isProg = (strpos($tl, 'progress') !== false) || (strpos($tl, 'install') !== false)
+               || (strpos($tl, 'perbaikan') !== false) || (strpos($tl, 'new ') !== false)
+               || (strpos($tl, 'buat') !== false) || (strpos($tl, 'meeting') !== false)
+               || (strpos($tl, 'pemindahan') !== false) || (strpos($tl, 'follow up') !== false)
+               || (strpos($tl, 'refinising') !== false) || (strpos($tl, 'rapikan') !== false)
+               || (strpos($tl, 'project ') !== false) || (strpos($tl, 'perbaika') !== false);
+        $out[] = ['title'=>$t, 'status'=>$isProg ? 'progress' : 'complete',
+                  'date'=>$r['log_date'] ?? '', 'eng'=>$r['engineer_name'] ?? ''];
+    }
+    return $out;
+}
+$actsGRP_DP = [
+    'operation'   => actGroupWithStatusDp(buildActivityListQueryDp($db, $userRole, $userId, 'operation',   $dateFrom, $dateTo)),
+    'maintenance' => actGroupWithStatusDp(buildActivityListQueryDp($db, $userRole, $userId, 'maintenance', $dateFrom, $dateTo)),
+    'project'     => actGroupWithStatusDp(buildActivityListQueryDp($db, $userRole, $userId, 'project',     $dateFrom, $dateTo)),
+    'landscape'   => actGroupWithStatusDp(buildActivityListQueryDp($db, $userRole, $userId, 'landscape',   $dateFrom, $dateTo)),
+];
+try {
+    $_tmpM = $db->fetchAll("SELECT division, activity_name, sort_order, created_at, status_default FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+    $_existT = [];
+    foreach (['operation','maintenance','project','landscape'] as $dv) {
+        if (!isset($actsGRP_DP[$dv]) || !is_array($actsGRP_DP[$dv])) $actsGRP_DP[$dv] = [];
+        foreach ($actsGRP_DP[$dv] as $_r) {
+            $t = mb_strtolower(trim((string)($_r['title'] ?? '')));
+            if ($t !== '') $_existT[$dv][$t] = true;
+        }
+    }
+    foreach ($_tmpM as $_m) {
+        $dv = (string)($_m['division'] ?? 'operation');
+        if (!in_array($dv,['operation','maintenance','project','landscape'], true)) $dv = 'operation';
+        if (!isset($actsGRP_DP[$dv]) || !is_array($actsGRP_DP[$dv])) $actsGRP_DP[$dv] = [];
+        $title = trim((string)($_m['activity_name'] ?? ''));
+        if ($title === '') continue;
+        $key = mb_strtolower($title);
+        if (isset($_existT[$dv][$key])) continue;
+        $st = (string)($_m['status_default'] ?? 'progress');
+        $actsGRP_DP[$dv][] = [
+            'title' => $title,
+            'status' => ($st === 'complete' ? 'complete' : 'progress'),
+            'date'  => substr((string)($_m['created_at'] ?? ''), 0, 10),
+            'eng'   => '- (Master Activity)'
+        ];
+    }
+    unset($_tmpM, $_existT, $dv, $_m, $title, $key, $st);
+} catch (Throwable $e) {}
+function fmtDtDp($d) {
+    if (strlen((string)$d) < 8) return '';
+    try { return (new DateTime($d))->format('d M Y'); } catch (Throwable $e) { return ''; }
+}
+$divInfo_DP = [
+    'operation'   => ['label'=>'OPERATION',   'bg'=>'#eff6ff', 'ico'=>'fa-gears',    'accent'=>'#1d4ed8'],
+    'maintenance' => ['label'=>'MAINTENANCE', 'bg'=>'#fffbeb', 'ico'=>'fa-wrench',    'accent'=>'#b45309'],
+    'project'     => ['label'=>'PROJECT',     'bg'=>'#f5f3ff', 'ico'=>'fa-clipboard-list','accent'=>'#6d28d9'],
+    'landscape'   => ['label'=>'LANDSCAPE',   'bg'=>'#ecfdf5', 'ico'=>'fa-seedling',  'accent'=>'#047857'],
+];
+
 $logoSrc = '';
 ?>
 <!DOCTYPE html>
@@ -144,6 +220,26 @@ $logoSrc = '';
         .sign-block .who { margin-bottom: 60px; color:#1f2937; font-weight:600; }
         .sign-line { border-top: 1px solid #6b7280; padding-top:6px; font-size:12px; color:#6b7280; }
         .empty { padding: 36px 20px; text-align:center; color:#6b7280; font-size:14px; background:#fafafa; border-radius:10px; border:1px dashed #d1d5db;}
+        /* ===== ENGINEERING ACTIVITIES 3 KOLOM ===== */
+        .tbl-act { width:100%; border-collapse:collapse; margin-top:8px; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;}
+        .tbl-act thead th { background:#fafafa; color:#1f2937; border-bottom: 2px solid #c9a227; padding:10px 12px; text-align:left; font-weight:800; font-size:12px; letter-spacing:0.06em; text-transform:uppercase;}
+        .tbl-act thead th.st-col { width: 180px; }
+        .tbl-act .dept-col { width: 22%; min-width: 160px; }
+        .tbl-act td { padding: 10px 12px; border-bottom: 1px solid #f0f1f3; vertical-align: top; font-size: 12.5px;}
+        .tbl-act td.dept { font-weight: 900; font-size: 13px; color:#111827; letter-spacing:0.04em;}
+        .tbl-act td.dept .ico { width: 32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:10px; margin-right: 10px; font-size: 14px; color:#fff;}
+        .act-title { font-weight: 700; color:#111827; margin-right:8px; }
+        .meta-tags { margin-top:4px; display:flex; gap:6px; flex-wrap:wrap;}
+        .m-date { display:inline-flex; align-items:center; gap:4px; padding: 2px 9px; border-radius:999px; background:#f3f4f6; color:#4b5563; font-size: 10.5px; font-weight: 700; }
+        .m-eng { display:inline-flex; align-items:center; gap:4px; padding: 2px 9px; border-radius:999px; background:#eef2ff; color:#3730a3; font-size: 10.5px; font-weight: 700; }
+        .row-empty td { background: repeating-linear-gradient(45deg, #fafafa, #fafafa 8px, #fdfdfd 8px, #fdfdfd 16px); color:#9ca3af; font-style: italic;}
+        .act-list { list-style:none; margin:0; padding:0;}
+        .act-list li { padding: 3px 0 5px 0; }
+        .st-pill-group { display:flex; flex-direction: column; gap:5px; align-items: flex-end; }
+        .st-pill { display:inline-flex; align-items:center; gap:6px; padding:4px 11px 4px 9px; border-radius:999px; font-size: 10.5px; font-weight:800; letter-spacing:0.03em;}
+        .st-prog { background:#fffbeb; color:#92400e; border:1px solid #fde68a;}
+        .st-done { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;}
+        .st-nodata { display:inline-flex; align-items:center; gap:6px; padding:4px 11px; border-radius:999px; background:#f9fafb; color:#6b7280; border:1px solid #e5e7eb; font-size: 11px; font-weight: 700;}
         .toolbar { display:none; position:fixed; top:16px; right:16px; z-index:50; gap:10px; }
         .toolbar button { border:none; padding: 10px 16px; border-radius: 10px; font-weight:600; cursor:pointer; font-size:13px; box-shadow: 0 6px 18px rgba(0,0,0,0.10);}
         .btn-primary { background:#c9a227; color:#fff; }
@@ -288,16 +384,78 @@ $logoSrc = '';
                 <div class="empty"><i class="fas fa-inbox" style="font-size:32px;opacity:40%;margin-bottom:10px;display:block;"></i>Belum ada data Daily Log yang disetujui Supervisor pada periode ini.</div>
             <?php endif; ?>
 
-            <div class="footer-sign">
-                <div class="sign-block">
-                    <div class="who">Dibuat Oleh,<br><span class="text-muted" style="font-weight:400;">Engineering Staff</span></div>
-                    <div class="sign-line">_______________________________<br>Nama &amp; Tanda Tangan</div>
-                </div>
-                <div class="sign-block" style="text-align:right;">
-                    <div class="who">Mengetahui,<br><span class="text-muted" style="font-weight:400;">Supervisor Engineering</span></div>
-                    <div class="sign-line" style="display:inline-block;min-width:260px;text-align:left;">_______________________________<br>Nama &amp; Tanda Tangan</div>
-                </div>
-            </div>
+            <section class="title">
+                <span class="bar" style="background:#6366f1;"></span>
+                <h2>Engineering Activities <span style="font-weight:500;color:#6b7280;font-size:13px;">(Daily Log + Master Default Progress)</span></h2>
+            </section>
+            <table class="tbl-act">
+                <thead>
+                    <tr>
+                        <th class="dept-col">Department</th>
+                        <th>Activity Detail</th>
+                        <th class="st-col">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach (['operation','maintenance','project','landscape'] as $dv):
+                        $info = $divInfo_DP[$dv] ?? ['label'=>strtoupper($dv),'bg'=>'#f9fafb','ico'=>'fa-list','accent'=>'#6b7280'];
+                        $rows = $actsGRP_DP[$dv] ?? [];
+                        $nProg = 0; $nDone = 0;
+                        foreach ($rows as $r) { if (($r['status'] ?? '') === 'complete') $nDone++; else $nProg++; }
+                    ?>
+                    <tr>
+                        <td class="dept" style="background:<?= $info['bg'] ?>26;">
+                            <span class="ico" style="background:<?= $info['accent'] ?>;">
+                                <i class="fas <?= $info['ico'] ?>"></i>
+                            </span><?= $info['label'] ?>
+                        </td>
+                        <td style="background:<?= $info['bg'] ?>1a;">
+                            <?php if (count($rows) > 0): ?>
+                                <ul class="act-list">
+                                    <?php foreach ($rows as $r): ?>
+                                    <li>
+                                        <span class="act-title">&bull; <?= cleanInput((string)($r['title'] ?? '')) ?></span>
+                                        <div class="meta-tags">
+                                            <?php if ($f = fmtDtDp($r['date'] ?? '')): ?>
+                                                <span class="m-date"><i class="fas fa-calendar" style="font-size:9px;opacity:70%;"></i> <?= $f ?></span>
+                                            <?php endif; ?>
+                                            <?php if (trim((string)($r['eng'] ?? '')) !== ''): ?>
+                                                <span class="m-eng"><i class="fas fa-user-hard-hat" style="font-size:9px;opacity:80%;"></i> <?= cleanInput((string)$r['eng']) ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            <?php else: ?>
+                                <span style="color:#9ca3af;font-style:italic;">
+                                    <i class="fas fa-box-open" style="margin-right:6px;opacity:60%;"></i>Belum ada aktivitas bulan ini.
+                                </span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="st-col" style="background:<?= $info['bg'] ?>1a; text-align:right;">
+                            <?php if (count($rows) === 0): ?>
+                                <span class="st-nodata">&ndash; No Data &ndash;</span>
+                            <?php else: ?>
+                                <div class="st-pill-group">
+                                    <?php if ($nProg > 0): ?>
+                                        <span class="st-pill st-prog">
+                                            <i class="fas fa-spinner" style="font-size:9.5px;opacity:80%;"></i>
+                                            In Progress <strong style="background:#fff;font-size:10px;padding:1px 7px;border-radius:999px;border:1px solid #fde68a;color:#92400e;"><?= $nProg ?></strong>
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if ($nDone > 0): ?>
+                                        <span class="st-pill st-done">
+                                            <i class="fas fa-circle-check" style="font-size:9.5px;opacity:80%;"></i>
+                                            Complete <strong style="background:#fff;font-size:10px;padding:1px 7px;border-radius:999px;border:1px solid #a7f3d0;color:#065f46;"><?= $nDone ?></strong>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 

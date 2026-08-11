@@ -8,15 +8,38 @@ $userId = (int)($user['id'] ?? 0);
 $userRole = (string)($user['role'] ?? 'engineer');
 $userName = (string)($user['name'] ?? 'User');
 
-/* ---------- 1. PARAMETER TANGGAL ---------- */
+/* ---------- 1. PARAMETER TANGGAL (RANGE ATAU SINGLE DATE) ---------- */
+$reportDateFrom = null; $reportDateTo = null; $isRange = false;
 $dateRaw = $_GET['date'] ?? '';
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateRaw)) {
-    $dateRaw = date('Y-m-d');
+$fromRaw = $_GET['date_from'] ?? '';
+$toRaw   = $_GET['date_to']   ?? '';
+if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$fromRaw) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$toRaw)) {
+    $reportDateFrom = (string)$fromRaw;
+    $reportDateTo   = (string)$toRaw;
+    if (strtotime($reportDateFrom) > strtotime($reportDateTo)) {
+        $tmp = $reportDateFrom; $reportDateFrom = $reportDateTo; $reportDateTo = $tmp;
+    }
+    $isRange = true;
+    $reportDate = $reportDateTo;
+} elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateRaw)) {
+    $reportDate = $dateRaw;
+    $reportDateFrom = $reportDate;
+    $reportDateTo   = $reportDate;
+} else {
+    $reportDate = date('Y-m-d');
+    $reportDateFrom = $reportDate;
+    $reportDateTo   = $reportDate;
 }
-$reportDate = $dateRaw;
 $reportDateObj = DateTime::createFromFormat('Y-m-d', $reportDate);
-$reportDateLabel = $reportDateObj ? strtoupper($reportDateObj->format('j F Y')) : strtoupper($reportDate);
+if ($isRange) {
+    $fObj = DateTime::createFromFormat('Y-m-d', $reportDateFrom);
+    $tObj = DateTime::createFromFormat('Y-m-d', $reportDateTo);
+    $reportDateLabel = strtoupper(($fObj?$fObj->format('j F Y'):$reportDateFrom) . ' — ' . ($tObj?$tObj->format('j F Y'):$reportDateTo));
+} else {
+    $reportDateLabel = $reportDateObj ? strtoupper($reportDateObj->format('j F Y')) : strtoupper($reportDate);
+}
 $lySameDay = date('Y-m-d', strtotime($reportDate . ' -1 year'));
+$qsRange = $isRange ? ('date_from='.urlencode($reportDateFrom).'&date_to='.urlencode($reportDateTo)) : ('date='.urlencode($reportDate));
 
 /* ---------- 2. HELPER ---------- */
 function repFmtIndo($v, $dec = 2) { $v=(float)$v; return number_format($v, $dec, ',', '.'); }
@@ -35,25 +58,29 @@ function repActHeurStatus($title) {
     if (strlen($t) < 1) return 'complete';
     $tl = strtolower($t);
     $isProg = (strpos($tl,'progress')!==false) || (strpos($tl,'install')!==false)
-           || (strpos($tl,'perbaikan')!==false) || (strpos($tl,'new ')!==false)
-           || (strpos($tl,'buat')!==false) || (strpos($tl,'meeting')!==false);
+           || (strpos($tl,'perbaikan')!==false) || (strpos($tl,'perbaika')!==false) || (strpos($tl,'new ')!==false)
+           || (strpos($tl,'buat')!==false) || (strpos($tl,'meeting')!==false) || (strpos($tl,'pemindahan')!==false)
+           || (strpos($tl,'follow up')!==false) || (strpos($tl,'refinising')!==false) || (strpos($tl,'rapikan')!==false)
+           || (strpos($tl,'project ')!==false);
     return $isProg ? 'progress' : 'complete';
 }
 
 /* ---------- 3. TARIF ---------- */
 $TARIF_LISTRIK = 1850; $TARIF_AIR = 9600; $TARIF_GAS = 24500; $TARIF_FUEL = 17450;
 
-/* ---------- 4. DATA UTILITY (WRAP TRY/CATCH SUPAYA TABLE TIDAK ADA = TIDAK FATAL ERROR) ---------- */
+/* ---------- 4. DATA UTILITY (WRAP TRY/CATCH SUPAYA TABLE TIDAK ADA = TIDAK FATAL ERROR) — SUPPORT RANGE DATE ---------- */
 $elecToday = $waterToday = $gasToday = $fuelToday = 0;
 $elecLY = $waterLY = $gasLY = $fuelLY = 0;
+$lyRangeFrom = date('Y-m-d', strtotime($reportDateFrom . ' -1 year'));
+$lyRangeTo   = date('Y-m-d', strtotime($reportDateTo   . ' -1 year'));
 try {
     $sumToday = $db->fetchOne("SELECT
-        COALESCE(SUM(CASE WHEN log_date=? THEN total_electricity END),0) as elec,
-        COALESCE(SUM(CASE WHEN log_date=? THEN total_water END),0)       as water,
-        COALESCE(SUM(CASE WHEN log_date=? THEN total_gas END),0)         as gas,
-        COALESCE(SUM(CASE WHEN log_date=? THEN total_fuel END),0)        as fuel
-        FROM daily_logs WHERE status='approved'",
-        [$reportDate,$reportDate,$reportDate,$reportDate]);
+        COALESCE(SUM(total_electricity),0) as elec,
+        COALESCE(SUM(total_water),0)       as water,
+        COALESCE(SUM(total_gas),0)         as gas,
+        COALESCE(SUM(total_fuel),0)        as fuel
+        FROM daily_logs WHERE status='approved' AND log_date BETWEEN ? AND ?",
+        [$reportDateFrom, $reportDateTo]);
     if ($sumToday) {
         $elecToday  = (float)($sumToday['elec']  ?? 0);
         $waterToday = (float)($sumToday['water'] ?? 0);
@@ -61,12 +88,12 @@ try {
         $fuelToday  = (float)($sumToday['fuel']  ?? 0);
     }
     $sumLY = $db->fetchOne("SELECT
-        COALESCE(SUM(CASE WHEN log_date=? THEN total_electricity END),0) as elec,
-        COALESCE(SUM(CASE WHEN log_date=? THEN total_water END),0)       as water,
-        COALESCE(SUM(CASE WHEN log_date=? THEN total_gas END),0)         as gas,
-        COALESCE(SUM(CASE WHEN log_date=? THEN total_fuel END),0)        as fuel
-        FROM daily_logs WHERE status='approved'",
-        [$lySameDay,$lySameDay,$lySameDay,$lySameDay]);
+        COALESCE(SUM(total_electricity),0) as elec,
+        COALESCE(SUM(total_water),0)       as water,
+        COALESCE(SUM(total_gas),0)         as gas,
+        COALESCE(SUM(total_fuel),0)        as fuel
+        FROM daily_logs WHERE status='approved' AND log_date BETWEEN ? AND ?",
+        [$lyRangeFrom, $lyRangeTo]);
     if ($sumLY) {
         $elecLY  = (float)($sumLY['elec']  ?? 0);
         $waterLY = (float)($sumLY['water'] ?? 0);
@@ -75,21 +102,18 @@ try {
     }
 } catch (Exception $e) { /* utility kosong */ }
 
-/* ---------- 5. KPI OCCUPANCY + ITR + M&U + GITB ---------- */
+/* ---------- 5. KPI OCCUPANCY + ITR + M&U + GITB (RANGE DATE SUPPORT) ---------- */
 $kpiData = [['Occupancy Rate','- %','- %','-','-','-']];
 try {
-    $currentYearLY = (int)date('Y', strtotime($lySameDay));
-    $currentYearReport = (int)date('Y', strtotime($reportDate));
-    $occLYRow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND status = 'approved' AND occ_rate > 0", [$currentYearLY]);
-    $occReportRow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND status = 'approved' AND occ_rate > 0", [$currentYearReport]);
     $defaultLyOcc = 70; $defaultTargetOcc = 80;
+    $occLYRow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE log_date BETWEEN ? AND ? AND status = 'approved' AND occ_rate > 0", [$lyRangeFrom, $lyRangeTo]);
+    $occReportRow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE log_date BETWEEN ? AND ? AND status = 'approved' AND occ_rate > 0", [$reportDateFrom, $reportDateTo]);
     $lyOcc = (($occLYRow['cnt'] ?? 0) > 0) ? round((float)($occLYRow['avg_occ'] ?? 0), 0) : $defaultLyOcc;
-    $todayOccSingle = $db->fetchOne("SELECT occ_rate FROM daily_logs WHERE log_date = ? AND status = 'approved' ORDER BY id DESC LIMIT 1", [$reportDate]);
-    $todayOccVal = (float)($todayOccSingle['occ_rate'] ?? 0);
-    if ($todayOccVal > 0) {
-        $targetOcc = round($todayOccVal, 0);
+    $rangeOccAvg = (($occReportRow['cnt'] ?? 0) > 0) ? round((float)($occReportRow['avg_occ'] ?? 0), 0) : 0;
+    if ($rangeOccAvg > 0) {
+        $targetOcc = $rangeOccAvg;
     } else {
-        $avgMonthNow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE DATE_FORMAT(log_date,'%Y-%m') = ? AND status = 'approved' AND occ_rate > 0", [date('Y-m', strtotime($reportDate))]);
+        $avgMonthNow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE DATE_FORMAT(log_date,'%Y-%m') = ? AND status = 'approved' AND occ_rate > 0", [date('Y-m', strtotime($reportDateTo))]);
         if (($avgMonthNow['cnt'] ?? 0) > 0) $targetOcc = round((float)($avgMonthNow['avg_occ'] ?? 0), 0);
         else $targetOcc = $defaultTargetOcc;
     }
@@ -101,50 +125,84 @@ try {
     ];
 } catch (Exception $e) { /* KPI tetap isi default - */ }
 
-/* ---------- 6. ENGINEERING ACTIVITIES PER DIVISI -------------- */
-/*  NAMA TABLE ASLI = daily_log_activities (dla), KATEGORI = dla.category (lowercase), TITLE = dla.activity_title */
+/* ---------- 6. ENGINEERING ACTIVITIES PER DIVISI (100% MATCH DASHBOARD, RANGE DATE BUKAN SINGLE) -------------- */
 $divisions = ['OPERATION', 'MAINTENANCE', 'PROJECT', 'LANDSCAPE'];
 $actByDiv = [];
+$divLower = ['OPERATION'=>'operation','MAINTENANCE'=>'maintenance','PROJECT'=>'project','LANDSCAPE'=>'landscape'];
 foreach ($divisions as $d) $actByDiv[$d] = [];
-try {
-    $actRows = $db->fetchAll(
-        "SELECT dla.category, dla.activity_title
-         FROM daily_log_activities dla
-         INNER JOIN daily_logs dl ON dl.id = dla.daily_log_id
-         WHERE dl.log_date = ? AND dl.status IN ('approved','reviewed','pending')
-         ORDER BY FIELD(dla.category,'operation','maintenance','project','landscape'), dla.id ASC",
-        [$reportDate]
-    );
-    foreach ($actRows as $ar) {
-        $d = strtoupper((string)($ar['category'] ?? ''));
-        if (!in_array($d, $divisions)) continue;
-        $title = (string)($ar['activity_title'] ?? '-');
-        if (strlen(trim($title)) < 1) continue;
-        $actByDiv[$d][] = ['name' => $title, 'status' => repActHeurStatus($title)];
-    }
-} catch (Exception $e) { /* daily_log_activities table not exists */ }
 
-/* Fallback ke activity_masters per divisi jika kosong — wrap try/catch juga */
+/* (A) LOOP 4 DIVISI: Query daily_log_activities BETWEEN date_from s/d date_to (BUKAN SINGLE DATE!)  */
 try {
     foreach ($divisions as $d) {
-        if (count($actByDiv[$d]) === 0) {
-            $masterRows = $db->fetchAll(
-                "SELECT activity_name, status_default FROM activity_masters WHERE LOWER(division) = ? AND status = 'active' ORDER BY sort_order ASC, id ASC LIMIT 4",
-                [strtolower($d)]
-            );
-            foreach ($masterRows as $mr) {
-                $name = (string)($mr['activity_name'] ?? '-');
-                $statusRaw = strtolower((string)($mr['status_default'] ?? 'progress'));
-                $status = in_array($statusRaw,['complete','completed','progress','pending']) ? $statusRaw : repActHeurStatus($name);
-                $actByDiv[$d][] = ['name' => $name, 'status' => $status];
-            }
+        $cat = $divLower[$d];
+        $baseWhere = "WHERE dla.category = ? AND dl.status IN ('approved','reviewed','pending') AND dl.log_date BETWEEN ? AND ?";
+        $p = [$cat, $reportDateFrom, $reportDateTo];
+        if ($userRole === 'engineer') { $baseWhere .= " AND dl.engineer_id = ?"; $p[] = $userId; }
+        $sql = "SELECT dla.activity_title, DATE(dl.log_date) as log_date, u.name as engineer_name
+                FROM daily_log_activities dla
+                INNER JOIN daily_logs dl ON dl.id = dla.daily_log_id
+                LEFT JOIN users u ON u.id = dl.engineer_id
+                $baseWhere
+                ORDER BY dl.log_date DESC, dla.sort_order ASC, dla.id DESC
+                LIMIT 500";
+        $rows = $db->fetchAll($sql, $p);
+        foreach ($rows as $r) {
+            $t = trim((string)($r['activity_title'] ?? ''));
+            if (strlen($t) < 1) continue;
+            $st = repActHeurStatus($t);
+            $actByDiv[$d][] = ['name' => $t, 'status' => $st, 'date' => (string)($r['log_date'] ?? ''), 'eng' => (string)($r['engineer_name'] ?? '')];
         }
     }
-} catch (Exception $e) { /* activity_masters table not exists = biarkan kosong */ }
+} catch (Throwable $e) { /* daily_log_activities table not exists */ }
+
+/* (B) MERGE ALL MASTER ACTIVITIES — TIDAK PEDULI ADA DAILY ATAU TIDAK (TANPA IF count===0, TANPA LIMIT 4) — POLA 100% MATCH DASHBOARD INDEX.PHP */
+try {
+    $existTitle = [];
+    foreach ($divisions as $d) {
+        $existTitle[$d] = [];
+        foreach (($actByDiv[$d] ?? []) as $r) {
+            $t = mb_strtolower(trim((string)($r['name'] ?? '')));
+            if ($t !== '') $existTitle[$d][$t] = true;
+        }
+    }
+    $allMaster = $db->fetchAll("SELECT division, activity_name, sort_order, created_at, status_default FROM activity_masters WHERE status = 'active' ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+    foreach ($allMaster as $m) {
+        $dv = strtoupper((string)($m['division'] ?? 'operation'));
+        if (!in_array($dv, $divisions, true)) $dv = 'OPERATION';
+        if (!isset($actByDiv[$dv]) || !is_array($actByDiv[$dv])) $actByDiv[$dv] = [];
+        $title = trim((string)($m['activity_name'] ?? ''));
+        if ($title === '') continue;
+        $key = mb_strtolower($title);
+        if (isset($existTitle[$dv][$key])) continue; /* skip jika judul sudah ada dari daily log (hindari DOUBLE) */
+        $stRaw = strtolower((string)($m['status_default'] ?? 'progress'));
+        $st = in_array($stRaw,['complete','completed','progress','pending']) ? $stRaw : repActHeurStatus($title);
+        $actByDiv[$dv][] = [
+            'name' => $title,
+            'status' => ($st === 'completed' ? 'complete' : $st),
+            'date' => substr((string)($m['created_at'] ?? ''), 0, 10),
+            'eng' => '- (Master Activity)'
+        ];
+    }
+} catch (Throwable $e) { /* activity_masters table not exists = biarkan kosong */ }
+
+/* Helper hitung status badge per-divisi (nanti dipakai CSV+HTML) */
+function repCountActStatus(&$list) {
+    $n = ['prog'=>0, 'done'=>0];
+    foreach ($list as $r) {
+        $s = (string)($r['status'] ?? 'progress');
+        if ($s === 'complete' || $s === 'completed') $n['done']++;
+        else $n['prog']++;
+    }
+    return $n;
+}
+function repFmtDateAct($d) {
+    if (strlen((string)$d) < 8) return '';
+    try { return (new DateTime($d))->format('d M Y'); } catch (Throwable $e) { return ''; }
+}
 
 /* ---------- 7. RENDER MODE ---------- */
 $format = isset($_GET['format']) ? strtolower(cleanInput($_GET['format'])) : 'print';
-$fileName = 'Engineering_Report_' . $reportDate;
+$fileName = $isRange ? ('Engineering_Report_' . $reportDateFrom . '_to_' . $reportDateTo) : ('Engineering_Report_' . $reportDate);
 
 /* ---------- HELPER ESCAPE CSV ---------- */
 function repCsvEscape($v) {
@@ -218,23 +276,41 @@ if ($format === 'excel') {
     }
     $out .= "\n";
 
-    /* 3. ENGINEERING ACTIVITIES */
+    /* 3. ENGINEERING ACTIVITIES (100% MATCH DASHBOARD + counter per divisi) */
     $out .= '3. ENGINEERING ACTIVITIES' . "\n";
     $out .= repCsvEscape('DEPARTMENT') . $sep
           . repCsvEscape('ACTIVITY DETAIL') . $sep
           . repCsvEscape('STATUS') . "\n";
     foreach ($divisions as $d) {
         $list = $actByDiv[$d] ?? [];
-        if (count($list) === 0) $list = [['name' => '-', 'status' => '-']];
+        $stN = repCountActStatus($list);
+        /* Baris 1 divisi: Dept + summary counter status */
+        $stSummary = '';
+        if (count($list) === 0) $stSummary = '- No Data -';
+        else {
+            if ($stN['prog'] > 0) $stSummary .= 'In Progress (' . $stN['prog'] . ')  ';
+            if ($stN['done'] > 0) $stSummary .= 'Complete (' . $stN['done'] . ')';
+            $stSummary = trim($stSummary);
+        }
+        if (count($list) === 0) {
+            $out .= repCsvEscape($d) . $sep . repCsvEscape('Belum ada aktivitas bulan ini.') . $sep . repCsvEscape($stSummary) . "\n";
+            continue;
+        }
         $first = true;
         foreach ($list as $item) {
-            $st = 'v ' . repStatusLabel($item['status']);
-            $out .= ($first ? repCsvEscape($d) : '') . $sep
-                  . repCsvEscape($item['name']) . $sep
-                  . repCsvEscape($st) . "\n";
+            $meta = [];
+            if ($f = repFmtDateAct($item['date'] ?? '')) $meta[] = $f;
+            if (trim((string)($item['eng'] ?? '')) !== '') $meta[] = (string)$item['eng'];
+            $detail = (string)($item['name'] ?? '');
+            if (count($meta) > 0) $detail .= '   [ ' . implode(' | ', $meta) . ' ]';
+            $st = repStatusLabel($item['status'] ?? 'progress');
+            $out .= ($first ? repCsvEscape($d) . '  [' . $stSummary . ']' : '') . $sep
+                  . repCsvEscape($detail) . $sep
+                  . repCsvEscape(($first ? $stSummary . '  |  ' : '') . $st) . "\n";
             $first = false;
         }
     }
+    $out .= "\n";
 
     echo $out;
     exit;
@@ -279,11 +355,44 @@ if ($format === 'excel') {
     .sign-box { text-align:center; font-size:12px; }
     .sign-box .lbl { font-weight:600; margin-bottom:46px; }
     .sign-box .line { border-top:1px solid #000; padding-top:5px; font-weight:800; }
+    /* ===== ENGINEERING ACTIVITIES (100% SAMA DASHBOARD CARD #2) ===== */
+    table.act { border:1px solid #9ca3af; border-radius:10px; overflow:hidden;}
+    table.act th { background:#e5e7eb; text-align:left; font-weight:800; letter-spacing:.08em; padding:9px 10px; font-size:12px; color:#111; }
+    table.act th.dept-col { width: 20%; }
+    table.act th.status-col { width: 22%; }
+    table.act td { padding: 10px 10px; vertical-align:top; font-size: 12px; color:#111;}
+    table.act td.dept { font-weight:900; font-size:13px; letter-spacing:.05em; }
+    table.act td.op-bg { background:#eff6ff33; }
+    table.act td.mt-bg { background:#fffbeb33; }
+    table.act td.pr-bg { background:#f5f3ff33; }
+    table.act td.la-bg { background:#ecfdf533; }
+    .dept-ico { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; color:#fff; font-size:12px; margin-right:8px;}
+    .ico-op { background:#1d4ed8; }
+    .ico-mt { background:#b45309; }
+    .ico-pr { background:#6d28d9; }
+    .ico-la { background:#047857; }
+    .act-list { list-style:none; margin:0; padding:0;}
+    .act-list li { padding:2px 0 5px 0; line-height:1.35;}
+    .act-name { font-weight:700; color:#0f172a; margin-right:6px;}
+    .meta { margin-top:3px; display:flex; gap:5px; flex-wrap:wrap;}
+    .meta-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700;}
+    .meta-date { background:#f3f4f6; color:#4b5563; border:1px solid #e5e7eb;}
+    .meta-eng { background:#eef2ff; color:#3730a3; border:1px solid #e0e7ff;}
+    .st-group { display:flex; flex-direction:column; gap:5px; align-items:flex-end;}
+    .st-pill { display:inline-flex; align-items:center; gap:6px; padding:4px 10px 4px 8px; border-radius:999px; font-size:10.5px; font-weight:800; letter-spacing:.02em;}
+    .st-nodata { padding:4px 11px; border-radius:999px; background:#f9fafb; color:#6b7280; border:1px solid #d1d5db; font-size:11px; font-weight:700;}
+    .st-prog { background:#fffbeb; color:#92400e; border:1px solid #fde68a; }
+    .st-done { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
+    .st-pill .count { background:#fff; font-size:9.5px; padding:1px 6px; border-radius:999px; border:1px solid; font-weight:900;}
+    .st-prog .count { border-color:#fde68a; color:#92400e;}
+    .st-done .count { border-color:#a7f3d0; color:#065f46;}
+    .empty-act { padding:4px 0; color:#9ca3af; font-style:italic;}
+    .empty-act i { margin-right:6px; opacity:60%;}
 </style>
 </head>
 <body>
 <div class="action-bar">
-    <a class="btn btn-excel" href="?date=<?=urlencode($reportDate)?>&format=excel" target="_blank"><i class="fa-solid fa-file-excel"></i> Download Excel</a>
+    <a class="btn btn-excel" href="?<?=$qsRange?>&format=excel" target="_blank"><i class="fa-solid fa-file-excel"></i> Download Excel</a>
     <button type="button" class="btn btn-pdf" onclick="window.print()"><i class="fa-solid fa-file-pdf"></i> Save as PDF / Print</button>
 </div>
 <div class="page-wrap">
@@ -360,26 +469,79 @@ if ($format === 'excel') {
         </tbody>
     </table>
 
-    <!-- ③ ENGINEERING ACTIVITIES -->
+    <!-- ③ ENGINEERING ACTIVITIES (100% MATCH DASHBOARD CARD #2 + RANGE DATE BUKAN SINGLE) -->
     <h2>3. ENGINEERING ACTIVITIES</h2>
-    <table>
-        <thead><tr><th>DEPARTMENT</th><th>ACTIVITY DETAIL</th><th>STATUS</th></tr></thead>
+    <table class="act">
+        <colgroup>
+            <col class="dept-col"><col><col class="status-col">
+        </colgroup>
+        <thead>
+            <tr><th class="dept-col">DEPARTMENT</th><th>ACTIVITY DETAIL</th><th class="status-col">STATUS</th></tr>
+        </thead>
         <tbody>
-        <?php foreach ($divisions as $d) {
+        <?php
+        $bgMap = ['OPERATION'=>'op-bg','MAINTENANCE'=>'mt-bg','PROJECT'=>'pr-bg','LANDSCAPE'=>'la-bg'];
+        $icoMap = ['OPERATION'=>'ico-op fa-gears','MAINTENANCE'=>'ico-mt fa-wrench','PROJECT'=>'ico-pr fa-clipboard-list','LANDSCAPE'=>'ico-la fa-seedling'];
+        foreach ($divisions as $d) {
             $list = $actByDiv[$d] ?? [];
-            if (count($list) === 0) $list = [['name' => '-', 'status' => '-']];
-            $rows = count($list);
-            foreach ($list as $idx => $item) {
-                $stLabel = repStatusLabel($item['status']);
+            $stN = repCountActStatus($list);
+            $bg = $bgMap[$d] ?? '';
+            $ico = $icoMap[$d] ?? 'ico-op fa-list';
         ?>
             <tr>
-                <?php if ($idx === 0) { ?>
-                    <td rowspan="<?=$rows?>" class="bold cen mid"><?=htmlspecialchars($d)?></td>
-                <?php } ?>
-                <td><ul class="dot"><li><?=htmlspecialchars($item['name'])?></li></ul></td>
-                <td class="cen mid">&check; <?=htmlspecialchars($stLabel)?></td>
+                <td class="dept <?=$bg?>">
+                    <span class="dept-ico <?=$ico?>"><i class="fa-solid <?=substr($ico,6)?>"></i></span><?=htmlspecialchars($d)?>
+                </td>
+                <td class="<?=$bg?>">
+                    <?php if (count($list) === 0): ?>
+                        <span class="empty-act"><i class="fa-solid fa-box-open"></i>Belum ada aktivitas bulan ini.</span>
+                    <?php else: ?>
+                        <ul class="act-list">
+                        <?php foreach ($list as $item):
+                            $name = (string)($item['name'] ?? '');
+                            $date = (string)($item['date'] ?? '');
+                            $eng  = trim((string)($item['eng'] ?? ''));
+                            $fDate = repFmtDateAct($date);
+                        ?>
+                            <li>
+                                <span class="act-name">&bull; <?=htmlspecialchars($name)?></span>
+                                <?php if ($fDate !== '' || $eng !== ''): ?>
+                                    <div class="meta">
+                                        <?php if ($fDate !== ''): ?>
+                                            <span class="meta-tag meta-date"><i class="fa-solid fa-calendar" style="font-size:9px;opacity:.7;"></i> <?=htmlspecialchars($fDate)?></span>
+                                        <?php endif; ?>
+                                        <?php if ($eng !== ''): ?>
+                                            <span class="meta-tag meta-eng"><i class="fa-solid fa-user-hard-hat" style="font-size:9px;opacity:.8;"></i> <?=htmlspecialchars($eng)?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </li>
+                        <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                </td>
+                <td class="status-col <?=$bg?>" style="text-align:right;">
+                    <?php if (count($list) === 0): ?>
+                        <span class="st-nodata">&ndash; No Data &ndash;</span>
+                    <?php else: ?>
+                        <div class="st-group">
+                            <?php if ($stN['prog'] > 0): ?>
+                                <span class="st-pill st-prog">
+                                    <i class="fa-solid fa-spinner" style="font-size:9.5px;opacity:.8;"></i>
+                                    In Progress <span class="count"><?=$stN['prog']?></span>
+                                </span>
+                            <?php endif; ?>
+                            <?php if ($stN['done'] > 0): ?>
+                                <span class="st-pill st-done">
+                                    <i class="fa-solid fa-circle-check" style="font-size:9.5px;opacity:.8;"></i>
+                                    Complete <span class="count"><?=$stN['done']?></span>
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                </td>
             </tr>
-        <?php } } ?>
+        <?php } ?>
         </tbody>
     </table>
 

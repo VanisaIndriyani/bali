@@ -87,6 +87,82 @@ foreach ($summaryData as $row) {
 $modeLabel = $viewType === 'monthly' ? 'Bulanan' : 'Harian';
 $fileName = 'EngineeringReport_Dashboard_Konsumsi_' . $modeLabel . '_' . date('Ymd', strtotime($dateFrom)) . '-' . date('Ymd', strtotime($dateTo));
 
+// ========== ENGINEERING ACTIVITIES DATA (100% MATCH DASHBOARD CARD #2) ==========
+function buildActivityListQueryXl($db, $userRole, $userId, $category, $dFrom, $dTo, $limit = 500) {
+    $baseWhere = "WHERE dla.category = ? AND dl.status = 'approved' AND dl.log_date BETWEEN ? AND ?";
+    $p = [$category, $dFrom, $dTo];
+    if ($userRole === 'engineer') { $baseWhere .= " AND dl.engineer_id = ?"; $p[] = $userId; }
+    $sql = "SELECT dla.id, dla.activity_title, DATE(dl.log_date) as log_date, u.name as engineer_name
+            FROM daily_log_activities dla
+            INNER JOIN daily_logs dl ON dl.id = dla.daily_log_id
+            LEFT JOIN users u ON u.id = dl.engineer_id
+            $baseWhere
+            ORDER BY dl.log_date DESC, dla.sort_order ASC, dla.id DESC
+            LIMIT $limit";
+    return $db->fetchAll($sql, $p);
+}
+function actGroupWithStatusXl(&$list) {
+    $out = [];
+    foreach ($list as $r) {
+        $t = trim((string)($r['activity_title'] ?? ''));
+        if (strlen($t) < 1) continue;
+        $tl = strtolower($t);
+        $isProg = (strpos($tl, 'progress') !== false) || (strpos($tl, 'install') !== false)
+               || (strpos($tl, 'perbaikan') !== false) || (strpos($tl, 'new ') !== false)
+               || (strpos($tl, 'buat') !== false) || (strpos($tl, 'meeting') !== false)
+               || (strpos($tl, 'pemindahan') !== false) || (strpos($tl, 'follow up') !== false)
+               || (strpos($tl, 'refinising') !== false) || (strpos($tl, 'rapikan') !== false)
+               || (strpos($tl, 'project ') !== false) || (strpos($tl, 'perbaika') !== false);
+        $out[] = ['title'=>$t, 'status'=>$isProg ? 'progress' : 'complete',
+                  'date'=>$r['log_date'] ?? '', 'eng'=>$r['engineer_name'] ?? ''];
+    }
+    return $out;
+}
+$actsGRP_Xl = [
+    'operation'   => actGroupWithStatusXl(buildActivityListQueryXl($db, $userRole, $userId, 'operation',   $dateFrom, $dateTo)),
+    'maintenance' => actGroupWithStatusXl(buildActivityListQueryXl($db, $userRole, $userId, 'maintenance', $dateFrom, $dateTo)),
+    'project'     => actGroupWithStatusXl(buildActivityListQueryXl($db, $userRole, $userId, 'project',     $dateFrom, $dateTo)),
+    'landscape'   => actGroupWithStatusXl(buildActivityListQueryXl($db, $userRole, $userId, 'landscape',   $dateFrom, $dateTo)),
+];
+try {
+    $_tmpMX = $db->fetchAll("SELECT division, activity_name, sort_order, created_at, status_default FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+    $_existTX = [];
+    foreach (['operation','maintenance','project','landscape'] as $dv) {
+        if (!isset($actsGRP_Xl[$dv]) || !is_array($actsGRP_Xl[$dv])) $actsGRP_Xl[$dv] = [];
+        foreach ($actsGRP_Xl[$dv] as $_r) {
+            $t = mb_strtolower(trim((string)($_r['title'] ?? '')));
+            if ($t !== '') $_existTX[$dv][$t] = true;
+        }
+    }
+    foreach ($_tmpMX as $_m) {
+        $dv = (string)($_m['division'] ?? 'operation');
+        if (!in_array($dv,['operation','maintenance','project','landscape'], true)) $dv = 'operation';
+        if (!isset($actsGRP_Xl[$dv]) || !is_array($actsGRP_Xl[$dv])) $actsGRP_Xl[$dv] = [];
+        $title = trim((string)($_m['activity_name'] ?? ''));
+        if ($title === '') continue;
+        $key = mb_strtolower($title);
+        if (isset($_existTX[$dv][$key])) continue;
+        $st = (string)($_m['status_default'] ?? 'progress');
+        $actsGRP_Xl[$dv][] = [
+            'title' => $title,
+            'status' => ($st === 'complete' ? 'complete' : 'progress'),
+            'date'  => substr((string)($_m['created_at'] ?? ''), 0, 10),
+            'eng'   => '- (Master Activity)'
+        ];
+    }
+    unset($_tmpMX, $_existTX, $dv, $_m, $title, $key, $st);
+} catch (Throwable $e) {}
+function fmtDtXl($d) {
+    if (strlen((string)$d) < 8) return '';
+    try { return (new DateTime($d))->format('d M Y'); } catch (Throwable $e) { return ''; }
+}
+$divInfo_Xl = [
+    'operation'   => ['label'=>'OPERATION',   'bg'=>'#eff6ff', 'ico'=>'[⚙]'],
+    'maintenance' => ['label'=>'MAINTENANCE', 'bg'=>'#fffbeb', 'ico'=>'[🔧]'],
+    'project'     => ['label'=>'PROJECT',     'bg'=>'#f5f3ff', 'ico'=>'[📋]'],
+    'landscape'   => ['label'=>'LANDSCAPE',   'bg'=>'#ecfdf5', 'ico'=>'[🌱]'],
+];
+
 header('Content-Type: application/vnd.ms-excel; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $fileName . '.xls"');
 header('Content-Transfer-Encoding: binary');
@@ -137,6 +213,37 @@ echo "\xEF\xBB\xBF";
     .text-muted { color:#6b7280; font-size:12px; }
     .sign { margin-top:36px; width: 100%; }
     .sign td { border:none; padding: 6px 0; font-size:12px; color:#1f2937; }
+    /* ===== ENGINEERING ACTIVITIES 3 KOLOM ===== */
+    .tbl-act { width:100%; border-collapse: collapse; margin-top:8px; border:1px solid #d1d5db; border-radius: 4px; overflow: hidden;}
+    .tbl-act th { background:#fafafa; color:#1f2937; border-bottom: 2px solid #c9a227; padding: 10px 12px; text-align:left; font-weight: 800; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;}
+    .tbl-act .dept-col { width: 20%; }
+    .tbl-act .status-col { width: 22%; }
+    .tbl-act td { padding: 10px 12px; border-bottom: 1px solid #f0f1f3; vertical-align: top; font-size: 12px; color:#111827;}
+    .tbl-act td.dept { font-weight: 900; font-size: 13px; letter-spacing: 0.04em;}
+    .tbl-act td.op-bg { background:#eff6ff; }
+    .tbl-act td.mt-bg { background:#fffbeb; }
+    .tbl-act td.pr-bg { background:#f5f3ff; }
+    .tbl-act td.la-bg { background:#ecfdf5; }
+    .dept-ico { display:inline-block; width:28px; height:28px; line-height:28px; text-align:center; border-radius:6px; color:#fff; font-size:12px; margin-right:8px;}
+    .ico-op { background:#1d4ed8; }
+    .ico-mt { background:#b45309; }
+    .ico-pr { background:#6d28d9; }
+    .ico-la { background:#047857; }
+    .act-list { list-style:none; margin:0; padding:0;}
+    .act-list li { padding:2px 0 4px 0;}
+    .act-name { font-weight: 700; color:#111827; margin-right:6px;}
+    .meta { margin-top:3px;}
+    .meta-tag { display:inline-block; padding:1px 7px; margin-right:4px; border-radius:999px; font-size: 10.5px; font-weight: 700;}
+    .meta-date { background:#f3f4f6; color:#4b5563; border:1px solid #e5e7eb;}
+    .meta-eng { background:#eef2ff; color:#3730a3; border:1px solid #e0e7ff;}
+    .st-pill { display:inline-block; padding:3px 9px 3px 7px; border-radius:999px; font-size: 10.5px; font-weight:800; margin-bottom:4px;}
+    .st-prog { background:#fffbeb; color:#92400e; border:1px solid #fde68a;}
+    .st-done { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;}
+    .st-nodata { display:inline-block; padding:3px 9px; border-radius:999px; background:#f9fafb; color:#6b7280; border:1px solid #d1d5db; font-size:11px; font-weight: 700;}
+    .count { background:#fff; font-size:9.5px; padding: 0 5px; border-radius:999px; border:1px solid; font-weight:900; margin-left:4px;}
+    .st-prog .count { border-color:#fde68a; color:#92400e;}
+    .st-done .count { border-color:#a7f3d0; color:#065f46;}
+    .empty-act { color:#9ca3af; font-style:italic;}
 </style>
 </head>
 <body>
@@ -295,23 +402,70 @@ echo "\xEF\xBB\xBF";
         <div class="empty">Belum ada data Daily Log yang disetujui Supervisor pada periode ini.</div>
     <?php endif; ?>
 
-    <table class="sign" style="margin-top:40px;">
-        <tr>
-            <td style="width:50%; vertical-align:top;">
-                Dibuat Oleh,
-                <br><span class="text-muted">Engineering Staff</span>
-                <br><br><br><br>
-                _______________________________<br>
-                <span class="text-muted">Nama Lengkap &amp; Tanda Tangan</span>
-            </td>
-            <td style="width:50%; vertical-align:top; text-align:right;">
-                Mengetahui,
-                <br><span class="text-muted">Supervisor Engineering</span>
-                <br><br><br><br>
-                _______________________________<br>
-                <span class="text-muted">Nama Lengkap &amp; Tanda Tangan</span>
-            </td>
-        </tr>
+    <div class="h-section" style="margin-top:24px; border-bottom-color:#6366f1;">■ ENGINEERING ACTIVITIES <span style="font-weight:500;color:#6b7280;font-size:12px;">(Daily Log + Master Default Progress — 100% Match Dashboard)</span></div>
+    <table class="tbl-act">
+        <colgroup>
+            <col style="width:20%;"><col><col style="width:22%;">
+        </colgroup>
+        <thead>
+            <tr><th class="dept-col">DEPARTMENT</th><th>ACTIVITY DETAIL</th><th class="status-col">STATUS</th></tr>
+        </thead>
+        <tbody>
+        <?php
+        $bgMapXl  = ['OPERATION'=>'op-bg','MAINTENANCE'=>'mt-bg','PROJECT'=>'pr-bg','LANDSCAPE'=>'la-bg'];
+        $icoMapXl = ['OPERATION'=>'ico-op','MAINTENANCE'=>'ico-mt','PROJECT'=>'ico-pr','LANDSCAPE'=>'ico-la'];
+        $icSym    = ['OPERATION'=>'[⚙]','MAINTENANCE'=>'[🔧]','PROJECT'=>'[📋]','LANDSCAPE'=>'[🌱]'];
+        foreach (['OPERATION','MAINTENANCE','PROJECT','LANDSCAPE'] as $d) {
+            $list = $actsGRP_Xl[$d] ?? [];
+            $nP = 0; $nD = 0;
+            foreach ($list as $r) { $s = (string)($r['status'] ?? 'progress'); if ($s === 'complete' || $s === 'completed') $nD++; else $nP++; }
+            $bg = $bgMapXl[$d] ?? '';
+        ?>
+            <tr>
+                <td class="dept <?=$bg?>"><span class="dept-ico <?=$icoMapXl[$d] ?? 'ico-op'?>"><?=$icSym[$d] ?? '[•]'?></span><?= ecell($d) ?></td>
+                <td class="<?=$bg?>">
+                    <?php if (count($list) === 0): ?>
+                        <span class="empty-act">[ 📦 ] Belum ada aktivitas bulan ini.</span>
+                    <?php else: ?>
+                        <ul class="act-list">
+                        <?php foreach ($list as $r):
+                            $nm = (string)($r['title'] ?? '');
+                            $dt = (string)($r['date'] ?? '');
+                            $eg = trim((string)($r['eng'] ?? ''));
+                            $fD = fmtDtXl($dt);
+                        ?>
+                            <li>
+                                <span class="act-name">&bull; <?= ecell($nm) ?></span>
+                                <?php if ($fD !== '' || $eg !== ''): ?>
+                                    <div class="meta">
+                                        <?php if ($fD !== ''): ?>
+                                            <span class="meta-tag meta-date">[🗓] <?= ecell($fD) ?></span>
+                                        <?php endif; ?>
+                                        <?php if ($eg !== ''): ?>
+                                            <span class="meta-tag meta-eng">[👷] <?= ecell($eg) ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </li>
+                        <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                </td>
+                <td class="status-col <?=$bg?>" style="text-align:right;">
+                    <?php if (count($list) === 0): ?>
+                        <span class="st-nodata">&ndash; No Data &ndash;</span>
+                    <?php else: ?>
+                        <?php if ($nP > 0): ?>
+                            <span class="st-pill st-prog">⏳ In Progress <span class="count"><?= $nP ?></span></span><br>
+                        <?php endif; ?>
+                        <?php if ($nD > 0): ?>
+                            <span class="st-pill st-done">✅ Complete <span class="count"><?= $nD ?></span></span>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                </td>
+            </tr>
+        <?php } ?>
+        </tbody>
     </table>
 </div>
 </body>
