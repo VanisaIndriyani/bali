@@ -148,7 +148,7 @@ function buildActivityListQuery_Ds($db, $userRole, $userId, $category, $dateFrom
             LIMIT $limit";
     return $db->fetchAll($sql, $params);
 }
-function actGroupWithStatus_Ds(&$list) {
+function actGroupWithStatus_Ds($list) {
     $out = [];
     foreach ($list as $r) {
         $t = trim((string)($r['activity_title'] ?? ''));
