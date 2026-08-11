@@ -17,11 +17,15 @@ $db->query("CREATE TABLE IF NOT EXISTS `energy_logs` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `log_date` DATE NOT NULL,
     `shift` ENUM('pagi','siang','malam') NOT NULL DEFAULT 'pagi',
+    `pln_lwbp_kwh` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    `pln_wbp_kwh` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     `pln_kwh` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     `genset_kwh` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     `solar_liter` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     `gas_kg` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    `gas_lng_kg` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     `air_m3` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    `air_deep_well_m3` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     `pic_name` VARCHAR(180) NOT NULL DEFAULT '',
     `notes` TEXT NULL,
     `created_by` INT UNSIGNED NULL,
@@ -31,6 +35,26 @@ $db->query("CREATE TABLE IF NOT EXISTS `energy_logs` (
     INDEX `idx_log_date` (`log_date`),
     INDEX `idx_shift` (`shift`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+// ==============================================
+// 🔧 MIGRATION: ADD MISSING COLUMNS IF NOT EXISTS (LWBP/WBP/LNG/Deep Well)
+// ==============================================
+$_mig = function() use ($db) {
+    $cols = [];
+    try {
+        $rows = $db->fetchAll("SHOW COLUMNS FROM energy_logs");
+        foreach ($rows as $r) $cols[strtolower($r['Field'])] = true;
+    } catch (Throwable $e) { return; }
+    $adds = [];
+    if (!isset($cols['pln_lwbp_kwh']))      $adds[] = "ADD COLUMN `pln_lwbp_kwh` DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER `shift`";
+    if (!isset($cols['pln_wbp_kwh']))       $adds[] = "ADD COLUMN `pln_wbp_kwh` DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER `pln_lwbp_kwh`";
+    if (!isset($cols['gas_lng_kg']))        $adds[] = "ADD COLUMN `gas_lng_kg` DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER `gas_kg`";
+    if (!isset($cols['air_deep_well_m3']))  $adds[] = "ADD COLUMN `air_deep_well_m3` DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER `air_m3`";
+    if (count($adds) > 0) {
+        try { $db->query("ALTER TABLE `energy_logs` " . implode(", ", $adds)); } catch (Throwable $e) {}
+    }
+};
+$_mig();
 
 // ==============================================
 // 🧾 HANDLE ACTION: INSERT / UPDATE / DELETE
@@ -46,25 +70,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_l
     $logDate = $_POST['log_date'] ?? date('Y-m-d');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $logDate)) $logDate = date('Y-m-d');
     $shift = in_array(strtolower($_POST['shift'] ?? ''), ['pagi','siang','malam'], true) ? strtolower($_POST['shift']) : 'pagi';
-    $pln = (float)($_POST['pln_kwh'] ?? 0);
-    $genset = (float)($_POST['genset_kwh'] ?? 0);
-    $solar = (float)($_POST['solar_liter'] ?? 0);
-    $gas = (float)($_POST['gas_kg'] ?? 0);
-    $air = (float)($_POST['air_m3'] ?? 0);
+    $plnLwbp  = (float)($_POST['pln_lwbp_kwh'] ?? 0);
+    $plnWbp   = (float)($_POST['pln_wbp_kwh'] ?? 0);
+    $pln      = $plnLwbp + $plnWbp;
+    $genset   = (float)($_POST['genset_kwh'] ?? 0);
+    $solar    = (float)($_POST['solar_liter'] ?? 0);
+    $gas      = (float)($_POST['gas_kg'] ?? 0);
+    $gasLng   = (float)($_POST['gas_lng_kg'] ?? 0);
+    $air      = (float)($_POST['air_m3'] ?? 0);
+    $airDw    = (float)($_POST['air_deep_well_m3'] ?? 0);
     $pic = trim((string)($_POST['pic_name'] ?? $userName));
     $notes = trim((string)($_POST['notes'] ?? ''));
 
     $db->insert('energy_logs', [
-        'log_date'   => $logDate,
-        'shift'      => $shift,
-        'pln_kwh'    => $pln,
-        'genset_kwh' => $genset,
-        'solar_liter'=> $solar,
-        'gas_kg'     => $gas,
-        'air_m3'     => $air,
-        'pic_name'   => $pic,
-        'notes'      => $notes,
-        'created_by' => $userId
+        'log_date'          => $logDate,
+        'shift'             => $shift,
+        'pln_lwbp_kwh'      => $plnLwbp,
+        'pln_wbp_kwh'       => $plnWbp,
+        'pln_kwh'           => $pln,
+        'genset_kwh'        => $genset,
+        'solar_liter'       => $solar,
+        'gas_kg'            => $gas,
+        'gas_lng_kg'        => $gasLng,
+        'air_m3'            => $air,
+        'air_deep_well_m3'  => $airDw,
+        'pic_name'          => $pic,
+        'notes'             => $notes,
+        'created_by'        => $userId
     ]);
     $flashMsg = '✅ Log energi baru berhasil ditambahkan.';
     $flashType = 'success';
@@ -77,25 +109,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit_
         $logDate = $_POST['log_date'] ?? date('Y-m-d');
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $logDate)) $logDate = date('Y-m-d');
         $shift = in_array(strtolower($_POST['shift'] ?? ''), ['pagi','siang','malam'], true) ? strtolower($_POST['shift']) : 'pagi';
-        $pln = (float)($_POST['pln_kwh'] ?? 0);
-        $genset = (float)($_POST['genset_kwh'] ?? 0);
-        $solar = (float)($_POST['solar_liter'] ?? 0);
-        $gas = (float)($_POST['gas_kg'] ?? 0);
-        $air = (float)($_POST['air_m3'] ?? 0);
+        $plnLwbp  = (float)($_POST['pln_lwbp_kwh'] ?? 0);
+        $plnWbp   = (float)($_POST['pln_wbp_kwh'] ?? 0);
+        $pln      = $plnLwbp + $plnWbp;
+        $genset   = (float)($_POST['genset_kwh'] ?? 0);
+        $solar    = (float)($_POST['solar_liter'] ?? 0);
+        $gas      = (float)($_POST['gas_kg'] ?? 0);
+        $gasLng   = (float)($_POST['gas_lng_kg'] ?? 0);
+        $air      = (float)($_POST['air_m3'] ?? 0);
+        $airDw    = (float)($_POST['air_deep_well_m3'] ?? 0);
         $pic = trim((string)($_POST['pic_name'] ?? $userName));
         $notes = trim((string)($_POST['notes'] ?? ''));
 
         $db->update('energy_logs', [
-            'log_date'   => $logDate,
-            'shift'      => $shift,
-            'pln_kwh'    => $pln,
-            'genset_kwh' => $genset,
-            'solar_liter'=> $solar,
-            'gas_kg'     => $gas,
-            'air_m3'     => $air,
-            'pic_name'   => $pic,
-            'notes'      => $notes,
-            'updated_by' => $userId
+            'log_date'          => $logDate,
+            'shift'             => $shift,
+            'pln_lwbp_kwh'      => $plnLwbp,
+            'pln_wbp_kwh'       => $plnWbp,
+            'pln_kwh'           => $pln,
+            'genset_kwh'        => $genset,
+            'solar_liter'       => $solar,
+            'gas_kg'            => $gas,
+            'gas_lng_kg'        => $gasLng,
+            'air_m3'            => $air,
+            'air_deep_well_m3'  => $airDw,
+            'pic_name'          => $pic,
+            'notes'             => $notes,
+            'updated_by'        => $userId
         ], 'id = :id', [':id' => $id]);
         $flashMsg = '✅ Log energi berhasil diupdate.';
         $flashType = 'success';
@@ -145,8 +185,8 @@ $sumRow = $db->fetchOne(
     "SELECT COUNT(id) AS total_entri,
             SUM(pln_kwh + genset_kwh) AS total_kwh,
             SUM(solar_liter) AS total_solar,
-            SUM(gas_kg) AS total_gas,
-            SUM(air_m3) AS total_air,
+            SUM(gas_kg + gas_lng_kg) AS total_gas,
+            SUM(air_m3 + air_deep_well_m3) AS total_air,
             COUNT(DISTINCT NULLIF(pic_name,'')) AS total_pic
      FROM energy_logs $whereSql",
     $params
@@ -300,25 +340,39 @@ include __DIR__ . '/includes/sidebar.php';
             <i class="fas fa-arrow-right text-indigo-500 flex-shrink-0"></i>
         </div>
         <div class="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 pb-3 pr-2">
-            <table class="w-full text-sm min-w-[950px] table-auto border-collapse">
+            <table class="w-full text-sm min-w-[1350px] table-auto border-collapse">
                 <thead class="bg-slate-50 border-b-2 border-slate-200">
                     <tr class="text-left text-secondary text-xs">
-                        <th class="px-3 sm:px-4 py-3.5 font-bold whitespace-nowrap w-12 text-center">#</th>
-                        <th class="px-3 sm:px-4 py-3.5 font-bold whitespace-nowrap">Tanggal</th>
-                        <th class="px-3 sm:px-4 py-3.5 font-bold whitespace-nowrap w-[220px]">Shift</th>
-                        <th class="px-3 sm:px-4 py-3.5 font-bold text-right whitespace-nowrap w-[110px]">PLN (kWh)</th>
-                        <th class="px-3 sm:px-4 py-3.5 font-bold text-right whitespace-nowrap w-[115px]">Genset (kWh)</th>
-                        <th class="px-3 sm:px-4 py-3.5 font-bold text-right whitespace-nowrap w-[105px]">Solar (L)</th>
-                        <th class="px-3 sm:px-4 py-3.5 font-bold text-right whitespace-nowrap w-[100px]">Gas (Kg)</th>
-                        <th class="px-3 sm:px-4 py-3.5 font-bold text-right whitespace-nowrap w-[100px]">Air (m³)</th>
-                        <th class="px-3 sm:px-4 py-3.5 font-bold whitespace-nowrap w-[200px]">PIC</th>
-                        <th class="px-3 sm:px-4 py-3.5 pr-3 sm:pr-4 font-bold text-right whitespace-nowrap w-[130px]">Aksi</th>
+                        <th class="px-2 sm:px-3 py-3 font-bold whitespace-nowrap w-12 text-center">#</th>
+                        <th class="px-2 sm:px-3 py-3 font-bold whitespace-nowrap">Tanggal</th>
+                        <th class="px-2 sm:px-3 py-3 font-bold whitespace-nowrap w-[220px]">Shift</th>
+                        <th class="px-2 sm:px-3 py-3 font-bold text-center whitespace-nowrap w-[95px] border-l border-slate-200" colspan="3">LISTRIK (kWh)</th>
+                        <th class="px-2 sm:px-3 py-3 font-bold text-right whitespace-nowrap w-[100px] border-l border-slate-200">Solar (L)</th>
+                        <th class="px-2 sm:px-3 py-3 font-bold text-center whitespace-nowrap w-[190px] border-l border-slate-200" colspan="2">GAS (Kg)</th>
+                        <th class="px-2 sm:px-3 py-3 font-bold text-center whitespace-nowrap w-[190px] border-l border-slate-200" colspan="2">AIR (m³)</th>
+                        <th class="px-2 sm:px-3 py-3 font-bold whitespace-nowrap w-[200px] border-l border-slate-200">PIC</th>
+                        <th class="px-2 sm:px-3 py-3 pr-2 sm:pr-3 font-bold text-right whitespace-nowrap w-[130px]">Aksi</th>
+                    </tr>
+                    <tr class="text-[10px] text-slate-500 border-t border-slate-200">
+                        <th class="px-2 sm:px-3 py-2"></th>
+                        <th class="px-2 sm:px-3 py-2"></th>
+                        <th class="px-2 sm:px-3 py-2"></th>
+                        <th class="px-2 sm:px-3 py-2 font-bold text-right border-l border-slate-200">LWBP</th>
+                        <th class="px-2 sm:px-3 py-2 font-bold text-right">WBP</th>
+                        <th class="px-2 sm:px-3 py-2 font-bold text-right text-primary">TOTAL</th>
+                        <th class="px-2 sm:px-3 py-2 font-bold text-right border-l border-slate-200">Genset</th>
+                        <th class="px-2 sm:px-3 py-2 font-bold text-right border-l border-slate-200">LPG</th>
+                        <th class="px-2 sm:px-3 py-2 font-bold text-right text-primary">LNG</th>
+                        <th class="px-2 sm:px-3 py-2 font-bold text-right border-l border-slate-200">PDAM</th>
+                        <th class="px-2 sm:px-3 py-2 font-bold text-right text-primary">Deep Well</th>
+                        <th class="px-2 sm:px-3 py-2 border-l border-slate-200"></th>
+                        <th class="px-2 sm:px-3 py-2"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                 <?php if (empty($logs)): ?>
                     <tr>
-                        <td colspan="10" class="px-4 py-16 text-center">
+                        <td colspan="13" class="px-4 py-16 text-center">
                             <div class="text-5xl text-slate-300 mb-3"><i class="far fa-folder-open"></i></div>
                             <p class="text-[14px] font-bold text-slate-600 mb-1">Belum ada log energi untuk periode ini</p>
                             <p class="text-[12px] text-slate-500 mb-5">Klik tombol <strong>+ Tambah Log Baru</strong> di pojok kanan atas untuk mulai input data.</p>
@@ -331,21 +385,31 @@ include __DIR__ . '/includes/sidebar.php';
                     <?php foreach ($logs as $i => $r):
                         $shiftLabel = $shiftLabelMap[$r['shift']] ?? ucfirst($r['shift']);
                         $tgl = (new DateTime($r['log_date']))->format('d M Y');
+                        $lwbp = (float)($r['pln_lwbp_kwh'] ?? 0);
+                        $wbp  = (float)($r['pln_wbp_kwh'] ?? 0);
+                        $plnT = $lwbp + $wbp;
+                        $gasLpg = (float)($r['gas_kg'] ?? 0);
+                        $gasLng = (float)($r['gas_lng_kg'] ?? 0);
+                        $airPdam = (float)($r['air_m3'] ?? 0);
+                        $airDw   = (float)($r['air_deep_well_m3'] ?? 0);
                     ?>
                     <tr class="hover:bg-slate-50 transition-colors group">
-                        <td class="px-3 sm:px-4 py-3 text-xs font-bold text-slate-500 align-top text-center"><?= ($i+1) ?>.</td>
-                        <td class="px-3 sm:px-4 py-3 font-bold text-primary whitespace-nowrap align-top"><?= $tgl ?></td>
-                        <td class="px-3 sm:px-4 py-3 align-top">
+                        <td class="px-2 sm:px-3 py-3 text-xs font-bold text-slate-500 align-top text-center"><?= ($i+1) ?>.</td>
+                        <td class="px-2 sm:px-3 py-3 font-bold text-primary whitespace-nowrap align-top"><?= $tgl ?></td>
+                        <td class="px-2 sm:px-3 py-3 align-top">
                             <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold">
                                 <i class="fas fa-clock mr-1.5 text-slate-400 text-[10px]"></i><?= $shiftLabel ?>
                             </span>
                         </td>
-                        <td class="px-3 sm:px-4 py-3 text-right font-mono font-bold text-primary align-top tabular-nums"><?= fmtNum($r['pln_kwh'], 1) ?></td>
-                        <td class="px-3 sm:px-4 py-3 text-right font-mono font-bold text-slate-600 align-top tabular-nums"><?= fmtNum($r['genset_kwh'], 1) ?></td>
-                        <td class="px-3 sm:px-4 py-3 text-right font-mono font-bold text-primary align-top tabular-nums"><?= fmtNum($r['solar_liter'], 1) ?></td>
-                        <td class="px-3 sm:px-4 py-3 text-right font-mono font-bold text-slate-600 align-top tabular-nums"><?= fmtNum($r['gas_kg'], 1) ?></td>
-                        <td class="px-3 sm:px-4 py-3 text-right font-mono font-bold text-primary align-top tabular-nums"><?= fmtNum($r['air_m3'], 1) ?></td>
-                        <td class="px-3 sm:px-4 py-3 text-xs text-slate-700 font-semibold align-top whitespace-nowrap">
+                        <td class="px-2 sm:px-3 py-3 text-right font-mono text-slate-600 align-top tabular-nums border-l border-slate-100"><?= fmtNum($lwbp, 1) ?></td>
+                        <td class="px-2 sm:px-3 py-3 text-right font-mono text-slate-600 align-top tabular-nums"><?= fmtNum($wbp, 1) ?></td>
+                        <td class="px-2 sm:px-3 py-3 text-right font-mono font-black text-primary align-top tabular-nums"><?= fmtNum($plnT, 1) ?></td>
+                        <td class="px-2 sm:px-3 py-3 text-right font-mono font-bold text-slate-600 align-top tabular-nums border-l border-slate-100"><?= fmtNum($r['genset_kwh'], 1) ?></td>
+                        <td class="px-2 sm:px-3 py-3 text-right font-mono text-slate-600 align-top tabular-nums border-l border-slate-100"><?= fmtNum($gasLpg, 1) ?></td>
+                        <td class="px-2 sm:px-3 py-3 text-right font-mono font-black text-primary align-top tabular-nums"><?= fmtNum($gasLng, 1) ?></td>
+                        <td class="px-2 sm:px-3 py-3 text-right font-mono text-slate-600 align-top tabular-nums border-l border-slate-100"><?= fmtNum($airPdam, 1) ?></td>
+                        <td class="px-2 sm:px-3 py-3 text-right font-mono font-black text-primary align-top tabular-nums"><?= fmtNum($airDw, 1) ?></td>
+                        <td class="px-2 sm:px-3 py-3 text-xs text-slate-700 font-semibold align-top whitespace-nowrap border-l border-slate-100">
                             <div class="inline-flex items-center gap-1.5">
                                 <i class="far fa-user-circle text-slate-400"></i>
                                 <?= htmlspecialchars($r['pic_name'] ?: '-') ?>
@@ -354,7 +418,7 @@ include __DIR__ . '/includes/sidebar.php';
                                 <div class="text-[10px] text-slate-400 mt-1 truncate max-w-[180px]" title="<?= htmlspecialchars($r['notes']) ?>"><i class="far fa-sticky-note mr-1"></i><?= htmlspecialchars($r['notes']) ?></div>
                             <?php endif; ?>
                         </td>
-                        <td class="px-3 sm:px-4 py-3 pr-3 sm:pr-4 text-right whitespace-nowrap align-top">
+                        <td class="px-2 sm:px-3 py-3 pr-2 sm:pr-3 text-right whitespace-nowrap align-top">
                             <div class="flex gap-1.5 justify-end items-center">
                                 <?php
                                     $qsEdit = $_GET; $qsEdit['edit'] = $r['id'];
@@ -363,7 +427,7 @@ include __DIR__ . '/includes/sidebar.php';
                                 <a href="<?= htmlspecialchars($_SERVER['PHP_SELF']) . '?' . http_build_query($qsEdit) ?>#editLogModal" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition" title="Edit">
                                     <i class="fas fa-pencil text-xs"></i>
                                 </a>
-                                <button type="button" onclick="alert('Detail:\nTanggal: <?= $tgl ?>\nShift: <?= $shiftLabel ?>\nPLN: <?= fmtNum($r['pln_kwh'],1) ?> kWh\nGenset: <?= fmtNum($r['genset_kwh'],1) ?> kWh\nSolar: <?= fmtNum($r['solar_liter'],1) ?> L\nGas: <?= fmtNum($r['gas_kg'],1) ?> Kg\nAir: <?= fmtNum($r['air_m3'],1) ?> m³\nPIC: <?= htmlspecialchars($r['pic_name'] ?: '-') ?>\nNotes: <?= htmlspecialchars($r['notes'] ?: '-') ?>')" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition" title="Lihat Detail">
+                                <button type="button" onclick="alert('Detail:\nTanggal: <?= $tgl ?>\nShift: <?= $shiftLabel ?>\nPLN LWBP: <?= fmtNum($lwbp,1) ?> kWh\nPLN WBP:  <?= fmtNum($wbp,1) ?> kWh\nPLN TOTAL:<?= fmtNum($plnT,1) ?> kWh\nGenset:   <?= fmtNum($r['genset_kwh'],1) ?> kWh\nSolar:    <?= fmtNum($r['solar_liter'],1) ?> L\nGas LPG:  <?= fmtNum($gasLpg,1) ?> Kg\nGas LNG:  <?= fmtNum($gasLng,1) ?> Kg\nAir PDAM: <?= fmtNum($airPdam,1) ?> m³\nAir DW:   <?= fmtNum($airDw,1) ?> m³\nPIC: <?= htmlspecialchars($r['pic_name'] ?: '-') ?>\nNotes: <?= htmlspecialchars($r['notes'] ?: '-') ?>')" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition" title="Lihat Detail">
                                     <i class="fas fa-eye text-xs"></i>
                                 </button>
                                 <a href="<?= htmlspecialchars($_SERVER['PHP_SELF']) . '?' . http_build_query($qsDel) ?>" onclick="return confirm('Yakin hapus log tanggal <?= $tgl ?> shift <?= $shiftLabel ?>?')" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition" title="Hapus">
@@ -440,26 +504,55 @@ include __DIR__ . '/includes/sidebar.php';
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                        <div>
-                            <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">PLN (kWh)</label>
-                            <input type="number" step="0.01" min="0" name="pln_kwh" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                    <div class="space-y-3 border border-slate-200 rounded-xl p-3 sm:p-4 bg-slate-50/70">
+                        <div class="flex items-center justify-between">
+                            <p class="text-[10px] font-black uppercase tracking-[2px] text-slate-500"><i class="fas fa-bolt text-amber-500 mr-1.5"></i> Listrik PLN (kWh)</p>
+                            <span class="text-[9px] text-slate-400 font-semibold uppercase">total = lwbp + wbp (auto hitung)</span>
                         </div>
-                        <div>
-                            <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Genset (kWh)</label>
-                            <input type="number" step="0.01" min="0" name="genset_kwh" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">LWBP</label>
+                                <input type="number" step="0.01" min="0" name="pln_lwbp_kwh" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">WBP</label>
+                                <input type="number" step="0.01" min="0" name="pln_wbp_kwh" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
+                            <div class="flex items-end">
+                                <div class="w-full px-3 py-2.5 rounded-xl border-2 border-slate-800/10 bg-slate-100 text-slate-700 text-sm font-black font-mono text-right">
+                                    <span data-role="pln-total">0</span>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Solar (L)</label>
-                            <input type="number" step="0.01" min="0" name="solar_liter" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Gas (Kg)</label>
-                            <input type="number" step="0.01" min="0" name="gas_kg" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
-                        </div>
-                        <div class="col-span-2 sm:col-span-1">
-                            <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Air (m³)</label>
-                            <input type="number" step="0.01" min="0" name="air_m3" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                    </div>
+
+                    <div class="space-y-3 border border-slate-200 rounded-xl p-3 sm:p-4 bg-slate-50/70">
+                        <p class="text-[10px] font-black uppercase tracking-[2px] text-slate-500"><i class="fas fa-industry text-slate-500 mr-1.5"></i> Sumber Daya Lain</p>
+                        <div class="grid grid-cols-2 sm:grid-cols-6 gap-3">
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Genset (kWh)</label>
+                                <input type="number" step="0.01" min="0" name="genset_kwh" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Solar (L)</label>
+                                <input type="number" step="0.01" min="0" name="solar_liter" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Gas LPG (Kg)</label>
+                                <input type="number" step="0.01" min="0" name="gas_kg" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Gas LNG (Kg)</label>
+                                <input type="number" step="0.01" min="0" name="gas_lng_kg" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Air PDAM (m³)</label>
+                                <input type="number" step="0.01" min="0" name="air_m3" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Deep Well (m³)</label>
+                                <input type="number" step="0.01" min="0" name="air_deep_well_m3" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
                         </div>
                     </div>
 
@@ -535,26 +628,55 @@ include __DIR__ . '/includes/sidebar.php';
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                        <div>
-                            <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">PLN (kWh)</label>
-                            <input type="number" step="0.01" min="0" name="pln_kwh" value="<?= (float)$editData['pln_kwh'] ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                    <div class="space-y-3 border border-slate-200 rounded-xl p-3 sm:p-4 bg-slate-50/70">
+                        <div class="flex items-center justify-between">
+                            <p class="text-[10px] font-black uppercase tracking-[2px] text-slate-500"><i class="fas fa-bolt text-amber-500 mr-1.5"></i> Listrik PLN (kWh)</p>
+                            <span class="text-[9px] text-slate-400 font-semibold uppercase">total = lwbp + wbp (auto hitung)</span>
                         </div>
-                        <div>
-                            <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Genset (kWh)</label>
-                            <input type="number" step="0.01" min="0" name="genset_kwh" value="<?= (float)$editData['genset_kwh'] ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">LWBP</label>
+                                <input type="number" step="0.01" min="0" name="pln_lwbp_kwh" value="<?= (float)($editData['pln_lwbp_kwh'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">WBP</label>
+                                <input type="number" step="0.01" min="0" name="pln_wbp_kwh" value="<?= (float)($editData['pln_wbp_kwh'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
+                            <div class="flex items-end">
+                                <div class="w-full px-3 py-2.5 rounded-xl border-2 border-slate-800/10 bg-slate-100 text-slate-700 text-sm font-black font-mono text-right">
+                                    <span data-role="pln-total-edit"><?= fmtNum((float)(($editData['pln_lwbp_kwh'] ?? 0) + ($editData['pln_wbp_kwh'] ?? 0)), 1) ?></span>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Solar (L)</label>
-                            <input type="number" step="0.01" min="0" name="solar_liter" value="<?= (float)$editData['solar_liter'] ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Gas (Kg)</label>
-                            <input type="number" step="0.01" min="0" name="gas_kg" value="<?= (float)$editData['gas_kg'] ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
-                        </div>
-                        <div class="col-span-2 sm:col-span-1">
-                            <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Air (m³)</label>
-                            <input type="number" step="0.01" min="0" name="air_m3" value="<?= (float)$editData['air_m3'] ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                    </div>
+
+                    <div class="space-y-3 border border-slate-200 rounded-xl p-3 sm:p-4 bg-slate-50/70">
+                        <p class="text-[10px] font-black uppercase tracking-[2px] text-slate-500"><i class="fas fa-industry text-slate-500 mr-1.5"></i> Sumber Daya Lain</p>
+                        <div class="grid grid-cols-2 sm:grid-cols-6 gap-3">
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Genset (kWh)</label>
+                                <input type="number" step="0.01" min="0" name="genset_kwh" value="<?= (float)($editData['genset_kwh'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Solar (L)</label>
+                                <input type="number" step="0.01" min="0" name="solar_liter" value="<?= (float)($editData['solar_liter'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Gas LPG (Kg)</label>
+                                <input type="number" step="0.01" min="0" name="gas_kg" value="<?= (float)($editData['gas_kg'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Gas LNG (Kg)</label>
+                                <input type="number" step="0.01" min="0" name="gas_lng_kg" value="<?= (float)($editData['gas_lng_kg'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Air PDAM (m³)</label>
+                                <input type="number" step="0.01" min="0" name="air_m3" value="<?= (float)($editData['air_m3'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Deep Well (m³)</label>
+                                <input type="number" step="0.01" min="0" name="air_deep_well_m3" value="<?= (float)($editData['air_deep_well_m3'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            </div>
                         </div>
                     </div>
 
@@ -585,5 +707,37 @@ include __DIR__ . '/includes/sidebar.php';
     </div>
 </div>
 <?php endif; ?>
+
+<script>
+(function(){
+    function fmt(n, d){
+        n = parseFloat(n || 0);
+        if (isNaN(n)) n = 0;
+        return n.toLocaleString('id-ID', {minimumFractionDigits: d, maximumFractionDigits: d});
+    }
+    function bindAdd(){
+        var lw = document.querySelector('input[name="pln_lwbp_kwh"]');
+        var wb = document.querySelector('input[name="pln_wbp_kwh"]');
+        var tv = document.querySelector('[data-role="pln-total"]');
+        if(!lw || !wb || !tv) return;
+        function up(){ tv.textContent = fmt((parseFloat(lw.value)||0) + (parseFloat(wb.value)||0), 1); }
+        lw.addEventListener('input', up);
+        wb.addEventListener('input', up);
+        up();
+    }
+    function bindEdit(){
+        var lw = document.querySelectorAll('input[name="pln_lwbp_kwh"]')[1];
+        var wb = document.querySelectorAll('input[name="pln_wbp_kwh"]')[1];
+        var tv = document.querySelector('[data-role="pln-total-edit"]');
+        if(!lw || !wb || !tv) return;
+        function up(){ tv.textContent = fmt((parseFloat(lw.value)||0) + (parseFloat(wb.value)||0), 1); }
+        lw.addEventListener('input', up);
+        wb.addEventListener('input', up);
+        up();
+    }
+    bindAdd();
+    bindEdit();
+})();
+</script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
