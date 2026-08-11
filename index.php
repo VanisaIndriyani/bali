@@ -59,24 +59,101 @@ if ($userRole === 'manager') {
 
 $todayData = $db->fetchOne("SELECT * FROM daily_logs WHERE log_date = ? $statusWhere LIMIT 1", [$today]);
 
+/* ============================================================
+ * 🔗 HELPER: MERGE DATA UTILITY DARI daily_logs + energy_logs
+ * (Data user input di energy_logsheet.php disimpan ke energy_logs,
+ *  TAPI dashboard sebelumnya HANYA baca daily_logs → fix gabungkan!)
+ * Aggregation: 'SUM' atau 'AVG'
+ * Return: [elec, water, gas, fuel, cnt, cnt_en]
+ * ============================================================ */
+function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFrom, $dateTo, $agg = 'SUM') {
+    $isSum = ($agg !== 'AVG');
+    $aggFn = $isSum ? 'SUM' : 'AVG';
+    $aggFnNull = $isSum ? 'SUM' : 'AVG';
+    $cntFn  = 'COUNT';
+
+    /* --- (A) daily_logs (primary legacy) --- */
+    try {
+        $sqlD = "SELECT
+            COALESCE($aggFn(total_electricity),0) as elec,
+            COALESCE($aggFn(total_water),0) as water,
+            COALESCE($aggFn(total_gas),0) as gas,
+            COALESCE($aggFn(total_fuel),0) as fuel,
+            COALESCE($cntFn(*),0) as cnt
+        FROM daily_logs
+        WHERE log_date BETWEEN ? AND ? AND $approvedWhereDaily";
+        $d = $db->fetchOne($sqlD, [$dateFrom, $dateTo]);
+    } catch (Throwable $e) { $d = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0]; }
+    if (!$d) $d = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0];
+    $d['elec']=(float)($d['elec']??0); $d['water']=(float)($d['water']??0);
+    $d['gas']=(float)($d['gas']??0); $d['fuel']=(float)($d['fuel']??0);
+    $d['cnt']=(int)($d['cnt']??0);
+
+    /* --- (B) energy_logs (energy_logsheet.php input user) --- */
+    try {
+        $wE = ["log_date BETWEEN ? AND ?"];
+        $pE = [$dateFrom, $dateTo];
+        if ($userRole === 'engineer') {
+            $wE[] = "created_by = ?";
+            $pE[] = $userId;
+        }
+        $whereE = 'WHERE ' . implode(' AND ', $wE);
+        $sqlE = "SELECT
+            COALESCE($aggFn(pln_lwbp_kwh + pln_wbp_kwh + genset_kwh),0)  as elec,
+            COALESCE($aggFn(air_m3 + air_deep_well_m3),0)                as water,
+            COALESCE($aggFn(gas_kg + gas_lng_kg),0)                      as gas,
+            COALESCE($aggFn(solar_liter),0)                               as fuel,
+            COALESCE($cntFn(*),0) as cnt
+        FROM energy_logs $whereE";
+        $e = $db->fetchOne($sqlE, $pE);
+    } catch (Throwable $e) { $e = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0]; }
+    if (!$e) $e = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0];
+    $e['elec']=(float)($e['elec']??0); $e['water']=(float)($e['water']??0);
+    $e['gas']=(float)($e['gas']??0); $e['fuel']=(float)($e['fuel']??0);
+    $e['cnt']=(int)($e['cnt']??0);
+
+    /* --- (C) MERGE: jika mode AVG jangan dijumlah mentok (hanya salah satu yg ada isinya pilih terbesar) --- */
+    if ($isSum) {
+        $out = [
+            'elec'  => $d['elec']  + $e['elec'],
+            'water' => $d['water'] + $e['water'],
+            'gas'   => $d['gas']   + $e['gas'],
+            'fuel'  => $d['fuel']  + $e['fuel'],
+            'cnt'   => $d['cnt']   + $e['cnt'],
+            'cnt_d' => $d['cnt'],
+            'cnt_e' => $e['cnt'],
+        ];
+    } else {
+        /* AVG: jika daily_logs ada data yang nonzero → prefer daily_logs; else pilih energy_logs (hindari double count) */
+        $pickDaily = ($d['elec'] > 0 || $d['water'] > 0 || $d['gas'] > 0 || $d['fuel'] > 0);
+        $s = $pickDaily ? $d : $e;
+        $out = [
+            'elec'  => (float)$s['elec'],
+            'water' => (float)$s['water'],
+            'gas'   => (float)$s['gas'],
+            'fuel'  => (float)$s['fuel'],
+            'cnt'   => (int)$s['cnt'],
+            'cnt_d' => $d['cnt'],
+            'cnt_e' => $e['cnt'],
+        ];
+    }
+    /* Backward compat: output key 'log_count' = cnt (biar line 101-104 lyXxxAvg TIDAK PERLU DIUBAH) */
+    $out['log_count'] = max(1, (int)($out['cnt'] ?? 1));
+    return $out;
+}
+
 // ============ â‘  UTILITY REPORT - LY (Last Year) vs TODAY ============
-$utilLY = $db->fetchOne("SELECT
-    COALESCE(SUM(total_electricity),0) as elec,
-    COALESCE(SUM(total_water),0) as water,
-    COALESCE(SUM(total_gas),0) as gas,
-    COALESCE(SUM(total_fuel),0) as fuel,
-    COUNT(*) as log_count
-FROM daily_logs WHERE YEAR(log_date) = ? AND $approvedWhere", [$lastYear]);
+$lyFrom = (int)$lastYear . '-01-01'; $lyTo = (int)$lastYear . '-12-31';
+$tyFrom = (int)$currentYear . '-01-01'; $tyTo = (int)$currentYear . '-12-31';
+$utilLY    = utilFetchBoth_Db($db, $approvedWhere, $userId, $userRole, $lyFrom, $lyTo, 'SUM');
+$utilToday = utilFetchBoth_Db($db, $approvedWhere, $userId, $userRole, $tyFrom, $tyTo, 'SUM');
 
-$utilToday = $db->fetchOne("SELECT
-    COALESCE(SUM(total_electricity),0) as elec,
-    COALESCE(SUM(total_water),0) as water,
-    COALESCE(SUM(total_gas),0) as gas,
-    COALESCE(SUM(total_fuel),0) as fuel,
-    COUNT(*) as log_count
-FROM daily_logs WHERE YEAR(log_date) = ? AND $approvedWhere", [$currentYear]);
-
-$utilTodaySingle = $db->fetchOne("SELECT * FROM daily_logs WHERE log_date = ? AND status = 'approved' $statusWhere LIMIT 1", [$today]);
+/* todayElec/Water/Gas/Fuel per single date: MERGE kedua tabel */
+$todayBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $today, $today, 'SUM');
+$todayElec  = (float)($todayBoth['elec']  ?? 0);
+$todayWater = (float)($todayBoth['water'] ?? 0);
+$todayGas   = (float)($todayBoth['gas']   ?? 0);
+$todayFuel  = (float)($todayBoth['fuel']  ?? 0);
 
 $occLY = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND $approvedWhere AND occ_rate > 0", [$lastYear]);
 $occToday = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND $approvedWhere AND occ_rate > 0", [$currentYear]);
@@ -145,9 +222,11 @@ function buildActCount($db, $dateFrom, $dateTo, $statusWhere, $userRole, $userId
 $activitySum = buildActCount($db, $monthStart, $today, $statusWhere, $userRole, $userId);
 $todayAct    = buildActCount($db, $today,      $today, $statusWhere, $userRole, $userId);
 
-$monthlyElectricity = $db->fetchOne("SELECT COALESCE(SUM(total_electricity),0) as total FROM daily_logs WHERE log_date >= ? AND status = 'approved' $statusWhere", [$monthStart])['total'];
-$monthlyWater = $db->fetchOne("SELECT COALESCE(SUM(total_water),0) as total FROM daily_logs WHERE log_date >= ? AND status = 'approved' $statusWhere", [$monthStart])['total'];
-$monthlyGas = $db->fetchOne("SELECT COALESCE(SUM(total_gas),0) as total FROM daily_logs WHERE log_date >= ? AND status = 'approved' $statusWhere", [$monthStart])['total'];
+$_mtBoth = utilFetchBoth_Db($db, "status = 'approved' $statusWhere", $userId, $userRole, $monthStart, $today, 'SUM');
+$monthlyElectricity = (float)($_mtBoth['elec']  ?? 0);
+$monthlyWater       = (float)($_mtBoth['water'] ?? 0);
+$monthlyGas         = (float)($_mtBoth['gas']   ?? 0);
+unset($_mtBoth);
 $monthlySwro = $db->fetchOne("SELECT COALESCE(SUM(swro_watermeter),0) as total FROM daily_logs WHERE log_date >= ? AND status = 'approved' $statusWhere", [$monthStart])['total'];
 $monthlyBottling = $db->fetchOne("SELECT COALESCE(SUM(bottling_watermeter),0) as total FROM daily_logs WHERE log_date >= ? AND status = 'approved' $statusWhere", [$monthStart])['total'];
 $monthlyChiller = $db->fetchOne("SELECT COALESCE(COUNT(*),0) as total FROM daily_logs WHERE log_date >= ? AND status = 'approved' AND (chiller_1_on = 1 OR chiller_2_on = 1 OR chiller_3_on = 1) $statusWhere", [$monthStart])['total'];
@@ -272,42 +351,32 @@ $TARIF = [
 ];
 function fmtRupiah($n) { if ($n <= 0) return '0'; return number_format((int)round($n), 0, ',', '.'); }
 
-// 1) UTILITY TODAY & LY â€” kalkulasi VALUE + COST per row (LY / TODAY)
-// TODAY: pakai utilTodaySingle (hanya single hari) atau SUM dari data month untuk Today
-$sumToday = $db->fetchOne("SELECT
-    COALESCE(SUM(CASE WHEN log_date=? THEN total_electricity END),0) as elec,
-    COALESCE(SUM(CASE WHEN log_date=? THEN total_water END),0)       as water,
-    COALESCE(SUM(CASE WHEN log_date=? THEN total_gas END),0)         as gas,
-    COALESCE(SUM(CASE WHEN log_date=? THEN total_fuel END),0)        as fuel
-    FROM daily_logs WHERE status='approved' $statusWhere",
-    [$today,$today,$today,$today]);
-$elecToday = (float)($sumToday['elec'] ?? 0);
-$waterToday = (float)($sumToday['water'] ?? 0);
-$gasToday  = (float)($sumToday['gas'] ?? 0);
-$fuelToday = (float)($sumToday['fuel'] ?? 0);
-$costElecToday = $elecToday * $TARIF['electricity_per_kwh'];
-$costWaterToday= $waterToday * $TARIF['water_per_m3'];
-$costGasToday  = $gasToday  * $TARIF['gas_per_kg'];
-$costFuelToday = $fuelToday * $TARIF['fuel_per_liter'];
+// 1) UTILITY TODAY & LY — kalkulasi VALUE + COST per row (LY / TODAY)
+// TODAY: pakai MERGE daily_logs + energy_logs (data dari energy_logsheet.php)
+$_tBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $today, $today, 'SUM');
+$elecToday  = (float)($_tBoth['elec']  ?? 0);
+$waterToday = (float)($_tBoth['water'] ?? 0);
+$gasToday   = (float)($_tBoth['gas']   ?? 0);
+$fuelToday  = (float)($_tBoth['fuel']  ?? 0);
+unset($_tBoth);
+$costElecToday  = $elecToday  * $TARIF['electricity_per_kwh'];
+$costWaterToday = $waterToday * $TARIF['water_per_m3'];
+$costGasToday   = $gasToday   * $TARIF['gas_per_kg'];
+$costFuelToday  = $fuelToday  * $TARIF['fuel_per_liter'];
 
-// LY: Pakai data Last Year â€” AVG per day of SAME MONTH last year (bukan total) untuk cocok "per-day"
+// LY: Pakai data Last Year — AVG per day of SAME MONTH last year (bukan total) untuk cocok "per-day"
 $lySameMonth = (intval($lastYear)) . '-' . date('m') . '-01';
 $lySameMonthEnd = (intval($lastYear)) . '-' . date('m') . '-' . date('t', strtotime($lySameMonth));
-$sumLY = $db->fetchOne("SELECT
-    COALESCE(AVG(NULLIF(total_electricity,0)),0) as elec,
-    COALESCE(AVG(NULLIF(total_water,0)),0)       as water,
-    COALESCE(AVG(NULLIF(total_gas,0)),0)         as gas,
-    COALESCE(AVG(NULLIF(total_fuel,0)),0)        as fuel
-    FROM daily_logs WHERE status='approved' AND log_date BETWEEN ? AND ? $statusWhere",
-    [$lySameMonth, $lySameMonthEnd]);
-$elecLY = (float)($sumLY['elec'] ?? 0);
-$waterLY = (float)($sumLY['water'] ?? 0);
-$gasLY  = (float)($sumLY['gas'] ?? 0);
-$fuelLY = (float)($sumLY['fuel'] ?? 0);
-$costElecLY = $elecLY * $TARIF['electricity_per_kwh'];
+$_lBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $lySameMonth, $lySameMonthEnd, 'AVG');
+$elecLY  = (float)($_lBoth['elec']  ?? 0);
+$waterLY = (float)($_lBoth['water'] ?? 0);
+$gasLY   = (float)($_lBoth['gas']   ?? 0);
+$fuelLY  = (float)($_lBoth['fuel']  ?? 0);
+unset($_lBoth);
+$costElecLY  = $elecLY  * $TARIF['electricity_per_kwh'];
 $costWaterLY = $waterLY * $TARIF['water_per_m3'];
-$costGasLY  = $gasLY  * $TARIF['gas_per_kg'];
-$costFuelLY = $fuelLY * $TARIF['fuel_per_liter'];
+$costGasLY   = $gasLY   * $TARIF['gas_per_kg'];
+$costFuelLY  = $fuelLY  * $TARIF['fuel_per_liter'];
 
 // Helper: Display usage â€” rounding & unit
 function uUsage($n, $unit, $dec=0) {
