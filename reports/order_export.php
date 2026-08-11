@@ -9,6 +9,9 @@ $userRole = (string)($user['role'] ?? 'engineer');
 /* ---------- 1. PARAMETER TANGGAL (SINGLE ?date= ATAU RANGE ?date_from=&date_to=) ---------- */
 $def = date('Y-m-d');
 $rangeMode = false;
+$reportDate = $def;           /* PRE-DECLARE SAFE DEFAULT */
+$reportDateFrom = $def;       /* PRE-DECLARE SAFE DEFAULT */
+$reportDateTo   = $def;       /* PRE-DECLARE SAFE DEFAULT */
 $dateFromRaw = $_GET['date_from'] ?? '';
 $dateToRaw   = $_GET['date_to']   ?? '';
 $dateRaw     = $_GET['date']      ?? '';
@@ -22,11 +25,7 @@ if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateFromRaw) && preg_match('/^\
     $reportDate = (string)$dateRaw;
     $reportDateFrom = $reportDate;
     $reportDateTo   = $reportDate;
-} else {
-    $reportDate = $def;
-    $reportDateFrom = $def;
-    $reportDateTo   = $def;
-}
+} /* ELSE: pakai default $def yang sudah di-assign diatas */
 $reportDateObj = DateTime::createFromFormat('Y-m-d', $reportDate);
 $reportFromObj = DateTime::createFromFormat('Y-m-d', $reportDateFrom);
 $reportToObj   = DateTime::createFromFormat('Y-m-d', $reportDateTo);

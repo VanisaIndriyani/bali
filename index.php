@@ -561,11 +561,12 @@ require_once __DIR__ . '/includes/navbar.php';
                             <i class="fas fa-calendar-day text-slate-500 text-[12px]"></i>
                             <span class="text-[10px] font-black uppercase text-slate-500 hidden sm:inline">Periode</span>
                         </div>
+                        <?php $hFrom = htmlspecialchars($monthStart ?? '', ENT_QUOTES); $hTo = htmlspecialchars($today ?? '', ENT_QUOTES); ?>
                         <label class="text-[10px] font-bold text-slate-600">Dari</label>
-                        <input type="date" id="rep_date_from" name="date_from" value="<?= e($monthStart) ?>" class="px-1 py-1 text-[11px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md outline-none focus:ring-1 focus:ring-indigo-400" onchange="updateReportLinks()">
+                        <input type="date" id="rep_date_from" name="date_from" value="<?= $hFrom ?>" class="px-1 py-1 text-[11px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md outline-none focus:ring-1 focus:ring-indigo-400" onchange="updateReportLinks()">
                         <span class="text-[11px] font-black text-slate-400">s/d</span>
                         <label class="text-[10px] font-bold text-slate-600">Sampai</label>
-                        <input type="date" id="rep_date_to" name="date_to" value="<?= e($today) ?>" class="px-1 py-1 text-[11px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md outline-none focus:ring-1 focus:ring-indigo-400" onchange="updateReportLinks()">
+                        <input type="date" id="rep_date_to" name="date_to" value="<?= $hTo ?>" class="px-1 py-1 text-[11px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md outline-none focus:ring-1 focus:ring-indigo-400" onchange="updateReportLinks()">
                         <button type="submit" class="ml-1 inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] shadow-sm transition">
                             <i class="fas fa-filter text-[9px]"></i>
                             <span>Terapkan</span>
