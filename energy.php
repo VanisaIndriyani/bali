@@ -3,11 +3,211 @@
  * ⚡ ENERGY DASHBOARD (WA 18.09)
  * Bisa diakses SEMUA ROLE (Manager, Supervisor, Engineer/Staff)
  * Posisi: Sidebar DI BAWAH Dashboard Utama (COLLAPSIBLE)
- * Style DOMINAN PUTIH SLATE NETRAL. Data placeholder dulu, siap diisi logic nanti.
+ * Style DOMINAN PUTIH SLATE NETRAL.
+ * Data SEKARANG REAL DARI DATABASE: merge daily_logs + energy_logs
  */
 
 require_once __DIR__ . '/config/config.php';
 requireLogin();
+
+$userId   = intval($_SESSION['user_id'] ?? 0);
+$userRole = $_SESSION['role'] ?? 'manager';
+
+$statusWhere = '';
+if ($userRole === 'engineer') {
+    $statusWhere = " AND engineer_id = " . $userId;
+}
+
+$today     = date('Y-m-d');
+$monthStart = date('Y-m-01');
+$lastYear  = intval(date('Y')) - 1;
+
+$defaultFrom = $monthStart;
+$defaultTo   = date('Y-m-t');
+$dateFrom = $_GET['date_from'] ?? $defaultFrom;
+$dateTo   = $_GET['date_to']   ?? $defaultTo;
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) $dateFrom = $defaultFrom;
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo))   $dateTo   = $defaultTo;
+
+/**
+ * HELPER: Merge SUM / AVG utility dari 2 tabel (daily_logs + energy_logs)
+ * Sama 1:1 dengan index.php agar result konsisten dengan Dashboard Utama
+ */
+function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFrom, $dateTo, $agg = 'SUM')
+{
+    $out = [
+        'elec'  => 0.0,
+        'water' => 0.0,
+        'gas'   => 0.0,
+        'fuel'  => 0.0,
+        'cnt_d' => 0,
+        'cnt_e' => 0,
+    ];
+
+    $agg = strtoupper($agg) === 'AVG' ? 'AVG' : 'SUM';
+
+    try {
+        // ── A) daily_logs (legacy)
+        $sqlD = "SELECT
+            COALESCE($agg(NULLIF(dl.total_electricity,0)),0) as elec,
+            COALESCE($agg(NULLIF(dl.total_water,0)),0)       as water,
+            COALESCE($agg(NULLIF(dl.total_gas,0)),0)         as gas,
+            COALESCE($agg(NULLIF(dl.total_fuel,0)),0)        as fuel,
+            COUNT(*) as cnt
+            FROM daily_logs dl
+            WHERE dl.log_date BETWEEN ? AND ? AND $approvedWhereDaily";
+        $d = $db->fetchOne($sqlD, [$dateFrom, $dateTo]);
+
+        // ── B) energy_logs (dari energy_logsheet.php)
+        $elWhere   = "el.log_date BETWEEN ? AND ?";
+        $elParams  = [$dateFrom, $dateTo];
+        if ($userRole === 'engineer') {
+            $cols = @$db->fetchAll("SHOW COLUMNS FROM energy_logs LIKE 'created_by'");
+            if (!empty($cols)) {
+                $elWhere .= " AND el.created_by = ?";
+                $elParams[] = $userId;
+            }
+        }
+        $sqlE = "SELECT
+            COALESCE($agg(NULLIF(el.pln_lwbp_kwh + el.pln_wbp_kwh + el.genset_kwh, 0)), 0) as elec,
+            COALESCE($agg(NULLIF(el.air_m3 + el.air_deep_well_m3, 0)), 0)                   as water,
+            COALESCE($agg(NULLIF(el.gas_kg + el.gas_lng_kg, 0)), 0)                         as gas,
+            COALESCE($agg(NULLIF(el.solar_liter, 0)), 0)                                    as fuel,
+            COUNT(*) as cnt
+            FROM energy_logs el WHERE $elWhere";
+        $e = $db->fetchOne($sqlE, $elParams);
+
+        $dElec  = (float)($d['elec']  ?? 0);
+        $dWater = (float)($d['water'] ?? 0);
+        $dGas   = (float)($d['gas']   ?? 0);
+        $dFuel  = (float)($d['fuel']  ?? 0);
+        $cntD   = (int)($d['cnt'] ?? 0);
+
+        $eElec  = (float)($e['elec']  ?? 0);
+        $eWater = (float)($e['water'] ?? 0);
+        $eGas   = (float)($e['gas']   ?? 0);
+        $eFuel  = (float)($e['fuel']  ?? 0);
+        $cntE   = (int)($e['cnt'] ?? 0);
+
+        if ($agg === 'SUM') {
+            $out['elec']  = $dElec  + $eElec;
+            $out['water'] = $dWater + $eWater;
+            $out['gas']   = $dGas   + $eGas;
+            $out['fuel']  = $dFuel  + $eFuel;
+        } else {
+            $hasD = $dElec + $dWater + $dGas + $dFuel > 0;
+            $hasE = $eElec + $eWater + $eGas + $eFuel > 0;
+            if ($hasD && !$hasE) {
+                $out['elec']  = $dElec;
+                $out['water'] = $dWater;
+                $out['gas']   = $dGas;
+                $out['fuel']  = $dFuel;
+            } elseif ($hasE && !$hasD) {
+                $out['elec']  = $eElec;
+                $out['water'] = $eWater;
+                $out['gas']   = $eGas;
+                $out['fuel']  = $eFuel;
+            } elseif ($hasD && $hasE) {
+                $out['elec']  = ($dElec  + $eElec)  / 2;
+                $out['water'] = ($dWater + $eWater) / 2;
+                $out['gas']   = ($dGas   + $eGas)   / 2;
+                $out['fuel']  = ($dFuel  + $eFuel)  / 2;
+            }
+        }
+
+        $out['cnt_d'] = $cntD;
+        $out['cnt_e'] = $cntE;
+        $out['log_count'] = max(1, $cntD + $cntE);
+    } catch (\Throwable $ex) {
+        $out['elec'] = 0; $out['water'] = 0; $out['gas'] = 0; $out['fuel'] = 0;
+        $out['log_count'] = 1; $out['cnt_d'] = 0; $out['cnt_e'] = 0;
+    }
+
+    return $out;
+}
+
+// ───────────────────────────────────────────────────────────────
+// ── 1) 6 CARDS UTILITY PERIODE (sesuai filter tanggal) ─────────
+// ───────────────────────────────────────────────────────────────
+$sumBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $dateFrom, $dateTo, 'SUM');
+
+// ── Query SPLIT energy_logs untuk kartu Gas LPG / Gas LNG / Air PDAM / Deep Well (split tidak ada di daily_logs)
+$elWhere  = "el.log_date BETWEEN ? AND ?";
+$elParams = [$dateFrom, $dateTo];
+if ($userRole === 'engineer') {
+    $cols = @$db->fetchAll("SHOW COLUMNS FROM energy_logs LIKE 'created_by'");
+    if (!empty($cols)) {
+        $elWhere .= " AND el.created_by = ?";
+        $elParams[] = $userId;
+    }
+}
+try {
+    $splitEL = $db->fetchOne("SELECT
+        COALESCE(SUM(el.gas_kg),0)            as gas_lpg,
+        COALESCE(SUM(el.gas_lng_kg),0)        as gas_lng,
+        COALESCE(SUM(el.air_m3),0)            as air_pdam,
+        COALESCE(SUM(el.air_deep_well_m3),0)  as air_deep
+        FROM energy_logs el WHERE $elWhere", $elParams);
+} catch (\Throwable $ex) {
+    $splitEL = ['gas_lpg' => 0, 'gas_lng' => 0, 'air_pdam' => 0, 'air_deep' => 0];
+}
+
+$elecTotal  = (float)($sumBoth['elec']  ?? 0);
+$solarTotal = (float)($sumBoth['fuel']  ?? 0);
+
+$gasLpgSplit = (float)($splitEL['gas_lpg']  ?? 0);
+$gasLngSplit = (float)($splitEL['gas_lng']  ?? 0);
+$gasBothTotal = (float)($sumBoth['gas'] ?? 0);
+$gasSisaDaily = max(0, $gasBothTotal - ($gasLpgSplit + $gasLngSplit));
+$gasLpgTotal  = $gasLpgSplit + $gasSisaDaily;
+$gasLngTotal  = $gasLngSplit;
+
+$airPdamSplit = (float)($splitEL['air_pdam'] ?? 0);
+$airDeepSplit = (float)($splitEL['air_deep'] ?? 0);
+$airBothTotal = (float)($sumBoth['water'] ?? 0);
+$airSisaDaily = max(0, $airBothTotal - ($airPdamSplit + $airDeepSplit));
+$airPdamTotal = $airPdamSplit + $airSisaDaily;
+$airDeepTotal = $airDeepSplit;
+
+function fmtENum($n, $dec = 2)
+{
+    if ($n <= 0) return '0';
+    return number_format($n, $dec, ',', '.');
+}
+
+$periodeLabel = date('d M Y', strtotime($dateFrom)) . ' - ' . date('d M Y', strtotime($dateTo));
+
+$energyStats = [
+    ['label' => 'Konsumsi Listrik', 'unit' => 'kWh',   'val' => fmtENum($elecTotal, 2),  'sub' => $periodeLabel],
+    ['label' => 'Konsumsi Solar',   'unit' => 'Liter', 'val' => fmtENum($solarTotal, 2), 'sub' => $periodeLabel],
+    ['label' => 'Konsumsi Gas LPG', 'unit' => 'Kg',    'val' => fmtENum($gasLpgTotal, 1),'sub' => $periodeLabel],
+    ['label' => 'Konsumsi Gas LNG', 'unit' => 'Kg',    'val' => fmtENum($gasLngTotal, 1),'sub' => $periodeLabel],
+    ['label' => 'Air PDAM',         'unit' => 'm³',    'val' => fmtENum($airPdamTotal, 1),'sub' => $periodeLabel],
+    ['label' => 'Air Deep Well',    'unit' => 'm³',    'val' => fmtENum($airDeepTotal, 1),'sub' => $periodeLabel],
+];
+
+// ───────────────────────────────────────────────────────────────
+// ── 2) 5 DATA TERAKHIR ENERGY LOGS (join users untuk PIC) ───────
+// ───────────────────────────────────────────────────────────────
+$recentWhere  = "el.log_date BETWEEN ? AND ?";
+$recentParams = [$dateFrom, $dateTo];
+if ($userRole === 'engineer') {
+    $cols = @$db->fetchAll("SHOW COLUMNS FROM energy_logs LIKE 'created_by'");
+    if (!empty($cols)) {
+        $recentWhere .= " AND el.created_by = ?";
+        $recentParams[] = $userId;
+    }
+}
+try {
+    $recentLogs = $db->fetchAll("SELECT el.*, u.name as pic_name
+        FROM energy_logs el
+        LEFT JOIN users u ON el.created_by = u.id
+        WHERE $recentWhere
+        ORDER BY el.log_date DESC, el.id DESC
+        LIMIT 5", $recentParams);
+} catch (\Throwable $ex) {
+    $recentLogs = [];
+}
 
 $pageTitle = 'Energy Dashboard';
 $pageSubtitle = 'Dashboard Ringkasan Konsumsi Energi Harian St. Regis Bali. Listrik, Solar, Gas, Air & Utility Lainnya.';
@@ -36,101 +236,122 @@ include __DIR__ . '/includes/sidebar.php';
         </div>
     </div>
 
-    <!-- FILTER PERIODE TANGGAL (placeholder - TIDAK LEBAR PENUH, RAPI!) -->
+    <!-- FILTER PERIODE TANGGAL (REAL FILTER! submit ke GET parameter) -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 animate-slide-up" style="animation-delay: 60ms">
-        <div class="p-4 sm:p-5 max-w-[720px]">
-            <div class="flex flex-col sm:flex-row sm:items-end gap-3">
-                <div class="flex-1 min-w-0">
-                    <label class="text-[11px] sm:text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">Tanggal Mulai</label>
-                    <input type="date" value="<?= date('Y-m-01') ?>" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/70">
-                </div>
-                <div class="flex-1 min-w-0">
-                    <label class="text-[11px] sm:text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">Tanggal Akhir</label>
-                    <input type="date" value="<?= date('Y-m-t') ?>" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/70">
-                </div>
-                <div class="sm:shrink-0">
-                    <button type="button" class="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-bold shadow-sm hover:bg-slate-800 transition inline-flex items-center justify-center gap-2 whitespace-nowrap">
-                        <i class="fas fa-filter text-xs"></i> Terapkan
-                    </button>
+        <form method="get" action="<?= htmlspecialchars(BASE_URL) ?>energy.php">
+            <div class="p-4 sm:p-5 max-w-[780px]">
+                <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+                    <div class="flex-1 min-w-0">
+                        <label class="text-[11px] sm:text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">Tanggal Mulai</label>
+                        <input type="date" name="date_from" value="<?= htmlspecialchars($dateFrom) ?>" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/70">
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <label class="text-[11px] sm:text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">Tanggal Akhir</label>
+                        <input type="date" name="date_to" value="<?= htmlspecialchars($dateTo) ?>" class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/70">
+                    </div>
+                    <div class="sm:shrink-0 flex gap-2">
+                        <button type="submit" class="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-bold shadow-sm hover:bg-slate-800 transition inline-flex items-center justify-center gap-2 whitespace-nowrap">
+                            <i class="fas fa-filter text-xs"></i> Terapkan
+                        </button>
+                        <a href="<?= BASE_URL ?>energy.php" type="button" class="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-sm font-bold shadow-sm hover:bg-slate-50 transition inline-flex items-center justify-center gap-2 whitespace-nowrap">
+                            <i class="fas fa-rotate-left text-xs"></i> Reset
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
+        </form>
     </div>
 
-    <!-- 6 STATISTIC CARDS ENERGY (SIMPEL! 2 BARIS x 3 KOLOM DI LAPTOP. UNIT DI BAWAH ANGKA SAMA SEMUA!) -->
+    <!-- 6 STATISTIC CARDS ENERGY (REAL DARI DB! 2 BARIS x 3 KOLOM DI LAPTOP. 6th card Air Deep Well) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3 mb-6 animate-slide-up" style="animation-delay: 80ms">
-        <?php
-        $energyStats = [
-            ['label'=>'Konsumsi Listrik','unit'=>'kWh','val'=>'12.450,25','sub'=>'Bulan Ini'],
-            ['label'=>'Konsumsi Solar','unit'=>'Liter','val'=>'2.890,00','sub'=>'Bulan Ini'],
-            ['label'=>'Konsumsi Gas LPG','unit'=>'Kg','val'=>'456,5','sub'=>'Bulan Ini'],
-            ['label'=>'Konsumsi Air Bersih','unit'=>'m³','val'=>'3.210,8','sub'=>'Bulan Ini'],
-            ['label'=>'Suhu Rata-rata Outdoor','unit'=>'°C','val'=>'29,8','sub'=>'Hari Ini'],
-        ];
-        foreach ($energyStats as $s): ?>
+        <?php foreach ($energyStats as $s): ?>
         <div class="rounded-xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm">
-            <p class="text-[10px] font-black uppercase tracking-wider text-slate-500 leading-tight"><?= $s['label'] ?></p>
+            <p class="text-[10px] font-black uppercase tracking-wider text-slate-500 leading-tight"><?= htmlspecialchars($s['label']) ?></p>
             <?php if (!empty($s['sub'])): ?>
-            <p class="text-[9px] font-bold text-slate-400 mt-0.5 leading-tight"><?= $s['sub'] ?></p>
+            <p class="text-[9px] font-bold text-slate-400 mt-0.5 leading-tight"><?= htmlspecialchars($s['sub']) ?></p>
             <?php endif; ?>
             <div class="mt-2">
                 <p class="font-display text-xl sm:text-2xl font-black text-primary leading-none">
-                    <?= $s['val'] ?>
+                    <?= htmlspecialchars($s['val']) ?>
                 </p>
                 <p class="text-[12px] font-bold text-slate-400 mt-1.5 leading-tight">
-                    <?= $s['unit'] ?>
+                    <?= htmlspecialchars($s['unit']) ?>
                 </p>
             </div>
         </div>
         <?php endforeach; ?>
     </div>
 
-    <!-- CATATAN HARIAN MINGGU INI (FULL WIDTH, RAPI!) -->
+    <!-- CATATAN HARIAN PERIODE INI (REAL DB dari energy_logs JOIN users) -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-slide-up mb-6" style="animation-delay: 100ms">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 border-b border-slate-200">
             <div>
-                <h3 class="font-display text-lg font-black text-primary">Catatan Harian Minggu Ini</h3>
-                <p class="text-xs text-slate-500 mt-1">Preview 5 entri terakhir Log Sheet Energy.</p>
+                <h3 class="font-display text-lg font-black text-primary">Catatan Harian Energy Terbaru</h3>
+                <p class="text-xs text-slate-500 mt-1">Preview 5 entri terakhir Log Sheet Energy (sesuai filter tanggal).</p>
             </div>
             <a href="<?= BASE_URL ?>energy_logsheet.php" class="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 px-3 py-2 rounded-lg transition shadow-sm inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
                 Lihat Semua <i class="fas fa-arrow-right text-[10px]"></i>
             </a>
         </div>
         <div class="overflow-x-auto pb-3 pr-2">
-            <table class="w-full text-sm min-w-[650px] table-auto">
+            <table class="w-full text-sm min-w-[720px] table-auto">
                 <thead class="bg-slate-50 border-b-2 border-slate-200">
                     <tr class="text-left text-secondary text-xs">
                         <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap">Tanggal</th>
                         <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap w-[110px]">Shift</th>
-                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[120px]">Listrik (kWh)</th>
+                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[130px]">Listrik (kWh)</th>
                         <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[105px]">Solar (L)</th>
-                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[100px]">Air (m³)</th>
+                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[115px]">Gas (Kg)</th>
+                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[115px]">Air (m³)</th>
                         <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap w-[140px]">PIC</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
-                <?php
-                    $dummyRows = [
-                        ['06 Aug 2026','Pagi','1.250,5','210,0','310,2','Pak Wayan'],
-                        ['05 Aug 2026','Malam','1.180,0','190,5','298,0','Pak Kadek'],
-                        ['05 Aug 2026','Pagi','1.310,8','225,2','321,4','Pak Wayan'],
-                        ['04 Aug 2026','Malam','1.105,4','180,0','288,6','Pak Kadek'],
-                        ['04 Aug 2026','Pagi','1.288,1','218,5','305,9','Pak Wayan'],
-                    ];
-                    foreach ($dummyRows as $r): ?>
-                    <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="px-3 sm:px-4 py-3 font-semibold text-primary whitespace-nowrap"><?= $r[0] ?></td>
-                        <td class="px-3 sm:px-4 py-3">
-                            <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-semibold">
-                                <?= $r[1] ?>
-                            </span>
+                <?php if (empty($recentLogs)): ?>
+                    <tr>
+                        <td colspan="7" class="px-4 py-10 text-center text-xs font-semibold text-slate-400">
+                            <i class="fas fa-inbox text-3xl text-slate-200 mb-2 block"></i>
+                            Belum ada data energy log untuk periode ini. Silakan input di
+                            <a href="<?= BASE_URL ?>energy_logsheet.php" class="text-primary underline ml-1">Energy Logsheet</a>.
                         </td>
-                        <td class="px-3 sm:px-4 py-3 text-right font-mono font-semibold text-slate-800 tabular-nums"><?= $r[2] ?></td>
-                        <td class="px-3 sm:px-4 py-3 text-right font-mono font-semibold text-slate-800 tabular-nums"><?= $r[3] ?></td>
-                        <td class="px-3 sm:px-4 py-3 text-right font-mono font-semibold text-slate-800 tabular-nums"><?= $r[4] ?></td>
-                        <td class="px-3 sm:px-4 py-3 text-xs text-slate-600 font-semibold whitespace-nowrap"><?= $r[5] ?></td>
                     </tr>
-                <?php endforeach; ?>
+                <?php else:
+                    foreach ($recentLogs as $r):
+                        $plnT = (float)($r['pln_lwbp_kwh'] ?? 0) + (float)($r['pln_wbp_kwh'] ?? 0) + (float)($r['genset_kwh'] ?? 0);
+                        $gasT = (float)($r['gas_kg'] ?? 0) + (float)($r['gas_lng_kg'] ?? 0);
+                        $airT = (float)($r['air_m3'] ?? 0) + (float)($r['air_deep_well_m3'] ?? 0);
+                        $solar = (float)($r['solar_liter'] ?? 0);
+                        $shiftMap = ['pagi' => 'Pagi', 'siang' => 'Siang', 'malam' => 'Malam'];
+                        $shiftLabel = $shiftMap[strtolower($r['shift'] ?? '')] ?? htmlspecialchars($r['shift'] ?? '-');
+                        $picName = !empty($r['pic_name']) ? $r['pic_name'] : (!empty($r['created_by']) ? 'User #' . $r['created_by'] : '-');
+                        ?>
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="px-3 sm:px-4 py-3 font-semibold text-primary whitespace-nowrap">
+                                <?= date('d M Y', strtotime($r['log_date'])) ?>
+                            </td>
+                            <td class="px-3 sm:px-4 py-3">
+                                <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-semibold">
+                                    <?= htmlspecialchars($shiftLabel) ?>
+                                </span>
+                            </td>
+                            <td class="px-3 sm:px-4 py-3 text-right font-mono font-semibold text-slate-800 tabular-nums">
+                                <?= fmtENum($plnT, 2) ?>
+                            </td>
+                            <td class="px-3 sm:px-4 py-3 text-right font-mono font-semibold text-slate-800 tabular-nums">
+                                <?= fmtENum($solar, 2) ?>
+                            </td>
+                            <td class="px-3 sm:px-4 py-3 text-right font-mono font-semibold text-slate-800 tabular-nums">
+                                <?= fmtENum($gasT, 1) ?>
+                            </td>
+                            <td class="px-3 sm:px-4 py-3 text-right font-mono font-semibold text-slate-800 tabular-nums">
+                                <?= fmtENum($airT, 1) ?>
+                            </td>
+                            <td class="px-3 sm:px-4 py-3 text-xs text-slate-600 font-semibold whitespace-nowrap">
+                                <?= htmlspecialchars($picName) ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
                 </tbody>
             </table>
         </div>
