@@ -6,14 +6,35 @@ $db = Database::getInstance();
 $user = currentUser();
 $userRole = (string)($user['role'] ?? 'engineer');
 
-/* ---------- 1. PARAMETER TANGGAL ---------- */
-$dateRaw = $_GET['date'] ?? '';
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateRaw)) {
-    $dateRaw = date('Y-m-d');
+/* ---------- 1. PARAMETER TANGGAL (SINGLE ?date= ATAU RANGE ?date_from=&date_to=) ---------- */
+$def = date('Y-m-d');
+$rangeMode = false;
+$dateFromRaw = $_GET['date_from'] ?? '';
+$dateToRaw   = $_GET['date_to']   ?? '';
+$dateRaw     = $_GET['date']      ?? '';
+if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateFromRaw) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateToRaw)) {
+    $rangeMode = true;
+    $reportDateFrom = (string)$dateFromRaw;
+    $reportDateTo   = (string)$dateToRaw;
+    if (strtotime($reportDateFrom) > strtotime($reportDateTo)) { $t = $reportDateFrom; $reportDateFrom = $reportDateTo; $reportDateTo = $t; }
+    $reportDate = $reportDateTo;
+} elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateRaw)) {
+    $reportDate = (string)$dateRaw;
+    $reportDateFrom = $reportDate;
+    $reportDateTo   = $reportDate;
+} else {
+    $reportDate = $def;
+    $reportDateFrom = $def;
+    $reportDateTo   = $def;
 }
-$reportDate = $dateRaw;
 $reportDateObj = DateTime::createFromFormat('Y-m-d', $reportDate);
-$reportDateLabel = $reportDateObj ? strtoupper($reportDateObj->format('j F Y')) : strtoupper($reportDate);
+$reportFromObj = DateTime::createFromFormat('Y-m-d', $reportDateFrom);
+$reportToObj   = DateTime::createFromFormat('Y-m-d', $reportDateTo);
+if ($rangeMode || $reportDateFrom !== $reportDateTo) {
+    $reportDateLabel = strtoupper(($reportFromObj ? $reportFromObj->format('j F Y') : $reportDateFrom)) . '  S/D  ' . strtoupper(($reportToObj ? $reportToObj->format('j F Y') : $reportDateTo));
+} else {
+    $reportDateLabel = $reportDateObj ? strtoupper($reportDateObj->format('j F Y')) : strtoupper($reportDate);
+}
 
 /* ---------- 2. HELPER ---------- */
 function repFmtIndo($v, $dec = 2) { $v=(float)$v; return number_format($v, $dec, ',', '.'); }
@@ -52,9 +73,9 @@ try {
          FROM orders o
          LEFT JOIN users u ON u.id = o.requested_by
          LEFT JOIN cost_codes cc ON cc.id = o.cost_code_id
-         WHERE o.requested_date = ?
+         WHERE o.requested_date BETWEEN ? AND ?
          ORDER BY o.created_at ASC, o.id ASC",
-        [$reportDate]
+        [$reportDateFrom, $reportDateTo]
     );
 
     foreach ($orders as $o) {
@@ -118,7 +139,7 @@ try {
 
 /* ---------- 4. RENDER MODE ---------- */
 $format = isset($_GET['format']) ? strtolower(cleanInput($_GET['format'])) : 'print';
-$fileName = 'Order_Logistic_' . $reportDate;
+$fileName = 'Order_Logistic_' . $reportDateFrom . '_' . $reportDateTo;
 
 if ($format === 'excel') {
     header('Content-Type: text/csv; charset=UTF-8');

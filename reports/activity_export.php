@@ -6,14 +6,35 @@ $db = Database::getInstance();
 $user = currentUser();
 $userRole = (string)($user['role'] ?? 'engineer');
 
-/* ---------- 1. PARAMETER TANGGAL ---------- */
-$dateRaw = $_GET['date'] ?? '';
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateRaw)) {
-    $dateRaw = date('Y-m-d');
+/* ---------- 1. PARAMETER TANGGAL (SINGLE ?date= ATAU RANGE ?date_from=&date_to=) ---------- */
+$def = date('Y-m-d');
+$rangeMode = false;
+$dateFromRaw = $_GET['date_from'] ?? '';
+$dateToRaw   = $_GET['date_to']   ?? '';
+$dateRaw     = $_GET['date']      ?? '';
+if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateFromRaw) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateToRaw)) {
+    $rangeMode = true;
+    $reportDateFrom = (string)$dateFromRaw;
+    $reportDateTo   = (string)$dateToRaw;
+    if (strtotime($reportDateFrom) > strtotime($reportDateTo)) { $t = $reportDateFrom; $reportDateFrom = $reportDateTo; $reportDateTo = $t; }
+    $reportDate = $reportDateTo;
+} elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateRaw)) {
+    $reportDate = (string)$dateRaw;
+    $reportDateFrom = $reportDate;
+    $reportDateTo   = $reportDate;
+} else {
+    $reportDate = $def;
+    $reportDateFrom = $def;
+    $reportDateTo   = $def;
 }
-$reportDate = $dateRaw;
 $reportDateObj = DateTime::createFromFormat('Y-m-d', $reportDate);
-$reportDateLabel = $reportDateObj ? strtoupper($reportDateObj->format('j F Y')) : strtoupper($reportDate);
+$reportFromObj = DateTime::createFromFormat('Y-m-d', $reportDateFrom);
+$reportToObj   = DateTime::createFromFormat('Y-m-d', $reportDateTo);
+if ($rangeMode || $reportDateFrom !== $reportDateTo) {
+    $reportDateLabel = strtoupper(($reportFromObj ? $reportFromObj->format('j F Y') : $reportDateFrom)) . '  S/D  ' . strtoupper(($reportToObj ? $reportToObj->format('j F Y') : $reportDateTo));
+} else {
+    $reportDateLabel = $reportDateObj ? strtoupper($reportDateObj->format('j F Y')) : strtoupper($reportDate);
+}
 
 /* ---------- 2. HELPER ---------- */
 function repFmtIndo($v, $dec = 2) { $v=(float)$v; return number_format($v, $dec, ',', '.'); }
@@ -54,9 +75,9 @@ try {
         "SELECT dla.category, dla.activity_title, dla.notes, dla.pic
          FROM daily_log_activities dla
          INNER JOIN daily_logs dl ON dl.id = dla.daily_log_id
-         WHERE dl.log_date = ? AND dl.status IN ('approved','reviewed','pending')
+         WHERE dl.log_date BETWEEN ? AND ? AND dl.status IN ('approved','reviewed','pending')
          ORDER BY FIELD(dla.category,'operation','maintenance','project','landscape'), dla.id ASC",
-        [$reportDate]
+        [$reportDateFrom, $reportDateTo]
     );
     foreach ($actRows as $ar) {
         $d = strtoupper((string)($ar['category'] ?? ''));
@@ -103,7 +124,7 @@ foreach ($divisions as $d) {
 
 /* ---------- 5. RENDER MODE ---------- */
 $format = isset($_GET['format']) ? strtolower(cleanInput($_GET['format'])) : 'print';
-$fileName = 'Engineering_Activities_' . $reportDate;
+$fileName = 'Engineering_Activities_' . $reportDateFrom . '_' . $reportDateTo;
 
 if ($format === 'excel') {
     header('Content-Type: text/csv; charset=UTF-8');

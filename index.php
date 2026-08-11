@@ -9,11 +9,24 @@ $userName = (string)($user['name']  ?? 'User');
 $userRole = (string)($user['role']  ?? 'engineer');
 $userId = (int)($user['id']      ?? 0);
 
-$today = date('Y-m-d');
-$monthStart = date('Y-m-01');
+/* ---------- ALLOW CUSTOM DATE RANGE VIA GET ?date_from=&date_to= ---------- */
+$defToday    = date('Y-m-d');
+$defMonthSt  = date('Y-m-01');
+$today       = $defToday;
+$monthStart  = $defMonthSt;
+if (isset($_GET['date_from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$_GET['date_from'])) {
+    $monthStart = (string)$_GET['date_from'];
+    $today      = (string)$_GET['date_from'];
+}
+if (isset($_GET['date_to']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$_GET['date_to'])) {
+    $today = (string)$_GET['date_to'];
+}
+if (strtotime($monthStart) > strtotime($today)) {
+    $tmp = $monthStart; $monthStart = $today; $today = $tmp;
+}
 $lastYear = date('Y', strtotime('-1 year'));
 $currentYear = date('Y');
-$sameDayLastYear = date('Y-m-d', strtotime('-1 year'));
+$sameDayLastYear = date('Y-m-d', strtotime($today . ' -1 year'));
 
 $statusWhere = $userRole === 'engineer' ? "AND engineer_id = $userId" : "";
 $approvedWhere = "status = 'approved' $statusWhere";
@@ -542,26 +555,43 @@ require_once __DIR__ . '/includes/navbar.php';
                 </a>
                 <?php endif; ?>
                 <div class="inline-flex flex-wrap items-center gap-2">
-                    <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 shadow-sm">
-                        <i class="fas fa-calendar-day text-slate-500 text-[12px]"></i>
-                        <input type="date" id="rep_date" value="<?= $today ?>" class="px-1 py-1 text-[12px] font-semibold text-slate-700 bg-transparent border-0 outline-none focus:ring-0" onchange="updateReportLinks()">
-                    </div>
+                    <!-- Range Tanggal Filter (Dari s/d Sampai) -->
+                    <form method="GET" action="" class="inline-flex flex-wrap items-center gap-1.5 px-2 py-1.5 rounded-xl bg-white border border-slate-200 shadow-sm">
+                        <div class="flex items-center gap-1 shrink-0">
+                            <i class="fas fa-calendar-day text-slate-500 text-[12px]"></i>
+                            <span class="text-[10px] font-black uppercase text-slate-500 hidden sm:inline">Periode</span>
+                        </div>
+                        <label class="text-[10px] font-bold text-slate-600">Dari</label>
+                        <input type="date" id="rep_date_from" name="date_from" value="<?= e($monthStart) ?>" class="px-1 py-1 text-[11px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md outline-none focus:ring-1 focus:ring-indigo-400" onchange="updateReportLinks()">
+                        <span class="text-[11px] font-black text-slate-400">s/d</span>
+                        <label class="text-[10px] font-bold text-slate-600">Sampai</label>
+                        <input type="date" id="rep_date_to" name="date_to" value="<?= e($today) ?>" class="px-1 py-1 text-[11px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md outline-none focus:ring-1 focus:ring-indigo-400" onchange="updateReportLinks()">
+                        <button type="submit" class="ml-1 inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] shadow-sm transition">
+                            <i class="fas fa-filter text-[9px]"></i>
+                            <span>Terapkan</span>
+                        </button>
+                        <a href="<?= BASE_URL ?>index.php" class="inline-flex items-center justify-center gap-1 px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] border border-slate-200 transition">
+                            <i class="fas fa-rotate-left text-[9px]"></i>
+                            <span>Reset</span>
+                        </a>
+                    </form>
+                    <!-- Tombol Download Report (date_from / date_to diisi via JS updateReportLinks) -->
                     <div class="inline-flex flex-wrap items-center gap-1.5">
-                        <a id="btn_excel_energy" href="<?= BASE_URL ?>reports/daily_summary.php?date=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
+                        <a id="btn_excel_energy" href="<?= BASE_URL ?>reports/daily_summary.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
                             <i class="fas fa-file-excel text-[12px]"></i>
                             <span>Energy</span>
                         </a>
-                        <button type="button" id="btn_pdf_energy" onclick="window.open('<?= BASE_URL ?>reports/daily_summary.php?date=<?= urlencode($today) ?>', '_blank')" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
+                        <button type="button" id="btn_pdf_energy" onclick="window.open('<?= BASE_URL ?>reports/daily_summary.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>', '_blank')" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
                             <i class="fas fa-file-pdf text-[12px]"></i>
                             <span>Print</span>
                         </button>
                         <?php if (in_array($userRole, ['supervisor','manager','admin'])): ?>
-                        <a id="btn_xls_activity" href="<?= BASE_URL ?>reports/activity_export.php?date=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
+                        <a id="btn_xls_activity" href="<?= BASE_URL ?>reports/activity_export.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
                             <i class="fas fa-list-check text-[12px]"></i>
                             <span>Activity</span>
                         </a>
                         <?php endif; ?>
-                        <a id="btn_xls_order" href="<?= BASE_URL ?>reports/order_export.php?date=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
+                        <a id="btn_xls_order" href="<?= BASE_URL ?>reports/order_export.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
                             <i class="fas fa-truck-ramp-box text-[12px]"></i>
                             <span>Order</span>
                         </a>
@@ -2221,32 +2251,44 @@ function renderModalChart(name) {
 
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAllModals(); });
 
-/* ---------- UPDATE LINK TOMBOL DOWNLOAD + SAVE TANGGAL KE LOCALSTORAGE ---------- */
+/* ---------- UPDATE LINK TOMBOL DOWNLOAD + SAVE TANGGAL KE LOCALSTORAGE (RANGE 2 DATE) ---------- */
 (function () {
     const BASE = '<?= BASE_URL ?>';
-    const TODAY_DEF = '<?= $today ?>';
+    const FROM_DEF = '<?= $monthStart ?>';
+    const TO_DEF   = '<?= $today ?>';
     function el(id) { return document.getElementById(id); }
+    function isDate(v) { return /^\d{4}-\d{2}-\d{2}$/.test('' + v); }
     window.updateReportLinks = function () {
-        const inp = el('rep_date');
-        const v = (inp && inp.value) ? inp.value : TODAY_DEF;
-        try { localStorage.setItem('report_date_last', v); } catch (e) {}
-        const enc = encodeURIComponent(v);
-        if (el('btn_excel_energy')) el('btn_excel_energy').href = BASE + 'reports/daily_summary.php?date=' + enc + '&format=excel';
+        const inpFrom = el('rep_date_from');
+        const inpTo   = el('rep_date_to');
+        let fromV = (inpFrom && inpFrom.value && isDate(inpFrom.value)) ? inpFrom.value : FROM_DEF;
+        let toV   = (inpTo   && inpTo.value   && isDate(inpTo.value))   ? inpTo.value   : TO_DEF;
+        if (fromV && toV && fromV > toV) { const t = fromV; fromV = toV; toV = t; }
+        try {
+            localStorage.setItem('report_range_from_last', fromV);
+            localStorage.setItem('report_range_to_last',   toV);
+        } catch (e) {}
+        const encFrom = encodeURIComponent(fromV);
+        const encTo   = encodeURIComponent(toV);
+        const q = 'date_from=' + encFrom + '&date_to=' + encTo;
+        if (el('btn_excel_energy')) el('btn_excel_energy').href = BASE + 'reports/daily_summary.php?' + q + '&format=excel';
         if (el('btn_pdf_energy')) {
-            el('btn_pdf_energy').onclick = function () { window.open(BASE + 'reports/daily_summary.php?date=' + enc, '_blank'); };
+            el('btn_pdf_energy').onclick = function () { window.open(BASE + 'reports/daily_summary.php?' + q, '_blank'); };
         }
-        if (el('btn_xls_activity')) el('btn_xls_activity').href = BASE + 'reports/activity_export.php?date=' + enc + '&format=excel';
-        if (el('btn_xls_order')) el('btn_xls_order').href = BASE + 'reports/order_export.php?date=' + enc + '&format=excel';
+        if (el('btn_xls_activity')) el('btn_xls_activity').href = BASE + 'reports/activity_export.php?' + q + '&format=excel';
+        if (el('btn_xls_order'))    el('btn_xls_order').href    = BASE + 'reports/order_export.php?'    + q + '&format=excel';
     };
     document.addEventListener('DOMContentLoaded', function () {
-        const inp = el('rep_date');
-        if (inp) {
+        const inpFrom = el('rep_date_from');
+        const inpTo   = el('rep_date_to');
+        if (inpFrom || inpTo) {
             try {
-                const saved = localStorage.getItem('report_date_last');
-                if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) {
-                    inp.value = saved;
-                    window.updateReportLinks();
-                }
+                let applied = false;
+                const savedFrom = localStorage.getItem('report_range_from_last');
+                const savedTo   = localStorage.getItem('report_range_to_last');
+                if (inpFrom && isDate(savedFrom)) { inpFrom.value = savedFrom; applied = true; }
+                if (inpTo   && isDate(savedTo))   { inpTo.value   = savedTo;   applied = true; }
+                if (applied) window.updateReportLinks();
             } catch (e) {}
         }
     });
