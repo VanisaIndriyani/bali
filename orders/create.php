@@ -1,4 +1,4 @@
-﻿﻿<?php
+﻿<?php
 require_once __DIR__ . '/../config/config.php';
 $pageTitle = T('order_create_title', 'Buat Order Request Baru');
 requireRole(['supervisor', 'manager', 'engineer']);
@@ -217,7 +217,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $extraMsg = 'Engineer submit → masuk list approval Supervisor';
                 }
             }
-            $status = $db->escape($status);
             $orderNo = generateOrderNo($db, 'PR');
 
             $db->beginTransaction();
