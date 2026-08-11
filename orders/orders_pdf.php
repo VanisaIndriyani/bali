@@ -112,8 +112,6 @@ echo "\xEF\xBB\xBF";
     .page-wrap { width:210mm; max-width:100%; min-height:297mm; margin:0 auto; background:#fff; padding:10mm 12mm 12mm; box-shadow:0 6px 24px rgba(0,0,0,.08); }
     h1 { font-size:22px; letter-spacing:1.5px; text-align:center; margin:0 0 8px; font-weight:900; line-height:1.05; }
     .date-label { font-size:15px; font-weight:800; margin:0 0 14px; }
-    .info-row { font-size:12px; color:#4b5563; margin-bottom:10px 0 4px; line-height:1.55;}
-    .info-row strong { color:#111;}
     h2 { font-size:15px; font-weight:900; margin:12px 0 6px; letter-spacing:.5px; }
     table { width:100%; border-collapse:collapse; }
     th { background:#d9d9d9; border:1px solid #000; padding:6px 8px; font-weight:800; text-align:center; font-size:12px; }
@@ -137,11 +135,6 @@ echo "\xEF\xBB\xBF";
     .empty { padding:18px 12px; text-align:center; color:#6b7280; font-weight:700; border:1px solid #000;}
 
     .tfoot-total td { background:#fff7ed; color:#92400e!important; font-weight:900; border-top:2px solid #000; }
-
-    .sign-footer { width:100%; margin-top:18px; display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; page-break-inside:avoid; }
-    .sign-box { text-align:center; font-size:12px; }
-    .sign-box .lbl { font-weight:600; margin-bottom:46px; }
-    .sign-box .line { border-top:1px solid #000; padding-top:5px; font-weight:800; }
 </style>
 </head>
 <body>

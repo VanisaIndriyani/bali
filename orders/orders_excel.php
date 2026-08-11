@@ -64,10 +64,20 @@ $statusLabelMap = [
 ];
 $filterLabel = $statusLabelMap[$filter] ?? 'Semua Order';
 $totalAll = 0.0;
-foreach ($orders as $o) $totalAll += (float)($o['total_amount'] ?? 0);
+$cntByStatus = [
+    'pending_supervisor' => 0, 'pending_manager' => 0,
+    'approved' => 0, 'rejected' => 0, 'draft' => 0, 'completed' => 0
+];
+foreach ($orders as $o) {
+    $totalAll += (float)($o['total_amount'] ?? 0);
+    $st = (string)($o['status'] ?? '');
+    if (isset($cntByStatus[$st])) $cntByStatus[$st]++;
+}
 
-$dateLabel = date('d M Y');
-$fileName = 'Order_Logistik_' . date('Y_m_d') . '_' . substr(preg_replace('/[^A-Za-z0-9_-]/', '', (string)$filter), 0, 18);
+$dateLabel = strtoupper(date('j F Y'));
+$filterLabelUpper = strtoupper($filterLabel);
+
+$fileName = 'Engineering_Report_Logistik_' . date('Y_m_d') . '_' . substr(preg_replace('/[^A-Za-z0-9_-]/', '', (string)$filter), 0, 18);
 header('Content-Type: application/vnd.ms-excel; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $fileName . '.xls"');
 header('Content-Transfer-Encoding: binary');
@@ -84,148 +94,212 @@ echo "\xEF\xBB\xBF";
 <meta http-equiv="Content-Type" content="application/vnd.ms-excel; charset=utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="ProgId" content="Excel.Sheet">
-<meta name="Generator" content="Engineering — Logistik Order Report Export">
+<meta name="Generator" content="Engineering Report — Logistik Export">
 <title><?= htmlspecialchars($fileName, ENT_QUOTES) ?></title>
 <style>
-    * { font-family: Calibri, "Segoe UI", Arial, sans-serif; }
-    body { padding: 20px 24px; background:#ffffff; color:#0f172a; }
-    table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
+    * { font-family: Arial, Helvetica, sans-serif !important; }
+    html, body { margin:0; padding:0; background:#ffffff; color:#000; font-size:12px; }
+    body { padding: 12px 16px; }
+    table { border-collapse: collapse; width: 100%; }
+    table.t-blank { border-collapse: collapse; width: 100%; border:0 !important; }
+    table.t-blank td { border:0 !important; padding:0 !important; }
+
     th {
-        background: #f8fafc !important;
-        color: #334155 !important;
-        font-weight: 800;
-        font-size: 10.5px;
-        text-align: left;
-        letter-spacing: 0.8px;
-        text-transform: uppercase;
-        border-bottom: 2px solid #cbd5e1 !important;
-        border-top: 1px solid #e2e8f0 !important;
+        background: #d9d9d9 !important;
+        color: #000 !important;
+        border: 1px solid #000 !important;
+        padding: 6px 8px !important;
+        font-weight: 800 !important;
+        text-align: center !important;
+        font-size: 12px !important;
+        white-space: normal !important;
+        vertical-align: middle !important;
     }
-    th.num, td.num { mso-number-format: "\@"; text-align: right !important; }
-    th.ctr, td.ctr { text-align: center !important; }
-    tr:nth-child(even) td { background: #fcfcfd; }
+    td {
+        border: 1px solid #000 !important;
+        padding: 5px 8px !important;
+        font-size: 12px !important;
+        vertical-align: top !important;
+        color: #000 !important;
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        mso-number-format: "\@";
+    }
+    td.num { text-align: right !important; mso-number-format: "\#\,\#\#0.00"; }
+    td.cen { text-align: center !important; }
+    td.bold { font-weight: 800 !important; }
+    td.left { text-align: left !important; }
 
-    .brand-title { font-size: 26px; font-weight: 900; font-family: Calibri, "Segoe UI", Arial, sans-serif; color: #0f172a; margin: 0; letter-spacing: -0.2px; }
-    .brand-title .accent { color: #b45309; }
-    .brand-sub { font-size: 10px; color: #64748b; margin: 0 0 18px 0; letter-spacing: 2.5px; text-transform: uppercase; font-weight: 700; }
-    .eyebrow { display: inline-flex; align-items: center; gap: 10px; color: #475569; font-size: 10px; font-weight: 800;
-        letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 8px; }
-    .eyebrow .pill { display: inline-block; padding: 2px 10px; border: 1px solid #cbd5e1; background: #f8fafc;
-        color: #475569; border-radius: 999px; font-size: 9.5px; letter-spacing: 1px; font-weight: 700; }
-    .hero-title { color: #0f172a; font-size: 32px; font-weight: 900; margin: 0 0 6px 0; letter-spacing: -0.2px; }
-    .hero-title .accent { color: #b45309; }
-    .hero-sub { color: #64748b; font-size: 11.5px; margin: 0 0 16px 0; letter-spacing: 0.1px; line-height: 1.55; }
+    .col-1 { width: 42px; }
+    .col-pr { width: 120px; }
+    .col-cc { width: 150px; }
+    .col-user { width: 110px; }
+    .col-date { width: 100px; }
+    .col-tot { width: 140px; }
+    .col-st { width: 140px; }
 
-    .sum-wrap { display: table; width: 100%; margin-bottom: 18px; border-collapse: separate; border-spacing: 8px; }
-    .sum-card { display: table-cell; width: 24%; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; vertical-align: top; }
-    .sum-card .lbl { font-size: 10px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: #64748b; margin-bottom: 6px; }
-    .sum-card .val { font-size: 20px; font-weight: 900; color: #0f172a; }
-    .sum-card.gold .val { color: #b45309; }
-    .sum-card.blue .val { color: #0369a1; }
-    .sum-card.green .val { color: #047857; }
-
-    .orderno { font-weight: 800; color: #92400e; }
-    .cc-code { font-family: Consolas, "Courier New", monospace; font-weight: 800; color: #6d28d9; font-size: 10.5px; }
-    .footnote { margin-top: 18px; color: #94a3b8; font-size: 9.5px; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 700; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+    .h1-title {
+        font-size: 22px !important;
+        letter-spacing: 1.5px !important;
+        text-align: center !important;
+        font-weight: 900 !important;
+        line-height: 1.05 !important;
+        margin: 0 !important;
+        padding: 0 0 6px 0 !important;
+        color: #000 !important;
+    }
+    .date-label-row {
+        font-size: 15px !important;
+        font-weight: 800 !important;
+        margin: 0 !important;
+        padding: 0 0 14px 0 !important;
+        color: #000 !important;
+    }
+    .h2-section {
+        font-size: 15px !important;
+        font-weight: 900 !important;
+        margin: 0 !important;
+        padding: 14px 0 6px 0 !important;
+        letter-spacing: .5px !important;
+        color: #000 !important;
+    }
+    .tfoot-total td {
+        background: #fff7ed !important;
+        color: #92400e !important;
+        font-weight: 900 !important;
+        border-top: 2px solid #000 !important;
+    }
+    .orderno-bold { font-weight: 800 !important; color: #000 !important; }
+    .cc-mono { font-family: Consolas, "Courier New", monospace !important; font-weight: 800 !important; color: #000 !important; font-size: 11.5px !important; }
+    .st-text { font-weight: 800 !important; text-transform: uppercase !important; letter-spacing: 0.3px !important; font-size: 10.5px !important; }
+    .purpose-small { color: #374151 !important; font-size: 10.5px !important; line-height: 1.4 !important; margin-top: 2px !important; }
+    .cc-sub { color: #374151 !important; font-size: 10.5px !important; margin-top: 2px !important; line-height: 1.4 !important; }
+    .title-main { font-weight: 800 !important; color: #000 !important; margin-bottom: 2px !important; }
+    .empty-row { padding: 18px 12px !important; text-align: center !important; color: #6b7280 !important; font-weight: 700 !important; }
+    br.page { mso-special-character: line-break; }
 </style>
+<!--[if gte mso 9]>
+<xml>
+  <x:ExcelWorkbook>
+    <x:ExcelWorksheets>
+      <x:ExcelWorksheet>
+        <x:Name>Engineering Report</x:Name>
+        <x:WorksheetOptions>
+          <x:DisplayGridlines/>
+          <x:FreezePanes/>
+          <x:FrozenNoSplit/>
+          <x:SplitHorizontal>1</x:SplitHorizontal>
+          <x:TopRowBottomPane>1</x:TopRowBottomPane>
+          <x:ActivePane>2</x:ActivePane>
+        </x:WorksheetOptions>
+      </x:ExcelWorksheet>
+    </x:ExcelWorksheets>
+  </x:ExcelWorkbook>
+</xml>
+<![endif]-->
 </head>
 <body>
-    <p class="brand-title"><span class="accent">LOGISTIK</span> REPORT</p>
-    <p class="brand-sub">Purchase Request / Order Summary — St. Regis Bali</p>
 
-    <div class="eyebrow">
-        <span class="pill">FILTER: <?= htmlspecialchars(strtoupper($filterLabel)) ?></span>
-        <?php if ($search !== ''): ?>
-            <span class="pill" style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;">SEARCH: <?= htmlspecialchars(strtoupper($search)) ?></span>
-        <?php endif; ?>
-    </div>
-    <h1 class="hero-title">Daftar Order / Purchase Request <span class="accent"><?= htmlspecialchars($filterLabel) ?></span></h1>
-    <p class="hero-sub">
-        Export tanggal <strong><?= htmlspecialchars($dateLabel) ?></strong> •
-        Disediakan untuk <strong><?= htmlspecialchars(strtoupper($role)) ?></strong> •
-        Total <strong><?= count($orders) ?> order</strong> sesuai kriteria.
-    </p>
+<table class="t-blank" border="0" cellpadding="0" cellspacing="0">
+  <tr>
+    <td>
+        <div class="h1-title">ENGINEERING<br>REPORT</div>
+    </td>
+  </tr>
+  <tr>
+    <td>
+        <div class="date-label-row">DATE: <?= htmlspecialchars($dateLabel) ?><?php if ($search !== ''): ?> &nbsp;•&nbsp; FILTER: <?= htmlspecialchars($filterLabelUpper) ?><?php else: ?> &nbsp;•&nbsp; <?= htmlspecialchars($filterLabelUpper) ?><?php endif; ?><?php if ($search !== ''): ?> &nbsp;•&nbsp; SEARCH: "<?= htmlspecialchars(strtoupper($search)) ?>"<?php endif; ?></div>
+    </td>
+  </tr>
+</table>
 
-    <div class="sum-wrap">
-        <div class="sum-card gold">
-            <div class="lbl">Total Order</div>
-            <div class="val"><?= count($orders) ?></div>
-        </div>
-        <div class="sum-card blue">
-            <div class="lbl">Nilai Total (Rp)</div>
-            <div class="val"><?= number_format($totalAll, 0, ',', '.') ?></div>
-        </div>
-        <div class="sum-card">
-            <div class="lbl">Periode Export</div>
-            <div class="val" style="font-size:14px;"><?= htmlspecialchars($dateLabel) ?></div>
-        </div>
-        <div class="sum-card green">
-            <div class="lbl">Akses Login</div>
-            <div class="val" style="font-size:14px;"><?= htmlspecialchars($user['name'] ?? 'Unknown') ?></div>
-        </div>
-    </div>
+<div class="h2-section">1. ORDER SUMMARY</div>
+<table cellpadding="0" cellspacing="0">
+    <thead>
+        <tr>
+            <th>TOTAL ORDER</th>
+            <th>NILAI TOTAL (Rp.)</th>
+            <th>MENUNGGU SUPERVISOR</th>
+            <th>MENUNGGU MANAGER</th>
+            <th>DISETUJUI</th>
+            <th>DITOLAK</th>
+            <th>SELESAI</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td class="cen bold"><?= count($orders) ?></td>
+            <td class="num bold">Rp <?= number_format($totalAll, 2, ',', '.') ?></td>
+            <td class="cen"><?= (int)($cntByStatus['pending_supervisor'] ?? 0) ?></td>
+            <td class="cen"><?= (int)($cntByStatus['pending_manager'] ?? 0) ?></td>
+            <td class="cen"><?= (int)($cntByStatus['approved'] ?? 0) ?></td>
+            <td class="cen"><?= (int)($cntByStatus['rejected'] ?? 0) + (int)($cntByStatus['draft'] ?? 0) ?></td>
+            <td class="cen"><?= (int)($cntByStatus['completed'] ?? 0) ?></td>
+        </tr>
+    </tbody>
+</table>
 
-    <table>
-        <thead>
+<div class="h2-section">2. DETAIL ORDER / PURCHASE REQUEST</div>
+<table cellpadding="0" cellspacing="0">
+    <thead>
+        <tr>
+            <th class="col-1">NO</th>
+            <th class="col-pr">NO. PR</th>
+            <th>KEPERLUAN / JUDUL</th>
+            <th class="col-cc">COST CODE</th>
+            <th class="col-user">PEMOHON</th>
+            <th class="col-date">TGL</th>
+            <th class="col-tot">TOTAL (Rp.)</th>
+            <th class="col-st">STATUS</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php if (empty($orders)): ?>
+            <tr><td colspan="8"><div class="empty-row">Belum ada order request yang sesuai kriteria.</div></td></tr>
+        <?php else:
+            $i = 0; $sumAmount = 0.0;
+            foreach ($orders as $o):
+                $i++;
+                $st = (string)($o['status'] ?? '');
+                $stText = getOrderStatusText($st);
+                $amount = (float)($o['total_amount'] ?? 0);
+                $sumAmount += $amount;
+                $purpose = !empty($o['purpose']) ? (string)$o['purpose'] : '';
+            ?>
             <tr>
-                <th class="col-no ctr" style="width: 42px;">No</th>
-                <th style="width: 100px;">No. PR</th>
-                <th style="width: 320px;">Judul / Keperluan</th>
-                <th style="width: 150px;">Cost Code</th>
-                <th style="width: 120px;">Pemohon</th>
-                <th style="width: 100px;">Tanggal</th>
-                <th class="num" style="width: 130px;">Total (Rp)</th>
-                <th class="ctr" style="width: 120px;">Status</th>
+                <td class="cen bold col-1"><?= $i ?></td>
+                <td class="col-pr">
+                    <span class="orderno-bold"><?= htmlspecialchars((string)($o['order_no'] ?? '-')) ?></span>
+                </td>
+                <td class="left">
+                    <div class="title-main"><?= htmlspecialchars((string)($o['title'] ?? '-')) ?></div>
+                    <?php if ($purpose !== ''): ?>
+                        <div class="purpose-small"><?= htmlspecialchars($purpose) ?></div>
+                    <?php endif; ?>
+                </td>
+                <td class="col-cc left">
+                    <?php if (!empty($o['cc_code'])): ?>
+                        <div class="cc-mono"><?= htmlspecialchars((string)$o['cc_code']) ?></div>
+                        <div class="cc-sub"><?= htmlspecialchars((string)($o['cc_name'] ?? '-')) ?></div>
+                    <?php else: ?>
+                        <span style="color:#6b7280;">—</span>
+                    <?php endif; ?>
+                </td>
+                <td class="col-user left"><?= htmlspecialchars((string)($o['req_name'] ?? '-')) ?></td>
+                <td class="cen col-date"><?= formatDate($o['requested_date'] ?? $o['created_at'] ?? '') ?></td>
+                <td class="num bold col-tot">Rp <?= number_format($amount, 2, ',', '.') ?></td>
+                <td class="cen col-st"><span class="st-text"><?= htmlspecialchars($stText) ?> #<?= (int)($o['id'] ?? 0) ?></span></td>
             </tr>
-        </thead>
-        <tbody>
-            <?php if (empty($orders)): ?>
-                <tr><td colspan="8" class="ctr" style="padding:24px 12px;color:#64748b;font-weight:700;">Belum ada order request yang sesuai kriteria.</td></tr>
-            <?php else:
-                $i = 0;
-                foreach ($orders as $o):
-                    $i++;
-                    $st = (string)($o['status'] ?? '');
-                    $stText = getOrderStatusText($st);
-                    $amount = (float)($o['total_amount'] ?? 0);
-                    $purpose = !empty($o['purpose']) ? (string)$o['purpose'] : '';
-                ?>
-                <tr>
-                    <td class="ctr"><?= $i ?></td>
-                    <td class="orderno"><?= htmlspecialchars((string)($o['order_no'] ?? '-')) ?></td>
-                    <td>
-                        <div style="font-weight:800;color:#0f172a;"><?= htmlspecialchars((string)($o['title'] ?? '-')) ?></div>
-                        <?php if ($purpose !== ''): ?>
-                            <div style="margin-top:3px;color:#475569;font-size:10px;line-height:1.45;"><?= htmlspecialchars($purpose) ?></div>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <?php if (!empty($o['cc_code'])): ?>
-                            <span class="cc-code"><?= htmlspecialchars((string)$o['cc_code']) ?></span>
-                            <div style="color:#475569;font-size:10px;margin-top:3px;line-height:1.4;"><?= htmlspecialchars((string)($o['cc_name'] ?? '-')) ?></div>
-                        <?php else: ?>
-                            <span style="color:#94a3b8;">—</span>
-                        <?php endif; ?>
-                    </td>
-                    <td><?= htmlspecialchars((string)($o['req_name'] ?? '-')) ?></td>
-                    <td><?= formatDate($o['requested_date'] ?? $o['created_at'] ?? '') ?></td>
-                    <td class="num" style="font-weight:800;color:#0f172a;">Rp <?= number_format($amount, 2, ',', '.') ?></td>
-                    <td class="ctr" style="font-weight:800;letter-spacing:0.3px;text-transform:uppercase;font-size:10px;"><?= htmlspecialchars($stText) ?></td>
-                </tr>
-                <?php endforeach; ?>
-                <tr style="background:#fff7ed;">
-                    <td colspan="6" class="num" style="font-weight:900;color:#92400e;border-top:2px solid #fbbf24;">TOTAL NILAI KESELURUHAN (Rp)</td>
-                    <td class="num" style="font-weight:900;color:#92400e;border-top:2px solid #fbbf24;">Rp <?= number_format($totalAll, 2, ',', '.') ?></td>
-                    <td class="ctr" style="border-top:2px solid #fbbf24;"></td>
-                </tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
+            <?php endforeach; ?>
+            <tr class="tfoot-total">
+                <td colspan="6" class="num">TOTAL NILAI KESELURUHAN (Rp.)</td>
+                <td class="num">Rp <?= number_format($sumAmount, 2, ',', '.') ?></td>
+                <td class="cen"></td>
+            </tr>
+        <?php endif; ?>
+    </tbody>
+</table>
 
-    <div class="footnote">
-        Generated by Engineering Dashboard • St. Regis Bali • Sistem export otomatis, tidak memerlukan tanda tangan.
-    </div>
 </body>
 </html>
 <?php
