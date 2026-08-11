@@ -512,17 +512,19 @@ if ($format === 'excel') {
         </thead>
         <tbody>
         <?php
-        $bgMap = ['OPERATION'=>'op-bg','MAINTENANCE'=>'mt-bg','PROJECT'=>'pr-bg','LANDSCAPE'=>'la-bg'];
-        $icoMap = ['OPERATION'=>'ico-op fa-gears','MAINTENANCE'=>'ico-mt fa-wrench','PROJECT'=>'ico-pr fa-clipboard-list','LANDSCAPE'=>'ico-la fa-seedling'];
+        $bgMap   = ['OPERATION'=>'op-bg','MAINTENANCE'=>'mt-bg','PROJECT'=>'pr-bg','LANDSCAPE'=>'la-bg'];
+        $bgIco   = ['OPERATION'=>'ico-op','MAINTENANCE'=>'ico-mt','PROJECT'=>'ico-pr','LANDSCAPE'=>'ico-la'];
+        $nameIco = ['OPERATION'=>'fa-gears','MAINTENANCE'=>'fa-wrench','PROJECT'=>'fa-clipboard-list','LANDSCAPE'=>'fa-seedling'];
         foreach ($divisions as $d) {
             $list = $actByDiv[$d] ?? [];
             $stN = repCountActStatus($list);
-            $bg = $bgMap[$d] ?? '';
-            $ico = $icoMap[$d] ?? 'ico-op fa-list';
+            $bg    = $bgMap[$d]   ?? '';
+            $bico  = $bgIco[$d]   ?? 'ico-op';
+            $nicon = $nameIco[$d] ?? 'fa-list';
         ?>
             <tr>
                 <td class="dept <?=$bg?>">
-                    <span class="dept-ico <?=$ico?>"><i class="fa-solid <?=substr($ico,6)?>"></i></span><?=htmlspecialchars($d)?>
+                    <span class="dept-ico <?=$bico?>"><i class="fa-solid <?=$nicon?>"></i></span><?=htmlspecialchars($d)?>
                 </td>
                 <td class="<?=$bg?>">
                     <?php if (count($list) === 0): ?>
