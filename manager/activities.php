@@ -600,21 +600,6 @@ if (empty($printAllActs)) {
             <p class="text-xs text-secondary mt-1.5"><?= T('eng_act_subtitle', 'Ringkasan 4 divisi Operation, Maintenance, Project dan Landscape per bulan.') ?></p>
         </div>
         <div class="flex flex-wrap gap-2 self-start">
-            <button type="button" onclick="window.print()"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-br from-sky-600 via-blue-700 to-blue-900 hover:from-sky-700 hover:via-blue-800 hover:to-blue-950 text-white text-[12px] font-bold shadow hover:shadow-lg transition-all"
-                    title="Cetak simple list engineering operation seperti Microsoft Lists">
-                <i class="fas fa-print text-[11px]"></i> 🖨️ Cetak Lists
-            </button>
-            <a href="<?= BASE_URL ?>reports/lists_pdf.php" target="_blank" rel="noopener noreferrer"
-               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-br from-indigo-600 via-blue-800 to-indigo-950 hover:from-indigo-700 hover:via-blue-900 hover:to-indigo-950 text-white text-[12px] font-bold shadow hover:shadow-lg transition-all"
-               title="Download PDF Lists Simple (Navy Biru MS Teams style)">
-                <i class="far fa-file-pdf text-[11px]"></i> 📋 Lists PDF
-            </a>
-            <a href="<?= BASE_URL ?>reports/lists_excel.php" target="_blank" rel="noopener noreferrer"
-               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-br from-teal-500 via-teal-700 to-teal-900 hover:from-teal-600 hover:via-teal-800 hover:to-teal-950 text-white text-[12px] font-bold shadow hover:shadow-lg transition-all"
-               title="Download Excel Lists Simple (MS Teams style)">
-                <i class="far fa-file-excel text-[11px]"></i> 📋 Lists Excel
-            </a>
             <a href="<?= BASE_URL ?>reports/pdf.php" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 hover:from-rose-600 hover:to-rose-800 text-white text-[12px] font-bold shadow hover:shadow-lg transition-all">
                 <i class="far fa-file-pdf text-[11px]"></i> <?= T('btn_export_pdf', 'Export PDF') ?>
             </a>
