@@ -8,34 +8,14 @@ $userId = (int)($user['id'] ?? 0);
 $userRole = (string)($user['role'] ?? 'engineer');
 $userName = (string)($user['name'] ?? 'User');
 
-/* ---------- 1. PARAMETER TANGGAL (SUPPORT SINGLE DATE ?date= ATAU RANGE ?date_from=&date_to=) ---------- */
-$def = date('Y-m-d');
-$rangeMode = false;
-$reportDate = $def;           /* PRE-DECLARE SAFE DEFAULT: SINGLE DATE MODE TODAY */
-$reportDateFrom = $def;       /* PRE-DECLARE SAFE DEFAULT */
-$reportDateTo   = $def;       /* PRE-DECLARE SAFE DEFAULT */
-$dateFromRaw = $_GET['date_from'] ?? '';
-$dateToRaw   = $_GET['date_to']   ?? '';
-$dateRaw     = $_GET['date']      ?? '';
-if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateFromRaw) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateToRaw)) {
-    $rangeMode = true;
-    $reportDateFrom = (string)$dateFromRaw;
-    $reportDateTo   = (string)$dateToRaw;
-    if (strtotime($reportDateFrom) > strtotime($reportDateTo)) { $t = $reportDateFrom; $reportDateFrom = $reportDateTo; $reportDateTo = $t; }
-    $reportDate = $reportDateTo;
-} elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateRaw)) {
-    $reportDate = (string)$dateRaw;
-    $reportDateFrom = $reportDate;
-    $reportDateTo   = $reportDate;
-} /* ELSE: pakai default $def yang sudah di-assign diatas */
-$reportDateObj = DateTime::createFromFormat('Y-m-d', $reportDate);
-$reportFromObj = DateTime::createFromFormat('Y-m-d', $reportDateFrom);
-$reportToObj   = DateTime::createFromFormat('Y-m-d', $reportDateTo);
-if ($rangeMode || $reportDateFrom !== $reportDateTo) {
-    $reportDateLabel = strtoupper(($reportFromObj ? $reportFromObj->format('j F Y') : $reportDateFrom)) . '  S/D  ' . strtoupper(($reportToObj ? $reportToObj->format('j F Y') : $reportDateTo));
-} else {
-    $reportDateLabel = $reportDateObj ? strtoupper($reportDateObj->format('j F Y')) : strtoupper($reportDate);
+/* ---------- 1. PARAMETER TANGGAL ---------- */
+$dateRaw = $_GET['date'] ?? '';
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$dateRaw)) {
+    $dateRaw = date('Y-m-d');
 }
+$reportDate = $dateRaw;
+$reportDateObj = DateTime::createFromFormat('Y-m-d', $reportDate);
+$reportDateLabel = $reportDateObj ? strtoupper($reportDateObj->format('j F Y')) : strtoupper($reportDate);
 $lySameDay = date('Y-m-d', strtotime($reportDate . ' -1 year'));
 
 /* ---------- 2. HELPER ---------- */
@@ -68,12 +48,12 @@ $elecToday = $waterToday = $gasToday = $fuelToday = 0;
 $elecLY = $waterLY = $gasLY = $fuelLY = 0;
 try {
     $sumToday = $db->fetchOne("SELECT
-        COALESCE(SUM(CASE WHEN log_date BETWEEN ? AND ? THEN total_electricity END),0) as elec,
-        COALESCE(SUM(CASE WHEN log_date BETWEEN ? AND ? THEN total_water END),0)       as water,
-        COALESCE(SUM(CASE WHEN log_date BETWEEN ? AND ? THEN total_gas END),0)         as gas,
-        COALESCE(SUM(CASE WHEN log_date BETWEEN ? AND ? THEN total_fuel END),0)        as fuel
+        COALESCE(SUM(CASE WHEN log_date=? THEN total_electricity END),0) as elec,
+        COALESCE(SUM(CASE WHEN log_date=? THEN total_water END),0)       as water,
+        COALESCE(SUM(CASE WHEN log_date=? THEN total_gas END),0)         as gas,
+        COALESCE(SUM(CASE WHEN log_date=? THEN total_fuel END),0)        as fuel
         FROM daily_logs WHERE status='approved'",
-        [$reportDateFrom,$reportDateTo, $reportDateFrom,$reportDateTo, $reportDateFrom,$reportDateTo, $reportDateFrom,$reportDateTo]);
+        [$reportDate,$reportDate,$reportDate,$reportDate]);
     if ($sumToday) {
         $elecToday  = (float)($sumToday['elec']  ?? 0);
         $waterToday = (float)($sumToday['water'] ?? 0);
@@ -104,12 +84,12 @@ try {
     $occReportRow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE YEAR(log_date) = ? AND status = 'approved' AND occ_rate > 0", [$currentYearReport]);
     $defaultLyOcc = 70; $defaultTargetOcc = 80;
     $lyOcc = (($occLYRow['cnt'] ?? 0) > 0) ? round((float)($occLYRow['avg_occ'] ?? 0), 0) : $defaultLyOcc;
-    $todayOccSingle = $db->fetchOne("SELECT occ_rate FROM daily_logs WHERE log_date BETWEEN ? AND ? AND status = 'approved' ORDER BY log_date DESC, id DESC LIMIT 1", [$reportDateFrom, $reportDateTo]);
+    $todayOccSingle = $db->fetchOne("SELECT occ_rate FROM daily_logs WHERE log_date = ? AND status = 'approved' ORDER BY id DESC LIMIT 1", [$reportDate]);
     $todayOccVal = (float)($todayOccSingle['occ_rate'] ?? 0);
     if ($todayOccVal > 0) {
         $targetOcc = round($todayOccVal, 0);
     } else {
-        $avgMonthNow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE log_date BETWEEN ? AND ? AND status = 'approved' AND occ_rate > 0", [$reportDateFrom, $reportDateTo]);
+        $avgMonthNow = $db->fetchOne("SELECT COALESCE(AVG(occ_rate),0) as avg_occ, COUNT(*) as cnt FROM daily_logs WHERE DATE_FORMAT(log_date,'%Y-%m') = ? AND status = 'approved' AND occ_rate > 0", [date('Y-m', strtotime($reportDate))]);
         if (($avgMonthNow['cnt'] ?? 0) > 0) $targetOcc = round((float)($avgMonthNow['avg_occ'] ?? 0), 0);
         else $targetOcc = $defaultTargetOcc;
     }
@@ -131,9 +111,9 @@ try {
         "SELECT dla.category, dla.activity_title
          FROM daily_log_activities dla
          INNER JOIN daily_logs dl ON dl.id = dla.daily_log_id
-         WHERE dl.log_date BETWEEN ? AND ? AND dl.status IN ('approved','reviewed','pending')
+         WHERE dl.log_date = ? AND dl.status IN ('approved','reviewed','pending')
          ORDER BY FIELD(dla.category,'operation','maintenance','project','landscape'), dla.id ASC",
-        [$reportDateFrom, $reportDateTo]
+        [$reportDate]
     );
     foreach ($actRows as $ar) {
         $d = strtoupper((string)($ar['category'] ?? ''));
@@ -164,7 +144,7 @@ try {
 
 /* ---------- 7. RENDER MODE ---------- */
 $format = isset($_GET['format']) ? strtolower(cleanInput($_GET['format'])) : 'print';
-$fileName = 'Engineering_Report_' . $reportDateFrom . '_' . $reportDateTo;
+$fileName = 'Engineering_Report_' . $reportDate;
 
 /* ---------- HELPER ESCAPE CSV ---------- */
 function repCsvEscape($v) {

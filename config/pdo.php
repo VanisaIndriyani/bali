@@ -65,4 +65,21 @@ class Database {
         $sql = "DELETE FROM {$table} WHERE {$where}";
         return $this->query($sql, $params)->rowCount();
     }
+
+    /* ---------- COMPAT / SHORTCUT METHOD TAMBAHAN ---------- */
+    public function escape($val) {
+        /* Quotes + escape string via PDO native (TIDAK manual) */
+        $s = (string)$val;
+        $q = $this->pdo->quote($s);
+        if ($q === false) {
+            $s = str_replace(["\\", "\0", "\n", "\r", "'", '"', "\x1a"], ["\\\\", "\\0", "\\n", "\\r", "\'", '\"', "\\Z"], $s);
+            return "'" . $s . "'";
+        }
+        return $q;
+    }
+    public function beginTransaction() { return $this->pdo->beginTransaction(); }
+    public function commit()         { return $this->pdo->commit(); }
+    public function rollBack()       { return $this->pdo->rollBack(); }
+    public function lastInsertId()   { return $this->pdo->lastInsertId(); }
+    public function prepare($sql, $opts = []) { return $this->pdo->prepare($sql, $opts); }
 }

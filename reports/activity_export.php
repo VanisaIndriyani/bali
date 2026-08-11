@@ -89,23 +89,36 @@ try {
     }
 } catch (Exception $e) { /* daily_log_activities not exists */ }
 
-/* Fallback ke activity_masters jika kosong */
+/* =============================================
+ * 🔴 MERGE ACTIVITY_MASTERS 2 SUMBER (MATCH 100% INDEX.PHP)
+ * BUKAN FALLBACK IF KOSONG!
+ * ============================================= */
 try {
+    $masterAllRows = $db->fetchAll("SELECT division, activity_name, status_default FROM activity_masters WHERE status = 'active' ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+    $existingTitles = [];
     foreach ($divisions as $d) {
-        if (count($actByDiv[$d]) === 0) {
-            $masterRows = $db->fetchAll(
-                "SELECT activity_name, status_default FROM activity_masters WHERE LOWER(division) = ? AND status = 'active' ORDER BY sort_order ASC, id ASC LIMIT 4",
-                [strtolower($d)]
-            );
-            foreach ($masterRows as $mr) {
-                $name = (string)($mr['activity_name'] ?? '-');
-                $statusRaw = strtolower((string)($mr['status_default'] ?? 'progress'));
-                $status = in_array($statusRaw,['complete','completed','progress','pending']) ? $statusRaw : repActHeurStatus($name);
-                $actByDiv[$d][] = ['name' => $name, 'status' => $status, 'notes' => '', 'pic' => ''];
-            }
+        $dv = strtolower($d);
+        $existingTitles[$dv] = [];
+        foreach ($actByDiv[$d] as $_r) {
+            $t = mb_strtolower(trim((string)($_r['name'] ?? '')));
+            if ($t !== '') $existingTitles[$dv][$t] = true;
         }
     }
-} catch (Exception $e) { /* ignore */ }
+    foreach ($masterAllRows as $_m) {
+        $dv = strtolower((string)($_m['division'] ?? ''));
+        $dKey = strtoupper($dv);
+        if (!in_array($dKey, $divisions, true)) continue;
+        $name = trim((string)($_m['activity_name'] ?? ''));
+        if ($name === '') continue;
+        $key = mb_strtolower($name);
+        if (isset($existingTitles[$dv][$key])) continue;
+        $statusRaw = strtolower((string)($_m['status_default'] ?? 'progress'));
+        $status = in_array($statusRaw,['complete','completed','progress','pending']) ? $statusRaw : repActHeurStatus($name);
+        $actByDiv[$dKey][] = ['name' => $name, 'status' => $status, 'notes' => '- (Master Activity)', 'pic' => '', 'fromMaster' => true];
+        $existingTitles[$dv][$key] = true;
+    }
+    unset($masterAllRows, $existingTitles, $dKey, $dv, $_m, $name, $key, $statusRaw, $status);
+} catch (Throwable $e) { /* ignore */ }
 
 /* ---------- 4. FLATTEN ALL ROWS UNTUK CSV + HTML ---------- */
 $allRows = [];
