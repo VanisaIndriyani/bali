@@ -125,65 +125,97 @@ try {
     ];
 } catch (Exception $e) { /* KPI tetap isi default - */ }
 
-/* ---------- 6. ENGINEERING ACTIVITIES PER DIVISI (100% MATCH DASHBOARD, RANGE DATE BUKAN SINGLE) -------------- */
+/* ---------- 6. ENGINEERING ACTIVITIES PER DIVISI (COPY VERBATIM 100% DARI DASHBOARD_ACTIVITIES_PDF.PHP YANG SUDAH TERBUKTI WORKS) -------------- */
 $divisions = ['OPERATION', 'MAINTENANCE', 'PROJECT', 'LANDSCAPE'];
+$divUpperMap = ['operation'=>'OPERATION','maintenance'=>'MAINTENANCE','project'=>'PROJECT','landscape'=>'LANDSCAPE'];
 $actByDiv = [];
-$divLower = ['OPERATION'=>'operation','MAINTENANCE'=>'maintenance','PROJECT'=>'project','LANDSCAPE'=>'landscape'];
 foreach ($divisions as $d) $actByDiv[$d] = [];
 
-/* (A) LOOP 4 DIVISI: Query daily_log_activities BETWEEN date_from s/d date_to (BUKAN SINGLE DATE!)  */
-try {
-    foreach ($divisions as $d) {
-        $cat = $divLower[$d];
-        $baseWhere = "WHERE dla.category = ? AND dl.status IN ('approved','reviewed','pending') AND dl.log_date BETWEEN ? AND ?";
-        $p = [$cat, $reportDateFrom, $reportDateTo];
-        if ($userRole === 'engineer') { $baseWhere .= " AND dl.engineer_id = ?"; $p[] = $userId; }
-        $sql = "SELECT dla.activity_title, DATE(dl.log_date) as log_date, u.name as engineer_name
-                FROM daily_log_activities dla
-                INNER JOIN daily_logs dl ON dl.id = dla.daily_log_id
-                LEFT JOIN users u ON u.id = dl.engineer_id
-                $baseWhere
-                ORDER BY dl.log_date DESC, dla.sort_order ASC, dla.id DESC
-                LIMIT 500";
-        $rows = $db->fetchAll($sql, $p);
-        foreach ($rows as $r) {
-            $t = trim((string)($r['activity_title'] ?? ''));
-            if (strlen($t) < 1) continue;
-            $st = repActHeurStatus($t);
-            $actByDiv[$d][] = ['name' => $t, 'status' => $st, 'date' => (string)($r['log_date'] ?? ''), 'eng' => (string)($r['engineer_name'] ?? '')];
-        }
+/* --- (A) FUNCTION COPIED VERBATIM FROM dashboard_activities_pdf.php (suffix _Ds = DailySummary) --- */
+function buildActivityListQuery_Ds($db, $userRole, $userId, $category, $dateFrom, $dateTo, $limit = 500) {
+    $baseWhere = "WHERE dla.category = ? AND dl.status = 'approved' AND dl.log_date BETWEEN ? AND ?";
+    $params = [$category, $dateFrom, $dateTo];
+    if ($userRole === 'engineer') {
+        $baseWhere .= " AND dl.engineer_id = ?";
+        $params[] = $userId;
     }
-} catch (Throwable $e) { /* daily_log_activities table not exists */ }
+    $sql = "SELECT dla.id, dla.activity_title, DATE(dl.log_date) as log_date, u.name as engineer_name
+            FROM daily_log_activities dla
+            INNER JOIN daily_logs dl ON dl.id = dla.daily_log_id
+            LEFT JOIN users u ON u.id = dl.engineer_id
+            $baseWhere
+            ORDER BY dl.log_date DESC, dla.sort_order ASC, dla.id DESC
+            LIMIT $limit";
+    return $db->fetchAll($sql, $params);
+}
+function actGroupWithStatus_Ds(&$list) {
+    $out = [];
+    foreach ($list as $r) {
+        $t = trim((string)($r['activity_title'] ?? ''));
+        if (strlen($t) < 1) continue;
+        $tl = strtolower($t);
+        $isProg = (strpos($tl, 'progress') !== false) || (strpos($tl, 'install') !== false)
+               || (strpos($tl, 'perbaikan') !== false) || (strpos($tl, 'perbaika') !== false) || (strpos($tl, 'new ') !== false)
+               || (strpos($tl, 'buat') !== false) || (strpos($tl, 'meeting') !== false)
+               || (strpos($tl, 'pemindahan') !== false) || (strpos($tl, 'follow up') !== false)
+               || (strpos($tl, 'refinising') !== false) || (strpos($tl, 'rapikan') !== false)
+               || (strpos($tl, 'project ') !== false);
+        $out[] = ['title'=>$t, 'status'=>$isProg ? 'progress' : 'complete',
+                  'date'=>$r['log_date'] ?? '', 'eng'=>$r['engineer_name'] ?? ''];
+    }
+    return $out;
+}
 
-/* (B) MERGE ALL MASTER ACTIVITIES — TIDAK PEDULI ADA DAILY ATAU TIDAK (TANPA IF count===0, TANPA LIMIT 4) — POLA 100% MATCH DASHBOARD INDEX.PHP */
+/* --- (B) QUERY 4 DIVISI VERBATIM --- */
 try {
-    $existTitle = [];
-    foreach ($divisions as $d) {
-        $existTitle[$d] = [];
-        foreach (($actByDiv[$d] ?? []) as $r) {
-            $t = mb_strtolower(trim((string)($r['name'] ?? '')));
-            if ($t !== '') $existTitle[$d][$t] = true;
+    $_actsGRP_Ds = [
+        'operation'   => actGroupWithStatus_Ds(buildActivityListQuery_Ds($db, $userRole, $userId, 'operation',   $reportDateFrom, $reportDateTo)),
+        'maintenance' => actGroupWithStatus_Ds(buildActivityListQuery_Ds($db, $userRole, $userId, 'maintenance', $reportDateFrom, $reportDateTo)),
+        'project'     => actGroupWithStatus_Ds(buildActivityListQuery_Ds($db, $userRole, $userId, 'project',     $reportDateFrom, $reportDateTo)),
+        'landscape'   => actGroupWithStatus_Ds(buildActivityListQuery_Ds($db, $userRole, $userId, 'landscape',   $reportDateFrom, $reportDateTo)),
+    ];
+    /* --- (C) MERGE MASTER ACTIVITIES VERBATIM — TANPA WHERE status='active' (PENYEBAB DATA HILANG!) --- */
+    $_tmpM_Ds = $db->fetchAll("SELECT division, activity_name, sort_order, created_at, status_default FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+    $_existT_Ds = [];
+    foreach (['operation','maintenance','project','landscape'] as $dv) {
+        if (!isset($_actsGRP_Ds[$dv]) || !is_array($_actsGRP_Ds[$dv])) $_actsGRP_Ds[$dv] = [];
+        foreach ($_actsGRP_Ds[$dv] as $_r) {
+            $t = mb_strtolower(trim((string)($_r['title'] ?? '')));
+            if ($t !== '') $_existT_Ds[$dv][$t] = true;
         }
     }
-    $allMaster = $db->fetchAll("SELECT division, activity_name, sort_order, created_at, status_default FROM activity_masters WHERE status = 'active' ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
-    foreach ($allMaster as $m) {
-        $dv = strtoupper((string)($m['division'] ?? 'operation'));
-        if (!in_array($dv, $divisions, true)) $dv = 'OPERATION';
-        if (!isset($actByDiv[$dv]) || !is_array($actByDiv[$dv])) $actByDiv[$dv] = [];
-        $title = trim((string)($m['activity_name'] ?? ''));
+    foreach ($_tmpM_Ds as $_m) {
+        $dv = (string)($_m['division'] ?? 'operation');
+        if (!in_array($dv,['operation','maintenance','project','landscape'], true)) $dv = 'operation';
+        if (!isset($_actsGRP_Ds[$dv]) || !is_array($_actsGRP_Ds[$dv])) $_actsGRP_Ds[$dv] = [];
+        $title = trim((string)($_m['activity_name'] ?? ''));
         if ($title === '') continue;
         $key = mb_strtolower($title);
-        if (isset($existTitle[$dv][$key])) continue; /* skip jika judul sudah ada dari daily log (hindari DOUBLE) */
-        $stRaw = strtolower((string)($m['status_default'] ?? 'progress'));
-        $st = in_array($stRaw,['complete','completed','progress','pending']) ? $stRaw : repActHeurStatus($title);
-        $actByDiv[$dv][] = [
-            'name' => $title,
-            'status' => ($st === 'completed' ? 'complete' : $st),
-            'date' => substr((string)($m['created_at'] ?? ''), 0, 10),
-            'eng' => '- (Master Activity)'
+        if (isset($_existT_Ds[$dv][$key])) continue;
+        $st = (string)($_m['status_default'] ?? 'progress');
+        $_actsGRP_Ds[$dv][] = [
+            'title'  => $title,
+            'status' => ($st === 'complete' ? 'complete' : 'progress'),
+            'date'   => substr((string)($_m['created_at'] ?? ''), 0, 10),
+            'eng'    => '- (Master Activity)'
         ];
     }
-} catch (Throwable $e) { /* activity_masters table not exists = biarkan kosong */ }
+    unset($_tmpM_Ds, $_existT_Ds, $dv, $_m, $title, $key, $st);
+
+    /* --- (D) MAP lowercase-key → uppercase-key + ganti key 'title'→'name' SUPAYA KOMPATIBEL DENGAN RENDER CSV+HTML DI BAWAH (TIDAK PERLU UBAH RENDER!) --- */
+    foreach ($divUpperMap as $lower => $upper) {
+        $list = $_actsGRP_Ds[$lower] ?? [];
+        foreach ($list as $item) {
+            $actByDiv[$upper][] = [
+                'name'   => (string)($item['title'] ?? ''),
+                'status' => (string)($item['status'] ?? 'progress'),
+                'date'   => (string)($item['date'] ?? ''),
+                'eng'    => (string)($item['eng'] ?? '')
+            ];
+        }
+    }
+    unset($_actsGRP_Ds, $lower, $upper, $list, $item);
+} catch (Throwable $e) { /* daily_log_activities / activity_masters table not exists → biarkan kosong */ }
 
 /* Helper hitung status badge per-divisi (nanti dipakai CSV+HTML) */
 function repCountActStatus(&$list) {
