@@ -78,13 +78,12 @@ $dateLabel = strtoupper(date('j F Y'));
 $filterLabelUpper = strtoupper($filterLabel);
 
 $fileName = 'Engineering_Report_Logistik_' . date('Y_m_d') . '_' . substr(preg_replace('/[^A-Za-z0-9_-]/', '', (string)$filter), 0, 18);
-header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+header('Content-Type: application/octet-stream');
 header('Content-Disposition: attachment; filename="' . $fileName . '.xls"');
 header('Content-Transfer-Encoding: binary');
 header('Pragma: public');
 header('Cache-Control: max-age=0, must-revalidate');
 header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
-header('X-Content-Type-Options: nosniff');
 
 ob_start();
 echo "\xEF\xBB\xBF";
