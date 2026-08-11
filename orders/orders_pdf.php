@@ -68,13 +68,9 @@ foreach ($orders as $o) $totalAll += (float)($o['total_amount'] ?? 0);
 
 $dateLabel = date('d M Y');
 $fileName = 'Order_Logistik_' . date('Y_m_d') . '_' . substr(preg_replace('/[^A-Za-z0-9_-]/', '', (string)$filter), 0, 18);
-header('Content-Type: application/pdf');
-header('Content-Disposition: attachment; filename="' . $fileName . '.pdf"');
-header('Content-Transfer-Encoding: binary');
-header('Pragma: public');
+header('Content-Type: text/html; charset=utf-8');
+header('Content-Disposition: inline; filename="' . $fileName . '.pdf"');
 header('Cache-Control: max-age=0, must-revalidate');
-header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
-header('X-Content-Type-Options: nosniff');
 ob_start();
 echo "\xEF\xBB\xBF";
 ?>
