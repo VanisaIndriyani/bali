@@ -6,7 +6,7 @@
     table { border-collapse: collapse; width: 100%; }
     th, td { border: 1px solid #000; padding: 6px 10px; vertical-align: top; }
     th { background: #d9d9d9; font-weight: bold; text-align: center; }
-    h1 { font-size: 22px; text-align: center; margin: 4px 0; letter-spacing: 2px; font-weight:900; }
+    h1 { font-size: 18px; text-align: center; margin: 4px 0; letter-spacing: 1.5px; font-weight:900; }
     h2 { font-size: 14px; margin: 18px 0 8px; font-weight:900; }
     .dt { font-weight: bold; font-size: 14px; margin: 6px 0; }
     .cen { text-align:center; }

@@ -171,8 +171,8 @@ function fmtDt($d) {
     }
     .eyebrow .pill { display:inline-block; padding: 2px 10px; border: 1px solid #cbd5e1; background: #f8fafc; color:#475569; border-radius: 999px; font-size: 9.5px; letter-spacing: 1px; font-weight: 700; }
     .title-hero {
-        color:#0f172a; font-weight:900; letter-spacing:-0.02em; line-height:1.1;
-        font-size: 34px; margin: 0 0 8px 0;
+        color:#0f172a; font-weight:900; letter-spacing:-0.02em; line-height:1.08;
+        font-size: 28px; margin: 0 0 8px 0;
     }
     .title-hero .accent {
         background: linear-gradient(90deg, #0ea5e9, #6366f1);

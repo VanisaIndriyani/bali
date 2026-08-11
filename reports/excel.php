@@ -58,7 +58,7 @@ table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 th { background: #111; color: #fff; padding: 10px 12px; font-weight: 700; font-size: 11px; text-align: left; border: 1px solid #111; }
 td { padding: 8px 12px; font-size: 11px; border: 1px solid #d0d0d0; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
 tr:nth-child(even) td { background: #fafafa; }
-.title { font-size: 20px; font-weight: 800; color: #111; margin-bottom: 4px; font-family: Georgia, serif; }
+.title { font-size: 17px; font-weight: 800; color: #111; margin-bottom: 4px; font-family: Georgia, serif; }
 .subtitle { font-size: 11px; color: #666; margin-bottom: 15px; letter-spacing: 1px; }
 .meta { background: #f5f5f5; border: 1px solid #e5e5e5; padding: 12px; margin: 15px 0; }
 .meta td { border: none; padding: 4px 8px; font-size: 11px; }

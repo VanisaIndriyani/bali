@@ -70,7 +70,7 @@ $uploadsDir = realpath(__DIR__ . '/../assets/uploads');
 body { font-family: 'Segoe UI', Tahoma, sans-serif; color: #111; background: #f5f5f5; padding: 20px; }
 .wrapper { max-width: 900px; margin: 0 auto; background: #fff; padding: 40px; box-shadow: 0 2px 20px rgba(0,0,0,0.08); }
 .header { display: flex; align-items: center; gap: 20px; padding-bottom: 20px; border-bottom: 2px solid #111; margin-bottom: 25px; }
-.header-text h1 { font-family: Georgia, serif; font-size: 24px; font-weight: 700; letter-spacing: 1px; }
+.header-text h1 { font-family: Georgia, serif; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
 .header-text p { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #555; margin-top: 3px; }
 .header-text .sub { font-size: 10px; letter-spacing: 1.5px; margin-top: 2px; color: #888; }
 .meta-bar { background: #f9fafb; border: 1px solid #e5e5e5; padding: 14px 20px; border-radius: 8px; margin-bottom: 25px; display: grid; grid-template-columns: repeat(3,1fr); gap: 15px; font-size: 12px; }

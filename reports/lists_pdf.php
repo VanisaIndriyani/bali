@@ -110,9 +110,9 @@ echo "\xEF\xBB\xBF";
         color: #0f172a;
         font-weight: 900;
         letter-spacing: -0.02em;
-        line-height: 1.1;
-        font-size: 40px;
-        margin: 0 0 10px 0;
+        line-height: 1.08;
+        font-size: 28px;
+        margin: 0 0 8px 0;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     .title-hero .accent {

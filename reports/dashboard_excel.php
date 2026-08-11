@@ -117,7 +117,7 @@ echo "\xEF\xBB\xBF";
     table { border-collapse: collapse; width: 100%; table-layout: fixed; }
     td, th { border: 1px solid #d1d5db; padding: 7px 10px; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
     th { background: #fafafa; color:#1f2937; text-align:left; font-weight:bold; border-bottom: 2px solid #c9a227; }
-    .h1 { font-size: 22px; font-weight: bold; color:#1f2937; margin:0; font-family: Georgia, 'Times New Roman', serif; letter-spacing:1px; }
+    .h1 { font-size: 19px; font-weight: bold; color:#1f2937; margin:0; font-family: Georgia, 'Times New Roman', serif; letter-spacing:0.8px; }
     .h2 { font-size: 10px; color:#6b7280; margin:3px 0 0; text-transform: uppercase; letter-spacing:0.2em; }
     .h-section { font-size:14px; font-weight:bold; color:#1f2937; padding: 12px 0 6px; border-bottom: 2px solid #c9a227; }
     .meta td { border:none; padding: 3px 8px 3px 0; font-size: 12px; color:#1f2937; }

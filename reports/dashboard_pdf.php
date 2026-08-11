@@ -104,7 +104,7 @@ $logoSrc = '';
         .header { padding: 22px 32px; background:#fff; color:#1f2937; display:flex; align-items:center; gap:18px; border-bottom: 2px solid #c9a227; }
         .logo-box { width:60px; height:60px; background:#fff; border-radius:14px; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; padding:4px; border:1px solid #e5e7eb; }
         .logo-box img { max-width:100%; max-height:100%; object-fit:contain; }
-        .header-text h1 { margin:0; font-family:'Playfair Display', serif; font-size:24px; letter-spacing:1px; color:#1f2937; }
+        .header-text h1 { margin:0; font-family:'Playfair Display', serif; font-size:20px; letter-spacing:0.5px; color:#1f2937; }
         .header-text p { margin:3px 0 0; font-size:11px; letter-spacing:0.2em; text-transform:uppercase; color:#6b7280; }
         .divider { height:1px; background:#e5e7eb; }
         .content { padding: 26px 32px 34px; }
