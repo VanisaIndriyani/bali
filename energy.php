@@ -10,6 +10,8 @@
 require_once __DIR__ . '/config/config.php';
 requireLogin();
 
+$db = Database::getInstance();
+
 $userId   = intval($_SESSION['user_id'] ?? 0);
 $userRole = $_SESSION['role'] ?? 'manager';
 
