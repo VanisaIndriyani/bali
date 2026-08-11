@@ -118,24 +118,5 @@
     <?php } } ?>
     </tbody>
 </table>
-
-<br><br>
-<table class="sign" style="width:100%; border:none;">
-    <tr>
-        <td style="border:none; width:33%; font-weight:600;">Prepared By:</td>
-        <td style="border:none; width:33%; font-weight:600;">Reviewed By:</td>
-        <td style="border:none; width:33%; font-weight:600;">Approved By:</td>
-    </tr>
-    <tr>
-        <td style="border:none; height:48px;"></td>
-        <td style="border:none; height:48px;"></td>
-        <td style="border:none; height:48px;"></td>
-    </tr>
-    <tr>
-        <td class="ln"><?=htmlspecialchars($userName)?></td>
-        <td class="ln">Supervisor / Manager</td>
-        <td class="ln">Chief Engineer / EAM</td>
-    </tr>
-</table>
 </body>
 </html>

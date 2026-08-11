@@ -235,14 +235,6 @@ if ($format === 'excel') {
             $first = false;
         }
     }
-    $out .= "\n\n";
-    $out .= repCsvEscape('Prepared By') . $sep . $sep
-          . repCsvEscape('Reviewed By') . $sep . $sep
-          . repCsvEscape('Approved By') . "\n";
-    $out .= "\n\n\n";
-    $out .= repCsvEscape($userName) . $sep . $sep
-          . repCsvEscape('Supervisor / Manager') . $sep . $sep
-          . repCsvEscape('Chief Engineer / EAM') . "\n";
 
     echo $out;
     exit;
@@ -391,11 +383,6 @@ if ($format === 'excel') {
         </tbody>
     </table>
 
-    <div class="sign-footer">
-        <div class="sign-box"><div class="lbl">Prepared By:</div><div class="line"><?=htmlspecialchars($userName)?></div></div>
-        <div class="sign-box"><div class="lbl">Reviewed By:</div><div class="line">Supervisor / Manager</div></div>
-        <div class="sign-box"><div class="lbl">Approved By:</div><div class="line">Chief Engineer / EAM</div></div>
-    </div>
 </div>
 </body>
 </html>

@@ -288,26 +288,6 @@ foreach ($deptDef as $key => $dd):
 </div>
 <?php endif; ?>
 
-<!-- SIGNATURE 3 KOLOM -->
-<table class="signtable">
-    <tr>
-        <?php
-        $signs = [
-            ['Prepared By:',  $userRole === 'engineer'   ? $userName : 'Engineering Staff'],
-            ['Reviewed By:',  $userRole === 'supervisor' ? $userName : 'Supervisor Engineering'],
-            ['Approved By:',  $userRole === 'manager'    ? $userName : 'Manager Engineering'],
-        ];
-        foreach ($signs as [$lb, $nm]):
-        ?>
-        <td style="width:33.33%;">
-            <span class="lb"><?= $lb ?></span>
-            <span class="line"></span>
-            <span class="nm"><?= htmlspecialchars((string)$nm) ?></span>
-        </td>
-        <?php endforeach; ?>
-    </tr>
-</table>
-
 <div class="footer-note">
     <span class="brand">Engineering <em>Report</em></span>
     &nbsp;•&nbsp; dokumen di-generate otomatis • last updated: <?= date('Y-m-d H:i:s') ?>&nbsp;

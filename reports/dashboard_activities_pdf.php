@@ -438,24 +438,6 @@ function fmtDt($d) {
         </tbody>
     </table>
 
-    <!-- SIGNATURE -->
-    <div class="sign">
-        <?php
-        $signs = [
-            ['Prepared By:',  $userRole === 'engineer'   ? $userName : 'Engineering Staff'],
-            ['Reviewed By:',  $userRole === 'supervisor' ? $userName : 'Supervisor Engineering'],
-            ['Approved By:',  $userRole === 'manager'    ? $userName : 'Manager Engineering'],
-        ];
-        foreach ($signs as [$lb, $nm]):
-        ?>
-        <div class="col">
-            <div class="lb"><?= $lb ?></div>
-            <div class="line"></div>
-            <div class="nm"><?= htmlspecialchars((string)$nm) ?></div>
-        </div>
-        <?php endforeach; ?>
-    </div>
-
     <!-- FOOT NOTE -->
     <div class="foot-note">
         <div style="display:flex; align-items:center; gap:8px;">
