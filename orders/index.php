@@ -112,7 +112,7 @@ $tabs['draft'] = ['label' => T('order_status_draft', 'Draft'), 'count' => (int)$
             $_expQs = http_build_query($_GET);
             $_expQs = $_expQs !== '' ? '?' . $_expQs : '';
             ?>
-            <a href="<?= BASE_URL ?>orders/orders_pdf.php<?= $_expQs ?>" target="_blank"
+            <a href="<?= BASE_URL ?>orders/orders_pdf.php<?= $_expQs ?>"
                class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-card bg-white border border-rose-200 text-rose-700 text-sm font-bold hover:bg-rose-50 hover:-translate-y-0.5 transition shadow-sm">
                 <i class="fas fa-file-pdf text-rose-600"></i> PDF
             </a>
