@@ -107,9 +107,23 @@ $tabs['draft'] = ['label' => T('order_status_draft', 'Draft'), 'count' => (int)$
             <h1 class="font-display text-3xl font-black text-primary"><?= T('order_page_title', 'Daftar Order / Purchase Request') ?></h1>
             <p class="text-sm text-secondary mt-1"><?= T('order_page_subtitle', 'List semua permintaan barang & jasa') ?></p>
         </div>
-        <?php if ($role !== 'manager'): ?>
-            <a href="<?= BASE_URL ?>orders/create.php" class="btn-gold self-start"><i class="fas fa-plus mr-1.5"></i><?= T('nav_order_create', 'Buat Order Request') ?></a>
-        <?php endif; ?>
+        <div class="flex flex-wrap items-center gap-2 self-start sm:self-end">
+            <?php
+            $_expQs = http_build_query($_GET);
+            $_expQs = $_expQs !== '' ? '?' . $_expQs : '';
+            ?>
+            <a href="<?= BASE_URL ?>orders/orders_pdf.php<?= $_expQs ?>" target="_blank"
+               class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-card bg-white border border-rose-200 text-rose-700 text-sm font-bold hover:bg-rose-50 hover:-translate-y-0.5 transition shadow-sm">
+                <i class="fas fa-file-pdf text-rose-600"></i> PDF
+            </a>
+            <a href="<?= BASE_URL ?>orders/orders_excel.php<?= $_expQs ?>"
+               class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-card bg-white border border-emerald-200 text-emerald-700 text-sm font-bold hover:bg-emerald-50 hover:-translate-y-0.5 transition shadow-sm">
+                <i class="fas fa-file-excel text-emerald-600"></i> Excel
+            </a>
+            <?php if ($role !== 'manager'): ?>
+                <a href="<?= BASE_URL ?>orders/create.php" class="btn-gold"><i class="fas fa-plus mr-1.5"></i><?= T('nav_order_create', 'Buat Order Request') ?></a>
+            <?php endif; ?>
+        </div>
     </div>
 
     <div class="card-premium p-3 sm:p-4 mb-5">
