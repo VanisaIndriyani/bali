@@ -80,6 +80,19 @@ $log = $db->fetchOne(
 
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/navbar.php';
+
+// --- HELPER BADGE SHIFT VISUAL (Pagi/Siang/Malam) untuk ditampilkan di header dan info engineer ---
+$__shiftVal = (!empty($log['shift']) && in_array($log['shift'], ['pagi','siang','malam'], true)) ? (string)$log['shift'] : '';
+$__shiftBadge = '';
+if ($__shiftVal === 'pagi') {
+    $__shiftBadge = '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-600 text-white text-xs font-bold tracking-wide uppercase shadow-sm shadow-amber-500/20"><i class="fas fa-sun-plant-wilt"></i> Shift Pagi</span>';
+} elseif ($__shiftVal === 'siang') {
+    $__shiftBadge = '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-sky-500 to-indigo-600 text-white text-xs font-bold tracking-wide uppercase shadow-sm shadow-sky-500/20"><i class="fas fa-sun"></i> Shift Siang</span>';
+} elseif ($__shiftVal === 'malam') {
+    $__shiftBadge = '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-slate-900 text-white text-xs font-bold tracking-wide uppercase shadow-sm shadow-indigo-500/20"><i class="fas fa-moon-stars"></i> Shift Malam</span>';
+} else {
+    $__shiftBadge = '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-semibold tracking-wide uppercase"><i class="fas fa-circle-question"></i> Belum ada shift</span>';
+}
 ?>
 
 <div class="page-shell page-shell--5xl">
@@ -89,8 +102,9 @@ require_once __DIR__ . '/../includes/navbar.php';
         </a>
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-                <h1 class="font-display text-2xl lg:text-3xl font-bold text-primary mb-1">
+                <h1 class="font-display text-2xl lg:text-3xl font-bold text-primary mb-1 flex items-center gap-3 flex-wrap">
                     <i class="fas fa-magnifying-glass mr-2 text-accent"></i>Detail Daily Log
+                    <?= $__shiftBadge ?>
                 </h1>
                 <p class="text-secondary">
                     <i class="fas fa-calendar-day text-accent mr-1"></i>
@@ -115,11 +129,15 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xl sm:text-2xl font-bold flex-shrink-0 shadow-lg">
                     <?= strtoupper(mb_substr((string)($log['engineer_name'] ?? 'U'), 0, 1) ?: 'U') ?>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 flex-1 min-w-0">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 flex-1 min-w-0">
                     <div><p class="text-xs text-secondary uppercase tracking-wider mb-0.5">Nama</p><p class="font-semibold text-primary"><?= cleanInput($log['engineer_name']) ?></p></div>
                     <div><p class="text-xs text-secondary uppercase tracking-wider mb-0.5">Jabatan</p><p class="font-semibold text-primary"><?= cleanInput($log['engineer_position'] ?? '-') ?></p></div>
                     <div><p class="text-xs text-secondary uppercase tracking-wider mb-0.5">Email</p><p class="font-semibold text-primary text-sm"><?= cleanInput($log['engineer_email']) ?></p></div>
                     <div><p class="text-xs text-secondary uppercase tracking-wider mb-0.5">Phone</p><p class="font-semibold text-primary"><?= cleanInput($log['engineer_phone'] ?? '-') ?></p></div>
+                    <div>
+                        <p class="text-xs text-secondary uppercase tracking-wider mb-0.5">Shift Bertugas</p>
+                        <div class="mt-0.5"><?= $__shiftBadge ?></div>
+                    </div>
                 </div>
             </div>
         </div>
