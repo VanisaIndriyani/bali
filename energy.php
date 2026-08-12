@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * ⚡ ENERGY DASHBOARD (WA 18.09)
  * Bisa diakses SEMUA ROLE (Manager, Supervisor, Engineer/Staff)
@@ -47,21 +47,23 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
     ];
 
     $agg = strtoupper($agg) === 'AVG' ? 'AVG' : 'SUM';
+    $debug = (isset($_GET['_dbg']) && currentUser() && in_array((string)(currentUser()['role'] ?? ''), ['manager','admin','supervisor'], true));
 
     try {
         // ── A) daily_logs (legacy)
         $sqlD = "SELECT
-            COALESCE($agg(NULLIF(dl.total_electricity,0)),0) as elec,
-            COALESCE($agg(NULLIF(dl.total_water,0)),0)       as water,
-            COALESCE($agg(NULLIF(dl.total_gas,0)),0)         as gas,
-            COALESCE($agg(NULLIF(dl.total_fuel,0)),0)        as fuel,
+            COALESCE($agg(CAST(COALESCE(dl.total_electricity,0) AS DECIMAL(18,4))),0) as elec,
+            COALESCE($agg(CAST(COALESCE(dl.total_water,0) AS DECIMAL(18,4))),0)       as water,
+            COALESCE($agg(CAST(COALESCE(dl.total_gas,0) AS DECIMAL(18,4))),0)         as gas,
+            COALESCE($agg(CAST(COALESCE(dl.total_fuel,0) AS DECIMAL(18,4))),0)        as fuel,
             COUNT(*) as cnt
             FROM daily_logs dl
-            WHERE dl.log_date BETWEEN ? AND ? AND $approvedWhereDaily";
+            WHERE DATE(dl.log_date) BETWEEN ? AND ? AND $approvedWhereDaily";
         $d = $db->fetchOne($sqlD, [$dateFrom, $dateTo]);
+        if ($debug) { echo "<div style='display:none' class='_dbg_e'>DAILY: $sqlD | ".json_encode($d)."</div>"; }
 
         // ── B) energy_logs (dari energy_logsheet.php)
-        $elWhere   = "el.log_date BETWEEN ? AND ?";
+        $elWhere   = "DATE(el.log_date) BETWEEN ? AND ?";
         $elParams  = [$dateFrom, $dateTo];
         if ($userRole === 'engineer') {
             $cols = @$db->fetchAll("SHOW COLUMNS FROM energy_logs LIKE 'created_by'");
@@ -70,14 +72,27 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
                 $elParams[] = $userId;
             }
         }
+        /* ⚠️ KRITIS FIX: SETIAP KOLOM DIBUNGKUS COALESCE(...,0) DULU SEBELUM DIJUMLAH!
+           KALAU TIDAK: 100 + 200 + NULL = NULL (hasil 0 semua di cards!) */
         $sqlE = "SELECT
-            COALESCE($agg(NULLIF(el.pln_lwbp_kwh + el.pln_wbp_kwh + el.genset_kwh, 0)), 0) as elec,
-            COALESCE($agg(NULLIF(el.air_m3 + el.air_deep_well_m3, 0)), 0)                   as water,
-            COALESCE($agg(NULLIF(el.gas_kg + el.gas_lng_kg, 0)), 0)                         as gas,
-            COALESCE($agg(NULLIF(el.solar_liter, 0)), 0)                                    as fuel,
+            COALESCE($agg(
+                CAST(COALESCE(el.pln_lwbp_kwh,0) AS DECIMAL(18,4))
+              + CAST(COALESCE(el.pln_wbp_kwh,0)  AS DECIMAL(18,4))
+              + CAST(COALESCE(el.genset_kwh,0)   AS DECIMAL(18,4))
+            ), 0) as elec,
+            COALESCE($agg(
+                CAST(COALESCE(el.air_m3,0)            AS DECIMAL(18,4))
+              + CAST(COALESCE(el.air_deep_well_m3,0) AS DECIMAL(18,4))
+            ), 0) as water,
+            COALESCE($agg(
+                CAST(COALESCE(el.gas_kg,0)    AS DECIMAL(18,4))
+              + CAST(COALESCE(el.gas_lng_kg,0) AS DECIMAL(18,4))
+            ), 0) as gas,
+            COALESCE($agg(CAST(COALESCE(el.solar_liter,0) AS DECIMAL(18,4))), 0) as fuel,
             COUNT(*) as cnt
             FROM energy_logs el WHERE $elWhere";
         $e = $db->fetchOne($sqlE, $elParams);
+        if ($debug) { echo "<div style='display:none' class='_dbg_e'>ENERGY: $sqlE | params=".json_encode($elParams)." | result=".json_encode($e)."</div>"; }
 
         $dElec  = (float)($d['elec']  ?? 0);
         $dWater = (float)($d['water'] ?? 0);
@@ -92,37 +107,39 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
         $cntE   = (int)($e['cnt'] ?? 0);
 
         if ($agg === 'SUM') {
-            $out['elec']  = $dElec  + $eElec;
-            $out['water'] = $dWater + $eWater;
-            $out['gas']   = $dGas   + $eGas;
-            $out['fuel']  = $dFuel  + $eFuel;
+            $out['elec']  = (float)($dElec  + $eElec);
+            $out['water'] = (float)($dWater + $eWater);
+            $out['gas']   = (float)($dGas   + $eGas);
+            $out['fuel']  = (float)($dFuel  + $eFuel);
         } else {
             $hasD = $dElec + $dWater + $dGas + $dFuel > 0;
             $hasE = $eElec + $eWater + $eGas + $eFuel > 0;
             if ($hasD && !$hasE) {
-                $out['elec']  = $dElec;
-                $out['water'] = $dWater;
-                $out['gas']   = $dGas;
-                $out['fuel']  = $dFuel;
+                $out['elec']  = (float)$dElec;
+                $out['water'] = (float)$dWater;
+                $out['gas']   = (float)$dGas;
+                $out['fuel']  = (float)$dFuel;
             } elseif ($hasE && !$hasD) {
-                $out['elec']  = $eElec;
-                $out['water'] = $eWater;
-                $out['gas']   = $eGas;
-                $out['fuel']  = $eFuel;
+                $out['elec']  = (float)$eElec;
+                $out['water'] = (float)$eWater;
+                $out['gas']   = (float)$eGas;
+                $out['fuel']  = (float)$eFuel;
             } elseif ($hasD && $hasE) {
-                $out['elec']  = ($dElec  + $eElec)  / 2;
-                $out['water'] = ($dWater + $eWater) / 2;
-                $out['gas']   = ($dGas   + $eGas)   / 2;
-                $out['fuel']  = ($dFuel  + $eFuel)  / 2;
+                $out['elec']  = (float)(($dElec  + $eElec)  / 2);
+                $out['water'] = (float)(($dWater + $eWater) / 2);
+                $out['gas']   = (float)(($dGas   + $eGas)   / 2);
+                $out['fuel']  = (float)(($dFuel  + $eFuel)  / 2);
             }
         }
 
-        $out['cnt_d'] = $cntD;
-        $out['cnt_e'] = $cntE;
-        $out['log_count'] = max(1, $cntD + $cntE);
+        $out['cnt_d'] = (int)$cntD;
+        $out['cnt_e'] = (int)$cntE;
+        $out['log_count'] = max(1, (int)($cntD + $cntE));
     } catch (\Throwable $ex) {
         $out['elec'] = 0; $out['water'] = 0; $out['gas'] = 0; $out['fuel'] = 0;
         $out['log_count'] = 1; $out['cnt_d'] = 0; $out['cnt_e'] = 0;
+        if ($debug) { echo "<div style='display:none' class='_dbg_e'>EXCEPTION: ".$ex->getMessage()."</div>"; }
+        else { error_log('energy.php utilFetchBoth_Db ERROR: '.$ex->getMessage()); }
     }
 
     return $out;

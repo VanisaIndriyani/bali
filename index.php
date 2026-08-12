@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 $pageTitle = 'Dashboard';
 require_once __DIR__ . '/config/config.php';
 requireLogin();
@@ -71,19 +71,25 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
     $aggFn = $isSum ? 'SUM' : 'AVG';
     $aggFnNull = $isSum ? 'SUM' : 'AVG';
     $cntFn  = 'COUNT';
+    $debug = (isset($_GET['_dbg']) && currentUser() && in_array((string)(currentUser()['role'] ?? ''), ['manager','admin','supervisor'], true));
 
     /* --- (A) daily_logs (primary legacy) --- */
     try {
         $sqlD = "SELECT
-            COALESCE($aggFn(total_electricity),0) as elec,
-            COALESCE($aggFn(total_water),0) as water,
-            COALESCE($aggFn(total_gas),0) as gas,
-            COALESCE($aggFn(total_fuel),0) as fuel,
+            COALESCE($aggFn(CAST(total_electricity AS DECIMAL(18,4))),0) as elec,
+            COALESCE($aggFn(CAST(total_water AS DECIMAL(18,4))),0) as water,
+            COALESCE($aggFn(CAST(total_gas AS DECIMAL(18,4))),0) as gas,
+            COALESCE($aggFn(CAST(total_fuel AS DECIMAL(18,4))),0) as fuel,
             COALESCE($cntFn(*),0) as cnt
         FROM daily_logs
-        WHERE log_date BETWEEN ? AND ? AND $approvedWhereDaily";
+        WHERE DATE(log_date) BETWEEN ? AND ? AND $approvedWhereDaily";
         $d = $db->fetchOne($sqlD, [$dateFrom, $dateTo]);
-    } catch (Throwable $e) { $d = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0]; }
+        if ($debug) { echo "<div style='display:none' class='_dbg_merge'>DAILY: SQL=$sqlD | params=$dateFrom,$dateTo | result=".json_encode($d)."</div>\n"; }
+    } catch (Throwable $e) {
+        $d = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0];
+        if ($debug) { echo "<div style='display:none' class='_dbg_merge'>DAILY ERROR: ".$e->getMessage()."</div>\n"; }
+        else { error_log('utilFetchBoth_Db daily_logs ERROR: '.$e->getMessage()); }
+    }
     if (!$d) $d = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0];
     $d['elec']=(float)($d['elec']??0); $d['water']=(float)($d['water']??0);
     $d['gas']=(float)($d['gas']??0); $d['fuel']=(float)($d['fuel']??0);
@@ -91,7 +97,7 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
 
     /* --- (B) energy_logs (energy_logsheet.php input user) --- */
     try {
-        $wE = ["log_date BETWEEN ? AND ?"];
+        $wE = ["DATE(log_date) BETWEEN ? AND ?"];
         $pE = [$dateFrom, $dateTo];
         if ($userRole === 'engineer') {
             $wE[] = "created_by = ?";
@@ -99,14 +105,19 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
         }
         $whereE = 'WHERE ' . implode(' AND ', $wE);
         $sqlE = "SELECT
-            COALESCE($aggFn(pln_lwbp_kwh + pln_wbp_kwh + genset_kwh),0)  as elec,
-            COALESCE($aggFn(air_m3 + air_deep_well_m3),0)                as water,
-            COALESCE($aggFn(gas_kg + gas_lng_kg),0)                      as gas,
-            COALESCE($aggFn(solar_liter),0)                               as fuel,
+            COALESCE($aggFn(CAST(pln_lwbp_kwh AS DECIMAL(18,4)) + CAST(pln_wbp_kwh AS DECIMAL(18,4)) + CAST(COALESCE(genset_kwh,0) AS DECIMAL(18,4))),0)  as elec,
+            COALESCE($aggFn(CAST(COALESCE(air_m3,0) AS DECIMAL(18,4)) + CAST(COALESCE(air_deep_well_m3,0) AS DECIMAL(18,4))),0)                as water,
+            COALESCE($aggFn(CAST(COALESCE(gas_kg,0) AS DECIMAL(18,4)) + CAST(COALESCE(gas_lng_kg,0) AS DECIMAL(18,4))),0)                      as gas,
+            COALESCE($aggFn(CAST(COALESCE(solar_liter,0) AS DECIMAL(18,4))),0)                               as fuel,
             COALESCE($cntFn(*),0) as cnt
         FROM energy_logs $whereE";
         $e = $db->fetchOne($sqlE, $pE);
-    } catch (Throwable $e) { $e = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0]; }
+        if ($debug) { echo "<div style='display:none' class='_dbg_merge'>ENERGY: SQL=$sqlE | params=".json_encode($pE)." | result=".json_encode($e)."</div>\n"; }
+    } catch (Throwable $e) {
+        $e = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0];
+        if ($debug) { echo "<div style='display:none' class='_dbg_merge'>ENERGY ERROR: ".$e->getMessage()."</div>\n"; }
+        else { error_log('utilFetchBoth_Db energy_logs ERROR: '.$e->getMessage()); }
+    }
     if (!$e) $e = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0];
     $e['elec']=(float)($e['elec']??0); $e['water']=(float)($e['water']??0);
     $e['gas']=(float)($e['gas']??0); $e['fuel']=(float)($e['fuel']??0);
@@ -115,13 +126,13 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
     /* --- (C) MERGE: jika mode AVG jangan dijumlah mentok (hanya salah satu yg ada isinya pilih terbesar) --- */
     if ($isSum) {
         $out = [
-            'elec'  => $d['elec']  + $e['elec'],
-            'water' => $d['water'] + $e['water'],
-            'gas'   => $d['gas']   + $e['gas'],
-            'fuel'  => $d['fuel']  + $e['fuel'],
-            'cnt'   => $d['cnt']   + $e['cnt'],
-            'cnt_d' => $d['cnt'],
-            'cnt_e' => $e['cnt'],
+            'elec'  => (float)($d['elec']  + $e['elec']),
+            'water' => (float)($d['water'] + $e['water']),
+            'gas'   => (float)($d['gas']   + $e['gas']),
+            'fuel'  => (float)($d['fuel']  + $e['fuel']),
+            'cnt'   => (int)($d['cnt']   + $e['cnt']),
+            'cnt_d' => (int)$d['cnt'],
+            'cnt_e' => (int)$e['cnt'],
         ];
     } else {
         /* AVG: jika daily_logs ada data yang nonzero → prefer daily_logs; else pilih energy_logs (hindari double count) */
@@ -133,12 +144,13 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
             'gas'   => (float)$s['gas'],
             'fuel'  => (float)$s['fuel'],
             'cnt'   => (int)$s['cnt'],
-            'cnt_d' => $d['cnt'],
-            'cnt_e' => $e['cnt'],
+            'cnt_d' => (int)$d['cnt'],
+            'cnt_e' => (int)$e['cnt'],
         ];
     }
     /* Backward compat: output key 'log_count' = cnt (biar line 101-104 lyXxxAvg TIDAK PERLU DIUBAH) */
     $out['log_count'] = max(1, (int)($out['cnt'] ?? 1));
+    if ($debug) { echo "<div style='display:none' class='_dbg_merge'>FINAL ($agg) ".json_encode($out)."</div>\n"; }
     return $out;
 }
 
