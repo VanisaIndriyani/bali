@@ -470,10 +470,10 @@ include __DIR__ . '/includes/sidebar.php';
 <div id="addLogModal" class="hidden fixed inset-0 z-[9999]">
     <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="document.getElementById('addLogModal').classList.add('hidden')"></div>
     <div class="relative min-h-screen flex items-center justify-center p-4 sm:p-6">
-        <div class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-slide-up">
-            <form method="post" action="<?= htmlspecialchars($_SERVER['PHP_SELF']) ?>" class="p-0">
+        <div class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-slide-up max-h-[90vh] flex flex-col">
+            <form method="post" action="<?= htmlspecialchars($_SERVER['PHP_SELF']) ?>" class="p-0 flex flex-col flex-1 min-h-0">
                 <input type="hidden" name="action" value="add_log">
-                <div class="px-5 sm:px-7 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50">
+                <div class="px-5 sm:px-7 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50 flex-shrink-0">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-md">
                             <i class="fas fa-plus text-sm"></i>
@@ -488,7 +488,7 @@ include __DIR__ . '/includes/sidebar.php';
                     </button>
                 </div>
 
-                <div class="p-5 sm:p-7 space-y-5">
+                <div class="p-5 sm:p-7 space-y-5 overflow-y-auto flex-1 min-h-0">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">Tanggal <span class="text-rose-500">*</span></label>
@@ -567,7 +567,7 @@ include __DIR__ . '/includes/sidebar.php';
                     </div>
                 </div>
 
-                <div class="px-5 sm:px-7 py-4 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div class="px-5 sm:px-7 py-4 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 flex-shrink-0">
                     <p class="text-[11px] text-slate-500 font-semibold"><i class="fas fa-lock text-slate-400 mr-1"></i> data otomatis tersimpan &amp; tercatat di report summary energy.</p>
                     <div class="flex items-center gap-2 justify-end">
                         <button type="button" onclick="document.getElementById('addLogModal').classList.add('hidden')" class="px-4 py-2.5 rounded-xl bg-white text-slate-700 text-[12px] font-bold border border-slate-200 hover:bg-slate-100 transition">
@@ -593,11 +593,11 @@ include __DIR__ . '/includes/sidebar.php';
 <div id="editLogModal" class="fixed inset-0 z-[9999]">
     <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="location.href='<?= htmlspecialchars($_SERVER['PHP_SELF']) ?>' + location.hash.replace('#editLogModal','').replace(/^[#?]+/, '')"></div>
     <div class="relative min-h-screen flex items-center justify-center p-4 sm:p-6">
-        <div class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-slide-up">
-            <form method="post" action="<?= htmlspecialchars($_SERVER['PHP_SELF']) ?>" class="p-0">
+        <div class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-slide-up max-h-[90vh] flex flex-col">
+            <form method="post" action="<?= htmlspecialchars($_SERVER['PHP_SELF']) ?>" class="p-0 flex flex-col flex-1 min-h-0">
                 <input type="hidden" name="action" value="edit_log">
                 <input type="hidden" name="id" value="<?= (int)$editData['id'] ?>">
-                <div class="px-5 sm:px-7 py-4 flex items-center justify-between border-b border-slate-100 bg-amber-50">
+                <div class="px-5 sm:px-7 py-4 flex items-center justify-between border-b border-slate-100 bg-amber-50 flex-shrink-0">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-md">
                             <i class="fas fa-pencil text-sm"></i>
@@ -612,7 +612,7 @@ include __DIR__ . '/includes/sidebar.php';
                     </a>
                 </div>
 
-                <div class="p-5 sm:p-7 space-y-5">
+                <div class="p-5 sm:p-7 space-y-5 overflow-y-auto flex-1 min-h-0">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5 block">Tanggal <span class="text-rose-500">*</span></label>
@@ -691,7 +691,7 @@ include __DIR__ . '/includes/sidebar.php';
                     </div>
                 </div>
 
-                <div class="px-5 sm:px-7 py-4 border-t border-slate-100 bg-amber-50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div class="px-5 sm:px-7 py-4 border-t border-slate-100 bg-amber-50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 flex-shrink-0">
                     <p class="text-[11px] text-slate-500 font-semibold"><i class="fas fa-clock text-slate-400 mr-1"></i> last updated: <?= htmlspecialchars($editData['updated_at'] ?? '-') ?></p>
                     <div class="flex items-center gap-2 justify-end">
                         <a href="<?= htmlspecialchars($_SERVER['PHP_SELF']) ?>" class="px-4 py-2.5 rounded-xl bg-white text-slate-700 text-[12px] font-bold border border-slate-200 hover:bg-slate-100 transition inline-flex items-center justify-center">
