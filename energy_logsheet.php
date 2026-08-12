@@ -482,6 +482,66 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
 @media (min-width: 640px) {
     table.logsheet-ramp th, table.logsheet-ramp td { padding-left: 10px !important; padding-right: 10px !important; }
 }
+/* =========================================================
+   🔥 TAB BAR 9 TABS — MUAT PENUH 1 LAYAR TANPA SCROLL!
+   ========================================================= */
+.tab-bar-wrap {
+    position: relative;
+    z-index: 2;
+}
+.tab-bar {
+    display: flex;
+    align-items: center;
+    /* ✅ Flex-wrap DI LAYAR KECIL (HP) agar 9 tab TIDAK KEPOTONG! Di layar >800px tetap 1 line */
+    flex-wrap: wrap;
+    gap: 2px;
+    padding-top: 10px;
+    padding-bottom: 0;
+}
+@media (min-width: 820px) {
+    .tab-bar { flex-wrap: nowrap; gap: 2px; }
+}
+.tab-bar .tab-btn {
+    /* ✅ Size super ringkas + icon only di HP, text muncul di > 400px */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 9px;
+    line-height: 1.2;
+    min-height: 30px;
+    font-size: 10.5px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    position: relative;
+}
+.tab-bar .tab-btn i, .tab-bar .tab-btn > svg { font-size: 11.5px; }
+/* Di layar HP < 420px: icon only (tanpa text) biar lebih muat */
+@media (max-width: 420px) {
+    .tab-bar .tab-btn { padding: 5px 7px !important; min-width: 36px; }
+    .tab-bar .tab-btn span.lbl { display: none !important; }
+    .tab-bar .tab-btn i, .tab-bar .tab-btn > svg { font-size: 13px !important; }
+}
+/* Tab ACTIVE style TETAP SAMA tapi RINGKAS */
+.tab-bar .tab-btn.active {
+    background: #0f172a !important; /* slate-900 */
+    color: #fff !important;
+    font-weight: 800;
+    box-shadow: 0 -1px 0 rgba(15,23,42,0.05) inset;
+}
+/* Non-Active: RINGKAS & CLEAN */
+.tab-bar .tab-btn:not(.active) {
+    color: #475569;
+    font-weight: 700;
+    background: transparent;
+}
+.tab-bar .tab-btn:not(.active):hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
 </style>
 <div class="main-content px-4 sm:px-6 lg:px-8 py-6 pb-16 max-w-[1800px] mx-auto">
 
@@ -776,16 +836,16 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                     </button>
                 </div>
 
-                <div class="flex items-center gap-1 overflow-x-auto px-5 sm:px-7 pt-3 bg-slate-50 border-b border-slate-200 tab-bar hide-scrollbar -mx-0">
-                    <button type="button" onclick="switchTab(event,'tab-energi')" class="tab-btn active shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-black whitespace-nowrap bg-slate-900 text-white">⚡ Energi</button>
-                    <button type="button" onclick="switchTab(event,'tab-trafo')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">⚡ Trafo</button>
-                    <button type="button" onclick="switchTab(event,'tab-genset')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">🔋 Genset</button>
-                    <button type="button" onclick="switchTab(event,'tab-pump')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">💧 Pump Room</button>
-                    <button type="button" onclick="switchTab(event,'tab-chiller')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">❄️ Chiller</button>
-                    <button type="button" onclick="switchTab(event,'tab-cooling')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">🌀 Cooling Twr</button>
-                    <button type="button" onclick="switchTab(event,'tab-ro')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">🧪 Reverse Osmosis</button>
-                    <button type="button" onclick="switchTab(event,'tab-pool')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">🏊 Pool System</button>
-                    <button type="button" onclick="switchTab(event,'tab-gas')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">🔥 Gas Detector</button>
+                <div class="tab-bar-wrap w-full bg-slate-50 border-b border-slate-200 px-3 sm:px-5 tab-bar hide-scrollbar">
+                    <button type="button" onclick="switchTab(event,'tab-energi')" class="tab-btn active" title="Energi (PLN, Solar, Gas, Air)"><span class="lbl">⚡ Energi</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-trafo')" class="tab-btn" title="Trafo Room (2 Unit)"><span class="lbl">⚡ Trafo</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-genset')" class="tab-btn" title="Genset Room (3 Unit + Fuel)"><span class="lbl">🔋 Genset</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-pump')" class="tab-btn" title="Pump Room 10 Section"><span class="lbl">💧 Pump</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-chiller')" class="tab-btn" title="Chiller System"><span class="lbl">❄️ Chiller</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-cooling')" class="tab-btn" title="Cooling Tower"><span class="lbl">🌀 Cooling</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-ro')" class="tab-btn" title="Reverse Osmosis (RO)"><span class="lbl">🧪 RO</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-pool')" class="tab-btn" title="Pool System (Lagoon + Aquavitale)"><span class="lbl">🏊 Pool</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-gas')" class="tab-btn" title="Gas Detector 3 Restaurants"><span class="lbl">🔥 Gas</span></button>
                 </div>
                 <script>
                 function switchTab(e,id){
@@ -1506,16 +1566,16 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                     </a>
                 </div>
 
-                <div class="flex items-center gap-1 overflow-x-auto px-5 sm:px-7 pt-3 bg-amber-50 border-b border-slate-200 tab-bar hide-scrollbar -mx-0">
-                    <button type="button" onclick="switchTab(event,'tab-energi-edit')" class="tab-btn active shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-black whitespace-nowrap bg-slate-900 text-white">⚡ Energi</button>
-                    <button type="button" onclick="switchTab(event,'tab-trafo-edit')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">⚡ Trafo</button>
-                    <button type="button" onclick="switchTab(event,'tab-genset-edit')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">🔋 Genset</button>
-                    <button type="button" onclick="switchTab(event,'tab-pump-edit')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">💧 Pump Room</button>
-                    <button type="button" onclick="switchTab(event,'tab-chiller-edit')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">❄️ Chiller</button>
-                    <button type="button" onclick="switchTab(event,'tab-cooling-edit')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">🌀 Cooling Twr</button>
-                    <button type="button" onclick="switchTab(event,'tab-ro-edit')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">🧪 Reverse Osmosis</button>
-                    <button type="button" onclick="switchTab(event,'tab-pool-edit')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">🏊 Pool System</button>
-                    <button type="button" onclick="switchTab(event,'tab-gas-edit')" class="tab-btn shrink-0 px-3 py-2 rounded-t-lg text-[11px] sm:text-xs font-bold whitespace-nowrap text-slate-600 hover:bg-slate-100">🔥 Gas Detector</button>
+                <div class="tab-bar-wrap w-full bg-amber-50 border-b border-slate-200 px-3 sm:px-5 tab-bar hide-scrollbar">
+                    <button type="button" onclick="switchTab(event,'tab-energi-edit')" class="tab-btn active" title="Energi (PLN, Solar, Gas, Air)"><span class="lbl">⚡ Energi</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-trafo-edit')" class="tab-btn" title="Trafo Room (2 Unit)"><span class="lbl">⚡ Trafo</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-genset-edit')" class="tab-btn" title="Genset Room (3 Unit + Fuel)"><span class="lbl">🔋 Genset</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-pump-edit')" class="tab-btn" title="Pump Room 10 Section"><span class="lbl">💧 Pump</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-chiller-edit')" class="tab-btn" title="Chiller System"><span class="lbl">❄️ Chiller</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-cooling-edit')" class="tab-btn" title="Cooling Tower"><span class="lbl">🌀 Cooling</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-ro-edit')" class="tab-btn" title="Reverse Osmosis (RO)"><span class="lbl">🧪 RO</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-pool-edit')" class="tab-btn" title="Pool System (Lagoon + Aquavitale)"><span class="lbl">🏊 Pool</span></button>
+                    <button type="button" onclick="switchTab(event,'tab-gas-edit')" class="tab-btn" title="Gas Detector 3 Restaurants"><span class="lbl">🔥 Gas</span></button>
                 </div>
 
                 <div id="tab-energi-edit" class="tab-pane p-5 sm:p-7 space-y-5 overflow-y-auto flex-1 min-h-0">
