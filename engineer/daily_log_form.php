@@ -424,36 +424,13 @@ require_once __DIR__ . '/../includes/navbar.php';
             <input type="hidden" name="_target_engineer_id" value="<?= (int)$targetEngineerId ?>">
         <?php endif; ?>
 
-        <!-- 0 PALING ATAS: PILIH SHIFT PAGI / SIANG / MALAM (Permintaan WA — INFO CATATAN SAJA, 1 Tanggal Tetap 1 Log) -->
+        <!-- 0 PALING ATAS: PILIH SHIFT PAGI / SIANG / MALAM (Dropdown Sederhana) -->
         <?php
             $curShiftVal = (!empty($log['shift']) && in_array($log['shift'], $allShifts, true)) ? (string)$log['shift'] : $defaultShiftNow;
-            // CATATAN: CSS visual 100% pakai Tailwind peer-checked:* pattern (tanpa reload, klik user langsung UPDATE WARNA card).
-            //          PHP $isSel HANYA dipakai untuk attribute checked di <input> (menentukan default state pertama load).
-            $shiftMeta = [
-                'pagi'  => ['label' => 'Pagi',  'icon' => 'fa-sun-plant-wilt',
-                            'idle'   => 'bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100',
-                            'active' => 'peer-checked:bg-gradient-to-br peer-checked:from-yellow-500 peer-checked:to-amber-600 peer-checked:text-white peer-checked:border-amber-700 peer-checked:scale-[1.02] peer-checked:shadow-lg peer-checked:shadow-amber-500/30',
-                            'focus'  => 'focus:ring-amber-500/30',
-                            'icon_idle'   => 'bg-white shadow text-slate-700',
-                            'icon_active' => 'peer-checked:bg-white/25 peer-checked:backdrop-blur-sm peer-checked:text-white peer-checked:drop-shadow',
-                            'check_idle'  => 'border-current opacity-40 bg-transparent text-transparent',
-                            'check_active'=> 'peer-checked:border-white peer-checked:bg-white peer-checked:text-slate-800 peer-checked:opacity-100'],
-                'siang' => ['label' => 'Siang', 'icon' => 'fa-sun',
-                            'idle'   => 'bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100',
-                            'active' => 'peer-checked:bg-gradient-to-br peer-checked:from-sky-500 peer-checked:to-indigo-600 peer-checked:text-white peer-checked:border-indigo-700 peer-checked:scale-[1.02] peer-checked:shadow-lg peer-checked:shadow-sky-500/30',
-                            'focus'  => 'focus:ring-sky-500/30',
-                            'icon_idle'   => 'bg-white shadow text-slate-700',
-                            'icon_active' => 'peer-checked:bg-white/25 peer-checked:backdrop-blur-sm peer-checked:text-white peer-checked:drop-shadow',
-                            'check_idle'  => 'border-current opacity-40 bg-transparent text-transparent',
-                            'check_active'=> 'peer-checked:border-white peer-checked:bg-white peer-checked:text-slate-800 peer-checked:opacity-100'],
-                'malam' => ['label' => 'Malam', 'icon' => 'fa-moon-stars',
-                            'idle'   => 'bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100',
-                            'active' => 'peer-checked:bg-gradient-to-br peer-checked:from-indigo-600 peer-checked:to-slate-900 peer-checked:text-white peer-checked:border-slate-700 peer-checked:scale-[1.02] peer-checked:shadow-lg peer-checked:shadow-indigo-500/30',
-                            'focus'  => 'focus:ring-indigo-500/30',
-                            'icon_idle'   => 'bg-white shadow text-slate-700',
-                            'icon_active' => 'peer-checked:bg-white/25 peer-checked:backdrop-blur-sm peer-checked:text-white peer-checked:drop-shadow',
-                            'check_idle'  => 'border-current opacity-40 bg-transparent text-transparent',
-                            'check_active'=> 'peer-checked:border-white peer-checked:bg-white peer-checked:text-slate-800 peer-checked:opacity-100'],
+            $shiftLabels = [
+                'pagi'  => '☀️ Pagi',
+                'siang' => '🌤️ Siang',
+                'malam' => '🌙 Malam',
             ];
         ?>
         <div class="bg-surface rounded-premium border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 30ms">
@@ -465,47 +442,37 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <p class="text-xs text-secondary mt-0.5">Pilih shift apa yang paling cocok untuk pekerjaan hari ini (data acuan siapa yang bertugas). 1 tanggal tetap 1 Daily Log per Engineer.</p>
             </div>
             <div class="p-5 lg:p-6">
-                <div class="grid grid-cols-3 gap-3 md:gap-4">
-                    <?php foreach ($shiftMeta as $sKey => $s):
-                        $isSel = ($curShiftVal === $sKey);
-                        $radioId = 'shift_radio_' . $sKey;
-                    ?>
-                        <div class="group relative w-full">
-                            <input
-                                type="radio"
-                                name="shift"
-                                id="<?= $radioId ?>"
-                                value="<?= $sKey ?>"
-                                class="peer sr-only"
-                                <?= $isSel ? 'checked' : '' ?>
-                            >
-                            <label for="<?= $radioId ?>" class="block w-full cursor-pointer select-none">
-                                <div class="h-full w-full rounded-2xl border-2 p-4 md:p-6 transition-all duration-200 ease-out
-                                            peer-focus:outline-none peer-focus:ring-4 <?= $s['focus'] ?>
-                                            <?= $s['idle'] ?> <?= $s['active'] ?>">
-                                    <div class="flex flex-col items-center justify-center text-center gap-2.5">
-                                        <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-md
-                                                    <?= $s['icon_idle'] ?> <?= $s['icon_active'] ?>">
-                                            <i class="fas <?= $s['icon'] ?> text-xl"></i>
-                                        </div>
-                                        <div class="flex flex-col pt-1">
-                                            <span class="font-black uppercase tracking-[0.16em] text-[17px] md:text-[20px] leading-none"><?= $s['label'] ?></span>
-                                        </div>
-                                        <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center mt-1 transition-all duration-150
-                                                    <?= $s['check_idle'] ?> <?= $s['check_active'] ?>">
-                                            <i class="fas fa-check text-[11px]"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                    <div>
+                        <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><i class="fas fa-clock-rotate-left mr-1 text-slate-600"></i>Pilih Shift Bertugas</label>
+                        <div class="relative">
+                            <select name="shift"
+                                class="w-full pl-4 pr-12 py-3.5 rounded-card border border-slate-300 bg-white text-lg font-semibold text-primary placeholder-secondary/60
+                                       focus:outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-500/15 transition-all appearance-none cursor-pointer">
+                                <?php foreach ($allShifts as $_sKey): ?>
+                                    <option value="<?= $_sKey ?>" <?= ($curShiftVal === $_sKey) ? 'selected' : '' ?>><?= $shiftLabels[$_sKey] ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                                <i class="fas fa-chevron-down text-sm text-slate-500"></i>
+                            </div>
                         </div>
-                    <?php endforeach; ?>
+                    </div>
+                    <div class="flex items-start gap-3 rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
+                        <div class="mt-0.5 flex items-center justify-center w-9 h-9 rounded-lg bg-slate-200/70 text-slate-700 shrink-0">
+                            <i class="fas fa-circle-info"></i>
+                        </div>
+                        <div class="flex flex-col gap-0.5 text-[11.5px] leading-snug">
+                            <span class="text-slate-800 font-semibold">Default otomatis sesuai jam sekarang:</span>
+                            <span class="text-slate-600">Pagi = sebelum 14:00 • Siang = 14:00–21:59 • Malam = 22:00–05:59</span>
+                            <?php if (!empty($log) && empty($log['shift'])): ?>
+                                <span class="text-amber-700 mt-1 font-medium">
+                                    <i class="fas fa-triangle-exclamation mr-1"></i>Log lama tanpa data shift — dipilih default otomatis. Ubah jika tidak sesuai lalu Simpan.
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
-                <?php if (!empty($log) && empty($log['shift'])): ?>
-                    <p class="text-[10.5px] mt-3 text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5">
-                        <i class="fas fa-circle-info mr-1"></i> Log ini dibuat sebelum penambahan fitur Shift — sistem mengisi default otomatis sesuai jam sekarang. Pilih ulang shift yang benar lalu tekan Simpan.
-                    </p>
-                <?php endif; ?>
             </div>
         </div>
 
@@ -894,7 +861,7 @@ HTML;
             <div class="px-5 lg:px-6 py-4 border-b border-violet-100/80 bg-gradient-to-r from-violet-50/90 via-purple-50/60 to-fuchsia-50/70">
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-400 to-purple-600 flex items-center justify-center text-white shadow-md shadow-violet-500/30"><i class="fas fa-bottle-water text-sm"></i></span>
-                    <?= T('form_bottling_title', '⑤ Bottling Water - Produksi Air Minum') ?>
+                    <?= T('Bottling Water - Produksi Air Minum') ?>
                 </h3>
                 <p class="text-xs text-secondary mt-0.5"><?= T('form_bottling_sub', 'Listrik untuk proses bottling (kWh) + watermeter produksi (m3)') ?></p>
             </div>
@@ -925,7 +892,7 @@ HTML;
             <div class="px-5 lg:px-6 py-4 border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/90 via-green-50/60 to-teal-50/70">
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-green-700 flex items-center justify-center text-white shadow-md shadow-emerald-500/30"><i class="fas fa-snowflake text-sm"></i></span>
-                    <?= T('form_chiller_title', '⑥ Chiller System - 3 Unit Operasi & Monitoring') ?>
+                    <?= T(' Chiller System - 3 Unit Operasi & Monitoring') ?>
                 </h3>
                 <p class="text-xs text-secondary mt-0.5"><?= T('form_chiller_sub', 'Checklist unit chiller yang jalan, test pH & TDS air chiller, suhu & tekanan pompa CHWP / CWP') ?></p>
             </div>
@@ -1020,7 +987,7 @@ HTML;
             <div class="px-5 lg:px-6 py-4 border-b border-rose-100/80 bg-gradient-to-r from-rose-50/90 via-pink-50/60 to-red-50/70">
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-400 to-red-600 flex items-center justify-center text-white shadow-md shadow-rose-500/30"><i class="fas fa-gas-pump text-sm"></i></span>
-                    <?= T('form_fuel_title', '⑦ Fuel - Konsumsi Solar / Bahan Bakar (Liter)') ?>
+                    <?= T( ' Fuel - Konsumsi Solar / Bahan Bakar (Liter)') ?>
                 </h3>
                 <p class="text-xs text-secondary mt-0.5"><?= T('form_fuel_sub', 'Isi total konsumsi bahan bakar kendaraan / genset hari ini') ?></p>
             </div>
@@ -1043,7 +1010,7 @@ HTML;
             <div class="px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-amber-50/90 via-yellow-50/60 to-amber-50/70">
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-md shadow-amber-500/30"><i class="fas fa-list-ol text-sm"></i></span>
-                    <?= T('form_activity_title', '⑨ Engineering Activity Counter — OTOMATIS') ?>
+                    <?= T(' Engineering Activity Counter — OTOMATIS') ?>
                 </h3>
                 <p class="text-xs text-secondary mt-0.5"><?= T('form_activity_sub', 'Jumlah dihitung OTOMATIS berdasarkan daftar pekerjaan yang kamu buat di bawah!') ?></p>
             </div>
