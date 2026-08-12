@@ -473,7 +473,7 @@ $shiftLabelMap = [
 ];
 
 include __DIR__ . '/includes/header.php';
-include __DIR__ . '/includes/sidebar.php';
+include __DIR__ . '/includes/navbar.php';
 ?>
 <style>
 .hide-scrollbar::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
