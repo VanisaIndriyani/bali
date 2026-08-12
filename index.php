@@ -994,17 +994,52 @@ require_once __DIR__ . '/includes/navbar.php';
                         <?php endforeach; ?>
                     </div>
 
-                    <!-- FOOTER INFO: TARIF STANDAR (DINAMIS DARI DB) + TOMBOL UBAH -->
-                    <div class="flex items-center justify-between gap-2 flex-wrap text-[10px] text-gray-500 bg-slate-50 rounded-lg p-2 border border-slate-200 leading-relaxed">
-                        <p class="flex-1 min-w-0">
-                            <i class="fas fa-circle-info text-gray-400 mr-1 text-[10px]"></i>
-                            Tarif standar (PLN Industri <strong class="text-slate-700">Rp <?= number_format((int)$TARIF['electricity_per_kwh'], 0, ',', '.') ?>/kWh</strong>, PDAM <strong class="text-slate-700">Rp <?= number_format((int)$TARIF['water_per_m3'], 0, ',', '.') ?>/m3</strong>, LPG <strong class="text-slate-700">Rp <?= number_format((int)$TARIF['gas_per_kg'], 0, ',', '.') ?>/kg</strong>, Solar <strong class="text-slate-700">Rp <?= number_format((int)$TARIF['fuel_per_liter'], 0, ',', '.') ?>/Liter</strong>).
-                        </p>
-                        <?php if (in_array($userRole, ['supervisor','manager','admin'], true)): ?>
-                            <button type="button" onclick="document.getElementById('tariffModal').classList.remove('hidden'); document.getElementById('tariffModal').style.display='flex';" title="Ubah Tarif (cost dihitung otomatis ulang)" class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition font-bold text-[10px] flex-shrink-0 shadow-sm">
-                                <i class="fas fa-gear text-[10px]"></i> Ubah Tarif
-                            </button>
-                        <?php endif; ?>
+                    <!-- FOOTER INFO: TARIF STANDAR (FALLBACK GLOBAL) + SNAPSHOT STATUS + TOMBOL UBAH -->
+                    <?php
+                    // Hitung indikator: berapa % log hari ini yang PAKAI SNAPSHOT tarif (bukan cuma fallback global)
+                    $_tariffSnapCheck = $db->fetchOne(
+                        "SELECT COUNT(*) as all_logs,
+                                SUM(CASE WHEN COALESCE(tariff_electricity_per_kwh,0) > 0
+                                          OR COALESCE(tariff_water_per_m3,0) > 0
+                                          OR COALESCE(tariff_gas_per_kg,0) > 0
+                                          OR COALESCE(tariff_fuel_per_liter,0) > 0 THEN 1 ELSE 0 END) as snap_logs
+                         FROM daily_logs WHERE DATE(log_date) BETWEEN ? AND ? $approvedWhere",
+                        [$dateFrom, $dateTo]
+                    );
+                    $_snapAll  = max(1, (int)($_tariffSnapCheck['all_logs'] ?? 0));
+                    $_snapCnt  = (int)($_tariffSnapCheck['snap_logs'] ?? 0);
+                    $_snapPct  = round(($_snapCnt / $_snapAll) * 100, 0);
+                    if ($_snapPct >= 80) { $_snapCls = 'text-emerald-700 bg-emerald-50 border-emerald-200'; $_snapIcon = 'fa-circle-check'; $_snapTxt = 'Cost menggunakan Tarif Snapshot per-Hari (permanen sesuai tanggal — tidak berubah walau tarif global diubah besok)'; }
+                    elseif ($_snapPct >= 1) { $_snapCls = 'text-amber-700 bg-amber-50 border-amber-200'; $_snapIcon = 'fa-triangle-exclamation'; $_snapTxt = 'Campuran: sebagian cost pakai Tarif Snapshot permanen, data lama fallback ke Tarif Standar Global.'; }
+                    else { $_snapCls = 'text-sky-700 bg-sky-50 border-sky-200'; $_snapIcon = 'fa-circle-info'; $_snapTxt = 'Semua cost memakai Tarif Standar Global (data lama sebelum fitur Tarif Snapshot diaktifkan).'; }
+                    unset($_tariffSnapCheck, $_snapAll, $_snapCnt);
+                    ?>
+                    <div class="space-y-1.5 text-[10px] text-gray-500 bg-slate-50 rounded-lg p-2 border border-slate-200 leading-relaxed">
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <p class="flex-1 min-w-0">
+                                <i class="fas fa-globe text-gray-400 mr-1 text-[10px]"></i>
+                                <span class="font-bold text-slate-700">Tarif Standar Global (Fallback):</span>
+                                PLN <strong class="text-slate-700">Rp <?= number_format((int)$TARIF['electricity_per_kwh'], 0, ',', '.') ?>/kWh</strong> ·
+                                PDAM <strong class="text-slate-700">Rp <?= number_format((int)$TARIF['water_per_m3'], 0, ',', '.') ?>/m³</strong> ·
+                                LPG <strong class="text-slate-700">Rp <?= number_format((int)$TARIF['gas_per_kg'], 0, ',', '.') ?>/kg</strong> ·
+                                Solar <strong class="text-slate-700">Rp <?= number_format((int)$TARIF['fuel_per_liter'], 0, ',', '.') ?>/L</strong>
+                            </p>
+                            <?php if (in_array($userRole, ['supervisor','manager','admin'], true)): ?>
+                                <button type="button" onclick="document.getElementById('tariffModal').classList.remove('hidden'); document.getElementById('tariffModal').style.display='flex';" title="Ubah Tarif Global (hanya mempengaruhi FALLBACK untuk data lama / log baru yang belum di-snapshot)" class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition font-bold text-[10px] flex-shrink-0 shadow-sm">
+                                    <i class="fas fa-gear text-[10px]"></i> Ubah Tarif Global
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                        <!-- STATUS SNAPSHOT PER-HARI -->
+                        <div class="flex items-start gap-2 rounded-md px-2 py-1.5 border <?= $_snapCls ?>">
+                            <i class="fas <?= $_snapIcon ?> mt-[1px] text-[10px] shrink-0"></i>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-black uppercase tracking-[0.08em] text-[9px] opacity-80 mb-0.5">
+                                    Status Cost Periode Ini (Snapshot: <?= $_snapPct ?>%)
+                                </div>
+                                <div class="font-semibold text-[10.5px] leading-snug"><?= $_snapTxt ?></div>
+                            </div>
+                        </div>
                     </div>
                     <?php if ($_tariffFlash): ?>
                         <div class="mt-2 text-[11px] font-bold text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 animate-pulse">
