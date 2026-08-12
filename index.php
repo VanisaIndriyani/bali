@@ -9,6 +9,21 @@ $userName = (string)($user['name']  ?? 'User');
 $userRole = (string)($user['role']  ?? 'engineer');
 $userId = (int)($user['id']      ?? 0);
 
+/* ---------- 💰 POST HANDLER: SAVE TARIFF (Supervisor / Manager / Admin only) ---------- */
+$_tariffFlash = null;
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') === 'save_tariff') {
+    if (in_array($userRole, ['supervisor','manager','admin'], true)) {
+        $clean = [
+            'electricity_per_kwh' => (int)($_POST['electricity_per_kwh'] ?? 0),
+            'water_per_m3'        => (int)($_POST['water_per_m3']        ?? 0),
+            'gas_per_kg'          => (int)($_POST['gas_per_kg']          ?? 0),
+            'fuel_per_liter'      => (int)($_POST['fuel_per_liter']      ?? 0),
+        ];
+        saveTariffSettings($clean, $userId);
+        $_tariffFlash = 'Tarif berhasil diperbarui! Cost otomatis dihitung ulang.';
+    }
+}
+
 /* ---------- ALLOW CUSTOM DATE RANGE VIA GET ?date_from=&date_to= ---------- */
 $defToday    = date('Y-m-d');
 $defMonthSt  = date('Y-m-01');
@@ -356,14 +371,8 @@ $actListMaint = buildActivityListQuery($db, $userRole, $userId, 'maintenance', $
 $actListProj  = buildActivityListQuery($db, $userRole, $userId, 'project',     $monthStart, $today);
 $actListLand  = buildActivityListQuery($db, $userRole, $userId, 'landscape',   $monthStart, $today);
 
-// ============== ðŸ”¹ BARU: DAILY ENGINEERING SUMMARY REPORT DATA (Customer format kertas) ðŸ”¹ ==============
-// Tarif dasar standar hotel Bali (IDR 2026) â€” biar COST TIDAK 0; bisa disesuaikan nanti lewat settings
-$TARIF = [
-    'electricity_per_kwh' => 1850,    // PLN Industri LLO Bali
-    'water_per_m3'        => 9600,    // PDAM Denpasar komersial + tanker air
-    'gas_per_kg'          => 24500,   // LPG Elpiji 50kg
-    'fuel_per_liter'      => 17450,   // Solar Bio / Pertamina Dex non-subsidi
-];
+// ============== 🔹 BARU: DAILY ENGINEERING SUMMARY REPORT DATA (Customer format kertas) 🔹 ==============
+$TARIF = getTariffSettings();
 function fmtRupiah($n) { if ($n <= 0) return '0'; return number_format((int)round($n), 0, ',', '.'); }
 
 // 1) UTILITY TODAY & LY — kalkulasi VALUE + COST per row (LY / TODAY)
@@ -891,11 +900,23 @@ require_once __DIR__ . '/includes/navbar.php';
                         <?php endforeach; ?>
                     </div>
 
-                    <!-- FOOTER INFO: TARIF STANDAR -->
-                    <p class="text-[10px] text-gray-500 bg-slate-50 rounded-lg p-2 border border-slate-200 leading-relaxed">
-                        <i class="fas fa-circle-info text-gray-400 mr-1 text-[10px]"></i>
-                        Tarif standar (PLN Industri <strong class="text-slate-700">Rp 1.850/kWh</strong>, PDAM <strong class="text-slate-700">Rp 9.600/m3</strong>, LPG <strong class="text-slate-700">Rp 24.500/kg</strong>, Solar <strong class="text-slate-700">Rp 17.450/Liter</strong>).
-                    </p>
+                    <!-- FOOTER INFO: TARIF STANDAR (DINAMIS DARI DB) + TOMBOL UBAH -->
+                    <div class="flex items-center justify-between gap-2 flex-wrap text-[10px] text-gray-500 bg-slate-50 rounded-lg p-2 border border-slate-200 leading-relaxed">
+                        <p class="flex-1 min-w-0">
+                            <i class="fas fa-circle-info text-gray-400 mr-1 text-[10px]"></i>
+                            Tarif standar (PLN Industri <strong class="text-slate-700">Rp <?= number_format((int)$TARIF['electricity_per_kwh'], 0, ',', '.') ?>/kWh</strong>, PDAM <strong class="text-slate-700">Rp <?= number_format((int)$TARIF['water_per_m3'], 0, ',', '.') ?>/m3</strong>, LPG <strong class="text-slate-700">Rp <?= number_format((int)$TARIF['gas_per_kg'], 0, ',', '.') ?>/kg</strong>, Solar <strong class="text-slate-700">Rp <?= number_format((int)$TARIF['fuel_per_liter'], 0, ',', '.') ?>/Liter</strong>).
+                        </p>
+                        <?php if (in_array($userRole, ['supervisor','manager','admin'], true)): ?>
+                            <button type="button" onclick="document.getElementById('tariffModal').classList.remove('hidden'); document.getElementById('tariffModal').style.display='flex';" title="Ubah Tarif (cost dihitung otomatis ulang)" class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-slate-300 text-slate-700 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition font-bold text-[10px] flex-shrink-0 shadow-sm">
+                                <i class="fas fa-gear text-[10px]"></i> Ubah Tarif
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                    <?php if ($_tariffFlash): ?>
+                        <div class="mt-2 text-[11px] font-bold text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 animate-pulse">
+                            <i class="fas fa-circle-check text-green-600 mr-1"></i><?= htmlspecialchars($_tariffFlash) ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </section>
@@ -2379,5 +2400,79 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAllMo
     });
 })();
 </script>
+
+<!-- =============================================================
+     💰 MODAL UBAH TARIF STANDAR (Supervisor / Manager / Admin)
+     ============================================================= -->
+<?php if (in_array($userRole, ['supervisor','manager','admin'], true)): ?>
+<div id="tariffModal" class="hidden fixed inset-0 z-[120] px-3 sm:px-4 py-6 sm:py-8 bg-slate-900/70 backdrop-blur-sm items-center justify-center" aria-hidden="true" style="display:none;">
+    <form method="POST" action="" class="w-full max-w-md mx-auto bg-white rounded-2xl shadow-2xl ring-1 ring-black/5 max-h-[90vh] flex flex-col">
+        <input type="hidden" name="action" value="save_tariff">
+        <div class="flex-shrink-0 px-5 py-4 border-b border-slate-200 bg-gradient-to-br from-slate-50 to-white rounded-t-2xl flex items-start gap-3">
+            <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-md flex-shrink-0">
+                <i class="fas fa-coins"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h3 class="font-display text-lg font-black text-slate-900 leading-tight">Ubah Tarif Standar</h3>
+                <p class="mt-0.5 text-[10px] text-slate-500 leading-relaxed">Cost otomatis dihitung ulang. Perubahan berlaku LANGSUNG ke semua halaman (dashboard / laporan PDF / Excel).</p>
+            </div>
+            <button type="button" onclick="document.getElementById('tariffModal').classList.add('hidden'); document.getElementById('tariffModal').style.display='';" class="w-8 h-8 -mr-1 -mt-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition flex items-center justify-center flex-shrink-0" title="Tutup">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+        <div class="p-4 sm:p-5 space-y-3 overflow-y-auto flex-1 min-h-0">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                    <label class="block text-[10px] font-black uppercase tracking-wider text-sky-700"><i class="fas fa-bolt mr-1"></i> PLN Listrik</label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-[10px] font-black text-slate-400 border-r border-slate-200 pr-2 my-1.5">Rp</div>
+                        <input type="number" min="0" step="1" name="electricity_per_kwh" value="<?= (int)$TARIF['electricity_per_kwh'] ?>" required
+                               class="w-full pl-11 pr-3 py-2.5 text-sm font-bold rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none bg-white">
+                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-[10px] font-bold text-slate-400">/kWh</span>
+                    </div>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block text-[10px] font-black uppercase tracking-wider text-cyan-700"><i class="fas fa-droplet mr-1"></i> PDAM Air</label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-[10px] font-black text-slate-400 border-r border-slate-200 pr-2 my-1.5">Rp</div>
+                        <input type="number" min="0" step="1" name="water_per_m3" value="<?= (int)$TARIF['water_per_m3'] ?>" required
+                               class="w-full pl-11 pr-3 py-2.5 text-sm font-bold rounded-xl border border-slate-300 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none bg-white">
+                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-[10px] font-bold text-slate-400">/m3</span>
+                    </div>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block text-[10px] font-black uppercase tracking-wider text-orange-700"><i class="fas fa-fire mr-1"></i> LPG Gas</label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-[10px] font-black text-slate-400 border-r border-slate-200 pr-2 my-1.5">Rp</div>
+                        <input type="number" min="0" step="1" name="gas_per_kg" value="<?= (int)$TARIF['gas_per_kg'] ?>" required
+                               class="w-full pl-11 pr-3 py-2.5 text-sm font-bold rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white">
+                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-[10px] font-bold text-slate-400">/kg</span>
+                    </div>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block text-[10px] font-black uppercase tracking-wider text-amber-700"><i class="fas fa-gas-pump mr-1"></i> Solar BBM</label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-[10px] font-black text-slate-400 border-r border-slate-200 pr-2 my-1.5">Rp</div>
+                        <input type="number" min="0" step="1" name="fuel_per_liter" value="<?= (int)$TARIF['fuel_per_liter'] ?>" required
+                               class="w-full pl-11 pr-3 py-2.5 text-sm font-bold rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none bg-white">
+                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-[10px] font-bold text-slate-400">/Ltr</span>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-1 text-[10px] text-slate-400 leading-relaxed bg-slate-50 rounded-lg border border-slate-200 p-2">
+                <i class="fas fa-lightbulb text-amber-500 mr-1"></i> <strong class="text-slate-600">Catatan:</strong> tarif berbeda tiap hari? Isi sesuai tarif terbaru hari itu sebelum lihat cost summary. Simpanan tarif otomatis tersimpan global.
+            </div>
+        </div>
+        <div class="flex-shrink-0 px-5 py-3.5 border-t border-slate-200 bg-white rounded-b-2xl flex justify-end gap-2">
+            <button type="button" onclick="document.getElementById('tariffModal').classList.add('hidden'); document.getElementById('tariffModal').style.display='';" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition text-xs font-bold flex items-center gap-1.5">
+                <i class="fas fa-times"></i> Batal
+            </button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 active:bg-slate-950 transition text-xs font-bold flex items-center gap-1.5 shadow-md shadow-slate-900/20">
+                <i class="fas fa-floppy-disk"></i> Simpan Tarif
+            </button>
+        </div>
+    </form>
+</div>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

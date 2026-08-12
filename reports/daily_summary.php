@@ -66,7 +66,11 @@ function repActHeurStatus($title) {
 }
 
 /* ---------- 3. TARIF ---------- */
-$TARIF_LISTRIK = 1850; $TARIF_AIR = 9600; $TARIF_GAS = 24500; $TARIF_FUEL = 17450;
+$_tariff = getTariffSettings();
+$TARIF_LISTRIK = (int)($_tariff['electricity_per_kwh'] ?? 1850);
+$TARIF_AIR     = (int)($_tariff['water_per_m3']        ?? 9600);
+$TARIF_GAS     = (int)($_tariff['gas_per_kg']          ?? 24500);
+$TARIF_FUEL    = (int)($_tariff['fuel_per_liter']      ?? 17450);
 
 /* ---------- 4. DATA UTILITY (WRAP TRY/CATCH SUPAYA TABLE TIDAK ADA = TIDAK FATAL ERROR) — SUPPORT RANGE DATE ---------- */
 $elecToday = $waterToday = $gasToday = $fuelToday = 0;
