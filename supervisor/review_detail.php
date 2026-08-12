@@ -1,7 +1,7 @@
-﻿<?php
+<?php
 $pageTitle = 'Review Detail Daily Log';
 require_once __DIR__ . '/../config/config.php';
-requireRole('supervisor');
+requireRole(['supervisor', 'manager']); // Manager Access All
 
 $db = Database::getInstance();
 $user = currentUser();

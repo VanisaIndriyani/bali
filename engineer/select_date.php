@@ -1,19 +1,39 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 $pageTitle = T('select_date_title', 'Pilih Tanggal Daily Log');
-requireRole(['engineer', 'supervisor']);
+requireRole(['engineer', 'supervisor', 'manager']); // Manager Access All
 
 $db = Database::getInstance();
 $user = currentUser();
+$roleLower = strtolower((string)($user['role'] ?? ''));
+$isEngineerRole = $roleLower === 'engineer';
 
 $month = $_GET['month'] ?? date('Y-m');
 $monthStart = $month . '-01';
 $monthEnd = date('Y-m-t', strtotime($monthStart));
 
-$logs = $db->fetchAll(
-    "SELECT log_date, status FROM daily_logs WHERE engineer_id = ? AND log_date BETWEEN ? AND ?",
-    [$user['id'], $monthStart, $monthEnd]
-);
+// Manager / Supervisor Access All: Tampilkan SEMUA log semua engineer (kalender gabung, status = latest per tanggal)
+if ($isEngineerRole) {
+    $logs = $db->fetchAll(
+        "SELECT log_date, status FROM daily_logs WHERE engineer_id = ? AND log_date BETWEEN ? AND ?",
+        [$user['id'], $monthStart, $monthEnd]
+    );
+} else {
+    // Supervisor/Manager: 1 tanggal BISA ada >1 engineer log, ambil status MAX per tanggal
+    $logs = $db->fetchAll(
+        "SELECT log_date,
+                CASE
+                    WHEN SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END)  > 0 THEN 'pending'
+                    WHEN SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) > 0 THEN 'rejected'
+                    WHEN SUM(CASE WHEN status='approved' THEN 1 ELSE 0 END) > 0 THEN 'approved'
+                    ELSE 'draft' END AS status
+         FROM daily_logs
+         WHERE log_date BETWEEN ? AND ?
+         GROUP BY log_date
+         ORDER BY log_date ASC",
+        [$monthStart, $monthEnd]
+    );
+}
 $logMap = [];
 foreach ($logs as $l) $logMap[$l['log_date']] = $l['status'];
 

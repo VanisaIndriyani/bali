@@ -39,6 +39,10 @@ if (isset($_GET['date_to']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$_GET
 if (strtotime($monthStart) > strtotime($today)) {
     $tmp = $monthStart; $monthStart = $today; $today = $tmp;
 }
+/* Inisialisasi $dateFrom/$dateTo untuk KPI section (bisa di-custom via ?date_from=&date_to=, fallback = bulan ini s/d hari ini) */
+$dateFrom = (isset($_GET['date_from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$_GET['date_from'])) ? (string)$_GET['date_from'] : $monthStart;
+$dateTo   = (isset($_GET['date_to'])   && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$_GET['date_to']))   ? (string)$_GET['date_to']   : $today;
+if (strtotime($dateFrom) > strtotime($dateTo)) { $tmp = $dateFrom; $dateFrom = $dateTo; $dateTo = $tmp; }
 $lastYear = date('Y', strtotime('-1 year'));
 $currentYear = date('Y');
 $sameDayLastYear = date('Y-m-d', strtotime($today . ' -1 year'));

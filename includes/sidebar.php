@@ -43,8 +43,11 @@ $isAnyLogisticArea = $isOrderIndex || $isOrderCreate || $isOrderDetail || $isOrd
 $db = Database::getInstance();
 $pendingCount = 0;
 $pendingOrderCount = 0;
-if ($isSupervisor) {
+if ($isSupervisor || $isManager) {
+    // Manager Access All: bisa lihat pending review daily_logs juga (sama seperti Supervisor)
     $pendingCount = (int)($db->fetchOne("SELECT COUNT(*) as cnt FROM daily_logs WHERE status = 'pending'")['cnt'] ?? 0);
+}
+if ($isSupervisor) {
     $pendingOrderCount = (int)($db->fetchOne("SELECT COUNT(*) as cnt FROM orders WHERE status = 'pending_supervisor'")['cnt'] ?? 0);
 }
 if ($isManager) {
@@ -108,8 +111,8 @@ $sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
             $energyDefaultOpen = ($isAnyEnergy) ? 'true' : 'false';
             $isEnergyActive = $isAnyEnergy;
             $energySubCount = 2; // Dashboard + Log Sheet = default 2
-            if ($isEngineer || $isSupervisor) $energySubCount++; // + Isi Daily Log
-            if ($isSupervisor) $energySubCount++; // + Review Daily Log
+            if ($isEngineer || $isSupervisor || $isManager) $energySubCount++; // + Isi Daily Log (Manager Access All)
+            if ($isSupervisor || $isManager) $energySubCount++; // + Review Daily Log (Manager Access All)
             ?>
             <button type="button" id="energyToggleBtn" data-default-open="<?= $energyDefaultOpen ?>"
                     onclick="toggleEnergyMenu(this)"
@@ -130,14 +133,14 @@ $sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
                     <i class="fas fa-table-list text-[13px] w-4 text-center text-slate-400"></i>
                     <span>Log Sheet</span>
                 </a>
-                <?php if ($isEngineer || $isSupervisor): ?>
+                <?php if ($isEngineer || $isSupervisor || $isManager): ?>
                 <a href="<?= BASE_URL ?>engineer/select_date.php"
                    class="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-all <?= ($isDailyLog) ? '!bg-slate-100 !text-slate-900 !font-semibold' : '' ?>">
                     <i class="fas fa-edit text-[13px] w-4 text-center text-slate-400"></i>
                     <span>Isi Daily Log</span>
                 </a>
                 <?php endif; ?>
-                <?php if ($isSupervisor): ?>
+                <?php if ($isSupervisor || $isManager): ?>
                 <a href="<?= BASE_URL ?>supervisor/review.php"
                    class="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-all <?= ($isReview) ? '!bg-slate-100 !text-slate-900 !font-semibold' : '' ?>">
                     <i class="fas fa-file-signature text-[13px] w-4 text-center text-slate-400"></i>

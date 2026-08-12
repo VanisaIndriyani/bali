@@ -1,10 +1,13 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 $pageTitle = T('form_title', 'Isi Daily Log Engineering');
-requireRole(['engineer', 'supervisor']);
+requireRole(['engineer', 'supervisor', 'manager']); // Manager Access All
 
 $db = Database::getInstance();
 $user = currentUser();
+$roleLower = strtolower((string)($user['role'] ?? ''));
+$isEngineerRole = $roleLower === 'engineer';
+$canChooseEngineer = in_array($roleLower, ['supervisor','manager','admin'], true); // Manager/Spv bisa pilih engineer mana mau diisi
 
 // ==============================================
 // 🔧 AUTO MIGRATION: Tambah 3 kolom KPI + 4 kolom Tarif jika belum ada
@@ -46,9 +49,31 @@ if (!DateTime::createFromFormat('Y-m-d', $date) || $date > date('Y-m-d')) {
     redirect('engineer/select_date.php');
 }
 
+// ========== Manager/Supervisor Access All: pilih engineer_id yang mau diisi ==========
+$engineerOptions = [];
+$targetEngineerId = (int)$user['id'];
+if ($canChooseEngineer) {
+    // Ambil semua user engineer + supervisor (all option)
+    $engineerOptions = $db->fetchAll(
+        "SELECT id, name, role, position FROM users WHERE status='active' ORDER BY FIELD(role,'engineer','supervisor','manager','admin'), name ASC"
+    );
+    // Cek parameter ?engineer_id= atau POST target_engineer_id
+    $reqEngId = isset($_GET['engineer_id']) ? (int)$_GET['engineer_id'] : (isset($_POST['_target_engineer_id']) ? (int)$_POST['_target_engineer_id'] : 0);
+    if ($reqEngId > 0) {
+        $foundEng = false;
+        foreach ($engineerOptions as $eo) if ((int)$eo['id'] === $reqEngId) { $foundEng = true; break; }
+        if ($foundEng) $targetEngineerId = $reqEngId;
+    } else {
+        // Default: jika tanggal sudah ada log milik siapapun → ambil engineer_id dari log terbaru
+        $tmpFirst = $db->fetchOne("SELECT engineer_id FROM daily_logs WHERE log_date = ? ORDER BY id DESC LIMIT 1", [$date]);
+        if ($tmpFirst && !empty($tmpFirst['engineer_id'])) $targetEngineerId = (int)$tmpFirst['engineer_id'];
+    }
+}
+
+// Query existing log: Engineer = miliknya saja; Manager/Spv = sesuai targetEngineerId pilihan
 $log = $db->fetchOne(
     "SELECT * FROM daily_logs WHERE engineer_id = ? AND log_date = ?",
-    [$user['id'], $date]
+    [$targetEngineerId, $date]
 );
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -255,7 +280,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $logId = (int)$log['id'];
         } else {
             $data['log_date'] = $date;
-            $data['engineer_id'] = $user['id'];
+            $data['engineer_id'] = $targetEngineerId; // Manager Access All: sesuai pilihan engineer dropdown
             $db->insert('daily_logs', $data);
             $logId = (int)$db->lastInsertId();
         }
@@ -271,13 +296,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         setFlash('success', $log ? T('form_success_update', 'Daily Log berhasil diperbarui dan menunggu approval') : T('form_success_save', 'Daily Log berhasil disimpan dan menunggu approval'));
-        redirect('engineer/select_date.php');
+        // Manager Access All: redirect balik bawa engineer_id biar nyambung pilihannya
+        $redirectQs = $canChooseEngineer ? '?engineer_id=' . $targetEngineerId : '';
+        redirect('engineer/select_date.php' . $redirectQs);
     }
 }
 
+// Refresh log setelah handler (agar targetEngineerId yang baru di-post / di-GET dipakai ulang load form untuk display)
 $log = $db->fetchOne(
     "SELECT * FROM daily_logs WHERE engineer_id = ? AND log_date = ?",
-    [$user['id'], $date]
+    [$targetEngineerId, $date]
 );
 
 $existingActivities = [];
@@ -299,24 +327,74 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <h1 class="font-display text-2xl lg:text-3xl font-bold text-primary mb-1">
                     <i class="fas fa-pen-to-square mr-2 text-accent"></i><?= T('form_title', 'Daily Log Engineering') ?>
                 </h1>
-                <p class="text-secondary flex items-center gap-2">
+                <p class="text-secondary flex items-center gap-2 flex-wrap">
                     <i class="fas fa-calendar-day text-accent"></i>
                     <?= T('general_date', 'Tanggal') ?>: <span class="font-semibold text-primary"><?= formatDate($date) ?></span>
                     <?php if ($log): ?>
                         <span class="ml-2 px-3 py-1 rounded-full text-[11px] font-semibold <?= getStatusBadgeClass($log['status']) ?>"><?= getStatusText($log['status']) ?></span>
                     <?php endif; ?>
+                    <?php if ($log && !empty($log['engineer_id'])):
+                        $engUsr = $db->fetchOne("SELECT id,name,role,position FROM users WHERE id = ?", [(int)$log['engineer_id']]);
+                        if ($engUsr): ?>
+                        <span class="ml-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                            <i class="fas fa-user-gear text-[10px]"></i>
+                            <?= cleanInput($engUsr['name']) ?>
+                            <?php if (!empty($engUsr['position'])): ?><span class="opacity-70 font-normal">(<?= cleanInput($engUsr['position']) ?>)</span><?php endif; ?>
+                        </span>
+                        <?php unset($engUsr); endif;
+                    endif; ?>
                 </p>
             </div>
-            <?php if ($log && $log['status'] === 'rejected' && $log['revision_notes']): ?>
-                <div class="p-4 rounded-card bg-red-50 border border-red-200 max-w-md animate-slide-up">
-                    <p class="text-xs font-semibold text-red-700 mb-1"><i class="fas fa-triangle-exclamation mr-1"></i><?= T('today_revisi_label', 'Catatan Revisi') ?>:</p>
-                    <p class="text-sm text-red-800"><?= nl2br(cleanInput($log['revision_notes'])) ?></p>
-                </div>
-            <?php endif; ?>
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <?php if ($canChooseEngineer): ?>
+                    <!-- Manager / Supervisor Access All: Pilih Engineer yang Log-nya mau diisi / diedit -->
+                    <div class="flex items-center gap-2 rounded-premium bg-white border border-slate-200 px-3.5 py-2 shadow-sm min-w-[260px]">
+                        <label class="shrink-0 text-[11px] font-black tracking-[0.08em] uppercase text-slate-400"><i class="fas fa-user-pen mr-1"></i> Owner:</label>
+                        <select id="engineerSwitcher"
+                                class="flex-1 min-w-0 bg-transparent text-sm font-bold text-slate-800 px-1 py-0.5 border-none focus:outline-none focus:ring-0">
+                            <?php foreach ($engineerOptions as $eo):
+                                $sel = (int)$eo['id'] === (int)$targetEngineerId ? 'selected' : '';
+                                $roleBadge = strtoupper(substr($eo['role'] ?? 'user', 0, 3));
+                                $roleColor = match(strtolower($eo['role'] ?? '')) {
+                                    'engineer'=>'text-sky-600', 'supervisor'=>'text-emerald-600','manager'=>'text-indigo-600','admin'=>'text-rose-600',
+                                    default=>'text-slate-500'
+                                };
+                            ?>
+                            <option value="<?= (int)$eo['id'] ?>" <?= $sel ?>><?= cleanInput($eo['name']) . (!empty($eo['position']) ? ' — ' . cleanInput($eo['position']) : '') . '  [' . $roleBadge . ']' ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <script>
+                        (function(){
+                            const sel = document.getElementById('engineerSwitcher');
+                            if(!sel) return;
+                            sel.addEventListener('change', function(){
+                                const uid = parseInt(sel.value || '0', 10);
+                                if(uid > 0){
+                                    // Redirect pindah engineer (reload halaman agar existing log load sesuai engineer target)
+                                    const url = new URL(window.location.href);
+                                    url.searchParams.set('engineer_id', String(uid));
+                                    window.location.href = url.toString();
+                                }
+                            });
+                        })();
+                    </script>
+                <?php endif; ?>
+                <?php if ($log && $log['status'] === 'rejected' && $log['revision_notes']): ?>
+                    <div class="p-4 rounded-card bg-red-50 border border-red-200 max-w-md animate-slide-up">
+                        <p class="text-xs font-semibold text-red-700 mb-1"><i class="fas fa-triangle-exclamation mr-1"></i><?= T('today_revisi_label', 'Catatan Revisi') ?>:</p>
+                        <p class="text-sm text-red-800"><?= nl2br(cleanInput($log['revision_notes'])) ?></p>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 
     <form method="POST" enctype="multipart/form-data" class="space-y-5">
+        <!-- Manager/Supervisor Access All: hidden input kirim target engineer id ke handler POST (sinkron dgn select engineer di header) -->
+        <?php if ($canChooseEngineer): ?>
+            <input type="hidden" name="_target_engineer_id" value="<?= (int)$targetEngineerId ?>">
+        <?php endif; ?>
         <!-- ⑧ OCCUPANCY RATE (OCC %) - PALING ATAS SENDIRI SESUAI REQUEST -->
         <div class="bg-surface rounded-premium border border-accent/40 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 50ms">
             <div class="px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-100/60">
