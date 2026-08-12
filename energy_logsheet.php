@@ -376,26 +376,36 @@ $shiftF = in_array(strtolower($shiftF), ['pagi','siang','malam'], true) ? strtol
 
 $where = [];
 $params = [];
-$where[] = "log_date BETWEEN ? AND ?";
+$where[] = "e.log_date BETWEEN ? AND ?";
 $params[] = $startDate;
 $params[] = $endDate;
 if ($shiftF !== '') {
-    $where[] = "shift = ?";
+    $where[] = "e.shift = ?";
     $params[] = $shiftF;
 }
+/* Role filter: Engineer HANYA BOLEH LIHAT LOG DIA SENDIRI */
+if ($userRole === 'engineer') {
+    $wE = "e.created_by = ?";
+    try {
+        $colsExist = $db->fetchAll("SHOW COLUMNS FROM energy_logs LIKE 'created_by'");
+        if (!empty($colsExist)) { $where[] = $wE; $params[] = $userId; }
+    } catch (Throwable $ex) { /* skip jika DB lama tidak punya kolom */ }
+}
 $whereSql = 'WHERE ' . implode(' AND ', $where);
+/* $whereSqlPlain = untuk query TANPA JOIN (hanya 1 table energy_logs) — HAPUS PREFIX e. di depan nama kolom! */
+$whereSqlPlain = str_replace(['e.log_date','e.shift','e.created_by'], ['log_date','shift','created_by'], $whereSql);
 
 // ==============================================
 // 📊 SUMMARY 6 CARDS MINI
 // ==============================================
 $sumRow = $db->fetchOne(
     "SELECT COUNT(id) AS total_entri,
-            SUM(pln_kwh + genset_kwh) AS total_kwh,
-            SUM(solar_liter) AS total_solar,
-            SUM(gas_kg + gas_lng_kg) AS total_gas,
-            SUM(air_m3 + air_deep_well_m3) AS total_air,
+            SUM(pln_lwbp_kwh + pln_wbp_kwh + COALESCE(genset_kwh,0)) AS total_kwh,
+            SUM(COALESCE(solar_liter,0)) AS total_solar,
+            SUM(COALESCE(gas_kg,0) + COALESCE(gas_lng_kg,0)) AS total_gas,
+            SUM(COALESCE(air_m3,0) + COALESCE(air_deep_well_m3,0)) AS total_air,
             COUNT(DISTINCT NULLIF(pic_name,'')) AS total_pic
-     FROM energy_logs $whereSql",
+     FROM energy_logs $whereSqlPlain",
     $params
 );
 $tEntri  = (int)($sumRow['total_entri'] ?? 0);
