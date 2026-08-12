@@ -83,6 +83,24 @@ $_mig = function() use ($db) {
     if (count($adds) > 0) {
         try { $db->query("ALTER TABLE `energy_logs` " . implode(", ", $adds)); } catch (Throwable $e) {}
     }
+
+    // =========================================================
+    // 🔧 MIGRATION: EQUIPMENT_LOGS — tambah created_by / updated_by JIKA BELUM ADA
+    //    (Fix Fatal Error 1054: Unknown column 'updated_by' in field list)
+    //    Table sudah dibuat SEBELUM kolom audit ditambahkan di schema CREATE TABLE,
+    //    maka IF NOT EXISTS tidak berjalan → harus ALTER manual check.
+    // =========================================================
+    $eqCols = [];
+    try {
+        $eqRows = $db->fetchAll("SHOW COLUMNS FROM equipment_logs");
+        foreach ($eqRows as $r) $eqCols[strtolower($r['Field'])] = true;
+    } catch (Throwable $e) { return; }
+    $eqAdds = [];
+    if (!isset($eqCols['created_by']))  $eqAdds[] = "ADD COLUMN `created_by`  INT UNSIGNED NULL DEFAULT NULL AFTER `status`";
+    if (!isset($eqCols['updated_by']))  $eqAdds[] = "ADD COLUMN `updated_by`  INT UNSIGNED NULL DEFAULT NULL AFTER `created_by`";
+    if (count($eqAdds) > 0) {
+        try { $db->query("ALTER TABLE `equipment_logs` " . implode(", ", $eqAdds)); } catch (Throwable $e) {}
+    }
 };
 $_mig();
 

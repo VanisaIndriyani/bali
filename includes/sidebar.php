@@ -19,7 +19,7 @@ if ($isManager) $roleBadge = 'Manager';
 $isDashboard = $currentFile === 'index.php' && !in_array($currentDir, ['users','engineer','supervisor','manager','reports','profile','orders']);
 $isEnergyDashboard = ($currentFile === 'energy.php');
 $isEnergyLogsheet  = ($currentFile === 'energy_logsheet.php');
-$isAnyEnergy       = $isEnergyDashboard || $isEnergyLogsheet;
+$isAnyEnergy       = $isEnergyDashboard || $isEnergyLogsheet || $isDailyLog || $isReview;
 $isDailyLog = $currentDir === 'engineer' && in_array($currentFile, ['select_date.php', 'daily_log_form.php']);
 $isReview = $currentDir === 'supervisor' && in_array($currentFile, ['review.php', 'review_detail.php']);
 $isHistory = $currentFile === 'history.php';
@@ -107,13 +107,16 @@ $sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
             <?php
             $energyDefaultOpen = ($isAnyEnergy) ? 'true' : 'false';
             $isEnergyActive = $isAnyEnergy;
+            $energySubCount = 2; // Dashboard + Log Sheet = default 2
+            if ($isEngineer || $isSupervisor) $energySubCount++; // + Isi Daily Log
+            if ($isSupervisor) $energySubCount++; // + Review Daily Log
             ?>
             <button type="button" id="energyToggleBtn" data-default-open="<?= $energyDefaultOpen ?>"
                     onclick="toggleEnergyMenu(this)"
                     class="w-full text-left mt-1 <?= $sbBase ?> <?= $isEnergyActive ? $sbBaseActive : '' ?>">
                 <span class="<?= $sbIconBase ?> <?= $isEnergyActive ? $sbIconActive : '' ?>"><i class="fas fa-bolt text-[15px]"></i></span>
                 <span class="nav-label">Energy</span>
-                <span class="<?= $sbCountBadge ?> <?= $isEnergyActive ? $sbCountBadgeActive : '' ?>">2</span>
+                <span class="<?= $sbCountBadge ?> <?= $isEnergyActive ? $sbCountBadgeActive : '' ?>"><?= $energySubCount ?></span>
                 <i id="energyChevron" class="fas fa-chevron-down text-[11px] text-slate-400 transition-transform duration-200 -rotate-90 ml-1 mr-0.5 shrink-0"></i>
             </button>
             <div id="energyGroup" class="overflow-hidden transition-all duration-200 hidden ml-3 my-0.5 space-y-0.5 border-l-2 border-slate-100 pl-3">
@@ -127,6 +130,23 @@ $sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
                     <i class="fas fa-table-list text-[13px] w-4 text-center text-slate-400"></i>
                     <span>Log Sheet</span>
                 </a>
+                <?php if ($isEngineer || $isSupervisor): ?>
+                <a href="<?= BASE_URL ?>engineer/select_date.php"
+                   class="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-all <?= ($isDailyLog) ? '!bg-slate-100 !text-slate-900 !font-semibold' : '' ?>">
+                    <i class="fas fa-edit text-[13px] w-4 text-center text-slate-400"></i>
+                    <span>Isi Daily Log</span>
+                </a>
+                <?php endif; ?>
+                <?php if ($isSupervisor): ?>
+                <a href="<?= BASE_URL ?>supervisor/review.php"
+                   class="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-all <?= ($isReview) ? '!bg-slate-100 !text-slate-900 !font-semibold' : '' ?>">
+                    <i class="fas fa-file-signature text-[13px] w-4 text-center text-slate-400"></i>
+                    <span class="flex-1">Review Daily Log</span>
+                    <?php if ($pendingCount > 0): ?>
+                        <span class="inline-flex items-center justify-center h-5 min-w-[1.25rem] px-1.5 rounded-md bg-amber-100 text-amber-700 text-[10px] font-black ml-1"><?= $pendingCount > 99 ? '99+' : $pendingCount ?></span>
+                    <?php endif; ?>
+                </a>
+                <?php endif; ?>
             </div>
             <script>
                 (function(){
@@ -157,25 +177,6 @@ $sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
             </script>
 
             <div class="h-px my-3 bg-slate-100 mx-1"></div>
-
-            <?php if ($isEngineer || $isSupervisor): ?>
-            <div class="nav-section !mb-1"><span>Daily Log</span></div>
-            <a href="<?= BASE_URL ?>engineer/select_date.php" class="<?= $sbBase ?> <?= $isDailyLog ? $sbBaseActive : '' ?>">
-                <span class="<?= $sbIconBase ?> <?= $isDailyLog ? $sbIconActive : '' ?>"><i class="fas fa-edit text-[15px]"></i></span>
-                <span class="nav-label">Isi Daily Log</span>
-            </a>
-            <?php endif; ?>
-
-            <?php if ($isSupervisor): ?>
-            <div class="nav-section !mt-4 !mb-1"><span>Approval</span></div>
-            <a href="<?= BASE_URL ?>supervisor/review.php" class="<?= $sbBase ?> <?= $isReview ? $sbBaseActive : '' ?>">
-                <span class="<?= $sbIconBase ?> <?= $isReview ? $sbIconActive : '' ?>"><i class="fas fa-file-signature text-[15px]"></i></span>
-                <span class="nav-label">Review Daily Log</span>
-                <?php if ($pendingCount > 0): ?>
-                    <span class="ml-auto inline-flex items-center justify-center h-5 min-w-[1.25rem] px-1.5 rounded-md bg-amber-100 text-amber-700 text-[11px] font-black"><?= $pendingCount > 99 ? '99+' : $pendingCount ?></span>
-                <?php endif; ?>
-            </a>
-            <?php endif; ?>
 
             <?php if ($isSupervisor || $isManager): ?>
             <div class="nav-section !mt-4 !mb-1"><span>Logistic</span></div>
