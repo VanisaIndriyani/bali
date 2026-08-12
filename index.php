@@ -765,7 +765,7 @@ require_once __DIR__ . '/includes/navbar.php';
                     if (!isset($utilRows) || !is_array($utilRows)) {
                         $utilRows = [
                             ['ELECTRICITY', 'fas fa-bolt', 'text-amber-700', 'from-amber-400 to-amber-600', $elecLY,    $elecToday,    'kWh',   $costElecLY,    $costElecToday,    'bg-amber-50', 'border-amber-200', 'border-amber-200/60'],
-                            ['WATER',       'fas fa-droplet', 'text-sky-700',   'from-sky-400 to-sky-600',     $waterLY,   $waterToday,   'm³',    $costWaterLY,   $costWaterToday,   'bg-sky-50',   'border-sky-200',   'border-sky-200/60'],
+                            ['WATER',       'fas fa-droplet', 'text-sky-700',   'from-sky-400 to-sky-600',     $waterLY,   $waterToday,   'm3',    $costWaterLY,   $costWaterToday,   'bg-sky-50',   'border-sky-200',   'border-sky-200/60'],
                             ['GAS',         'fas fa-fire', 'text-orange-700','from-orange-400 to-orange-600',$gasLY,     $gasToday,     'kg',    $costGasLY,     $costGasToday,     'bg-orange-50','border-orange-200','border-orange-200/60'],
                             ['FUEL',        'fas fa-gas-pump', 'text-rose-700',  'from-rose-400 to-rose-600',   $fuelLY,    $fuelToday,    'Liter', $costFuelLY,    $costFuelToday,    'bg-rose-50',  'border-rose-200',  'border-rose-200/60'],
                         ];
@@ -882,7 +882,7 @@ require_once __DIR__ . '/includes/navbar.php';
                     <!-- FOOTER INFO: TARIF STANDAR -->
                     <p class="text-[10px] text-gray-500 bg-slate-50 rounded-lg p-2 border border-slate-200 leading-relaxed">
                         <i class="fas fa-circle-info text-gray-400 mr-1 text-[10px]"></i>
-                        Tarif standar (PLN Industri <strong class="text-slate-700">Rp 1.850/kWh</strong>, PDAM <strong class="text-slate-700">Rp 9.600/m³</strong>, LPG <strong class="text-slate-700">Rp 24.500/kg</strong>, Solar <strong class="text-slate-700">Rp 17.450/Liter</strong>).
+                        Tarif standar (PLN Industri <strong class="text-slate-700">Rp 1.850/kWh</strong>, PDAM <strong class="text-slate-700">Rp 9.600/m3</strong>, LPG <strong class="text-slate-700">Rp 24.500/kg</strong>, Solar <strong class="text-slate-700">Rp 17.450/Liter</strong>).
                     </p>
                 </div>
             </div>
@@ -1116,7 +1116,7 @@ require_once __DIR__ . '/includes/navbar.php';
                     'tds' => (float)($todayDailySingle['swro_tds'] ?? 0),
                 ] : ['wm'=>0,'kwh'=>0,'tds'=>0];
                 $swCards = [
-                    ['Watermeter (m³)', $swToday['wm'] > 0 ? formatNumber($swToday['wm'], 1) : '-', 'fas fa-droplet', 'from-sky-400 to-sky-600', 'bg-sky-50', 'border-sky-200', 'text-sky-700', (float)($swMonthly['wm'] ?? 0) > 0 ? formatNumber($swMonthly['wm'] ?? 0, 1).' m³' : '—'],
+                    ['Watermeter (m3)', $swToday['wm'] > 0 ? formatNumber($swToday['wm'], 1) : '-', 'fas fa-droplet', 'from-sky-400 to-sky-600', 'bg-sky-50', 'border-sky-200', 'text-sky-700', (float)($swMonthly['wm'] ?? 0) > 0 ? formatNumber($swMonthly['wm'] ?? 0, 1).' m3' : '—'],
                     ['Listrik (kWh)', $swToday['kwh'] > 0 ? formatNumber($swToday['kwh'], 1) : '-', 'fas fa-bolt', 'from-yellow-400 to-amber-600', 'bg-amber-50', 'border-amber-200', 'text-amber-700', (float)($swMonthly['kwh'] ?? 0) > 0 ? formatNumber($swMonthly['kwh'] ?? 0, 1).' kWh' : '—'],
                     ['TDS Outlet (ppm)', $swToday['tds'] > 0 ? formatNumber($swToday['tds'], 0) : '-', 'fas fa-vial', 'from-slate-400 to-slate-700', 'bg-slate-50', 'border-slate-200', 'text-slate-700', (float)($swMonthly['tds'] ?? 0) > 0 ? formatNumber($swMonthly['tds'], 0).' ppm avg' : '—'],
                 ];

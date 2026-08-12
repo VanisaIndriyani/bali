@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/config.php';
 requireLogin();
 @ini_set('memory_limit', '256M');
@@ -278,7 +278,7 @@ echo "\xEF\xBB\xBF";
             </div></td>
             <td style="width:25%;"><div class="box" style="border-left-color:#0284c7;">
                 <div class="lbl">💧 TOTAL AIR</div>
-                <div class="num"><?= ecell(formatNumber($totWater)) ?> <span style="font-size:14px;">m³</span></div>
+                <div class="num"><?= ecell(formatNumber($totWater)) ?> <span style="font-size:14px;">m3</span></div>
             </div></td>
             <td style="width:25%;"><div class="box" style="border-left-color:#ea580c;">
                 <div class="lbl">🔥 TOTAL GAS</div>
@@ -302,7 +302,7 @@ echo "\xEF\xBB\xBF";
                 <th style="width:20%;"><?= $viewType === 'monthly' ? 'Bulan' : 'Tanggal' ?></th>
                 <th class="text-right" style="width:15%;">Total Daily Log</th>
                 <th class="text-right" style="width:20%;">⚡ Listrik (kWh)</th>
-                <th class="text-right" style="width:20%;">💧 Air (m³)</th>
+                <th class="text-right" style="width:20%;">💧 Air (m3)</th>
                 <th class="text-right" style="width:20%;">🔥 Gas (kg)</th>
             </tr>
         </thead>
@@ -322,7 +322,7 @@ echo "\xEF\xBB\xBF";
                 <td>TOTAL KESELURUHAN (<?= ecell($modeLabel) ?>)</td>
                 <td class="text-right"><?= ecell(formatNumber($totLog)) ?> entri</td>
                 <td class="text-right"><?= ecell(formatNumber($totElec)) ?> kWh</td>
-                <td class="text-right"><?= ecell(formatNumber($totWater)) ?> m³</td>
+                <td class="text-right"><?= ecell(formatNumber($totWater)) ?> m3</td>
                 <td class="text-right"><?= ecell(formatNumber($totGas)) ?> kg</td>
             </tr>
         </tfoot>
@@ -352,7 +352,7 @@ echo "\xEF\xBB\xBF";
                     <th style="width:10%;">No. HP</th>
                 <?php endif; ?>
                 <th style="width:9%;" class="nowrap">⚡ Listrik (kWh)</th>
-                <th style="width:9%;" class="nowrap">💧 Air (m³)</th>
+                <th style="width:9%;" class="nowrap">💧 Air (m3)</th>
                 <th style="width:9%;" class="nowrap">🔥 Gas (kg)</th>
                 <th style="width:18%;">Aktivitas Pekerjaan</th>
                 <th style="width:18%;">Kendala</th>

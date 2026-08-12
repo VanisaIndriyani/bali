@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/config.php';
 $pageTitle = T('review_title', 'Review Daily Log');
 requireRole('supervisor');
@@ -111,7 +111,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                                     </div>
                                 </td>
                                 <td class="px-5 py-4 text-right font-medium text-primary whitespace-nowrap"><?= formatNumber($log['total_electricity']) ?> kWh</td>
-                                <td class="px-5 py-4 text-right font-medium text-primary whitespace-nowrap"><?= formatNumber($log['total_water']) ?> m³</td>
+                                <td class="px-5 py-4 text-right font-medium text-primary whitespace-nowrap"><?= formatNumber($log['total_water']) ?> m3</td>
                                 <td class="px-5 py-4 text-right font-medium text-primary whitespace-nowrap"><?= formatNumber($log['total_gas']) ?> kg</td>
                                 <td class="px-5 py-4 whitespace-nowrap"><span class="px-3 py-1 rounded-full text-[11px] font-semibold <?= getStatusBadgeClass($log['status']) ?>"><?= getStatusText($log['status']) ?></span></td>
                                 <td class="px-5 py-4 text-right whitespace-nowrap">

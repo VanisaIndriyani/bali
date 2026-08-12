@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/config.php';
 requireLogin();
 
@@ -287,7 +287,7 @@ $logoSrc = '';
                 <div class="stat water">
                     <i class="fas fa-droplet ico"></i>
                     <div class="label">Total Air</div>
-                    <div class="value"><?= formatNumber($totWater) ?><span class="unit"> m³</span></div>
+                    <div class="value"><?= formatNumber($totWater) ?><span class="unit"> m3</span></div>
                 </div>
                 <div class="stat gas">
                     <i class="fas fa-fire ico"></i>
@@ -312,7 +312,7 @@ $logoSrc = '';
                             <th style="width:20%"><?= $viewType === 'monthly' ? 'Bulan' : 'Tanggal' ?></th>
                             <th class="text-right">Total Daily Log</th>
                             <th class="text-right">⚡ Listrik (kWh)</th>
-                            <th class="text-right">💧 Air (m³)</th>
+                            <th class="text-right">💧 Air (m3)</th>
                             <th class="text-right">🔥 Gas (kg)</th>
                         </tr>
                     </thead>
@@ -332,7 +332,7 @@ $logoSrc = '';
                             <td><strong>TOTAL KESELURUHAN</strong></td>
                             <td class="text-right"><?= formatNumber($totLog) ?></td>
                             <td class="text-right"><?= formatNumber($totElec) ?> kWh</td>
-                            <td class="text-right"><?= formatNumber($totWater) ?> m³</td>
+                            <td class="text-right"><?= formatNumber($totWater) ?> m3</td>
                             <td class="text-right"><?= formatNumber($totGas) ?> kg</td>
                         </tr>
                     </tfoot>
@@ -370,7 +370,7 @@ $logoSrc = '';
                                     <td><?= cleanInput($row['engineer_name'] ?? '-') ?></td>
                                 <?php endif; ?>
                                 <td class="text-right" nowrap><?= formatNumber((float)$row['total_electricity']) ?> kWh</td>
-                                <td class="text-right" nowrap><?= formatNumber((float)$row['total_water']) ?> m³</td>
+                                <td class="text-right" nowrap><?= formatNumber((float)$row['total_water']) ?> m3</td>
                                 <td class="text-right" nowrap><?= formatNumber((float)$row['total_gas']) ?> kg</td>
                                 <td class="text-muted"><?= cleanInput($row['work_activities'] ?? '-') ?></td>
                                 <td class="text-muted"><?= cleanInput($row['obstacles'] ?? '-') ?></td>

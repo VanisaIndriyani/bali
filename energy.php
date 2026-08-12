@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * ⚡ ENERGY DASHBOARD (WA 18.09)
  * Bisa diakses SEMUA ROLE (Manager, Supervisor, Engineer/Staff)
@@ -184,8 +184,8 @@ $energyStats = [
     ['label' => 'Konsumsi Solar',   'unit' => 'Liter', 'val' => fmtENum($solarTotal, 2), 'sub' => $periodeLabel],
     ['label' => 'Konsumsi Gas LPG', 'unit' => 'Kg',    'val' => fmtENum($gasLpgTotal, 1),'sub' => $periodeLabel],
     ['label' => 'Konsumsi Gas LNG', 'unit' => 'Kg',    'val' => fmtENum($gasLngTotal, 1),'sub' => $periodeLabel],
-    ['label' => 'Air PDAM',         'unit' => 'm³',    'val' => fmtENum($airPdamTotal, 1),'sub' => $periodeLabel],
-    ['label' => 'Air Deep Well',    'unit' => 'm³',    'val' => fmtENum($airDeepTotal, 1),'sub' => $periodeLabel],
+    ['label' => 'Air PDAM',         'unit' => 'm3',    'val' => fmtENum($airPdamTotal, 1),'sub' => $periodeLabel],
+    ['label' => 'Air Deep Well',    'unit' => 'm3',    'val' => fmtENum($airDeepTotal, 1),'sub' => $periodeLabel],
 ];
 
 // ───────────────────────────────────────────────────────────────
@@ -304,7 +304,7 @@ include __DIR__ . '/includes/sidebar.php';
                         <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[130px]">Listrik (kWh)</th>
                         <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[105px]">Solar (L)</th>
                         <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[115px]">Gas (Kg)</th>
-                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[115px]">Air (m³)</th>
+                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[115px]">Air (m3)</th>
                         <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap w-[140px]">PIC</th>
                     </tr>
                 </thead>

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/config.php';
 requireLogin();
 
@@ -107,7 +107,7 @@ tr:nth-child(even) td { background: #fafafa; }
     foreach ($logs as $l) { if ($l['status'] === 'approved') { $tE+=$l['total_electricity']; $tW+=$l['total_water']; $tG+=$l['total_gas']; } }
     ?>
     <div class="sum-card"><div class="lbl">⚡ Total Listrik</div><div class="val"><?= number_format($tE,0,',','.') ?> <span>kWh</span></div></div>
-    <div class="sum-card"><div class="lbl">💧 Total Air</div><div class="val"><?= number_format($tW,0,',','.') ?> <span>m³</span></div></div>
+    <div class="sum-card"><div class="lbl">💧 Total Air</div><div class="val"><?= number_format($tW,0,',','.') ?> <span>m3</span></div></div>
     <div class="sum-card"><div class="lbl">🔥 Total Gas</div><div class="val"><?= number_format($tG,0,',','.') ?> <span>kg</span></div></div>
 </div>
 
@@ -136,7 +136,7 @@ tr:nth-child(even) td { background: #fafafa; }
         <th>JABATAN</th>
     <?php endif; ?>
     <th class="right">LISTRIK (kWh)</th>
-    <th class="right">AIR (m³)</th>
+    <th class="right">AIR (m3)</th>
     <th class="right">GAS (kg)</th>
     <th class="center">STATUS</th>
     <?php if ($isSupervisor): ?>
@@ -190,7 +190,7 @@ $totE += $l['total_electricity']; $totW += $l['total_water']; $totG += $l['total
             </div>
             <div>
                 <div class="field-label">💧 Total Air</div>
-                <div class="field-value" style="font-size:18px;font-weight:800;"><?= number_format($l['total_water'],0,',','.') ?> m³</div>
+                <div class="field-value" style="font-size:18px;font-weight:800;"><?= number_format($l['total_water'],0,',','.') ?> m3</div>
             </div>
             <div>
                 <div class="field-label">🔥 Total Gas</div>

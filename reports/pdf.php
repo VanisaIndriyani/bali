@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/config.php';
 requireLogin();
 
@@ -143,7 +143,7 @@ tr:nth-child(even) td { background: #fafafa; }
     <h2 class="title">Ringkasan Konsumsi (Approved Only)</h2>
     <div class="summary">
         <div class="sum-card"><div class="lbl">⚡ Total Listrik</div><div class="val"><?= number_format($totals['electricity'],0,',','.') ?> <span>kWh</span></div></div>
-        <div class="sum-card"><div class="lbl">💧 Total Air</div><div class="val"><?= number_format($totals['water'],0,',','.') ?> <span>m³</span></div></div>
+        <div class="sum-card"><div class="lbl">💧 Total Air</div><div class="val"><?= number_format($totals['water'],0,',','.') ?> <span>m3</span></div></div>
         <div class="sum-card"><div class="lbl">🔥 Total Gas</div><div class="val"><?= number_format($totals['gas'],0,',','.') ?> <span>kg</span></div></div>
     </div>
 
@@ -157,7 +157,7 @@ tr:nth-child(even) td { background: #fafafa; }
                     <th>Engineer</th>
                 <?php endif; ?>
                 <th class="right">Listrik (kWh)</th>
-                <th class="right">Air (m³)</th>
+                <th class="right">Air (m3)</th>
                 <th class="right">Gas (kg)</th>
                 <th class="center">Status</th>
                 <?php if ($isSupervisor): ?>
@@ -212,7 +212,7 @@ tr:nth-child(even) td { background: #fafafa; }
         <div class="log-detail-body">
             <div class="detail-row">
                 <div class="detail-card"><div class="lbl">⚡ Listrik</div><div class="val"><?= number_format($l['total_electricity'],0,',','.') ?> <span>kWh</span></div></div>
-                <div class="detail-card"><div class="lbl">💧 Air</div><div class="val"><?= number_format($l['total_water'],0,',','.') ?> <span>m³</span></div></div>
+                <div class="detail-card"><div class="lbl">💧 Air</div><div class="val"><?= number_format($l['total_water'],0,',','.') ?> <span>m3</span></div></div>
                 <div class="detail-card"><div class="lbl">🔥 Gas</div><div class="val"><?= number_format($l['total_gas'],0,',','.') ?> <span>kg</span></div></div>
             </div>
             <div class="text-block"><h4>✅ Aktivitas Pekerjaan</h4><p><?= nl2br(cleanInput($l['work_activities'])) ?></p></div>

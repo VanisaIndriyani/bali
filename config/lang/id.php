@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 return [
     'app_title' => 'Engineering Daily Log',
     'app_brand' => 'ST. REGIS BALI',
@@ -74,7 +74,7 @@ return [
     'modal_gas_title' => 'Rincian Konsumsi Gas',
     'modal_gas_sub' => 'Gas LPG & Gas LNG Per Hari',
     'modal_swro_title' => 'SWRO System Monitoring',
-    'modal_swro_sub' => 'Watermeter (m³), kWh Konsumsi, TDS Output (ppm)',
+    'modal_swro_sub' => 'Watermeter (m3), kWh Konsumsi, TDS Output (ppm)',
     'modal_bottling_title' => 'Bottling Plant Monitoring',
     'modal_bottling_sub' => 'Konsumsi kWh & Watermeter Air Produksi',
     'modal_chiller_title' => 'Chiller System Performance',
@@ -168,7 +168,7 @@ return [
     'form_title' => 'Form Daily Log Engineering',
     'form_sub' => 'Isi data utility harian sesuai pembacaan meteran',
     'form_section_elec' => '1. Konsumsi Listrik (kWh)',
-    'form_section_water' => '2. Konsumsi Air (m³)',
+    'form_section_water' => '2. Konsumsi Air (m3)',
     'form_section_gas' => '3. Konsumsi Gas (kg)',
     'form_section_swro' => '4. SWRO System',
     'form_section_bottling' => '5. Bottling Plant',
@@ -194,7 +194,7 @@ return [
     'pdf_col_month' => 'Bulan',
     'pdf_col_total_log' => 'Total Daily Log',
     'pdf_col_elec' => 'Listrik (kWh)',
-    'pdf_col_water' => 'Air (m³)',
+    'pdf_col_water' => 'Air (m3)',
     'pdf_col_gas' => 'Gas (kg)',
     'pdf_stat_elec' => 'Total Listrik',
     'pdf_stat_water' => 'Total Air',
@@ -205,7 +205,7 @@ return [
     'form_elec_lwbp' => 'KWH LWBP',
     'form_elec_total' => 'TOTAL LISTRIK (Auto)',
 
-    'form_water_title' => '② Water - Konsumsi Air 9 Sumber (m³)',
+    'form_water_title' => '② Water - Konsumsi Air 9 Sumber (m3)',
     'form_water_sub' => '9 sumber sesuai catatan: PDAM / IKI Gaban / Deep Well / Main Building / Cooling Tower / Bottling',
     'form_water_pdam' => 'PDAM',
     'form_water_iki' => 'IKI Gaban',
@@ -226,14 +226,14 @@ return [
 
     'form_swro_title' => '④ SWRO - Sea Water Reverse Osmosis',
     'form_swro_sub' => 'Water meter produksi air bersih, listrik kWh, & TDS (ppm)',
-    'form_swro_water' => 'SWRO Watermeter (m³)',
+    'form_swro_water' => 'SWRO Watermeter (m3)',
     'form_swro_kwh' => 'SWRO Electric (kWh)',
     'form_swro_tds' => 'SWRO TDS (ppm)',
 
     'form_bottling_title' => '⑤ Bottling Water - Produksi Air Minum',
-    'form_bottling_sub' => 'Listrik untuk proses bottling (kWh) + watermeter produksi (m³)',
+    'form_bottling_sub' => 'Listrik untuk proses bottling (kWh) + watermeter produksi (m3)',
     'form_bottling_kwh' => 'Bottling - Electric (kWh)',
-    'form_bottling_water' => 'Bottling - Watermeter (m³)',
+    'form_bottling_water' => 'Bottling - Watermeter (m3)',
 
     'form_chiller_title' => '⑥ Chiller System - 3 Unit Operasi & Monitoring',
     'form_chiller_sub' => 'Checklist unit chiller yang jalan, test pH & TDS air chiller, suhu & tekanan pompa CHWP / CWP',

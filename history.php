@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $pageTitle = 'Riwayat Daily Log';
 require_once __DIR__ . '/config/config.php';
 requireLogin();
@@ -122,7 +122,7 @@ require_once __DIR__ . '/includes/navbar.php';
         </div>
         <div class="p-5 bg-surface rounded-card border border-border shadow-sm animate-slide-up" style="animation-delay: 100ms">
             <p class="text-xs text-secondary uppercase tracking-wider font-semibold mb-1.5">💧 Total Air (Approved)</p>
-            <p class="text-2xl font-bold text-primary"><?= formatNumber($totals['water']) ?> <span class="text-sm font-medium text-secondary">m³</span></p>
+            <p class="text-2xl font-bold text-primary"><?= formatNumber($totals['water']) ?> <span class="text-sm font-medium text-secondary">m3</span></p>
         </div>
         <div class="p-5 bg-surface rounded-card border border-border shadow-sm animate-slide-up" style="animation-delay: 150ms">
             <p class="text-xs text-secondary uppercase tracking-wider font-semibold mb-1.5">🔥 Total Gas (Approved)</p>
@@ -173,7 +173,7 @@ require_once __DIR__ . '/includes/navbar.php';
                                     </td>
                                 <?php endif; ?>
                                 <td class="px-5 py-4 text-right font-medium text-primary whitespace-nowrap"><?= formatNumber($log['total_electricity']) ?> kWh</td>
-                                <td class="px-5 py-4 text-right font-medium text-primary whitespace-nowrap"><?= formatNumber($log['total_water']) ?> m³</td>
+                                <td class="px-5 py-4 text-right font-medium text-primary whitespace-nowrap"><?= formatNumber($log['total_water']) ?> m3</td>
                                 <td class="px-5 py-4 text-right font-medium text-primary whitespace-nowrap"><?= formatNumber($log['total_gas']) ?> kg</td>
                                 <td class="px-5 py-4 whitespace-nowrap"><span class="px-2.5 py-1 rounded-full text-[11px] font-semibold <?= getStatusBadgeClass($log['status']) ?>"><?= getStatusText($log['status']) ?></span></td>
                                 <?php if ($isSupervisor): ?>

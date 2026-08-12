@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $pageTitle = 'Review Detail Daily Log';
 require_once __DIR__ . '/../config/config.php';
 requireRole('supervisor');
@@ -144,7 +144,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                     <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center"><i class="fas fa-droplet text-blue-600"></i></div>
                     <div><p class="text-xs text-blue-700 uppercase tracking-wider font-semibold">Air</p><p class="text-[10px] text-blue-600">Total Consume</p></div>
                 </div>
-                <div class="text-3xl font-bold text-blue-700"><?= formatNumber($log['total_water']) ?> <span class="text-sm font-semibold">m³</span></div>
+                <div class="text-3xl font-bold text-blue-700"><?= formatNumber($log['total_water']) ?> <span class="text-sm font-semibold">m3</span></div>
             </div>
             <div class="p-5 rounded-card bg-orange-50 border border-orange-100">
                 <div class="flex items-center gap-3 mb-2">

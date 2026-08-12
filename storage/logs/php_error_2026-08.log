@@ -8,3 +8,10 @@ Stack trace:
 Stack trace:
 #0 {main}
   thrown in D:\APLIKASI\laragon\www\AGUSTUS\regist_bali\install\apply_migration_20260804.php on line 17
+[05-Aug-2026 15:44:53 Europe/Berlin] PHP Warning:  session_start(): open(D:\APLIKASI\xampp\tmp\sess_ni1k7k0mj50s3ed3sovi9so733, O_RDWR) failed: Permission denied (13) in D:\APLIKASI\laragon\www\AGUSTUS\regist_bali\config\config.php on line 82
+[05-Aug-2026 15:44:53 Europe/Berlin] PHP Warning:  session_start(): Failed to read session data: files (path: D:\APLIKASI\xampp\tmp) in D:\APLIKASI\laragon\www\AGUSTUS\regist_bali\config\config.php on line 82
+[05-Aug-2026 15:44:53 Europe/Berlin] PHP Warning:  require_once(D:\APLIKASI\laragon\www\AGUSTUS\regist_bali\install/../config/db.php): Failed to open stream: No such file or directory in D:\APLIKASI\laragon\www\AGUSTUS\regist_bali\install\apply_migration_20260805_occ.php on line 3
+[05-Aug-2026 15:44:53 Europe/Berlin] PHP Fatal error:  Uncaught Error: Failed opening required 'D:\APLIKASI\laragon\www\AGUSTUS\regist_bali\install/../config/db.php' (include_path='D:\APLIKASI\xampp\php\PEAR') in D:\APLIKASI\laragon\www\AGUSTUS\regist_bali\install\apply_migration_20260805_occ.php:3
+Stack trace:
+#0 {main}
+  thrown in D:\APLIKASI\laragon\www\AGUSTUS\regist_bali\install\apply_migration_20260805_occ.php on line 3

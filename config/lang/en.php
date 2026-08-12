@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 return [
     'app_title' => 'Engineering Daily Log',
     'app_brand' => 'ST. REGIS BALI',
@@ -74,7 +74,7 @@ return [
     'modal_gas_title' => 'Gas Consumption Details',
     'modal_gas_sub' => 'Daily LPG Gas & LNG Gas',
     'modal_swro_title' => 'SWRO System Monitoring',
-    'modal_swro_sub' => 'Watermeter (m³), kWh Consumption, TDS Output (ppm)',
+    'modal_swro_sub' => 'Watermeter (m3), kWh Consumption, TDS Output (ppm)',
     'modal_bottling_title' => 'Bottling Plant Monitoring',
     'modal_bottling_sub' => 'kWh Consumption & Production Watermeter',
     'modal_chiller_title' => 'Chiller System Performance',
@@ -168,7 +168,7 @@ return [
     'form_title' => 'Engineering Daily Log Form',
     'form_sub' => 'Fill in daily utility data according to meter readings',
     'form_section_elec' => '1. Electricity Consumption (kWh)',
-    'form_section_water' => '2. Water Consumption (m³)',
+    'form_section_water' => '2. Water Consumption (m3)',
     'form_section_gas' => '3. Gas Consumption (kg)',
     'form_section_swro' => '4. SWRO System',
     'form_section_bottling' => '5. Bottling Plant',
@@ -194,7 +194,7 @@ return [
     'pdf_col_month' => 'Month',
     'pdf_col_total_log' => 'Total Daily Log',
     'pdf_col_elec' => 'Electricity (kWh)',
-    'pdf_col_water' => 'Water (m³)',
+    'pdf_col_water' => 'Water (m3)',
     'pdf_col_gas' => 'Gas (kg)',
     'pdf_stat_elec' => 'Total Electricity',
     'pdf_stat_water' => 'Total Water',
@@ -205,7 +205,7 @@ return [
     'form_elec_lwbp' => 'KWH LWBP',
     'form_elec_total' => 'TOTAL ELECTRICITY (Auto)',
 
-    'form_water_title' => '② Water - 9 Sources Consumption (m³)',
+    'form_water_title' => '② Water - 9 Sources Consumption (m3)',
     'form_water_sub' => '9 sources as per records: PDAM / IKI Gaban / Deep Well / Main Building / Cooling Tower / Bottling',
     'form_water_pdam' => 'PDAM',
     'form_water_iki' => 'IKI Gaban',
@@ -226,14 +226,14 @@ return [
 
     'form_swro_title' => '④ SWRO - Sea Water Reverse Osmosis',
     'form_swro_sub' => 'Clean water production meter, electricity kWh, & TDS (ppm)',
-    'form_swro_water' => 'SWRO Watermeter (m³)',
+    'form_swro_water' => 'SWRO Watermeter (m3)',
     'form_swro_kwh' => 'SWRO Electric (kWh)',
     'form_swro_tds' => 'SWRO TDS (ppm)',
 
     'form_bottling_title' => '⑤ Bottling Water - Drinking Water Production',
-    'form_bottling_sub' => 'Electricity for bottling process (kWh) + production watermeter (m³)',
+    'form_bottling_sub' => 'Electricity for bottling process (kWh) + production watermeter (m3)',
     'form_bottling_kwh' => 'Bottling - Electric (kWh)',
-    'form_bottling_water' => 'Bottling - Watermeter (m³)',
+    'form_bottling_water' => 'Bottling - Watermeter (m3)',
 
     'form_chiller_title' => '⑥ Chiller System - 3 Units Operation & Monitoring',
     'form_chiller_sub' => 'Check running chiller units, test pH & TDS chiller water, temperature & CHWP / CWP pump pressure',

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/config.php';
 $pageTitle = T('form_title', 'Isi Daily Log Engineering');
 requireRole(['engineer', 'supervisor']);
@@ -348,7 +348,7 @@ require_once __DIR__ . '/../includes/navbar.php';
             <div class="px-5 lg:px-6 py-4 border-b border-blue-100/80 bg-gradient-to-r from-blue-50/90 via-sky-50/60 to-cyan-50/70">
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30"><i class="fas fa-droplet text-sm"></i></span>
-                    <?= T('form_water_title', '② Water - Konsumsi Air PDAM, Main Building & Cooling Tower (m³)') ?>
+                    <?= T('form_water_title', '② Water - Konsumsi Air PDAM, Main Building & Cooling Tower (m3)') ?>
                 </h3>
                 <p class="text-xs text-secondary mt-0.5"><?= T('form_water_sub', '3 sumber sesuai catatan: PDAM / Main Building / Cooling Tower') ?></p>
             </div>
@@ -369,7 +369,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                         <input type="number" step="0.01" min="0" name="{$field}" oninput="calcTotals()"
                             value="{$val}"
                             class="js-sum-water w-full pl-3 pr-12 py-3 rounded-card border {$bor} {$bg} font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all text-sm">
-                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] {$col} font-black bg-white/90 border {$bor} px-1.5 py-0.5 rounded-full">m³</span>
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] {$col} font-black bg-white/90 border {$bor} px-1.5 py-0.5 rounded-full">m3</span>
                     </div>
                 </div>
 HTML;
@@ -382,7 +382,7 @@ HTML;
                             <input type="number" id="totalWater" readonly step="0.01" min="0"
                                 value="<?= $log['total_water'] ?? '0.00' ?>"
                                 class="w-full pl-3 pr-11 py-3 rounded-card border-2 border-blue-600/85 bg-gradient-to-br from-blue-600 to-blue-800 text-white font-black shadow-md shadow-blue-500/15 cursor-not-allowed opacity-95">
-                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/95 font-black border border-white/25 px-1.5 py-0.5 rounded-full bg-white/10">m³</span>
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/95 font-black border border-white/25 px-1.5 py-0.5 rounded-full bg-white/10">m3</span>
                         </div>
                     </div>
                 </div>
@@ -440,12 +440,12 @@ HTML;
             </div>
             <div class="p-5 lg:p-6 grid grid-cols-1 sm:grid-cols-3 gap-5">
                 <div>
-                    <label class="block text-xs font-extrabold text-primary mb-1.5 tracking-wide"><i class="far fa-gauge-high mr-1 text-cyan-600"></i><?= T('form_swro_water', 'SWRO Watermeter (m³)') ?></label>
+                    <label class="block text-xs font-extrabold text-primary mb-1.5 tracking-wide"><i class="far fa-gauge-high mr-1 text-cyan-600"></i><?= T('form_swro_water', 'SWRO Watermeter (m3)') ?></label>
                     <div class="relative">
                         <input type="number" step="0.01" min="0" name="swro_watermeter"
                             value="<?= $log['swro_watermeter'] ?? '0.00' ?>"
                             class="w-full pl-3 pr-12 py-3 rounded-card border border-cyan-200 bg-cyan-50/60 font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 focus:bg-white transition-all">
-                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-cyan-700 font-black bg-white/90 border border-cyan-200 px-1.5 py-0.5 rounded-full">m³</span>
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-cyan-700 font-black bg-white/90 border border-cyan-200 px-1.5 py-0.5 rounded-full">m3</span>
                     </div>
                 </div>
                 <div>
@@ -476,7 +476,7 @@ HTML;
                     <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-400 to-purple-600 flex items-center justify-center text-white shadow-md shadow-violet-500/30"><i class="fas fa-bottle-water text-sm"></i></span>
                     <?= T('form_bottling_title', '⑤ Bottling Water - Produksi Air Minum') ?>
                 </h3>
-                <p class="text-xs text-secondary mt-0.5"><?= T('form_bottling_sub', 'Listrik untuk proses bottling (kWh) + watermeter produksi (m³)') ?></p>
+                <p class="text-xs text-secondary mt-0.5"><?= T('form_bottling_sub', 'Listrik untuk proses bottling (kWh) + watermeter produksi (m3)') ?></p>
             </div>
             <div class="p-5 lg:p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
@@ -489,12 +489,12 @@ HTML;
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-extrabold text-primary mb-1.5 tracking-wide"><i class="fas fa-gauge-high mr-1 text-violet-600"></i><?= T('form_bottling_water', 'Bottling - Watermeter (m³)') ?></label>
+                    <label class="block text-xs font-extrabold text-primary mb-1.5 tracking-wide"><i class="fas fa-gauge-high mr-1 text-violet-600"></i><?= T('form_bottling_water', 'Bottling - Watermeter (m3)') ?></label>
                     <div class="relative">
                         <input type="number" step="0.01" min="0" name="bottling_watermeter"
                             value="<?= $log['bottling_watermeter'] ?? '0.00' ?>"
                             class="w-full pl-4 pr-14 py-3 rounded-card border border-violet-200 bg-purple-50/60 font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 focus:bg-white transition-all">
-                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-purple-700 font-black bg-white/90 border border-purple-200 px-1.5 py-0.5 rounded-full">m³</span>
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-purple-700 font-black bg-white/90 border border-purple-200 px-1.5 py-0.5 rounded-full">m3</span>
                     </div>
                 </div>
             </div>

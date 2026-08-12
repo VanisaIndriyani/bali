@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * 📋 ENERGY LOG SHEET - Form Input & Daftar Catatan Konsumsi Energi Harian
  * Full CRUD: Tambah, Edit, Hapus, Filter, List Data REAL dari DB (table energy_logs)
@@ -332,7 +332,7 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
         </div>
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total Air</p>
-            <p class="font-display text-xl sm:text-2xl font-black text-primary mt-1"><?= fmtNum($tAir, 1) ?> <span class="text-sm text-slate-500 font-bold">m³</span></p>
+            <p class="font-display text-xl sm:text-2xl font-black text-primary mt-1"><?= fmtNum($tAir, 1) ?> <span class="text-sm text-slate-500 font-bold">m3</span></p>
         </div>
         <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">PIC Aktif</p>
@@ -352,7 +352,7 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                         <th class="px-2 sm:px-3 py-3 font-bold text-center whitespace-nowrap w-[95px] border-l border-slate-200" colspan="3">LISTRIK (kWh)</th>
                         <th class="px-2 sm:px-3 py-3 font-bold text-right whitespace-nowrap w-[100px] border-l border-slate-200">Solar (L)</th>
                         <th class="px-2 sm:px-3 py-3 font-bold text-center whitespace-nowrap w-[190px] border-l border-slate-200" colspan="2">GAS (Kg)</th>
-                        <th class="px-2 sm:px-3 py-3 font-bold text-center whitespace-nowrap w-[190px] border-l border-slate-200" colspan="2">AIR (m³)</th>
+                        <th class="px-2 sm:px-3 py-3 font-bold text-center whitespace-nowrap w-[190px] border-l border-slate-200" colspan="2">AIR (m3)</th>
                         <th class="px-2 sm:px-3 py-3 font-bold whitespace-nowrap w-[200px] border-l border-slate-200">PIC</th>
                         <th class="px-2 sm:px-3 py-3 pr-2 sm:pr-3 font-bold text-right whitespace-nowrap w-[130px]">Aksi</th>
                     </tr>
@@ -430,7 +430,7 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                                 <a href="<?= htmlspecialchars($_SERVER['PHP_SELF']) . '?' . http_build_query($qsEdit) ?>#editLogModal" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition" title="Edit">
                                     <i class="fas fa-pencil text-xs"></i>
                                 </a>
-                                <button type="button" onclick="alert('Detail:\nTanggal: <?= $tgl ?>\nShift: <?= $shiftLabel ?>\nPLN LWBP: <?= fmtNum($lwbp,1) ?> kWh\nPLN WBP:  <?= fmtNum($wbp,1) ?> kWh\nPLN TOTAL:<?= fmtNum($plnT,1) ?> kWh\nGenset:   <?= fmtNum($r['genset_kwh'],1) ?> kWh\nSolar:    <?= fmtNum($r['solar_liter'],1) ?> L\nGas LPG:  <?= fmtNum($gasLpg,1) ?> Kg\nGas LNG:  <?= fmtNum($gasLng,1) ?> Kg\nAir PDAM: <?= fmtNum($airPdam,1) ?> m³\nAir DW:   <?= fmtNum($airDw,1) ?> m³\nPIC: <?= htmlspecialchars($r['pic_name'] ?: '-') ?>\nNotes: <?= htmlspecialchars($r['notes'] ?: '-') ?>')" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition" title="Lihat Detail">
+                                <button type="button" onclick="alert('Detail:\nTanggal: <?= $tgl ?>\nShift: <?= $shiftLabel ?>\nPLN LWBP: <?= fmtNum($lwbp,1) ?> kWh\nPLN WBP:  <?= fmtNum($wbp,1) ?> kWh\nPLN TOTAL:<?= fmtNum($plnT,1) ?> kWh\nGenset:   <?= fmtNum($r['genset_kwh'],1) ?> kWh\nSolar:    <?= fmtNum($r['solar_liter'],1) ?> L\nGas LPG:  <?= fmtNum($gasLpg,1) ?> Kg\nGas LNG:  <?= fmtNum($gasLng,1) ?> Kg\nAir PDAM: <?= fmtNum($airPdam,1) ?> m3\nAir DW:   <?= fmtNum($airDw,1) ?> m3\nPIC: <?= htmlspecialchars($r['pic_name'] ?: '-') ?>\nNotes: <?= htmlspecialchars($r['notes'] ?: '-') ?>')" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition" title="Lihat Detail">
                                     <i class="fas fa-eye text-xs"></i>
                                 </button>
                                 <a href="<?= htmlspecialchars($_SERVER['PHP_SELF']) . '?' . http_build_query($qsDel) ?>" onclick="return confirm('Yakin hapus log tanggal <?= $tgl ?> shift <?= $shiftLabel ?>?')" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition" title="Hapus">
@@ -549,11 +549,11 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                                 <input type="number" step="0.01" min="0" name="gas_lng_kg" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
                             </div>
                             <div>
-                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Air PDAM (m³)</label>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Air PDAM (m3)</label>
                                 <input type="number" step="0.01" min="0" name="air_m3" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
                             </div>
                             <div>
-                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Deep Well (m³)</label>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Deep Well (m3)</label>
                                 <input type="number" step="0.01" min="0" name="air_deep_well_m3" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
                             </div>
                         </div>
@@ -673,11 +673,11 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                                 <input type="number" step="0.01" min="0" name="gas_lng_kg" value="<?= (float)($editData['gas_lng_kg'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
                             </div>
                             <div>
-                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Air PDAM (m³)</label>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Air PDAM (m3)</label>
                                 <input type="number" step="0.01" min="0" name="air_m3" value="<?= (float)($editData['air_m3'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
                             </div>
                             <div>
-                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Deep Well (m³)</label>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Deep Well (m3)</label>
                                 <input type="number" step="0.01" min="0" name="air_deep_well_m3" value="<?= (float)($editData['air_deep_well_m3'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
                             </div>
                         </div>
