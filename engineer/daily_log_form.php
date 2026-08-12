@@ -427,10 +427,33 @@ require_once __DIR__ . '/../includes/navbar.php';
         <!-- 0 PALING ATAS: PILIH SHIFT PAGI / SIANG / MALAM (Permintaan WA — INFO CATATAN SAJA, 1 Tanggal Tetap 1 Log) -->
         <?php
             $curShiftVal = (!empty($log['shift']) && in_array($log['shift'], $allShifts, true)) ? (string)$log['shift'] : $defaultShiftNow;
+            // CATATAN: CSS visual 100% pakai Tailwind peer-checked:* pattern (tanpa reload, klik user langsung UPDATE WARNA card).
+            //          PHP $isSel HANYA dipakai untuk attribute checked di <input> (menentukan default state pertama load).
             $shiftMeta = [
-                'pagi'  => ['label' => 'Pagi',  'icon' => 'fa-sun-plant-wilt', 'ring' => 'focus:ring-amber-500/30',  'active-bg' => 'bg-gradient-to-br from-yellow-500 to-amber-600', 'active-txt' => 'text-white', 'active-border' => 'border-amber-700',  'idle' => 'bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100'],
-                'siang' => ['label' => 'Siang', 'icon' => 'fa-sun',              'ring' => 'focus:ring-sky-500/30',    'active-bg' => 'bg-gradient-to-br from-sky-500 to-indigo-600',    'active-txt' => 'text-white', 'active-border' => 'border-indigo-700', 'idle' => 'bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100'],
-                'malam' => ['label' => 'Malam', 'icon' => 'fa-moon-stars',       'ring' => 'focus:ring-indigo-500/30', 'active-bg' => 'bg-gradient-to-br from-indigo-600 to-slate-900',  'active-txt' => 'text-white', 'active-border' => 'border-slate-700',  'idle' => 'bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100'],
+                'pagi'  => ['label' => 'Pagi',  'icon' => 'fa-sun-plant-wilt',
+                            'idle'   => 'bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100',
+                            'active' => 'peer-checked:bg-gradient-to-br peer-checked:from-yellow-500 peer-checked:to-amber-600 peer-checked:text-white peer-checked:border-amber-700 peer-checked:scale-[1.02] peer-checked:shadow-lg peer-checked:shadow-amber-500/30',
+                            'focus'  => 'focus:ring-amber-500/30',
+                            'icon_idle'   => 'bg-white shadow text-slate-700',
+                            'icon_active' => 'peer-checked:bg-white/25 peer-checked:backdrop-blur-sm peer-checked:text-white peer-checked:drop-shadow',
+                            'check_idle'  => 'border-current opacity-40 bg-transparent text-transparent',
+                            'check_active'=> 'peer-checked:border-white peer-checked:bg-white peer-checked:text-slate-800 peer-checked:opacity-100'],
+                'siang' => ['label' => 'Siang', 'icon' => 'fa-sun',
+                            'idle'   => 'bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100',
+                            'active' => 'peer-checked:bg-gradient-to-br peer-checked:from-sky-500 peer-checked:to-indigo-600 peer-checked:text-white peer-checked:border-indigo-700 peer-checked:scale-[1.02] peer-checked:shadow-lg peer-checked:shadow-sky-500/30',
+                            'focus'  => 'focus:ring-sky-500/30',
+                            'icon_idle'   => 'bg-white shadow text-slate-700',
+                            'icon_active' => 'peer-checked:bg-white/25 peer-checked:backdrop-blur-sm peer-checked:text-white peer-checked:drop-shadow',
+                            'check_idle'  => 'border-current opacity-40 bg-transparent text-transparent',
+                            'check_active'=> 'peer-checked:border-white peer-checked:bg-white peer-checked:text-slate-800 peer-checked:opacity-100'],
+                'malam' => ['label' => 'Malam', 'icon' => 'fa-moon-stars',
+                            'idle'   => 'bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100',
+                            'active' => 'peer-checked:bg-gradient-to-br peer-checked:from-indigo-600 peer-checked:to-slate-900 peer-checked:text-white peer-checked:border-slate-700 peer-checked:scale-[1.02] peer-checked:shadow-lg peer-checked:shadow-indigo-500/30',
+                            'focus'  => 'focus:ring-indigo-500/30',
+                            'icon_idle'   => 'bg-white shadow text-slate-700',
+                            'icon_active' => 'peer-checked:bg-white/25 peer-checked:backdrop-blur-sm peer-checked:text-white peer-checked:drop-shadow',
+                            'check_idle'  => 'border-current opacity-40 bg-transparent text-transparent',
+                            'check_active'=> 'peer-checked:border-white peer-checked:bg-white peer-checked:text-slate-800 peer-checked:opacity-100'],
             ];
         ?>
         <div class="bg-surface rounded-premium border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 30ms">
@@ -445,26 +468,37 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <div class="grid grid-cols-3 gap-3 md:gap-4">
                     <?php foreach ($shiftMeta as $sKey => $s):
                         $isSel = ($curShiftVal === $sKey);
+                        $radioId = 'shift_radio_' . $sKey;
                     ?>
-                        <label class="group relative cursor-pointer select-none">
-                            <input type="radio" name="shift" value="<?= $sKey ?>" class="peer sr-only" <?= $isSel ? 'checked' : '' ?>>
-                            <div class="h-full rounded-2xl border-2 p-4 md:p-6 transition-all duration-200 peer-checked:shadow-lg peer-focus:outline-none peer-focus:ring-4 <?= $s['ring'] ?>
-                                <?= $isSel ? $s['active-bg'].' '.$s['active-txt'].' '.$s['active-border'].' scale-[1.02] shadow-lg' : $s['idle'].' border' ?>">
-                                <div class="flex flex-col items-center justify-center text-center gap-2.5">
-                                    <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-md
-                                        <?= $isSel ? 'bg-white/25 backdrop-blur-sm' : 'bg-white shadow' ?>">
-                                        <i class="fas <?= $s['icon'] ?> text-xl <?= $isSel ? 'text-white drop-shadow' : 'text-slate-700' ?>"></i>
-                                    </div>
-                                    <div class="flex flex-col pt-1">
-                                        <span class="font-black uppercase tracking-[0.16em] text-[17px] md:text-[20px] leading-none"><?= $s['label'] ?></span>
-                                    </div>
-                                    <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center mt-1 transition
-                                        <?= $isSel ? 'border-white bg-white text-slate-800' : 'border-current opacity-60 bg-transparent group-hover:opacity-100' ?>">
-                                        <?php if ($isSel): ?><i class="fas fa-check text-[11px]"></i><?php endif; ?>
+                        <div class="group relative w-full">
+                            <input
+                                type="radio"
+                                name="shift"
+                                id="<?= $radioId ?>"
+                                value="<?= $sKey ?>"
+                                class="peer sr-only"
+                                <?= $isSel ? 'checked' : '' ?>
+                            >
+                            <label for="<?= $radioId ?>" class="block w-full cursor-pointer select-none">
+                                <div class="h-full w-full rounded-2xl border-2 p-4 md:p-6 transition-all duration-200 ease-out
+                                            peer-focus:outline-none peer-focus:ring-4 <?= $s['focus'] ?>
+                                            <?= $s['idle'] ?> <?= $s['active'] ?>">
+                                    <div class="flex flex-col items-center justify-center text-center gap-2.5">
+                                        <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-md
+                                                    <?= $s['icon_idle'] ?> <?= $s['icon_active'] ?>">
+                                            <i class="fas <?= $s['icon'] ?> text-xl"></i>
+                                        </div>
+                                        <div class="flex flex-col pt-1">
+                                            <span class="font-black uppercase tracking-[0.16em] text-[17px] md:text-[20px] leading-none"><?= $s['label'] ?></span>
+                                        </div>
+                                        <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center mt-1 transition-all duration-150
+                                                    <?= $s['check_idle'] ?> <?= $s['check_active'] ?>">
+                                            <i class="fas fa-check text-[11px]"></i>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </label>
+                            </label>
+                        </div>
                     <?php endforeach; ?>
                 </div>
                 <?php if (!empty($log) && empty($log['shift'])): ?>
@@ -475,12 +509,12 @@ require_once __DIR__ . '/../includes/navbar.php';
             </div>
         </div>
 
-        <!-- ⑧ OCCUPANCY RATE (OCC %) - PALING ATAS SENDIRI SESUAI REQUEST -->
+        <!--  CCUPANCY RATE (OCC %) - PALING ATAS SENDIRI SESUAI REQUEST -->
         <div class="bg-surface rounded-premium border border-accent/40 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 50ms">
             <div class="px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-100/60">
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 via-yellow-500 to-amber-700 flex items-center justify-center text-white shadow-md shadow-amber-500/30"><i class="fas fa-bed text-sm"></i></span>
-                    <?= T('form_occ_title', 'Occupancy Rate (OCC %) • Tingkat Hunian Kamar') ?>
+                    <?= T( 'Occupancy Rate (OCC %) • Tingkat Hunian Kamar') ?>
                 </h3>
                 <p class="text-xs text-secondary mt-0.5"><?= T('form_occ_sub', 'Isi persentase kamar terisi hari ini (0 - 100%) • Data acuan compare utility consumption') ?></p>
             </div>
@@ -780,7 +814,7 @@ HTML;
             <div class="px-5 lg:px-6 py-4 border-b border-orange-100/80 bg-gradient-to-r from-orange-50/90 via-orange-50/60 to-amber-50/70">
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white shadow-md shadow-orange-500/30"><i class="fas fa-fire text-sm"></i></span>
-                    <?= T('form_gas_title', '③ Gas Konsumsi - LPG & LNG (kg)') ?>
+                    <?= T( 'Gas Konsumsi - LPG & LNG (kg)') ?>
                 </h3>
                 <p class="text-xs text-secondary mt-0.5"><?= T('form_gas_sub', 'Isi masing-masing tipe gas — Total auto dijumlah') ?></p>
             </div>
@@ -820,7 +854,7 @@ HTML;
             <div class="px-5 lg:px-6 py-4 border-b border-cyan-100/80 bg-gradient-to-r from-cyan-50/90 via-teal-50/60 to-emerald-50/70">
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-teal-600 flex items-center justify-center text-white shadow-md shadow-cyan-500/30"><i class="fas fa-water text-sm"></i></span>
-                    <?= T('form_swro_title', '④ SWRO - Sea Water Reverse Osmosis') ?>
+                    <?= T( 'SWRO - Sea Water Reverse Osmosis') ?>
                 </h3>
                 <p class="text-xs text-secondary mt-0.5"><?= T('form_swro_sub', 'Water meter produksi air bersih, listrik kWh, & TDS (ppm)') ?></p>
             </div>
