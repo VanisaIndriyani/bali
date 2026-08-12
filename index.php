@@ -81,11 +81,16 @@ $todayData = $db->fetchOne("SELECT * FROM daily_logs WHERE log_date = ? $statusW
  * Aggregation: 'SUM' atau 'AVG'
  * Return: [elec, water, gas, fuel, cnt, cnt_en]
  * ============================================================ */
-function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFrom, $dateTo, $agg = 'SUM') {
+function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFrom, $dateTo, $agg = 'SUM', $fallbackTariffs = null) {
     $isSum = ($agg !== 'AVG');
     $aggFn = $isSum ? 'SUM' : 'AVG';
     $aggFnNull = $isSum ? 'SUM' : 'AVG';
     $cntFn  = 'COUNT';
+    if (!is_array($fallbackTariffs)) $fallbackTariffs = ['electricity_per_kwh'=>1850,'water_per_m3'=>9600,'gas_per_kg'=>24500,'fuel_per_liter'=>17450];
+    $ftEL = (int)($fallbackTariffs['electricity_per_kwh'] ?? 1850);
+    $ftWA = (int)($fallbackTariffs['water_per_m3']       ?? 9600);
+    $ftGA = (int)($fallbackTariffs['gas_per_kg']         ?? 24500);
+    $ftFU = (int)($fallbackTariffs['fuel_per_liter']     ?? 17450);
     $debug = (isset($_GET['_dbg']) && currentUser() && in_array((string)(currentUser()['role'] ?? ''), ['manager','admin','supervisor'], true));
 
     /* --- (A) daily_logs (primary legacy) --- */
@@ -95,22 +100,41 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
             COALESCE($aggFn(CAST(total_water AS DECIMAL(18,4))),0) as water,
             COALESCE($aggFn(CAST(total_gas AS DECIMAL(18,4))),0) as gas,
             COALESCE($aggFn(CAST(total_fuel AS DECIMAL(18,4))),0) as fuel,
-            COALESCE($cntFn(*),0) as cnt
+            COALESCE($cntFn(*),0) as cnt,
+            /* ✅ COST using PER-LOG TARIFF SNAPSHOT (jika ada), fallback global tariff (backward compat data lama) */
+            COALESCE($aggFn(
+                CAST(COALESCE(total_electricity,0) AS DECIMAL(18,4))
+                * CAST(COALESCE(NULLIF(tariff_electricity_per_kwh,0), {$ftEL}) AS DECIMAL(18,4))
+            ),0) as cost_elec,
+            COALESCE($aggFn(
+                CAST(COALESCE(total_water,0) AS DECIMAL(18,4))
+                * CAST(COALESCE(NULLIF(tariff_water_per_m3,0),       {$ftWA}) AS DECIMAL(18,4))
+            ),0) as cost_water,
+            COALESCE($aggFn(
+                CAST(COALESCE(total_gas,0) AS DECIMAL(18,4))
+                * CAST(COALESCE(NULLIF(tariff_gas_per_kg,0),         {$ftGA}) AS DECIMAL(18,4))
+            ),0) as cost_gas,
+            COALESCE($aggFn(
+                CAST(COALESCE(total_fuel,0) AS DECIMAL(18,4))
+                * CAST(COALESCE(NULLIF(tariff_fuel_per_liter,0),     {$ftFU}) AS DECIMAL(18,4))
+            ),0) as cost_fuel
         FROM daily_logs
         WHERE DATE(log_date) BETWEEN ? AND ? AND $approvedWhereDaily";
         $d = $db->fetchOne($sqlD, [$dateFrom, $dateTo]);
         if ($debug) { echo "<div style='display:none' class='_dbg_merge'>DAILY: SQL=$sqlD | params=$dateFrom,$dateTo | result=".json_encode($d)."</div>\n"; }
     } catch (Throwable $e) {
-        $d = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0];
+        $d = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0,'cost_elec'=>0,'cost_water'=>0,'cost_gas'=>0,'cost_fuel'=>0];
         if ($debug) { echo "<div style='display:none' class='_dbg_merge'>DAILY ERROR: ".$e->getMessage()."</div>\n"; }
         else { error_log('utilFetchBoth_Db daily_logs ERROR: '.$e->getMessage()); }
     }
-    if (!$d) $d = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0];
+    if (!$d) $d = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0,'cost_elec'=>0,'cost_water'=>0,'cost_gas'=>0,'cost_fuel'=>0];
     $d['elec']=(float)($d['elec']??0); $d['water']=(float)($d['water']??0);
     $d['gas']=(float)($d['gas']??0); $d['fuel']=(float)($d['fuel']??0);
     $d['cnt']=(int)($d['cnt']??0);
+    $d['cost_elec']=(float)($d['cost_elec']??0); $d['cost_water']=(float)($d['cost_water']??0);
+    $d['cost_gas']=(float)($d['cost_gas']??0); $d['cost_fuel']=(float)($d['cost_fuel']??0);
 
-    /* --- (B) energy_logs (energy_logsheet.php input user) --- */
+    /* --- (B) energy_logs (energy_logsheet.php input user) - TIDAK ADA per-log tariff, pakai global fallback --- */
     try {
         $wE = ["DATE(log_date) BETWEEN ? AND ?"];
         $pE = [$dateFrom, $dateTo];
@@ -124,19 +148,37 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
             COALESCE($aggFn(CAST(COALESCE(air_m3,0) AS DECIMAL(18,4)) + CAST(COALESCE(air_deep_well_m3,0) AS DECIMAL(18,4))),0)                as water,
             COALESCE($aggFn(CAST(COALESCE(gas_kg,0) AS DECIMAL(18,4)) + CAST(COALESCE(gas_lng_kg,0) AS DECIMAL(18,4))),0)                      as gas,
             COALESCE($aggFn(CAST(COALESCE(solar_liter,0) AS DECIMAL(18,4))),0)                               as fuel,
-            COALESCE($cntFn(*),0) as cnt
+            COALESCE($cntFn(*),0) as cnt,
+            COALESCE($aggFn(
+                (CAST(pln_lwbp_kwh AS DECIMAL(18,4)) + CAST(pln_wbp_kwh AS DECIMAL(18,4)) + CAST(COALESCE(genset_kwh,0) AS DECIMAL(18,4)))
+                * {$ftEL}
+            ),0) as cost_elec,
+            COALESCE($aggFn(
+                (CAST(COALESCE(air_m3,0) AS DECIMAL(18,4)) + CAST(COALESCE(air_deep_well_m3,0) AS DECIMAL(18,4)))
+                * {$ftWA}
+            ),0) as cost_water,
+            COALESCE($aggFn(
+                (CAST(COALESCE(gas_kg,0) AS DECIMAL(18,4)) + CAST(COALESCE(gas_lng_kg,0) AS DECIMAL(18,4)))
+                * {$ftGA}
+            ),0) as cost_gas,
+            COALESCE($aggFn(
+                CAST(COALESCE(solar_liter,0) AS DECIMAL(18,4))
+                * {$ftFU}
+            ),0) as cost_fuel
         FROM energy_logs $whereE";
         $e = $db->fetchOne($sqlE, $pE);
         if ($debug) { echo "<div style='display:none' class='_dbg_merge'>ENERGY: SQL=$sqlE | params=".json_encode($pE)." | result=".json_encode($e)."</div>\n"; }
     } catch (Throwable $e) {
-        $e = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0];
+        $e = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0,'cost_elec'=>0,'cost_water'=>0,'cost_gas'=>0,'cost_fuel'=>0];
         if ($debug) { echo "<div style='display:none' class='_dbg_merge'>ENERGY ERROR: ".$e->getMessage()."</div>\n"; }
         else { error_log('utilFetchBoth_Db energy_logs ERROR: '.$e->getMessage()); }
     }
-    if (!$e) $e = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0];
+    if (!$e) $e = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0,'cost_elec'=>0,'cost_water'=>0,'cost_gas'=>0,'cost_fuel'=>0];
     $e['elec']=(float)($e['elec']??0); $e['water']=(float)($e['water']??0);
     $e['gas']=(float)($e['gas']??0); $e['fuel']=(float)($e['fuel']??0);
     $e['cnt']=(int)($e['cnt']??0);
+    $e['cost_elec']=(float)($e['cost_elec']??0); $e['cost_water']=(float)($e['cost_water']??0);
+    $e['cost_gas']=(float)($e['cost_gas']??0); $e['cost_fuel']=(float)($e['cost_fuel']??0);
 
     /* --- (C) MERGE: jika mode AVG jangan dijumlah mentok (hanya salah satu yg ada isinya pilih terbesar) --- */
     if ($isSum) {
@@ -148,6 +190,10 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
             'cnt'   => (int)($d['cnt']   + $e['cnt']),
             'cnt_d' => (int)$d['cnt'],
             'cnt_e' => (int)$e['cnt'],
+            'cost_elec'  => (float)($d['cost_elec']  + $e['cost_elec']),
+            'cost_water' => (float)($d['cost_water'] + $e['cost_water']),
+            'cost_gas'   => (float)($d['cost_gas']   + $e['cost_gas']),
+            'cost_fuel'  => (float)($d['cost_fuel']  + $e['cost_fuel']),
         ];
     } else {
         /* AVG: jika daily_logs ada data yang nonzero → prefer daily_logs; else pilih energy_logs (hindari double count) */
@@ -161,6 +207,10 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
             'cnt'   => (int)$s['cnt'],
             'cnt_d' => (int)$d['cnt'],
             'cnt_e' => (int)$e['cnt'],
+            'cost_elec'  => (float)$s['cost_elec'],
+            'cost_water' => (float)$s['cost_water'],
+            'cost_gas'   => (float)$s['cost_gas'],
+            'cost_fuel'  => (float)$s['cost_fuel'],
         ];
     }
     /* Backward compat: output key 'log_count' = cnt (biar line 101-104 lyXxxAvg TIDAK PERLU DIUBAH) */
@@ -169,14 +219,18 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
     return $out;
 }
 
+// ============ INISIALISASI TARIF (dipindah ke ATAS agar semua utilFetchBoth_Db dapat fallback akurat) ============
+$TARIF = getTariffSettings();
+function fmtRupiah($n) { if ($n <= 0) return '0'; return number_format((int)round($n), 0, ',', '.'); }
+
 // ============ â‘  UTILITY REPORT - LY (Last Year) vs TODAY ============
 $lyFrom = (int)$lastYear . '-01-01'; $lyTo = (int)$lastYear . '-12-31';
 $tyFrom = (int)$currentYear . '-01-01'; $tyTo = (int)$currentYear . '-12-31';
-$utilLY    = utilFetchBoth_Db($db, $approvedWhere, $userId, $userRole, $lyFrom, $lyTo, 'SUM');
-$utilToday = utilFetchBoth_Db($db, $approvedWhere, $userId, $userRole, $tyFrom, $tyTo, 'SUM');
+$utilLY    = utilFetchBoth_Db($db, $approvedWhere, $userId, $userRole, $lyFrom, $lyTo, 'SUM', $TARIF);
+$utilToday = utilFetchBoth_Db($db, $approvedWhere, $userId, $userRole, $tyFrom, $tyTo, 'SUM', $TARIF);
 
 /* todayElec/Water/Gas/Fuel per single date: MERGE kedua tabel */
-$todayBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $today, $today, 'SUM');
+$todayBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $today, $today, 'SUM', $TARIF);
 $todayElec  = (float)($todayBoth['elec']  ?? 0);
 $todayWater = (float)($todayBoth['water'] ?? 0);
 $todayGas   = (float)($todayBoth['gas']   ?? 0);
@@ -252,7 +306,7 @@ function buildActCount($db, $dateFrom, $dateTo, $statusWhere, $userRole, $userId
 $activitySum = buildActCount($db, $monthStart, $today, $statusWhere, $userRole, $userId);
 $todayAct    = buildActCount($db, $today,      $today, $statusWhere, $userRole, $userId);
 
-$_mtBoth = utilFetchBoth_Db($db, "status = 'approved' $statusWhere", $userId, $userRole, $monthStart, $today, 'SUM');
+$_mtBoth = utilFetchBoth_Db($db, "status = 'approved' $statusWhere", $userId, $userRole, $monthStart, $today, 'SUM', $TARIF);
 $monthlyElectricity = (float)($_mtBoth['elec']  ?? 0);
 $monthlyWater       = (float)($_mtBoth['water'] ?? 0);
 $monthlyGas         = (float)($_mtBoth['gas']   ?? 0);
@@ -372,35 +426,34 @@ $actListProj  = buildActivityListQuery($db, $userRole, $userId, 'project',     $
 $actListLand  = buildActivityListQuery($db, $userRole, $userId, 'landscape',   $monthStart, $today);
 
 // ============== 🔹 BARU: DAILY ENGINEERING SUMMARY REPORT DATA (Customer format kertas) 🔹 ==============
-$TARIF = getTariffSettings();
-function fmtRupiah($n) { if ($n <= 0) return '0'; return number_format((int)round($n), 0, ',', '.'); }
 
 // 1) UTILITY TODAY & LY — kalkulasi VALUE + COST per row (LY / TODAY)
 // TODAY: pakai MERGE daily_logs + energy_logs (data dari energy_logsheet.php)
-$_tBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $today, $today, 'SUM');
+// ✅ COST dihitung SQL pakai TARIF SNAPSHOT per-log (jika ada), fallback global TARIF settings
+$_tBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $today, $today, 'SUM', $TARIF);
 $elecToday  = (float)($_tBoth['elec']  ?? 0);
 $waterToday = (float)($_tBoth['water'] ?? 0);
 $gasToday   = (float)($_tBoth['gas']   ?? 0);
 $fuelToday  = (float)($_tBoth['fuel']  ?? 0);
+$costElecToday  = (float)($_tBoth['cost_elec']  ?? 0);
+$costWaterToday = (float)($_tBoth['cost_water'] ?? 0);
+$costGasToday   = (float)($_tBoth['cost_gas']   ?? 0);
+$costFuelToday  = (float)($_tBoth['cost_fuel']  ?? 0);
 unset($_tBoth);
-$costElecToday  = $elecToday  * $TARIF['electricity_per_kwh'];
-$costWaterToday = $waterToday * $TARIF['water_per_m3'];
-$costGasToday   = $gasToday   * $TARIF['gas_per_kg'];
-$costFuelToday  = $fuelToday  * $TARIF['fuel_per_liter'];
 
 // LY: Pakai data Last Year — AVG per day of SAME MONTH last year (bukan total) untuk cocok "per-day"
 $lySameMonth = (intval($lastYear)) . '-' . date('m') . '-01';
 $lySameMonthEnd = (intval($lastYear)) . '-' . date('m') . '-' . date('t', strtotime($lySameMonth));
-$_lBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $lySameMonth, $lySameMonthEnd, 'AVG');
+$_lBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $lySameMonth, $lySameMonthEnd, 'AVG', $TARIF);
 $elecLY  = (float)($_lBoth['elec']  ?? 0);
 $waterLY = (float)($_lBoth['water'] ?? 0);
 $gasLY   = (float)($_lBoth['gas']   ?? 0);
 $fuelLY  = (float)($_lBoth['fuel']  ?? 0);
+$costElecLY  = (float)($_lBoth['cost_elec']  ?? 0);
+$costWaterLY = (float)($_lBoth['cost_water'] ?? 0);
+$costGasLY   = (float)($_lBoth['cost_gas']   ?? 0);
+$costFuelLY  = (float)($_lBoth['cost_fuel']  ?? 0);
 unset($_lBoth);
-$costElecLY  = $elecLY  * $TARIF['electricity_per_kwh'];
-$costWaterLY = $waterLY * $TARIF['water_per_m3'];
-$costGasLY   = $gasLY   * $TARIF['gas_per_kg'];
-$costFuelLY  = $fuelLY  * $TARIF['fuel_per_liter'];
 
 // Helper: Display usage â€” rounding & unit
 function uUsage($n, $unit, $dec=0) {

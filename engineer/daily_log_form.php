@@ -7,7 +7,7 @@ $db = Database::getInstance();
 $user = currentUser();
 
 // ==============================================
-// 🔧 AUTO MIGRATION: Tambah 3 kolom KPI jika belum ada
+// 🔧 AUTO MIGRATION: Tambah 3 kolom KPI + 4 kolom Tarif jika belum ada
 // ==============================================
 $_dlMigFlag = $db->fetchAll("SHOW COLUMNS FROM daily_logs LIKE 'itr_score'");
 if (empty($_dlMigFlag)) {
@@ -18,6 +18,27 @@ if (empty($_dlMigFlag)) {
         $pdoMig->exec("ALTER TABLE daily_logs ADD COLUMN `gitb_rank` TINYINT UNSIGNED DEFAULT NULL COMMENT 'Guest in the Book Rank (KPI)' AFTER `mu_score`");
     } catch (\Throwable $e) { /* Already exists, safe ignore */ }
 }
+// --- 4 kolom TARIF SNAPSHOT per-log (tidak berubah ketika global tarif diupdate) ---
+$_dlMigFlag2 = $db->fetchAll("SHOW COLUMNS FROM daily_logs LIKE 'tariff_electricity_per_kwh'");
+if (empty($_dlMigFlag2)) {
+    try {
+        $pdoMig2 = $db->getConnection();
+        $afterCol = 'gitb_rank';
+        $cols = $db->fetchAll("SHOW COLUMNS FROM daily_logs");
+        $haveGitb = false; foreach ($cols as $c) if (strtolower($c['Field']) === 'gitb_rank') $haveGitb = true;
+        if (!$haveGitb) $afterCol = 'mu_score';
+        $colsLC = []; foreach ($cols as $c) $colsLC[strtolower($c['Field'])] = true;
+        if (!isset($colsLC['tariff_electricity_per_kwh']))
+            $pdoMig2->exec("ALTER TABLE daily_logs ADD COLUMN `tariff_electricity_per_kwh` INT UNSIGNED DEFAULT NULL COMMENT 'Snapshot Tarif PLN (Rp/kWh)' AFTER `{$afterCol}`");
+        if (!isset($colsLC['tariff_water_per_m3']))
+            $pdoMig2->exec("ALTER TABLE daily_logs ADD COLUMN `tariff_water_per_m3` INT UNSIGNED DEFAULT NULL COMMENT 'Snapshot Tarif PDAM (Rp/m3)' AFTER `tariff_electricity_per_kwh`");
+        if (!isset($colsLC['tariff_gas_per_kg']))
+            $pdoMig2->exec("ALTER TABLE daily_logs ADD COLUMN `tariff_gas_per_kg` INT UNSIGNED DEFAULT NULL COMMENT 'Snapshot Tarif LPG (Rp/kg)' AFTER `tariff_water_per_m3`");
+        if (!isset($colsLC['tariff_fuel_per_liter']))
+            $pdoMig2->exec("ALTER TABLE daily_logs ADD COLUMN `tariff_fuel_per_liter` INT UNSIGNED DEFAULT NULL COMMENT 'Snapshot Tarif Solar (Rp/Ltr)' AFTER `tariff_gas_per_kg`");
+    } catch (\Throwable $e) { /* Already exists, safe ignore */ }
+}
+unset($_dlMigFlag, $_dlMigFlag2, $cols, $colsLC);
 
 $date = $_GET['date'] ?? date('Y-m-d');
 if (!DateTime::createFromFormat('Y-m-d', $date) || $date > date('Y-m-d')) {
@@ -88,6 +109,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($gitbRank !== null && $gitbRank > 255) $gitbRank = 255;
     if ($itrScore !== null) { if ($itrScore < 0) $itrScore = 0; if ($itrScore > 999.99) $itrScore = 999.99; }
     if ($muScore  !== null) { if ($muScore  < 0) $muScore  = 0; if ($muScore  > 999.99) $muScore  = 999.99; }
+
+    // ⑧ TRIS. TARIF SNAPSHOT (per-log, permanen disimpan sesuai tanggal — tidak berubah jika global tarif dirubah besok)
+    // — Hak akses: Engineer = SELALU pakai snapshot dari global settings (tidak boleh rubah)
+    // — Hak akses: Supervisor / Manager = BISA override isi field manual (untuk penyesuaian nota PLN / tagihan asli)
+    $isRoleCanEditTariff = in_array(($user['role'] ?? ''), ['supervisor','manager','admin'], true);
+    $_defTar = getTariffSettings();
+    $cleanTarFn = function($key, $post, $default, $min, $max) use ($isRoleCanEditTariff, $_defTar) {
+        $fallback = (int)($_defTar[$key] ?? $default);
+        if (!$isRoleCanEditTariff) return $fallback > 0 ? $fallback : null; // engineer = lock pakai global
+        // Supervisor/Manager: cek apakah user isi POST? Jika kosong/ nol → pakai default global
+        $raw = $post[$key] ?? null;
+        if ($raw === null || $raw === '') return $fallback > 0 ? $fallback : null;
+        $v = (int)$raw;
+        if ($v <= 0) return $fallback > 0 ? $fallback : null;
+        if ($v < $min) $v = $min;
+        if ($v > $max) $v = $max;
+        return $v;
+    };
+    $tarElec = $cleanTarFn('electricity_per_kwh', $_POST, 1850, 100, 10000000);
+    $tarWater = $cleanTarFn('water_per_m3', $_POST, 9600, 100, 10000000);
+    $tarGas = $cleanTarFn('gas_per_kg', $_POST, 24500, 100, 10000000);
+    $tarFuel = $cleanTarFn('fuel_per_liter', $_POST, 17450, 100, 10000000);
+    unset($cleanTarFn, $_defTar);
 
     // ⑨ Activity Counters
     // -- Baru: Counter OTOMATIS dari Dynamic Activity Rows (bukan input manual lagi)
@@ -181,6 +225,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'itr_score' => $itrScore,
             'mu_score'  => $muScore,
             'gitb_rank' => $gitbRank,
+            // ⑧ TRIS. TARIF SNAPSHOT (Permanen per-tanggal, tidak berubah ketika global diupdate besok)
+            'tariff_electricity_per_kwh' => $tarElec,
+            'tariff_water_per_m3' => $tarWater,
+            'tariff_gas_per_kg' => $tarGas,
+            'tariff_fuel_per_liter' => $tarFuel,
             // ⑨ Activity Counters
             'activity_operation' => $actOp,
             'activity_maintenance' => $actMaint,
@@ -389,6 +438,98 @@ require_once __DIR__ . '/../includes/navbar.php';
                 </div>
             </div>
         </div>
+
+        <!-- ⑧ TRIS. TARIF BERLAKU HARI INI (SNAPSHOT permanen per-tanggal) -->
+        <?php
+        $roleCanEditTariff = in_array(($user['role'] ?? ''), ['supervisor','manager','admin'], true);
+        $_defTarNow = getTariffSettings();
+        // Default value: 1) Log existing > 0? ambil dari DB snapshot (jika supervisor edit, bisa rubah). 2) NULL / 0? pakai global default settings.
+        $tDef = [
+            'electricity' => ( !empty($log['tariff_electricity_per_kwh']) && (int)$log['tariff_electricity_per_kwh'] > 0 ) ? (int)$log['tariff_electricity_per_kwh'] : (int)($_defTarNow['electricity_per_kwh'] ?? 1850),
+            'water'       => ( !empty($log['tariff_water_per_m3']) && (int)$log['tariff_water_per_m3'] > 0 ) ? (int)$log['tariff_water_per_m3'] : (int)($_defTarNow['water_per_m3'] ?? 9600),
+            'gas'         => ( !empty($log['tariff_gas_per_kg']) && (int)$log['tariff_gas_per_kg'] > 0 ) ? (int)$log['tariff_gas_per_kg'] : (int)($_defTarNow['gas_per_kg'] ?? 24500),
+            'fuel'        => ( !empty($log['tariff_fuel_per_liter']) && (int)$log['tariff_fuel_per_liter'] > 0 ) ? (int)$log['tariff_fuel_per_liter'] : (int)($_defTarNow['fuel_per_liter'] ?? 17450),
+        ];
+        $tariffReadonly = $roleCanEditTariff ? '' : 'readonly tabindex="-1"';
+        $tariffCursorCls = $roleCanEditTariff ? '' : 'cursor-not-allowed opacity-90';
+        ?>
+        <div class="bg-surface rounded-premium border border-slate-200/70 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 90ms">
+            <div class="px-5 lg:px-6 py-4 border-b border-slate-100/80 bg-gradient-to-r from-slate-50 via-slate-100/70 to-zinc-50">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
+                    <h3 class="font-bold text-primary flex items-center gap-2">
+                        <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-600 via-zinc-700 to-slate-900 flex items-center justify-center text-white shadow-md shadow-slate-500/30"><i class="fas fa-receipt text-sm"></i></span>
+                        <?= T('form_tariff_title', 'Tarif Berlaku Hari Ini (Snapshot Permanen)') ?>
+                    </h3>
+                    <?php if (!$roleCanEditTariff): ?>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-[10.5px] font-black text-slate-600 uppercase tracking-wide">
+                        <i class="fas fa-lock text-[9px]"></i> Locked (Engineer)
+                    </span>
+                    <?php else: ?>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sky-50 border border-sky-200 text-[10.5px] font-black text-sky-700 uppercase tracking-wide">
+                        <i class="fas fa-unlock text-[9px]"></i> Bisa Diedit
+                    </span>
+                    <?php endif; ?>
+                </div>
+                <p class="text-xs text-secondary mt-0.5"><?= T('form_tariff_sub', 'Snapshot tarif sesuai tanggal ini • Biaya di Dashboard & PDF menggunakan nilai ini, TIDAK BERUBAH meskipun global tarif diupdate besok.') ?></p>
+            </div>
+            <div class="p-5 lg:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
+                <!-- 1. LISTRIK PLN -->
+                <div>
+                    <label class="block text-xs font-extrabold text-primary mb-1.5 tracking-wide">
+                        <i class="fas fa-bolt mr-1 text-amber-600"></i> Tarif Listrik PLN
+                    </label>
+                    <div class="relative">
+                        <input type="number" step="1" min="100" max="99999999"
+                               name="electricity_per_kwh" value="<?= $tDef['electricity'] ?>"
+                               <?= $tariffReadonly ?>
+                               class="w-full pl-3 pr-12 py-3 rounded-card border border-slate-300 bg-slate-50 text-lg font-black text-primary placeholder-secondary/50 focus:outline-none focus:border-slate-700 focus:ring-4 focus:ring-slate-700/10 focus:bg-white transition-all {$tariffCursorCls}">
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-700 font-black bg-white border border-slate-300 px-1.5 py-0.5 rounded-full">Rp/kWh</span>
+                    </div>
+                </div>
+                <!-- 2. AIR PDAM -->
+                <div>
+                    <label class="block text-xs font-extrabold text-primary mb-1.5 tracking-wide">
+                        <i class="fas fa-droplet mr-1 text-blue-600"></i> Tarif Air PDAM
+                    </label>
+                    <div class="relative">
+                        <input type="number" step="1" min="100" max="99999999"
+                               name="water_per_m3" value="<?= $tDef['water'] ?>"
+                               <?= $tariffReadonly ?>
+                               class="w-full pl-3 pr-12 py-3 rounded-card border border-slate-300 bg-slate-50 text-lg font-black text-primary placeholder-secondary/50 focus:outline-none focus:border-slate-700 focus:ring-4 focus:ring-slate-700/10 focus:bg-white transition-all {$tariffCursorCls}">
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-700 font-black bg-white border border-slate-300 px-1.5 py-0.5 rounded-full">Rp/m3</span>
+                    </div>
+                </div>
+                <!-- 3. GAS LPG -->
+                <div>
+                    <label class="block text-xs font-extrabold text-primary mb-1.5 tracking-wide">
+                        <i class="fas fa-fire mr-1 text-orange-600"></i> Tarif Gas LPG
+                    </label>
+                    <div class="relative">
+                        <input type="number" step="1" min="100" max="99999999"
+                               name="gas_per_kg" value="<?= $tDef['gas'] ?>"
+                               <?= $tariffReadonly ?>
+                               class="w-full pl-3 pr-12 py-3 rounded-card border border-slate-300 bg-slate-50 text-lg font-black text-primary placeholder-secondary/50 focus:outline-none focus:border-slate-700 focus:ring-4 focus:ring-slate-700/10 focus:bg-white transition-all {$tariffCursorCls}">
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-700 font-black bg-white border border-slate-300 px-1.5 py-0.5 rounded-full">Rp/kg</span>
+                    </div>
+                </div>
+                <!-- 4. SOLAR BBM -->
+                <div>
+                    <label class="block text-xs font-extrabold text-primary mb-1.5 tracking-wide">
+                        <i class="fas fa-gas-pump mr-1 text-rose-600"></i> Tarif Solar BBM
+                    </label>
+                    <div class="relative">
+                        <input type="number" step="1" min="100" max="99999999"
+                               name="fuel_per_liter" value="<?= $tDef['fuel'] ?>"
+                               <?= $tariffReadonly ?>
+                               class="w-full pl-3 pr-12 py-3 rounded-card border border-slate-300 bg-slate-50 text-lg font-black text-primary placeholder-secondary/50 focus:outline-none focus:border-slate-700 focus:ring-4 focus:ring-slate-700/10 focus:bg-white transition-all {$tariffCursorCls}">
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-700 font-black bg-white border border-slate-300 px-1.5 py-0.5 rounded-full">Rp/Ltr</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
+        unset($_defTarNow, $tDef, $tariffReadonly, $tariffCursorCls, $roleCanEditTariff);
+        ?>
 
         <!-- ① TOTAL LISTRIK - WBP LWBP -->
         <div class="bg-surface rounded-premium border border-amber-200/60 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 50ms">
