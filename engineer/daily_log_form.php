@@ -428,9 +428,9 @@ require_once __DIR__ . '/../includes/navbar.php';
         <?php
             $curShiftVal = (!empty($log['shift']) && in_array($log['shift'], $allShifts, true)) ? (string)$log['shift'] : $defaultShiftNow;
             $shiftMeta = [
-                'pagi'  => ['label' => 'Pagi',  'icon' => 'fa-sun-plant-wilt', 'ring' => 'focus:ring-amber-500/30',  'active-bg' => 'bg-gradient-to-br from-yellow-500 to-amber-600', 'active-txt' => 'text-white', 'active-border' => 'border-amber-700',  'idle' => 'bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100',   'jampicker' => '06:00 — 13:59'],
-                'siang' => ['label' => 'Siang', 'icon' => 'fa-sun',              'ring' => 'focus:ring-sky-500/30',    'active-bg' => 'bg-gradient-to-br from-sky-500 to-indigo-600',    'active-txt' => 'text-white', 'active-border' => 'border-indigo-700', 'idle' => 'bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100',         'jampicker' => '14:00 — 21:59'],
-                'malam' => ['label' => 'Malam', 'icon' => 'fa-moon-stars',       'ring' => 'focus:ring-indigo-500/30', 'active-bg' => 'bg-gradient-to-br from-indigo-600 to-slate-900',  'active-txt' => 'text-white', 'active-border' => 'border-slate-700',  'idle' => 'bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100','jampicker' => '22:00 — 05:59'],
+                'pagi'  => ['label' => 'Pagi',  'icon' => 'fa-sun-plant-wilt', 'ring' => 'focus:ring-amber-500/30',  'active-bg' => 'bg-gradient-to-br from-yellow-500 to-amber-600', 'active-txt' => 'text-white', 'active-border' => 'border-amber-700',  'idle' => 'bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100'],
+                'siang' => ['label' => 'Siang', 'icon' => 'fa-sun',              'ring' => 'focus:ring-sky-500/30',    'active-bg' => 'bg-gradient-to-br from-sky-500 to-indigo-600',    'active-txt' => 'text-white', 'active-border' => 'border-indigo-700', 'idle' => 'bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100'],
+                'malam' => ['label' => 'Malam', 'icon' => 'fa-moon-stars',       'ring' => 'focus:ring-indigo-500/30', 'active-bg' => 'bg-gradient-to-br from-indigo-600 to-slate-900',  'active-txt' => 'text-white', 'active-border' => 'border-slate-700',  'idle' => 'bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100'],
             ];
         ?>
         <div class="bg-surface rounded-premium border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 30ms">
@@ -448,16 +448,15 @@ require_once __DIR__ . '/../includes/navbar.php';
                     ?>
                         <label class="group relative cursor-pointer select-none">
                             <input type="radio" name="shift" value="<?= $sKey ?>" class="peer sr-only" <?= $isSel ? 'checked' : '' ?>>
-                            <div class="h-full rounded-2xl border-2 p-4 md:p-5 transition-all duration-200 peer-checked:shadow-lg peer-focus:outline-none peer-focus:ring-4 <?= $s['ring'] ?>
+                            <div class="h-full rounded-2xl border-2 p-4 md:p-6 transition-all duration-200 peer-checked:shadow-lg peer-focus:outline-none peer-focus:ring-4 <?= $s['ring'] ?>
                                 <?= $isSel ? $s['active-bg'].' '.$s['active-txt'].' '.$s['active-border'].' scale-[1.02] shadow-lg' : $s['idle'].' border' ?>">
-                                <div class="flex flex-col items-center justify-center text-center gap-2">
+                                <div class="flex flex-col items-center justify-center text-center gap-2.5">
                                     <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-md
                                         <?= $isSel ? 'bg-white/25 backdrop-blur-sm' : 'bg-white shadow' ?>">
                                         <i class="fas <?= $s['icon'] ?> text-xl <?= $isSel ? 'text-white drop-shadow' : 'text-slate-700' ?>"></i>
                                     </div>
-                                    <div class="flex flex-col">
-                                        <span class="font-black uppercase tracking-[0.14em] text-[15px] md:text-[17px] leading-none"><?= $s['label'] ?></span>
-                                        <span class="text-[10.5px] mt-1 opacity-75 font-medium italic">Rekomendasi jam<br><?= $s['jampicker'] ?></span>
+                                    <div class="flex flex-col pt-1">
+                                        <span class="font-black uppercase tracking-[0.16em] text-[17px] md:text-[20px] leading-none"><?= $s['label'] ?></span>
                                     </div>
                                     <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center mt-1 transition
                                         <?= $isSel ? 'border-white bg-white text-slate-800' : 'border-current opacity-60 bg-transparent group-hover:opacity-100' ?>">
