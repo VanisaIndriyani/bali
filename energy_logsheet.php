@@ -82,8 +82,12 @@ $_mig();
 $flashMsg = '';
 $flashType = '';
 
+$user = currentUser() ?: ['id' => 0, 'name' => 'User', 'role' => 'guest'];
 $userId = (int)($user['id'] ?? 0);
 $userName = trim((string)($user['name'] ?? 'User'));
+$userRole = (string)($user['role'] ?? 'engineer');
+/* Fallback extra-safe (hindari Warning "Undefined variable $userRole" jika variabel dihapus): */
+if (!isset($userRole) || trim($userRole) === '') $userRole = 'engineer';
 
 function buildSectionData() {
     $sectionData = [
