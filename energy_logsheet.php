@@ -376,31 +376,33 @@ $shiftF = in_array(strtolower($shiftF), ['pagi','siang','malam'], true) ? strtol
 
 $where = [];
 $params = [];
-$where[] = "e.log_date BETWEEN ? AND ?";
+/* ⚡ ULTRA SAFE: WHERE clause SELALU DIBUAT DENGAN NAMA KOLOM POLOS (TANPA PREFIX ALIAS TABLE!)
+   Kita TIDAK PERNAH pakai prefix di WHERE! Untuk query JOIN = WRAP JOIN jadi SUBQUERY (virtual table)
+   agar outer query cuma 1 table virtual → 100% TIDAK BISA ERROR 'Column ... is ambiguous' LAGI! */
+$where[] = "log_date BETWEEN ? AND ?";
 $params[] = $startDate;
 $params[] = $endDate;
 if ($shiftF !== '') {
-    $where[] = "e.shift = ?";
+    $where[] = "shift = ?";
     $params[] = $shiftF;
 }
 /* Role filter: Engineer HANYA BOLEH LIHAT LOG DIA SENDIRI */
 if ($userRole === 'engineer') {
-    $wE = "e.created_by = ?";
     try {
         $colsExist = $db->fetchAll("SHOW COLUMNS FROM energy_logs LIKE 'created_by'");
-        if (!empty($colsExist)) { $where[] = $wE; $params[] = $userId; }
+        if (!empty($colsExist)) { $where[] = "created_by = ?"; $params[] = $userId; }
     } catch (Throwable $ex) { /* skip jika DB lama tidak punya kolom */ }
 }
-$whereSql = 'WHERE ' . implode(' AND ', $where);
-/* $whereSqlPlain = untuk query TANPA JOIN (hanya 1 table energy_logs) — HAPUS PREFIX e. di depan nama kolom! */
-$whereSqlPlain = str_replace(['e.log_date','e.shift','e.created_by'], ['log_date','shift','created_by'], $whereSql);
+$whereSqlPlain = 'WHERE ' . implode(' AND ', $where);
+/* Build versi PREFIX `e.` HANYA JIKA BUTUH untuk inner query (optional kita jaga biar work) */
+$whereSqlPrefixed = str_replace([' log_date',' shift',' created_by'], [' e.log_date',' e.shift',' e.created_by'], $whereSqlPlain);
 
 // ==============================================
 // 📊 SUMMARY 6 CARDS MINI
 // ==============================================
 $sumRow = $db->fetchOne(
     "SELECT COUNT(id) AS total_entri,
-            SUM(pln_lwbp_kwh + pln_wbp_kwh + COALESCE(genset_kwh,0)) AS total_kwh,
+            SUM(COALESCE(pln_lwbp_kwh,0) + COALESCE(pln_wbp_kwh,0) + COALESCE(genset_kwh,0)) AS total_kwh,
             SUM(COALESCE(solar_liter,0)) AS total_solar,
             SUM(COALESCE(gas_kg,0) + COALESCE(gas_lng_kg,0)) AS total_gas,
             SUM(COALESCE(air_m3,0) + COALESCE(air_deep_well_m3,0)) AS total_air,
@@ -422,13 +424,18 @@ function fmtNum($n, $dec = 1) {
 
 // ==============================================
 // 📋 QUERY LIST LOG (REAL DB) + LEFT JOIN EQUIPMENT
+// 🔥 ULTRA SAFE PATTERN: WRAP JOIN JADI SUBQUERY (virtual table 1 alias = x)
+//    WHERE clause outer query = PAKAI KOLOM POLOS → 100% TIDAK PERNAH ambiguous!
 // ==============================================
 $logs = $db->fetchAll(
-    "SELECT e.*, eq.section_data AS equip_section_data
-     FROM energy_logs e
-     LEFT JOIN equipment_logs eq ON e.equipment_id = eq.id
-     $whereSql
-     ORDER BY e.log_date DESC, FIELD(e.shift,'pagi','siang','malam'), e.id DESC",
+    "SELECT x.*
+     FROM (
+        SELECT e.*, eq.section_data AS equip_section_data
+        FROM energy_logs e
+        LEFT JOIN equipment_logs eq ON e.equipment_id = eq.id
+     ) x
+     $whereSqlPlain
+     ORDER BY x.log_date DESC, FIELD(x.shift,'pagi','siang','malam'), x.id DESC",
     $params
 );
 
