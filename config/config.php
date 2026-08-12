@@ -1,4 +1,11 @@
 <?php
+// 🔣 FORCE UTF-8 GLOBAL (Fix Hosting Mojibake Judul Grafik Emoji / Indo Chars)
+//    Cegah karakter jadi âš¡ / ðŸ’§ (UTF-8 bytes diinterpretasi Windows-1252)
+if (!headers_sent()) {
+    ini_set('default_charset', 'UTF-8');
+    if (function_exists('mb_internal_encoding')) mb_internal_encoding('UTF-8');
+    header('Content-Type: text/html; charset=utf-8');
+}
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'regist_bali_dailylog');
 define('DB_USER', 'root');

@@ -428,9 +428,9 @@ require_once __DIR__ . '/../includes/navbar.php';
         <?php
             $curShiftVal = (!empty($log['shift']) && in_array($log['shift'], $allShifts, true)) ? (string)$log['shift'] : $defaultShiftNow;
             $shiftMeta = [
-                'pagi'  => ['label' => 'Pagi',  'icon' => 'fa-sun-plant-wilt', 'active-bg' => 'bg-gradient-to-br from-yellow-500 to-amber-600', 'active-txt' => 'text-white', 'active-border' => 'border-amber-700', 'idle' => 'bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100', 'jampicker' => '06:00 — 13:59'],
-                'siang' => ['label' => 'Siang', 'icon' => 'fa-sun',              'active-bg' => 'bg-gradient-to-br from-sky-500 to-indigo-600',    'active-txt' => 'text-white', 'active-border' => 'border-indigo-700', 'idle' => 'bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100',       'jampicker' => '14:00 — 21:59'],
-                'malam' => ['label' => 'Malam', 'icon' => 'fa-moon-stars',       'active-bg' => 'bg-gradient-to-br from-indigo-600 to-slate-900',  'active-txt' => 'text-white', 'active-border' => 'border-slate-700', 'idle' => 'bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100','jampicker' => '22:00 — 05:59'],
+                'pagi'  => ['label' => 'Pagi',  'icon' => 'fa-sun-plant-wilt', 'ring' => 'focus:ring-amber-500/30',  'active-bg' => 'bg-gradient-to-br from-yellow-500 to-amber-600', 'active-txt' => 'text-white', 'active-border' => 'border-amber-700',  'idle' => 'bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100',   'jampicker' => '06:00 — 13:59'],
+                'siang' => ['label' => 'Siang', 'icon' => 'fa-sun',              'ring' => 'focus:ring-sky-500/30',    'active-bg' => 'bg-gradient-to-br from-sky-500 to-indigo-600',    'active-txt' => 'text-white', 'active-border' => 'border-indigo-700', 'idle' => 'bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100',         'jampicker' => '14:00 — 21:59'],
+                'malam' => ['label' => 'Malam', 'icon' => 'fa-moon-stars',       'ring' => 'focus:ring-indigo-500/30', 'active-bg' => 'bg-gradient-to-br from-indigo-600 to-slate-900',  'active-txt' => 'text-white', 'active-border' => 'border-slate-700',  'idle' => 'bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100','jampicker' => '22:00 — 05:59'],
             ];
         ?>
         <div class="bg-surface rounded-premium border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 30ms">
