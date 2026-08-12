@@ -78,9 +78,31 @@ $_mig();
 
 // ==============================================
 // 🧾 HANDLE ACTION: INSERT / UPDATE / DELETE
+// 🔥 POST-REDIRECT-GET (PRG) PATTERN WAJIB! Cegah DOUBLE INSERT saat F5 refresh
 // ==============================================
 $flashMsg = '';
 $flashType = '';
+
+/* 1. Load session flash message JIKA ADA (dari redirect POST sukses sebelumnya) lalu HAPUS session! */
+if (session_status() === PHP_SESSION_NONE) { @session_start(); }
+if (isset($_SESSION['energy_logsheet_flash_msg']) && is_string($_SESSION['energy_logsheet_flash_msg']) && $_SESSION['energy_logsheet_flash_msg'] !== '') {
+    $flashMsg = (string)$_SESSION['energy_logsheet_flash_msg'];
+    $flashType = (string)($_SESSION['energy_logsheet_flash_type'] ?? 'success');
+    unset($_SESSION['energy_logsheet_flash_msg'], $_SESSION['energy_logsheet_flash_type']);
+}
+
+/* 2. Helper redirect cepat: set flash, redirect 303 See Other (paksa browser next request = GET) */
+function _prgRedirect(string $msg, string $type = 'success', ?array $extraQs = null): void {
+    if (session_status() === PHP_SESSION_NONE) { @session_start(); }
+    $_SESSION['energy_logsheet_flash_msg']  = $msg;
+    $_SESSION['energy_logsheet_flash_type'] = $type;
+    $qs = $_GET;
+    if (is_array($extraQs)) $qs = array_replace($qs, $extraQs);
+    $url = $_SERVER['PHP_SELF'];
+    if (!empty($qs)) $url .= '?' . http_build_query($qs);
+    header('Location: ' . $url, true, 303); /* 303 = See Other, NEXT REQUEST PASTI GET (bukan resubmit POST!) */
+    exit;
+}
 
 $user = currentUser() ?: ['id' => 0, 'name' => 'User', 'role' => 'guest'];
 $userId = (int)($user['id'] ?? 0);
@@ -281,6 +303,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_l
 
     $flashMsg = '✅ Log energi baru berhasil ditambahkan.';
     $flashType = 'success';
+    _prgRedirect($flashMsg, $flashType, ['_s' => 'ok']);
 }
 
 // Action: UPDATE LOG (POST)
@@ -350,6 +373,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit_
 
         $flashMsg = '✅ Log energi berhasil diupdate.';
         $flashType = 'success';
+        _prgRedirect($flashMsg, $flashType, ['_u' => 'ok']);
     }
 }
 
@@ -362,6 +386,8 @@ if (isset($_GET['delete']) && ctype_digit($_GET['delete'])) {
             $db->delete('energy_logs', 'id = ?', [$id]);
             $flashMsg = '🗑️ Log energi berhasil dihapus.';
             $flashType = 'success';
+            $qsDel = $_GET; unset($qsDel['delete']);
+            _prgRedirect($flashMsg, $flashType, $qsDel + ['_d' => 'ok']);
         }
     }
 }
@@ -442,6 +468,53 @@ $logs = $db->fetchAll(
      ORDER BY x.log_date DESC, FIELD(x.shift,'pagi','siang','malam'), x.id DESC",
     $params
 );
+
+// =========================================================
+// 🔎 BUILD DETAIL DATA MAP (UNTUK MODAL VIEW DETAIL 9 TABS)
+//    Simpan ke array PHP lalu di-json_encode ke inline JS
+// =========================================================
+$shiftLabelMapGlobal = [
+    'pagi'  => 'Pagi (07.00 - 15.00)',
+    'siang' => 'Siang (15.00 - 23.00)',
+    'malam' => 'Malam (23.00 - 07.00)',
+];
+$viewLogDataMap = [];
+foreach ($logs as $r) {
+    $id = (int)$r['id'];
+    $secData = null;
+    if (!empty($r['equip_section_data'])) {
+        $dec = json_decode((string)$r['equip_section_data'], true);
+        if (is_array($dec)) $secData = $dec;
+    }
+    $shiftLabel = $shiftLabelMapGlobal[$r['shift']] ?? ucfirst($r['shift']);
+    $tgl = (new DateTime($r['log_date']))->format('d M Y');
+    $lwbp = (float)($r['pln_lwbp_kwh'] ?? 0);
+    $wbp  = (float)($r['pln_wbp_kwh'] ?? 0);
+    $plnT = $lwbp + $wbp;
+    $viewLogDataMap[$id] = [
+        'meta' => [
+            'tanggal'   => $tgl,
+            'tanggal_raw' => $r['log_date'],
+            'shift'     => $shiftLabel,
+            'shift_raw' => $r['shift'],
+            'pic'       => $r['pic_name'] ?? '-',
+            'notes'     => $r['notes'] ?? '',
+            'id'        => $id,
+        ],
+        'energi' => [
+            'lwbp'      => $lwbp,
+            'wbp'       => $wbp,
+            'pln_total' => $plnT,
+            'genset'    => (float)($r['genset_kwh'] ?? 0),
+            'solar'     => (float)($r['solar_liter'] ?? 0),
+            'gas_lpg'   => (float)($r['gas_kg'] ?? 0),
+            'gas_lng'   => (float)($r['gas_lng_kg'] ?? 0),
+            'air_pdam'  => (float)($r['air_m3'] ?? 0),
+            'air_dw'    => (float)($r['air_deep_well_m3'] ?? 0),
+        ],
+        'sec' => is_array($secData) ? $secData : [],
+    ];
+}
 
 // Helper: cek apakah suatu section punya nilai non-zero / non-empty
 function sectionHasData($node) {
@@ -775,7 +848,7 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                                 <a href="<?= htmlspecialchars($_SERVER['PHP_SELF']) . '?' . http_build_query($qsEdit) ?>#editLogModal" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition" title="Edit">
                                     <i class="fas fa-pencil text-xs"></i>
                                 </a>
-                                <button type="button" onclick="alert('Detail:\nTanggal: <?= $tgl ?>\nShift: <?= $shiftLabel ?>\nPLN LWBP: <?= fmtNum($lwbp,1) ?> kWh\nPLN WBP:  <?= fmtNum($wbp,1) ?> kWh\nPLN TOTAL:<?= fmtNum($plnT,1) ?> kWh\nGenset:   <?= fmtNum($r['genset_kwh'],1) ?> kWh\nSolar:    <?= fmtNum($r['solar_liter'],1) ?> L\nGas LPG:  <?= fmtNum($gasLpg,1) ?> Kg\nGas LNG:  <?= fmtNum($gasLng,1) ?> Kg\nAir PDAM: <?= fmtNum($airPdam,1) ?> m3\nAir DW:   <?= fmtNum($airDw,1) ?> m3\nPIC: <?= htmlspecialchars($r['pic_name'] ?: '-') ?>\nNotes: <?= htmlspecialchars($r['notes'] ?: '-') ?>')" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition" title="Lihat Detail">
+                                <button type="button" onclick="openViewModal(<?= (int)$r['id'] ?>)" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition" title="Lihat Detail Lengkap 9 Section">
                                     <i class="fas fa-eye text-xs"></i>
                                 </button>
                                 <a href="<?= htmlspecialchars($_SERVER['PHP_SELF']) . '?' . http_build_query($qsDel) ?>" onclick="return confirm('Yakin hapus log tanggal <?= $tgl ?> shift <?= $shiftLabel ?>?')" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition" title="Hapus">
@@ -2282,6 +2355,340 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
     bindAdd();
     bindEdit();
 })();
+
+/* =========================================================
+   🔍 MODAL DETAIL LOG 9-SECTIONS (VIEW MODE)
+   ========================================================= */
+const viewLogDataMap = <?= json_encode($viewLogDataMap, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+(function(){
+    function fmt(n, d){
+        n = parseFloat(n || 0); if (isNaN(n)) n = 0;
+        return n.toLocaleString('id-ID', {minimumFractionDigits: (d ?? 1), maximumFractionDigits: (d ?? 1)});
+    }
+    function esc(s){ if (s === null || s === undefined) return ''; return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+    function hasNonEmpty(v){ if(v === null || v === undefined) return false; if (Array.isArray(v) || typeof v === 'object'){ for (const k of Object.keys(v)) if (hasNonEmpty(v[k])) return true; return false; } const s = String(v).trim(); return s !== '' && s !== '0' && s !== '0.0' && s !== 'off' && s !== '-'; }
+    function statCard(label, val, unit, colorText, colorBg){
+        return `<div class="rounded-2xl border border-slate-200 p-3 sm:p-4 ${colorBg || 'bg-white'}">
+            <div class="text-[10px] uppercase tracking-wider font-black text-slate-500 mb-1.5">${esc(label)}</div>
+            <div class="flex items-baseline gap-1.5">
+                <div class="text-xl sm:text-2xl font-black tabular-nums ${colorText || 'text-slate-900'}">${esc((typeof val === 'number') ? fmt(val,1) : (val ?? '-'))}</div>
+                ${unit ? `<div class="text-[10px] font-bold text-slate-500">${esc(unit)}</div>` : ''}
+            </div>
+        </div>`;
+    }
+    function secGroup(title, body){
+        return `<div class="mb-5"><h3 class="text-xs font-black uppercase tracking-wider text-slate-500 mb-2">${esc(title)}</h3>
+            <div class="border border-slate-200 rounded-2xl p-3 sm:p-4 bg-slate-50/70 space-y-3">${body}</div></div>`;
+    }
+    function kv(label, value, unit){
+        const v = (value === null || value === undefined || value === '') ? '<span class="text-slate-300 italic text-xs">—</span>' : esc((typeof value === 'number') ? (unit ? fmt(value,1) : fmt(value,2)) : String(value));
+        const u = unit ? `<span class="ml-1 text-slate-400 text-[10px] font-bold">${esc(unit)}</span>` : '';
+        return `<div class="grid grid-cols-3 gap-2 items-baseline border-b border-slate-100 pb-1.5 last:border-b-0 last:pb-0">
+            <div class="col-span-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">${esc(label)}</div>
+            <div class="col-span-2 text-sm font-bold text-primary tabular-nums">${v}${u}</div>
+        </div>`;
+    }
+
+    function renderTabEnergi(d){
+        const e = d.energi;
+        return `<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            ${statCard('PLN LWBP', e.lwbp, 'kWh', 'text-sky-700')}
+            ${statCard('PLN WBP', e.wbp, 'kWh', 'text-sky-700')}
+            ${statCard('PLN TOTAL', e.pln_total, 'kWh', 'text-white bg-slate-900')}
+            ${statCard('Genset', e.genset, 'kWh', 'text-amber-700')}
+            ${statCard('Solar', e.solar, 'Liter', 'text-orange-700')}
+            ${statCard('Gas LPG', e.gas_lpg, 'Kg', 'text-rose-700')}
+            ${statCard('Gas LNG', e.gas_lng, 'Kg', 'text-rose-700')}
+            ${statCard('Air PDAM', e.air_pdam, 'm3', 'text-blue-700')}
+            ${statCard('Air Deep Well', e.air_dw, 'm3', 'text-blue-700')}
+        </div>`;
+    }
+    function renderTabTrafo(sec){
+        const u = (sec.trafo && sec.trafo.units) ? sec.trafo.units : {};
+        let body = '';
+        [1,2].forEach(n => {
+            const un = u[n] || {};
+            body += `<div class="mb-3 last:mb-0">
+                <h4 class="text-sm font-black mb-2 text-slate-700">🟦 Unit Trafo ${n}</h4>
+                <div class="border border-blue-100 rounded-xl bg-white p-3 space-y-2">
+                    ${kv('Temperature', un.temp_c, '°C')}
+                    ${kv('Ampere / LVDP', un.ampere_lvdp, 'A')}
+                    ${kv('Oil Level', un.oil_level_pct, '%')}
+                </div>
+            </div>`;
+        });
+        return body;
+    }
+    function renderTabGenset(sec){
+        const g = sec.genset || {};
+        let body = `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">`;
+        [1,2,3].forEach(n => { body += statCard(`🟨 Genset ${n}`, (g['genset_'+n]||{}).volt_v, 'Volt', 'text-amber-700'); });
+        body += `</div>`;
+        body += statCard('⛽ Fuel Tank', (g.fuel_tank||{}).liter, 'Liter', 'text-orange-700');
+        return body;
+    }
+    function renderTabPump(sec){
+        const pr = sec.pump_room || {};
+        let html = '';
+        // I Steam Boiler
+        const sb = pr.steam_boiler || {};
+        html += secGroup('I. Steam Boiler', `
+            ${kv('Unit Operation', sb.unit_op)}
+            ${kv('Running Hours 1', sb.running_hours_1, 'hr')}
+            ${kv('Running Hours 2', sb.running_hours_2, 'hr')}
+            ${kv('Water Test TDS', sb.water_test_tds, 'ppm')}
+            ${kv('Water Test PH', sb.water_test_ph)}
+            ${kv('Steam Pressure', sb.steam_pressure_kgcm2, 'kg/cm2')}
+            ${kv('Time Blow Down', sb.time_blow_down)}
+            ${kv('Economizer Temp', sb.economizer_temp_c, '°C')}
+            ${kv('Economizer Press.', sb.economizer_press, 'psi / kg/cm2')}
+        `);
+        // II HWB
+        const hw = pr.hot_water_boiler || {};
+        html += secGroup('II. Hot Water Boiler (HWB)', `
+            ${kv('Unit Operation', hw.unit_op)}
+            ${kv('Running Hours 1', hw.running_hours_1, 'hr')}
+            ${kv('Running Hours 2', hw.running_hours_2, 'hr')}
+            ${kv('Hot Water Temp', hw.hot_water_temp_c, '°C')}
+            ${kv('Hot Water Test TDS', hw.hot_water_test_tds, 'ppm')}
+            ${kv('Hot Water Test PH', hw.hot_water_test_ph)}
+            ${kv('Op. Circulation Pump', hw.unit_op_circ_pump)}
+            ${kv('Flow Pressure', hw.flow_press, 'psi / kg/cm2')}
+            ${kv('Return Pressure', hw.return_press, 'psi / kg/cm2')}
+        `);
+        // III Ground Tank
+        const gt = pr.ground_tank || {};
+        html += secGroup('III. Ground Tank', `
+            ${kv('Row Tank Level / TDS / PH', (gt.row_tank_level_pct ?? '-') + (gt.row_tank_tds_ph ? ' / '+gt.row_tank_tds_ph : ''))}
+            ${kv('Treated Tank Level / TDS / PH', (gt.treated_tank_level_pct ?? '-') + (gt.treated_tank_tds_ph ? ' / '+gt.treated_tank_tds_ph : ''))}
+            ${kv('Irigation Tank Level', gt.irigation_tank_level_pct, '%')}
+        `);
+        // IV Hydrant Pump
+        const hy = pr.hydrant_pump || {};
+        html += secGroup('IV. Hydrant Pump', `
+            ${kv('Unit Standby / Auto', hy.unit_standby_auto)}
+            ${kv('Stand by Press Pump 1', hy.press_pump1, 'psi/kgcm2')}
+            ${kv('Stand by Press Pump 2', hy.press_pump2, 'psi/kgcm2')}
+        `);
+        // V Jockey
+        const jk = pr.jockey_pump || {};
+        html += secGroup('V. Jockey Pump', `${kv('Standby Press (kg/cm2)', jk.standby_press_kgcm2)}`);
+        // VI Sand Filter
+        const sf = pr.sand_filter || {};
+        html += secGroup('VI. Sand Filter', `
+            ${kv('Status', sf.status)}
+            ${kv('Water Press Sand', sf.water_press_sand_psi_kgcm2)}
+            ${kv('Water Press Carbon', sf.water_press_carbon_psi_kgcm2)}
+        `);
+        // VII Sand Filter Pump
+        const sfp = pr.sand_filter_pump || {};
+        html += secGroup('VII. Sand Filter Pump', `
+            ${kv('Unit Operation', sfp.unit_op)}
+            ${kv('Water Pressure', sfp.water_press)}
+        `);
+        // VIII Booster Villa
+        const bpv = pr.booster_pump_villa || {};
+        html += secGroup('VIII. Booster Pump (Villa)', `
+            ${kv('Unit Operation', bpv.unit_op)}
+            ${kv('Water Pressure', bpv.water_press_psi_kgcm2)}
+        `);
+        // IX Booster Main House
+        const bpm = pr.booster_pump_main_house || {};
+        html += secGroup('IX. Booster Pump (Main House)', `
+            ${kv('Unit Operation', bpm.unit_op)}
+            ${kv('Water Pressure', bpm.water_press_psi_kgcm2)}
+        `);
+        // X Irrigation
+        const ir = pr.irrigation_pump || {};
+        html += secGroup('X. Irrigation Pump', `
+            ${kv('Unit Operation', ir.unit_op)}
+            ${kv('Water Pressure', ir.water_press_psi_kgcm2)}
+        `);
+        return html;
+    }
+    function renderTabChiller(sec){
+        const cs = sec.chiller_system || {}; let html = '';
+        const ch = cs.chiller || {};
+        html += secGroup('I. Chiller', `
+            ${kv('Unit Operation', ch.unit_op)}
+            ${kv('Chilled Water TDS', ch.chilled_water_tds)}
+            ${kv('Chilled Water PH', ch.chilled_water_ph)}
+        `);
+        const cw = cs.condensor_water_pump || {};
+        html += secGroup('II. Condensor Water Pump', `
+            ${kv('Unit Operation', cw.unit_op)}
+            ${kv('Water Pressure', cw.water_press_kgcm2, 'kg/cm2')}
+        `);
+        const cp = cs.chilled_water_pump || {};
+        html += secGroup('III. Chilled Water Pump', `
+            ${kv('Unit Operation', cp.unit_op)}
+            ${kv('Water Pressure In', cp.water_press_in_kgcm2, 'kg/cm2')}
+            ${kv('Water Pressure Out', cp.water_press_out_kgcm2, 'kg/cm2')}
+        `);
+        return html;
+    }
+    function renderTabCooling(sec){
+        const ct = sec.cooling_tower || {};
+        return secGroup('Cooling Tower', `
+            ${kv('Unit Operation', ct.unit_op)}
+            ${kv('Water Level', ct.water_level_pct, '%')}
+            ${kv('Water Test TDS', ct.water_test_tds, 'ppm')}
+            ${kv('Water Test PH', ct.water_test_ph)}
+        `);
+    }
+    function renderTabRO(sec){
+        const ro = sec.reverse_osmosis || {};
+        return `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            ${statCard('Water Meter', ro.water_meter_m3, 'm3', 'text-pink-700')}
+            ${statCard('Water Permeate', ro.water_permeate_m3h, 'm3/h', 'text-pink-700')}
+            ${statCard('TDS Permeate', ro.tds_ppm_ph_permeate, 'ppm / pH', 'text-pink-700')}
+            ${statCard('TDS Deep Well', ro.tds_ppm_ph_deepwell, 'ppm / pH', 'text-pink-700')}
+        </div>`;
+    }
+    function renderTabPool(sec){
+        const ps = sec.pool_system || {}; let html = '';
+        function kartuPool(nama, warna, data){
+            const d = data || {};
+            return `<div class="mb-3 last:mb-0">
+                <h4 class="text-sm font-black mb-2 ${warna}">🏊 ${esc(nama)}</h4>
+                <div class="border border-teal-100 rounded-xl bg-white p-3 space-y-2">
+                    ${kv('Alarm System', d.alarm_on_off)}
+                    ${kv('Pump Running (Unit Op)', d.pump_running_unit_op)}
+                    ${kv('Pressure Tank', d.pressure_tank_kgcm2, 'kg/cm2')}
+                    ${kv('Submersible Pump', d.submersible_pump_on_auto)}
+                    ${(typeof d.hot_water_boiler_temp !== 'undefined') ? kv('Hot Water Boiler Temp', d.hot_water_boiler_temp, '°C') : ''}
+                </div>
+            </div>`;
+        }
+        html += kartuPool('Lagoon 1', 'text-teal-700', ps.lagoon_1);
+        html += kartuPool('Lagoon 2', 'text-teal-700', ps.lagoon_2);
+        html += kartuPool('Aquavitale', 'text-teal-700', ps.aquavitale);
+        html += kartuPool('Main Pump Room', 'text-teal-700', ps.main_pump_room);
+        return html;
+    }
+    function renderTabGas(sec){
+        const gs = sec.gas_system || {}; let html = '';
+        function restoKartu(nama, data){
+            const d = data || {};
+            return `<div class="mb-3 last:mb-0">
+                <h4 class="text-sm font-black mb-2 text-rose-700">🔥 ${esc(nama)}</h4>
+                <div class="border border-rose-100 rounded-xl bg-white p-3 space-y-2">
+                    ${kv('Selenoid Valve', d.selenoid_valve_open_close)}
+                    ${kv('Alarm System', d.alarm_on_off)}
+                </div>
+            </div>`;
+        }
+        html += restoKartu('Gas Detector • Boneka Restaurant', gs.boneka_restaurant);
+        html += restoKartu('Gas Detector • Main Kitchen',   gs.main_kitchen);
+        html += restoKartu('Gas Detector • Kayu Puti Restaurant', gs.kayu_puti_restaurant);
+        return html;
+    }
+
+    function switchViewTab(e, id){
+        document.querySelectorAll('#viewLogModal .tab-pane-view').forEach(p=>p.classList.add('hidden'));
+        document.querySelectorAll('#viewLogModal .tab-btn-view').forEach(b=>{b.classList.remove('active','bg-slate-900','text-white');});
+        e.currentTarget.classList.add('active','bg-slate-900','text-white');
+        document.getElementById(id).classList.remove('hidden');
+    }
+
+    window.openViewModal = function(id){
+        const d = viewLogDataMap[id];
+        if (!d) return alert('Data tidak ditemukan.');
+        document.querySelectorAll('#viewLogModal .tab-pane-view').forEach(p=>p.classList.add('hidden'));
+        document.querySelectorAll('#viewLogModal .tab-btn-view').forEach((b,i)=>{b.classList.remove('active','bg-slate-900','text-white'); if(i===0) b.classList.add('active','bg-slate-900','text-white');});
+        // Inject meta
+        document.getElementById('viewMetaTanggal').textContent = d.meta.tanggal;
+        document.getElementById('viewMetaShift').textContent   = d.meta.shift;
+        document.getElementById('viewMetaPIC').textContent     = d.meta.pic;
+        const nEl = document.getElementById('viewMetaNotes');
+        if (d.meta.notes) { nEl.textContent = d.meta.notes; nEl.parentElement.classList.remove('hidden'); } else { nEl.parentElement.classList.add('hidden'); }
+        // Inject 9 tabs content
+        document.getElementById('viewTabEnergiBody').innerHTML   = renderTabEnergi(d);
+        document.getElementById('viewTabTrafoBody').innerHTML    = renderTabTrafo(d.sec);
+        document.getElementById('viewTabGensetBody').innerHTML   = renderTabGenset(d.sec);
+        document.getElementById('viewTabPumpBody').innerHTML     = renderTabPump(d.sec);
+        document.getElementById('viewTabChillerBody').innerHTML  = renderTabChiller(d.sec);
+        document.getElementById('viewTabCoolingBody').innerHTML  = renderTabCooling(d.sec);
+        document.getElementById('viewTabROBody').innerHTML       = renderTabRO(d.sec);
+        document.getElementById('viewTabPoolBody').innerHTML     = renderTabPool(d.sec);
+        document.getElementById('viewTabGasBody').innerHTML      = renderTabGas(d.sec);
+        // Tab Energi default active
+        document.getElementById('view-tab-energi').classList.add('hidden');
+        document.getElementById('view-tab-energi').classList.remove('hidden');
+        document.getElementById('viewTabEnergiPane').classList.remove('hidden');
+        // Show modal
+        const root = document.getElementById('viewLogModal');
+        root.classList.remove('hidden');
+        root.style.display = 'block';
+        try { window.scrollTo({top:0,behavior:'smooth'}); } catch(_){}
+        // Assign event buat view tab (jika belum)
+        if (!window.__viewTabBound) {
+            document.querySelectorAll('#viewLogModal .tab-btn-view').forEach(btn=>{
+                btn.addEventListener('click', function(ev){
+                    const target = btn.getAttribute('data-target');
+                    switchViewTab(ev, target);
+                });
+            });
+            document.getElementById('viewCloseBtn').addEventListener('click', ()=>{
+                document.getElementById('viewLogModal').classList.add('hidden');
+                document.getElementById('viewLogModal').style.display = '';
+            });
+            window.__viewTabBound = 1;
+        }
+    };
+})();
 </script>
+
+<!-- =============================================================
+     🔍 MODAL VIEW DETAIL LOG ENERGI LENGKAP (9 TABS)
+     ============================================================= -->
+<div id="viewLogModal" class="hidden fixed inset-0 z-[120] px-2 sm:px-4 py-4 sm:py-6 bg-slate-900/70 backdrop-blur-sm" aria-hidden="true">
+    <div class="max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden ring-1 ring-black/5 max-h-[90vh] flex flex-col">
+        <div class="flex-shrink-0 px-5 sm:px-7 py-5 sm:py-6 border-b border-slate-200 bg-gradient-to-br from-slate-50 to-white">
+            <div class="flex items-start gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg flex-shrink-0">
+                    <i class="fas fa-file-lines text-xl"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">Detail Log Energi & Equipment</h2>
+                    <div class="mt-1.5 flex flex-wrap gap-2 sm:gap-3 text-xs sm:text-sm font-bold text-slate-600">
+                        <span class="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-2.5 py-1"><i class="far fa-calendar text-slate-400"></i><span id="viewMetaTanggal">—</span></span>
+                        <span class="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-2.5 py-1"><i class="fas fa-clock text-slate-400"></i><span id="viewMetaShift">—</span></span>
+                        <span class="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-2.5 py-1"><i class="far fa-user-circle text-slate-400"></i>PIC: <span id="viewMetaPIC">—</span></span>
+                    </div>
+                    <div class="mt-2 text-[11px] sm:text-xs text-slate-500 hidden"><i class="far fa-sticky-note mr-1.5"></i>Catatan: <span id="viewMetaNotes">—</span></div>
+                </div>
+                <button type="button" id="viewCloseBtn" class="w-10 h-10 -mr-1 -mt-1 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition flex-shrink-0 flex items-center justify-center" title="Tutup">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="tab-bar-wrap w-full bg-cyan-50 border-b border-slate-200 px-3 sm:px-5 tab-bar hide-scrollbar">
+            <button type="button" data-target="viewTabEnergiPane" class="tab-btn tab-btn-view active" title="Ringkasan Energi"><span class="lbl">⚡ Energi</span></button>
+            <button type="button" data-target="viewTabTrafoPane" class="tab-btn tab-btn-view" title="Trafo Room"><span class="lbl">⚡ Trafo</span></button>
+            <button type="button" data-target="viewTabGensetPane" class="tab-btn tab-btn-view" title="Genset Room"><span class="lbl">🔋 Genset</span></button>
+            <button type="button" data-target="viewTabPumpPane" class="tab-btn tab-btn-view" title="Pump Room"><span class="lbl">💧 Pump</span></button>
+            <button type="button" data-target="viewTabChillerPane" class="tab-btn tab-btn-view" title="Chiller System"><span class="lbl">❄️ Chiller</span></button>
+            <button type="button" data-target="viewTabCoolingPane" class="tab-btn tab-btn-view" title="Cooling Tower"><span class="lbl">🌀 Cooling</span></button>
+            <button type="button" data-target="viewTabROPane" class="tab-btn tab-btn-view" title="Reverse Osmosis (RO)"><span class="lbl">🧪 RO</span></button>
+            <button type="button" data-target="viewTabPoolPane" class="tab-btn tab-btn-view" title="Pool System"><span class="lbl">🏊 Pool</span></button>
+            <button type="button" data-target="viewTabGasPane" class="tab-btn tab-btn-view" title="Gas Detector 3 Resto"><span class="lbl">🔥 Gas</span></button>
+        </div>
+        <div id="view-tab-energi" class="tab-pane-view p-4 sm:p-6 space-y-5 overflow-y-auto flex-1 min-h-0 bg-slate-50/40">
+            <div id="viewTabEnergiPane" class="tab-pane-view"><div id="viewTabEnergiBody"></div></div>
+            <div id="viewTabTrafoPane" class="tab-pane-view hidden"><div id="viewTabTrafoBody"></div></div>
+            <div id="viewTabGensetPane" class="tab-pane-view hidden"><div id="viewTabGensetBody"></div></div>
+            <div id="viewTabPumpPane" class="tab-pane-view hidden"><div id="viewTabPumpBody"></div></div>
+            <div id="viewTabChillerPane" class="tab-pane-view hidden"><div id="viewTabChillerBody"></div></div>
+            <div id="viewTabCoolingPane" class="tab-pane-view hidden"><div id="viewTabCoolingBody"></div></div>
+            <div id="viewTabROPane" class="tab-pane-view hidden"><div id="viewTabROBody"></div></div>
+            <div id="viewTabPoolPane" class="tab-pane-view hidden"><div id="viewTabPoolBody"></div></div>
+            <div id="viewTabGasPane" class="tab-pane-view hidden"><div id="viewTabGasBody"></div></div>
+        </div>
+        <div class="flex-shrink-0 px-5 sm:px-7 py-4 border-t border-slate-200 bg-white flex justify-end gap-2">
+            <button type="button" onclick="document.getElementById('viewLogModal').classList.add('hidden'); document.getElementById('viewLogModal').style.display='';" class="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition text-sm font-bold flex items-center gap-1.5"><i class="fas fa-times"></i> Tutup</button>
+        </div>
+    </div>
+</div>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
