@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/config.php';
 requireLogin();
 
@@ -102,7 +102,7 @@ function buildActivityListQueryDp($db, $userRole, $userId, $category, $dFrom, $d
             LIMIT $limit";
     return $db->fetchAll($sql, $p);
 }
-function actGroupWithStatusDp(&$list) {
+function actGroupWithStatusDp($list) {
     $out = [];
     foreach ($list as $r) {
         $t = trim((string)($r['activity_title'] ?? ''));
