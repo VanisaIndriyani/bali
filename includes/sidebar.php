@@ -130,14 +130,14 @@ $sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
                 </a>
                 <a href="<?= BASE_URL ?>energy_logsheet.php"
                    class="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-all <?= ($isEnergyLogsheet) ? '!bg-slate-100 !text-slate-900 !font-semibold' : '' ?>">
-                    <i class="fas fa-table-list text-[13px] w-4 text-center text-slate-400"></i>
-                    <span>Log Sheet</span>
+                    <i class="fas fa-receipt text-[13px] w-4 text-center text-amber-500"></i>
+                    <span>🧾 Log Sheet Shift</span>
                 </a>
                 <?php if ($isEngineer || $isSupervisor || $isManager): ?>
                 <a href="<?= BASE_URL ?>engineer/select_date.php"
                    class="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-all <?= ($isDailyLog) ? '!bg-slate-100 !text-slate-900 !font-semibold' : '' ?>">
-                    <i class="fas fa-edit text-[13px] w-4 text-center text-slate-400"></i>
-                    <span>Isi Daily Log</span>
+                    <i class="fas fa-clipboard-check text-[13px] w-4 text-center text-emerald-500"></i>
+                    <span>✍️ Daily Log (Pilih Shift)</span>
                 </a>
                 <?php endif; ?>
                 <?php if ($isSupervisor || $isManager): ?>

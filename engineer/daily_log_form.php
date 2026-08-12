@@ -41,7 +41,19 @@ if (empty($_dlMigFlag2)) {
             $pdoMig2->exec("ALTER TABLE daily_logs ADD COLUMN `tariff_fuel_per_liter` INT UNSIGNED DEFAULT NULL COMMENT 'Snapshot Tarif Solar (Rp/Ltr)' AFTER `tariff_gas_per_kg`");
     } catch (\Throwable $e) { /* Already exists, safe ignore */ }
 }
-unset($_dlMigFlag, $_dlMigFlag2, $cols, $colsLC);
+// --- BARU: Kolom SHIFT (Pagi/Siang/Malam) ---
+$_dlMigFlag3 = $db->fetchAll("SHOW COLUMNS FROM daily_logs LIKE 'shift'");
+if (empty($_dlMigFlag3)) {
+    try {
+        $pdoMig3 = $db->getConnection();
+        // cari posisi setelah log_date (jika tidak ada, fallback taruh setelah id)
+        $cols3 = $db->fetchAll("SHOW COLUMNS FROM daily_logs");
+        $afterCol3 = 'id';
+        foreach ($cols3 as $c) if (strtolower($c['Field']) === 'log_date') $afterCol3 = 'log_date';
+        $pdoMig3->exec("ALTER TABLE daily_logs ADD COLUMN `shift` ENUM('pagi','siang','malam') DEFAULT NULL COMMENT 'Shift Pagi(06-14)/Siang(14-22)/Malam(22-06)' AFTER `{$afterCol3}`");
+    } catch (\Throwable $e) { /* Already exists, safe ignore */ }
+}
+unset($_dlMigFlag, $_dlMigFlag2, $_dlMigFlag3, $cols, $colsLC, $cols3);
 
 $date = $_GET['date'] ?? date('Y-m-d');
 if (!DateTime::createFromFormat('Y-m-d', $date) || $date > date('Y-m-d')) {
@@ -71,12 +83,44 @@ if ($canChooseEngineer) {
 }
 
 // Query existing log: Engineer = miliknya saja; Manager/Spv = sesuai targetEngineerId pilihan
-$log = $db->fetchOne(
-    "SELECT * FROM daily_logs WHERE engineer_id = ? AND log_date = ?",
-    [$targetEngineerId, $date]
-);
+// CATATAN: 1 TANGGAL BISA LEBIH DARI 1 LOG (per shift berbeda) → untuk Manager/Spv default pilih log terbaru per tanggal + engineer.
+if ($isEngineerRole) {
+    $log = $db->fetchOne(
+        "SELECT * FROM daily_logs WHERE engineer_id = ? AND log_date = ? ORDER BY id DESC LIMIT 1",
+        [$targetEngineerId, $date]
+    );
+} else {
+    // Cek jika ada ?shift= di URL (ketika user klik edit shift tertentu dari calendar / link)
+    $reqShift = $_GET['shift'] ?? '';
+    if (in_array($reqShift, ['pagi','siang','malam'], true)) {
+        $log = $db->fetchOne(
+            "SELECT * FROM daily_logs WHERE engineer_id = ? AND log_date = ? AND shift = ? LIMIT 1",
+            [$targetEngineerId, $date, $reqShift]
+        );
+    } else {
+        // Default edit = log paling baru (terakhir di-submit)
+        $log = $db->fetchOne(
+            "SELECT * FROM daily_logs WHERE engineer_id = ? AND log_date = ? ORDER BY id DESC LIMIT 1",
+            [$targetEngineerId, $date]
+        );
+    }
+}
 
+// --- HELPER DEFAULT SHIFT BERDASARKAN JAM SEKARANG (WA: PAGI/SIANG/MALAM, tanpa menampilkan jam persis) ---
+// Pagi = 06:00 - 13:59, Siang = 14:00 - 21:59, Malam = 22:00 - 05:59
+$allShifts = ['pagi','siang','malam'];
+$_curHour = (int)date('H');
+if ($_curHour >= 6 && $_curHour < 14) $defaultShiftNow = 'pagi';
+elseif ($_curHour >= 14 && $_curHour < 22) $defaultShiftNow = 'siang';
+else $defaultShiftNow = 'malam';
+
+// --- POST HANDLER ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // ① NEW: Validasi SHIFT (WAJIB PILIH SALAH SATU)
+    $shift = trim((string)($_POST['shift'] ?? ''));
+    if (!in_array($shift, $allShifts, true)) {
+        setFlash('error', 'Shift harus dipilih salah satu: Pagi / Siang / Malam');
+    } else {
     // ① Electricity Subdetails
     $eWbp = (float)($_POST['electricity_wbp'] ?? 0);
     $eLwbp = (float)($_POST['electricity_lwbp'] ?? 0);
@@ -206,6 +250,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $data = [
+            // 0 BARU: Shift Pagi/Siang/Malam
+            'shift' => $shift,
             // Backwards Compatible Totals (auto sum dari sub field)
             'total_electricity' => $electricity,
             'total_water' => $water,
@@ -296,11 +342,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         setFlash('success', $log ? T('form_success_update', 'Daily Log berhasil diperbarui dan menunggu approval') : T('form_success_save', 'Daily Log berhasil disimpan dan menunggu approval'));
-        // Manager Access All: redirect balik bawa engineer_id biar nyambung pilihannya
-        $redirectQs = $canChooseEngineer ? '?engineer_id=' . $targetEngineerId : '';
-        redirect('engineer/select_date.php' . $redirectQs);
-    }
-}
+        // Manager Access All: redirect balik bawa engineer_id + shift biar nyambung pilihannya
+        $redirectQs = '?';
+        if ($canChooseEngineer) $redirectQs .= 'engineer_id=' . $targetEngineerId . '&';
+        $redirectQs .= 'shift=' . $shift;
+        redirect('engineer/select_date.php' . rtrim($redirectQs, '&?'));
+    }   // end: if (activity ok, electricity ok etc)
+    }       // end: if (shift valid) — wrapper baru untuk validasi shift wajib
+}           // end: if POST REQUEST
 
 // Refresh log setelah handler (agar targetEngineerId yang baru di-post / di-GET dipakai ulang load form untuk display)
 $log = $db->fetchOne(
@@ -395,6 +444,59 @@ require_once __DIR__ . '/../includes/navbar.php';
         <?php if ($canChooseEngineer): ?>
             <input type="hidden" name="_target_engineer_id" value="<?= (int)$targetEngineerId ?>">
         <?php endif; ?>
+
+        <!-- 0 PALING ATAS: PILIH SHIFT PAGI / SIANG / MALAM (Permintaan WA) -->
+        <?php
+            $curShiftVal = (!empty($log['shift']) && in_array($log['shift'], $allShifts, true)) ? (string)$log['shift'] : $defaultShiftNow;
+            $shiftMeta = [
+                'pagi'  => ['label' => 'Pagi',  'icon' => 'fa-sun-plant-wilt', 'grad' => 'from-yellow-400 via-orange-400 to-amber-500', 'ring' => 'focus:ring-amber-500/30', 'active-bg' => 'bg-gradient-to-br from-yellow-500 to-amber-600', 'active-txt' => 'text-white', 'active-border' => 'border-amber-700', 'idle' => 'bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100', 'jampicker' => '06:00 — 13:59'],
+                'siang' => ['label' => 'Siang', 'icon' => 'fa-sun',              'grad' => 'from-sky-400 via-blue-400 to-indigo-500',    'ring' => 'focus:ring-sky-500/30',   'active-bg' => 'bg-gradient-to-br from-sky-500 to-indigo-600',    'active-txt' => 'text-white', 'active-border' => 'border-indigo-700', 'idle' => 'bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100',       'jampicker' => '14:00 — 21:59'],
+                'malam' => ['label' => 'Malam', 'icon' => 'fa-moon-stars',       'grad' => 'from-indigo-600 via-purple-600 to-slate-800','ring' => 'focus:ring-indigo-500/30','active-bg' => 'bg-gradient-to-br from-indigo-600 to-slate-900',  'active-txt' => 'text-white', 'active-border' => 'border-slate-700', 'idle' => 'bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100','jampicker' => '22:00 — 05:59'],
+            ];
+        ?>
+        <div class="bg-surface rounded-premium border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 30ms">
+            <div class="px-5 lg:px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-zinc-50">
+                <h3 class="font-bold text-primary flex items-center gap-2">
+                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-500 via-slate-600 to-slate-800 flex items-center justify-center text-white shadow-md shadow-slate-500/30"><i class="fas fa-clipboard-user text-sm"></i></span>
+                    Pilih Shift (WAJIB) • <span class="text-xs font-normal opacity-75 ml-1">tanpa menampilkan jam, hanya Pagi / Siang / Malam</span>
+                </h3>
+                <p class="text-xs text-secondary mt-0.5">1 hari bisa lebih dari 1 Daily Log untuk shift berbeda. Pilih shift yang sesuai dengan PIC engineer on-duty.</p>
+            </div>
+            <div class="p-5 lg:p-6">
+                <div class="grid grid-cols-3 gap-3 md:gap-4">
+                    <?php foreach ($shiftMeta as $sKey => $s):
+                        $isSel = ($curShiftVal === $sKey);
+                    ?>
+                        <label class="group relative cursor-pointer select-none">
+                            <input type="radio" name="shift" value="<?= $sKey ?>" class="peer sr-only" <?= $isSel ? 'checked' : '' ?>>
+                            <div class="h-full rounded-2xl border-2 p-4 md:p-5 transition-all duration-200 peer-checked:shadow-lg peer-focus:outline-none peer-focus:ring-4 <?= $s['ring'] ?>
+                                <?= $isSel ? $s['active-bg'].' '.$s['active-txt'].' '.$s['active-border'].' scale-[1.02] shadow-lg' : $s['idle'].' border' ?>">
+                                <div class="flex flex-col items-center justify-center text-center gap-2">
+                                    <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-md
+                                        <?= $isSel ? 'bg-white/25 backdrop-blur-sm' : 'bg-white shadow' ?>">
+                                        <i class="fas <?= $s['icon'] ?> text-xl <?= $isSel ? 'text-white drop-shadow' : 'text-slate-700' ?>"></i>
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="font-black uppercase tracking-[0.14em] text-[15px] md:text-[17px] leading-none"><?= $s['label'] ?></span>
+                                        <span class="text-[10.5px] mt-1 opacity-75 font-medium italic">Rekomendasi jam<br><?= $s['jampicker'] ?></span>
+                                    </div>
+                                    <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center mt-1 transition
+                                        <?= $isSel ? 'border-white bg-white text-slate-800' : 'border-current opacity-60 bg-transparent group-hover:opacity-100' ?>">
+                                        <?php if ($isSel): ?><i class="fas fa-check text-[11px]"></i><?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+                <?php if (!empty($log) && empty($log['shift'])): ?>
+                    <p class="text-[10.5px] mt-3 text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5">
+                        <i class="fas fa-circle-info mr-1"></i> Log ini dibuat sebelum penambahan fitur Shift — sistem mengisi default otomatis sesuai jam sekarang. Pilih ulang shift yang benar lalu tekan Simpan.
+                    </p>
+                <?php endif; ?>
+            </div>
+        </div>
+
         <!-- ⑧ OCCUPANCY RATE (OCC %) - PALING ATAS SENDIRI SESUAI REQUEST -->
         <div class="bg-surface rounded-premium border border-accent/40 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 50ms">
             <div class="px-5 lg:px-6 py-4 border-b border-accent/20 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-100/60">
