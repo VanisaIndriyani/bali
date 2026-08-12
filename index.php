@@ -958,6 +958,22 @@ require_once __DIR__ . '/includes/navbar.php';
                     </div>
 
                     <!-- 4 CARD TOTAL BIAYA RUPIAH (Rp menempel didepan angka, font kecil 1 halaman) -->
+                    <?php
+                    // INFO SHIFT HARI INI (catatan kecil di atas cost cards, sama kayak di form Daily Log)
+                    $_shH = (int)date('H');
+                    if ($_shH >= 6 && $_shH < 14) { $_shNow = 'pagi';  $_shLbl = 'PAGI';  $_shClr = 'from-yellow-500 to-amber-600'; $_shIc = 'fa-sun-plant-wilt'; }
+                    elseif ($_shH >= 14 && $_shH < 22) { $_shNow = 'siang'; $_shLbl = 'SIANG'; $_shClr = 'from-sky-500 to-indigo-600'; $_shIc = 'fa-sun'; }
+                    else                                      { $_shNow = 'malam'; $_shLbl = 'MALAM'; $_shClr = 'from-indigo-600 to-slate-900'; $_shIc = 'fa-moon-stars'; }
+                    ?>
+                    <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+                        <div class="inline-flex items-center gap-2 text-[10.5px] text-slate-600 font-semibold bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br <?= $_shClr ?> text-white shadow-sm">
+                                <i class="fas <?= $_shIc ?> text-[11px]"></i>
+                            </span>
+                            <span class="tracking-[0.06em] uppercase">Shift <?= $_shLbl ?> Hari Ini</span>
+                            <span class="text-[9px] text-slate-400 font-normal ml-1 hidden sm:inline">(catatan PIC on-duty, tidak mempengaruhi kalkulasi cost)</span>
+                        </div>
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
                         <?php foreach ($utilRows as $ur):
                             [$label, $icon, $col, $iconBg, $lyVal, $nowVal, $unit, $costLY, $costNow, $cardBg, $cardBorder, $dividerBorder] = array_pad(array_slice($ur, 0, 13), 13, '');
@@ -1003,7 +1019,7 @@ require_once __DIR__ . '/includes/navbar.php';
                                           OR COALESCE(tariff_water_per_m3,0) > 0
                                           OR COALESCE(tariff_gas_per_kg,0) > 0
                                           OR COALESCE(tariff_fuel_per_liter,0) > 0 THEN 1 ELSE 0 END) as snap_logs
-                         FROM daily_logs WHERE DATE(log_date) BETWEEN ? AND ? $approvedWhere",
+                         FROM daily_logs WHERE DATE(log_date) BETWEEN ? AND ? AND $approvedWhere",
                         [$dateFrom, $dateTo]
                     );
                     $_snapAll  = max(1, (int)($_tariffSnapCheck['all_logs'] ?? 0));

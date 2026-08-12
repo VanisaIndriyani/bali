@@ -83,30 +83,14 @@ if ($canChooseEngineer) {
 }
 
 // Query existing log: Engineer = miliknya saja; Manager/Spv = sesuai targetEngineerId pilihan
-// CATATAN: 1 TANGGAL BISA LEBIH DARI 1 LOG (per shift berbeda) → untuk Manager/Spv default pilih log terbaru per tanggal + engineer.
-if ($isEngineerRole) {
-    $log = $db->fetchOne(
-        "SELECT * FROM daily_logs WHERE engineer_id = ? AND log_date = ? ORDER BY id DESC LIMIT 1",
-        [$targetEngineerId, $date]
-    );
-} else {
-    // Cek jika ada ?shift= di URL (ketika user klik edit shift tertentu dari calendar / link)
-    $reqShift = $_GET['shift'] ?? '';
-    if (in_array($reqShift, ['pagi','siang','malam'], true)) {
-        $log = $db->fetchOne(
-            "SELECT * FROM daily_logs WHERE engineer_id = ? AND log_date = ? AND shift = ? LIMIT 1",
-            [$targetEngineerId, $date, $reqShift]
-        );
-    } else {
-        // Default edit = log paling baru (terakhir di-submit)
-        $log = $db->fetchOne(
-            "SELECT * FROM daily_logs WHERE engineer_id = ? AND log_date = ? ORDER BY id DESC LIMIT 1",
-            [$targetEngineerId, $date]
-        );
-    }
-}
+// CATATAN (Revert Shift Multi Entries): 1 TANGGAL = 1 LOG SAJA per engineer (unique engineer_id + log_date).
+//          Field 'shift' cuma catatan info tambahan di dalam form (PIC shift apa), BUKAN pemisah multiple entries per tanggal.
+$log = $db->fetchOne(
+    "SELECT * FROM daily_logs WHERE engineer_id = ? AND log_date = ?",
+    [$targetEngineerId, $date]
+);
 
-// --- HELPER DEFAULT SHIFT BERDASARKAN JAM SEKARANG (WA: PAGI/SIANG/MALAM, tanpa menampilkan jam persis) ---
+// --- HELPER DEFAULT SHIFT BERDASARKAN JAM SEKARANG (WA: PAGI/SIANG/MALAM, catatan info di form SAJA) ---
 // Pagi = 06:00 - 13:59, Siang = 14:00 - 21:59, Malam = 22:00 - 05:59
 $allShifts = ['pagi','siang','malam'];
 $_curHour = (int)date('H');
@@ -116,11 +100,9 @@ else $defaultShiftNow = 'malam';
 
 // --- POST HANDLER ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // ① NEW: Validasi SHIFT (WAJIB PILIH SALAH SATU)
+    // ① SHIFT (info catatan tambahan, TIDAK multiple entries) — cuma disimpan sebagai label di log
     $shift = trim((string)($_POST['shift'] ?? ''));
-    if (!in_array($shift, $allShifts, true)) {
-        setFlash('error', 'Shift harus dipilih salah satu: Pagi / Siang / Malam');
-    } else {
+    if (!in_array($shift, $allShifts, true)) $shift = $defaultShiftNow; // aman fallback (tidak perlu error flash — cuma label)
     // ① Electricity Subdetails
     $eWbp = (float)($_POST['electricity_wbp'] ?? 0);
     $eLwbp = (float)($_POST['electricity_lwbp'] ?? 0);
@@ -342,13 +324,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         setFlash('success', $log ? T('form_success_update', 'Daily Log berhasil diperbarui dan menunggu approval') : T('form_success_save', 'Daily Log berhasil disimpan dan menunggu approval'));
-        // Manager Access All: redirect balik bawa engineer_id + shift biar nyambung pilihannya
-        $redirectQs = '?';
-        if ($canChooseEngineer) $redirectQs .= 'engineer_id=' . $targetEngineerId . '&';
-        $redirectQs .= 'shift=' . $shift;
-        redirect('engineer/select_date.php' . rtrim($redirectQs, '&?'));
+        // Manager Access All: redirect balik bawa engineer_id biar nyambung pilihannya (shift cuma label, TIDAK dijadikan parameter QS)
+        $redirectQs = $canChooseEngineer ? '?engineer_id=' . $targetEngineerId : '';
+        redirect('engineer/select_date.php' . $redirectQs);
     }   // end: if (activity ok, electricity ok etc)
-    }       // end: if (shift valid) — wrapper baru untuk validasi shift wajib
 }           // end: if POST REQUEST
 
 // Refresh log setelah handler (agar targetEngineerId yang baru di-post / di-GET dipakai ulang load form untuk display)
@@ -445,22 +424,22 @@ require_once __DIR__ . '/../includes/navbar.php';
             <input type="hidden" name="_target_engineer_id" value="<?= (int)$targetEngineerId ?>">
         <?php endif; ?>
 
-        <!-- 0 PALING ATAS: PILIH SHIFT PAGI / SIANG / MALAM (Permintaan WA) -->
+        <!-- 0 PALING ATAS: PILIH SHIFT PAGI / SIANG / MALAM (Permintaan WA — INFO CATATAN SAJA, 1 Tanggal Tetap 1 Log) -->
         <?php
             $curShiftVal = (!empty($log['shift']) && in_array($log['shift'], $allShifts, true)) ? (string)$log['shift'] : $defaultShiftNow;
             $shiftMeta = [
-                'pagi'  => ['label' => 'Pagi',  'icon' => 'fa-sun-plant-wilt', 'grad' => 'from-yellow-400 via-orange-400 to-amber-500', 'ring' => 'focus:ring-amber-500/30', 'active-bg' => 'bg-gradient-to-br from-yellow-500 to-amber-600', 'active-txt' => 'text-white', 'active-border' => 'border-amber-700', 'idle' => 'bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100', 'jampicker' => '06:00 — 13:59'],
-                'siang' => ['label' => 'Siang', 'icon' => 'fa-sun',              'grad' => 'from-sky-400 via-blue-400 to-indigo-500',    'ring' => 'focus:ring-sky-500/30',   'active-bg' => 'bg-gradient-to-br from-sky-500 to-indigo-600',    'active-txt' => 'text-white', 'active-border' => 'border-indigo-700', 'idle' => 'bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100',       'jampicker' => '14:00 — 21:59'],
-                'malam' => ['label' => 'Malam', 'icon' => 'fa-moon-stars',       'grad' => 'from-indigo-600 via-purple-600 to-slate-800','ring' => 'focus:ring-indigo-500/30','active-bg' => 'bg-gradient-to-br from-indigo-600 to-slate-900',  'active-txt' => 'text-white', 'active-border' => 'border-slate-700', 'idle' => 'bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100','jampicker' => '22:00 — 05:59'],
+                'pagi'  => ['label' => 'Pagi',  'icon' => 'fa-sun-plant-wilt', 'active-bg' => 'bg-gradient-to-br from-yellow-500 to-amber-600', 'active-txt' => 'text-white', 'active-border' => 'border-amber-700', 'idle' => 'bg-yellow-50 border-yellow-200 text-yellow-800 hover:bg-yellow-100', 'jampicker' => '06:00 — 13:59'],
+                'siang' => ['label' => 'Siang', 'icon' => 'fa-sun',              'active-bg' => 'bg-gradient-to-br from-sky-500 to-indigo-600',    'active-txt' => 'text-white', 'active-border' => 'border-indigo-700', 'idle' => 'bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100',       'jampicker' => '14:00 — 21:59'],
+                'malam' => ['label' => 'Malam', 'icon' => 'fa-moon-stars',       'active-bg' => 'bg-gradient-to-br from-indigo-600 to-slate-900',  'active-txt' => 'text-white', 'active-border' => 'border-slate-700', 'idle' => 'bg-indigo-50 border-indigo-200 text-indigo-900 hover:bg-indigo-100','jampicker' => '22:00 — 05:59'],
             ];
         ?>
         <div class="bg-surface rounded-premium border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 30ms">
             <div class="px-5 lg:px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-zinc-50">
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-500 via-slate-600 to-slate-800 flex items-center justify-center text-white shadow-md shadow-slate-500/30"><i class="fas fa-clipboard-user text-sm"></i></span>
-                    Pilih Shift (WAJIB) • <span class="text-xs font-normal opacity-75 ml-1">tanpa menampilkan jam, hanya Pagi / Siang / Malam</span>
+                    Shift PIC On-Duty • <span class="text-xs font-normal opacity-75 ml-1">Info catatan tambahan (TIDAK membuat menu / log baru per tanggal)</span>
                 </h3>
-                <p class="text-xs text-secondary mt-0.5">1 hari bisa lebih dari 1 Daily Log untuk shift berbeda. Pilih shift yang sesuai dengan PIC engineer on-duty.</p>
+                <p class="text-xs text-secondary mt-0.5">Pilih shift apa yang paling cocok untuk pekerjaan hari ini (data acuan siapa yang bertugas). 1 tanggal tetap 1 Daily Log per Engineer.</p>
             </div>
             <div class="p-5 lg:p-6">
                 <div class="grid grid-cols-3 gap-3 md:gap-4">
