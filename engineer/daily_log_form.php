@@ -1,10 +1,23 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/config.php';
 $pageTitle = T('form_title', 'Isi Daily Log Engineering');
 requireRole(['engineer', 'supervisor']);
 
 $db = Database::getInstance();
 $user = currentUser();
+
+// ==============================================
+// 🔧 AUTO MIGRATION: Tambah 3 kolom KPI jika belum ada
+// ==============================================
+$_dlMigFlag = $db->fetchAll("SHOW COLUMNS FROM daily_logs LIKE 'itr_score'");
+if (empty($_dlMigFlag)) {
+    try {
+        $pdoMig = $db->getConnection();
+        $pdoMig->exec("ALTER TABLE daily_logs ADD COLUMN `itr_score` DECIMAL(5,2) DEFAULT NULL COMMENT 'Index Tata Ruang (KPI)' AFTER `occ_rate`");
+        $pdoMig->exec("ALTER TABLE daily_logs ADD COLUMN `mu_score` DECIMAL(5,2) DEFAULT NULL COMMENT 'Maintenance & Utility (KPI)' AFTER `itr_score`");
+        $pdoMig->exec("ALTER TABLE daily_logs ADD COLUMN `gitb_rank` TINYINT UNSIGNED DEFAULT NULL COMMENT 'Guest in the Book Rank (KPI)' AFTER `mu_score`");
+    } catch (\Throwable $e) { /* Already exists, safe ignore */ }
+}
 
 $date = $_GET['date'] ?? date('Y-m-d');
 if (!DateTime::createFromFormat('Y-m-d', $date) || $date > date('Y-m-d')) {
@@ -66,6 +79,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $occRate = (float)($_POST['occ_rate'] ?? 0);
     if ($occRate < 0) $occRate = 0;
     if ($occRate > 100) $occRate = 100;
+
+    // ⑧ BIS. ITR / M&U / GITB RANK (KPI Performance)
+    $itrScore  = isset($_POST['itr_score'])  && $_POST['itr_score'] !== ''  ? (float)$_POST['itr_score']  : null;
+    $muScore   = isset($_POST['mu_score'])   && $_POST['mu_score'] !== ''   ? (float)$_POST['mu_score']   : null;
+    $gitbRank  = isset($_POST['gitb_rank'])  && $_POST['gitb_rank'] !== ''  ? (int)$_POST['gitb_rank']   : null;
+    if ($gitbRank !== null && $gitbRank < 0) $gitbRank = null;
+    if ($gitbRank !== null && $gitbRank > 255) $gitbRank = 255;
+    if ($itrScore !== null) { if ($itrScore < 0) $itrScore = 0; if ($itrScore > 999.99) $itrScore = 999.99; }
+    if ($muScore  !== null) { if ($muScore  < 0) $muScore  = 0; if ($muScore  > 999.99) $muScore  = 999.99; }
 
     // ⑨ Activity Counters
     // -- Baru: Counter OTOMATIS dari Dynamic Activity Rows (bukan input manual lagi)
@@ -155,6 +177,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'total_fuel' => $fuel,
             // ⑧ Occupancy Rate
             'occ_rate' => $occRate,
+            // ⑧ BIS. KPI ITR / M&U / GITB RANK
+            'itr_score' => $itrScore,
+            'mu_score'  => $muScore,
+            'gitb_rank' => $gitbRank,
             // ⑨ Activity Counters
             'activity_operation' => $actOp,
             'activity_maintenance' => $actMaint,
@@ -298,6 +324,67 @@ require_once __DIR__ . '/../includes/navbar.php';
                             function setOcc(p) { const el = document.getElementById('occRate'); if (el) { el.value = p; occVisual(p); } }
                             document.addEventListener('DOMContentLoaded', function() { const el = document.getElementById('occRate'); if (el) occVisual(el.value); });
                         </script>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ⑧ BIS. KEY PERFORMANCE INDICATORS - ITR / M&U / GITB RANK (SETELAH OCC RATE) -->
+        <div class="bg-surface rounded-premium border border-emerald-200/60 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 70ms">
+            <div class="px-5 lg:px-6 py-4 border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/90 via-green-50/60 to-teal-50/70">
+                <h3 class="font-bold text-primary flex items-center gap-2">
+                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 via-green-600 to-teal-700 flex items-center justify-center text-white shadow-md shadow-emerald-500/30"><i class="fas fa-chart-line text-sm"></i></span>
+                    <?= T('form_kpi_title', 'Key Performance Indicators (KPI) • ITR, M&U, dan GITB Rank') ?>
+                </h3>
+                <p class="text-xs text-secondary mt-0.5"><?= T('form_kpi_sub', 'Isi data KPI harian dari report Operational • Data akan otomatis tampil di Dashboard KPI Utama') ?></p>
+            </div>
+            <div class="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-3 gap-5">
+                <?php
+                // Helper default value (NULL = string kosong biar tampilan placeholder)
+                $kDefItr = isset($log['itr_score']) && $log['itr_score'] !== null ? number_format((float)$log['itr_score'], 2, '.', '') : '';
+                $kDefMu  = isset($log['mu_score'])  && $log['mu_score']  !== null ? number_format((float)$log['mu_score'],  2, '.', '') : '';
+                $kDefGitb = isset($log['gitb_rank']) && $log['gitb_rank'] !== null ? (int)$log['gitb_rank'] : '';
+                ?>
+                <!-- 1. ITR SCORE (Index Tata Ruang) -->
+                <div>
+                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><i class="fas fa-sheet-plastic mr-1 text-blue-600"></i>
+                        <?= T('form_kpi_itr', 'ITR Score') ?>
+                        <span class="text-[10px] font-normal text-secondary ml-1">(Index Tata Ruang)</span>
+                    </label>
+                    <div class="relative">
+                        <input type="number" step="0.01" min="0" max="999.99" name="itr_score"
+                            value="<?= $kDefItr ?>"
+                            placeholder="Contoh: 87.00"
+                            class="w-full pl-4 pr-12 py-3.5 rounded-card border border-emerald-200 bg-emerald-50/60 text-lg font-black text-primary placeholder-secondary/50 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 focus:bg-white transition-all">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-emerald-700 font-bold bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">point</span>
+                    </div>
+                </div>
+                <!-- 2. M&U SCORE (Maintenance & Utility) -->
+                <div>
+                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><i class="fas fa-screwdriver-wrench mr-1 text-orange-600"></i>
+                        <?= T('form_kpi_mu', 'M&U Score') ?>
+                        <span class="text-[10px] font-normal text-secondary ml-1">(Maintenance & Utility)</span>
+                    </label>
+                    <div class="relative">
+                        <input type="number" step="0.01" min="0" max="999.99" name="mu_score"
+                            value="<?= $kDefMu ?>"
+                            placeholder="Contoh: 81.00"
+                            class="w-full pl-4 pr-12 py-3.5 rounded-card border border-green-200 bg-green-50/60 text-lg font-black text-primary placeholder-secondary/50 focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-500/15 focus:bg-white transition-all">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-green-700 font-bold bg-green-100 border border-green-300 px-2.5 py-0.5 rounded-full">point</span>
+                    </div>
+                </div>
+                <!-- 3. GITB RANK (Guest in the Book Rank) -->
+                <div>
+                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><i class="fas fa-trophy mr-1 text-amber-600"></i>
+                        <?= T('form_kpi_gitb', 'GITB Rank') ?>
+                        <span class="text-[10px] font-normal text-secondary ml-1">(Guest in the Book • Posisi 1 s/d 99)</span>
+                    </label>
+                    <div class="relative">
+                        <input type="number" step="1" min="1" max="99" name="gitb_rank"
+                            value="<?= $kDefGitb ?>"
+                            placeholder="Contoh: 4"
+                            class="w-full pl-4 pr-12 py-3.5 rounded-card border border-teal-200 bg-teal-50/60 text-lg font-black text-primary placeholder-secondary/50 focus:outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/15 focus:bg-white transition-all">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-teal-700 font-bold bg-teal-100 border border-teal-300 px-2.5 py-0.5 rounded-full">#Rank</span>
                     </div>
                 </div>
             </div>

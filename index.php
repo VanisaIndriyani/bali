@@ -408,13 +408,50 @@ function uUsage($n, $unit, $dec=0) {
     return number_format($n, $dec, ',', '.') . " {$unit}";
 }
 
-// 2) KPI TABLE â€” OCC % (LY, TODAY) + placeholder ITR / M&U Score / GITB Rank (data kosong jika belum input)
+// 2) KPI TABLE — OCC % (LY, TODAY) + ITR / M&U Score / GITB RANK SOURCE: DB daily_logs (approved)
 $occLYDisp = $lyOcc > 0 ? $lyOcc . '%' : (($lyOcc === '-') ? '-' : '0.0%');
 $occNowDisp = $targetOcc > 0 ? $targetOcc . '%' : '0.0%';
-// Fallback: ITR/M&U/Rank kosong = placeholder (kalau user ada data bisa di-input manual nanti)
-$kpiItr = $lyOcc > 0 ? number_format(85 + ($targetOcc - $lyOcc) * 0.2, 1, '.', '') : '-';
-$kpiMnU = $lyOcc > 0 ? number_format(78 + (($targetOcc - $lyOcc) * 0.3), 1, '.', '') : '-';
-$kpiRank = $targetOcc >= 90 ? '5' : ($targetOcc >= 80 ? '4' : ($targetOcc >= 70 ? '3' : '-'));
+
+// =========== KPI DATA: PRIORITAS DARI DB DAILY_LOGS PERIODE ATAU HARI INI (approved saja) ===========
+$_kpiFromDb = ['itr' => null, 'mu' => null, 'rank' => null];
+// 1. Rata-rata periode dateFrom - dateTo (lebih akurat untuk range tanggal)
+try {
+    $_kpiPeriod = $db->fetchOne(
+        "SELECT
+            COALESCE(AVG(NULLIF(itr_score,0)),0) AS avg_itr,
+            COALESCE(AVG(NULLIF(mu_score,0)),0)  AS avg_mu,
+            COUNT(NULLIF(itr_score,0)) AS cnt_itr,
+            COUNT(NULLIF(mu_score,0))  AS cnt_mu
+         FROM daily_logs
+         WHERE status = 'approved' $statusWhere
+           AND log_date BETWEEN ? AND ?",
+        [$dateFrom, $dateTo]
+    );
+    if ($_kpiPeriod && $_kpiPeriod['cnt_itr'] > 0) $_kpiFromDb['itr'] = (float)$_kpiPeriod['avg_itr'];
+    if ($_kpiPeriod && $_kpiPeriod['cnt_mu']  > 0) $_kpiFromDb['mu']  = (float)$_kpiPeriod['avg_mu'];
+    // Rank: ambil dari last approved (paling baru periode ini) non-null non-zero
+    $_kpiRankRow = $db->fetchOne(
+        "SELECT gitb_rank FROM daily_logs
+         WHERE status='approved' $statusWhere
+           AND log_date BETWEEN ? AND ?
+           AND gitb_rank IS NOT NULL AND gitb_rank > 0
+         ORDER BY log_date DESC, id DESC LIMIT 1",
+        [$dateFrom, $dateTo]
+    );
+    if ($_kpiRankRow && !empty($_kpiRankRow['gitb_rank'])) $_kpiFromDb['rank'] = (int)$_kpiRankRow['gitb_rank'];
+} catch (\Throwable $ex) { /* ignore migration not ready */ }
+// 2. Fallback: Hari ini single approved (jika periode belum ada data)
+if (($_kpiFromDb['itr'] === null || $_kpiFromDb['mu'] === null || $_kpiFromDb['rank'] === null) && !empty($todayDailySingle)) {
+    $_td = $todayDailySingle;
+    if ($_kpiFromDb['itr'] === null && isset($_td['itr_score']) && $_td['itr_score'] > 0) $_kpiFromDb['itr'] = (float)$_td['itr_score'];
+    if ($_kpiFromDb['mu']  === null && isset($_td['mu_score'])  && $_td['mu_score']  > 0) $_kpiFromDb['mu']  = (float)$_td['mu_score'];
+    if ($_kpiFromDb['rank']=== null && isset($_td['gitb_rank']) && $_td['gitb_rank'] > 0) $_kpiFromDb['rank']= (int)$_td['gitb_rank'];
+}
+// 3. Fallback AKHIR: Placeholder heuristik (jika TIDAK ADA input KPI di form sama sekali - data lama sebelum ada field)
+$kpiItr  = $_kpiFromDb['itr']  !== null ? number_format($_kpiFromDb['itr'], 1, '.', '') : ($lyOcc > 0 ? number_format(85 + ($targetOcc - $lyOcc) * 0.2, 1, '.', '') : '-');
+$kpiMnU  = $_kpiFromDb['mu']   !== null ? number_format($_kpiFromDb['mu'],  1, '.', '') : ($lyOcc > 0 ? number_format(78 + (($targetOcc - $lyOcc) * 0.3), 1, '.', '') : '-');
+$kpiRank = $_kpiFromDb['rank'] !== null ? (string)$_kpiFromDb['rank']                    : ($targetOcc >= 90 ? '5' : ($targetOcc >= 80 ? '4' : ($targetOcc >= 70 ? '3' : '-')));
+unset($_kpiFromDb, $_kpiPeriod, $_kpiRankRow);
 
 // 3) ACTIVITIES GROUP per Department â€” untuk TABLE â‘¢ bullet list + Status badge
 // Status rule: DEFAULT = Complete. Jika ada kata "progress" / "install" / "perbaikan" / "new" = In Progress.
