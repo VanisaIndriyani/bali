@@ -562,6 +562,17 @@ foreach ($logs as $r) {
         $dec = json_decode((string)$r['equip_section_data'], true);
         if (is_array($dec)) $secData = $dec;
     }
+    // 🔥 FALLBACK JITU: Jika JOIN return equip_section_data KOSONG tapi equipment_id ADA → langsung select dari equipment_logs
+    if (empty($secData) && !empty($r['equipment_id']) && (int)$r['equipment_id'] > 0) {
+        try {
+            $eqFallback = $db->fetchOne("SELECT section_data FROM equipment_logs WHERE id = ?", [(int)$r['equipment_id']]);
+            if (!empty($eqFallback['section_data'])) {
+                $decFb = json_decode((string)$eqFallback['section_data'], true);
+                if (is_array($decFb)) $secData = $decFb;
+            }
+        } catch (Throwable $e) {}
+    }
+    if (!is_array($secData)) $secData = [];
     $shiftLabel = $shiftLabelMapGlobal[$r['shift']] ?? ucfirst($r['shift']);
     $tgl = (new DateTime($r['log_date']))->format('d M Y');
     $lwbp = (float)($r['pln_lwbp_kwh'] ?? 0);
@@ -2925,9 +2936,7 @@ const viewLogDataMap = <?= json_encode($viewLogDataMap, JSON_UNESCAPED_UNICODE |
         document.getElementById('viewTabROBody').innerHTML       = renderTabRO(d.sec);
         document.getElementById('viewTabPoolBody').innerHTML     = renderTabPool(d.sec);
         document.getElementById('viewTabGasBody').innerHTML      = renderTabGas(d.sec);
-        // Tab Energi default active
-        document.getElementById('view-tab-energi').classList.add('hidden');
-        document.getElementById('view-tab-energi').classList.remove('hidden');
+        // Tab Energi default active (pane pertama tidak punya class hidden)
         document.getElementById('viewTabEnergiPane').classList.remove('hidden');
         // Show modal
         const root = document.getElementById('viewLogModal');
@@ -2987,7 +2996,7 @@ const viewLogDataMap = <?= json_encode($viewLogDataMap, JSON_UNESCAPED_UNICODE |
             <button type="button" data-target="viewTabPoolPane" class="tab-btn tab-btn-view" title="Pool System"><span class="lbl">🏊 Pool</span></button>
             <button type="button" data-target="viewTabGasPane" class="tab-btn tab-btn-view" title="Gas Detector 3 Resto"><span class="lbl">🔥 Gas</span></button>
         </div>
-        <div id="view-tab-energi" class="tab-pane-view p-4 sm:p-6 space-y-5 overflow-y-auto flex-1 min-h-0 bg-slate-50/40">
+        <div id="viewBodyWrapper" class="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1 min-h-0 bg-slate-50/40">
             <div id="viewTabEnergiPane" class="tab-pane-view"><div id="viewTabEnergiBody"></div></div>
             <div id="viewTabTrafoPane" class="tab-pane-view hidden"><div id="viewTabTrafoBody"></div></div>
             <div id="viewTabGensetPane" class="tab-pane-view hidden"><div id="viewTabGensetBody"></div></div>
