@@ -2965,7 +2965,7 @@ const viewLogDataMap = <?= json_encode($viewLogDataMap, JSON_UNESCAPED_UNICODE |
      🔍 MODAL VIEW DETAIL LOG ENERGI LENGKAP (9 TABS)
      ============================================================= -->
 <div id="viewLogModal" class="hidden fixed inset-0 z-[120] px-2 sm:px-4 py-4 sm:py-6 bg-slate-900/70 backdrop-blur-sm" aria-hidden="true">
-    <div class="max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden ring-1 ring-black/5 max-h-[90vh] flex flex-col">
+    <div class="max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden ring-1 ring-black/5 max-h-[90vh] flex flex-col min-h-0">
         <div class="flex-shrink-0 px-5 sm:px-7 py-5 sm:py-6 border-b border-slate-200 bg-gradient-to-br from-slate-50 to-white">
             <div class="flex items-start gap-4">
                 <div class="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg flex-shrink-0">
@@ -2985,7 +2985,7 @@ const viewLogDataMap = <?= json_encode($viewLogDataMap, JSON_UNESCAPED_UNICODE |
                 </button>
             </div>
         </div>
-        <div class="tab-bar-wrap w-full bg-cyan-50 border-b border-slate-200 px-3 sm:px-5 tab-bar hide-scrollbar">
+        <div class="tab-bar-wrap w-full bg-cyan-50 border-b border-slate-200 px-3 sm:px-5 tab-bar hide-scrollbar flex-shrink-0">
             <button type="button" data-target="viewTabEnergiPane" class="tab-btn tab-btn-view active" title="Ringkasan Energi"><span class="lbl">⚡ Energi</span></button>
             <button type="button" data-target="viewTabTrafoPane" class="tab-btn tab-btn-view" title="Trafo Room"><span class="lbl">⚡ Trafo</span></button>
             <button type="button" data-target="viewTabGensetPane" class="tab-btn tab-btn-view" title="Genset Room"><span class="lbl">🔋 Genset</span></button>
