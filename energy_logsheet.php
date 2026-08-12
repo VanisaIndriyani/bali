@@ -230,6 +230,14 @@ $shiftLabelMap = [
 include __DIR__ . '/includes/header.php';
 include __DIR__ . '/includes/sidebar.php';
 ?>
+<style>
+.hide-scrollbar::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+.hide-scrollbar { -ms-overflow-style: none !important; scrollbar-width: none !important; overflow-x: auto; overflow-y: hidden; }
+table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; padding-bottom: 10px !important; }
+@media (min-width: 640px) {
+    table.logsheet-ramp th, table.logsheet-ramp td { padding-left: 10px !important; padding-right: 10px !important; }
+}
+</style>
 <div class="main-content px-4 sm:px-6 lg:px-8 py-6 pb-16 max-w-[1800px] mx-auto">
 
     <!-- FLASH ALERT -->
@@ -334,13 +342,8 @@ include __DIR__ . '/includes/sidebar.php';
 
     <!-- TABLE LIST LOG SHEET - REAL DB -->
     <div class="bg-white rounded-premium border border-slate-200 shadow-sm overflow-hidden mb-6 animate-slide-up" style="animation-delay: 90ms">
-        <div class="px-3 sm:px-5 py-2.5 text-[11px] sm:text-xs text-slate-500 italic font-semibold flex flex-wrap items-center gap-1.5 bg-slate-50/70 border-b border-slate-100">
-            <i class="fas fa-hand-point-right text-indigo-500 flex-shrink-0"></i>
-            <span class="flex-shrink">Scroll ke kanan untuk melihat kolom <strong class="not-italic text-slate-700">PIC</strong> &amp; <strong class="not-italic text-slate-700">Aksi</strong> yang ada di sisi kanan tabel</span>
-            <i class="fas fa-arrow-right text-indigo-500 flex-shrink-0"></i>
-        </div>
-        <div class="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 pb-3 pr-2">
-            <table class="w-full text-sm min-w-[1350px] table-auto border-collapse">
+        <div class="hide-scrollbar -mx-4 sm:mx-0 px-4 sm:px-0">
+            <table class="w-full text-sm min-w-[1100px] table-auto border-collapse logsheet-ramp">
                 <thead class="bg-slate-50 border-b-2 border-slate-200">
                     <tr class="text-left text-secondary text-xs">
                         <th class="px-2 sm:px-3 py-3 font-bold whitespace-nowrap w-12 text-center">#</th>
