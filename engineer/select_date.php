@@ -24,6 +24,14 @@ $daysInMonth = (int)date('t', strtotime($monthStart));
 $firstDayOfWeek = (int)date('N', strtotime($monthStart)) - 1;
 $monthName = date('F Y', strtotime($monthStart));
 
+$_selYm = explode('-', $month . '-01');
+$_curMonth = (int)($_selYm[1] ?? date('n'));
+$_curYear  = (int)($_selYm[0] ?? date('Y'));
+$_monthNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+$_yearFrom = max(2020, (int)date('Y') - 6);
+$_yearTo   = (int)date('Y') + 5;
+$_yearOpts = range($_yearFrom, $_yearTo);
+
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/navbar.php';
 ?>
@@ -46,9 +54,35 @@ require_once __DIR__ . '/../includes/navbar.php';
                     <i class="fas fa-chevron-left text-xs"></i>
                 </a>
                 <div class="text-center min-w-0 flex-1 px-1">
-                    <h2 class="font-display text-lg lg:text-xl font-bold text-primary leading-tight truncate"><?= $monthName ?></h2>
+                    <div class="flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap">
+                        <select id="pickMonth" class="!bg-transparent !border-0 !outline-none !ring-0 !shadow-none font-display text-lg lg:text-xl font-bold text-primary text-center cursor-pointer hover:bg-muted/50 rounded-lg px-2 py-1 transition-colors appearance-none">
+                            <?php for ($m = 1; $m <= 12; $m++): ?>
+                                <option value="<?= $m ?>" <?= $_curMonth === $m ? 'selected' : '' ?>><?= $_monthNames[$m] ?></option>
+                            <?php endfor; ?>
+                        </select>
+                        <select id="pickYear" class="!bg-transparent !border-0 !outline-none !ring-0 !shadow-none font-display text-lg lg:text-xl font-bold text-primary text-center cursor-pointer hover:bg-muted/50 rounded-lg px-2 py-1 transition-colors appearance-none w-auto min-w-[5rem]">
+                            <?php foreach ($_yearOpts as $y): ?>
+                                <option value="<?= $y ?>" <?= $_curYear === $y ? 'selected' : '' ?>><?= $y ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                     <p class="text-[10px] sm:text-xs text-secondary mt-0.5 truncate"><?= T('select_click_fill', 'Klik tanggal putih untuk mengisi') ?></p>
                 </div>
+                <script>
+                (function(){
+                    function pad(n){return String(n).padStart(2,'0');}
+                    function go(){
+                        var m = parseInt(document.getElementById('pickMonth').value,10);
+                        var y = parseInt(document.getElementById('pickYear').value,10);
+                        if (!m || !y) return;
+                        window.location.href = '<?= BASE_URL ?>engineer/select_date.php?month=' + y + '-' + pad(m);
+                    }
+                    var pm = document.getElementById('pickMonth');
+                    var py = document.getElementById('pickYear');
+                    if (pm) pm.addEventListener('change', go);
+                    if (py) py.addEventListener('change', go);
+                })();
+                </script>
                 <a href="?month=<?= $nextMonth ?>" class="p-1.5 sm:p-2 rounded-full bg-surface border border-border hover:bg-muted transition-colors text-secondary hover:text-primary flex-shrink-0" title="<?= T('select_next', 'Bulan selanjutnya') ?>">
                     <i class="fas fa-chevron-right text-xs"></i>
                 </a>
