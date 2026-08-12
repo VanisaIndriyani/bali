@@ -56,7 +56,7 @@ $db->query("CREATE TABLE IF NOT EXISTS `equipment_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
 // ==============================================
-// 🔧 MIGRATION: ADD MISSING COLUMNS IF NOT EXISTS (LWBP/WBP/LNG/Deep Well + Equipment ID)
+// 🔧 MIGRATION: ADD MISSING COLUMNS IF NOT EXISTS (LWBP/WBP/LNG/Deep Well + Equipment ID + METER RUMUS LISTRIK ⚡)
 // ==============================================
 $_mig = function() use ($db) {
     $cols = [];
@@ -70,6 +70,16 @@ $_mig = function() use ($db) {
     if (!isset($cols['gas_lng_kg']))        $adds[] = "ADD COLUMN `gas_lng_kg` DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER `gas_kg`";
     if (!isset($cols['air_deep_well_m3']))  $adds[] = "ADD COLUMN `air_deep_well_m3` DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER `air_m3`";
     if (!isset($cols['equipment_id']))      $adds[] = "ADD COLUMN `equipment_id` INT UNSIGNED NULL DEFAULT NULL AFTER `air_deep_well_m3`";
+
+    // =========================================================
+    // ⚡ RUMUS BARU LISTRIK (METER SAAT INI - KEMARIN × RATIO)
+    // =========================================================
+    if (!isset($cols['lwbp_meter_prev']))   $adds[] = "ADD COLUMN `lwbp_meter_prev` DECIMAL(14,4) NOT NULL DEFAULT 0.0000 AFTER `pln_kwh`";
+    if (!isset($cols['lwbp_meter_curr']))   $adds[] = "ADD COLUMN `lwbp_meter_curr` DECIMAL(14,4) NOT NULL DEFAULT 0.0000 AFTER `lwbp_meter_prev`";
+    if (!isset($cols['wbp_meter_prev']))    $adds[] = "ADD COLUMN `wbp_meter_prev`  DECIMAL(14,4) NOT NULL DEFAULT 0.0000 AFTER `lwbp_meter_curr`";
+    if (!isset($cols['wbp_meter_curr']))    $adds[] = "ADD COLUMN `wbp_meter_curr`  DECIMAL(14,4) NOT NULL DEFAULT 0.0000 AFTER `wbp_meter_prev`";
+    if (!isset($cols['meter_ratio']))       $adds[] = "ADD COLUMN `meter_ratio`     INT UNSIGNED NOT NULL DEFAULT 8000 COMMENT 'Perkalian meter: (Curr-Prev)*Ratio = kWh' AFTER `wbp_meter_curr`";
+
     if (count($adds) > 0) {
         try { $db->query("ALTER TABLE `energy_logs` " . implode(", ", $adds)); } catch (Throwable $e) {}
     }
@@ -255,9 +265,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_l
     $logDate = $_POST['log_date'] ?? date('Y-m-d');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $logDate)) $logDate = date('Y-m-d');
     $shift = in_array(strtolower($_POST['shift'] ?? ''), ['pagi','siang','malam'], true) ? strtolower($_POST['shift']) : 'pagi';
-    $plnLwbp  = (float)($_POST['pln_lwbp_kwh'] ?? 0);
-    $plnWbp   = (float)($_POST['pln_wbp_kwh'] ?? 0);
+
+    // =========================================================
+    // 🔥 RUMUS BARU LISTRIK USER:
+    //    LWBP kWh = (Meter SAAT INI - Meter KEMARIN) × Ratio Default 8000
+    //    WBP kWh = (Meter SAAT INI - Meter KEMARIN) × Ratio Default 8000
+    //    Total = LWBP_kWh + WBP_kWh
+    // =========================================================
+    $lwbpPrev = (float)($_POST['meter_lwbp_prev'] ?? 0);
+    $lwbpCurr = (float)($_POST['meter_lwbp_curr'] ?? 0);
+    $wbpPrev  = (float)($_POST['meter_wbp_prev']  ?? 0);
+    $wbpCurr  = (float)($_POST['meter_wbp_curr']  ?? 0);
+    $ratio    = (int)($_POST['meter_ratio']       ?? 8000);
+    if ($ratio <= 0) $ratio = 8000;
+
+    $meterFilled = ($lwbpPrev > 0 || $lwbpCurr > 0 || $wbpPrev > 0 || $wbpCurr > 0);
+    if ($meterFilled) {
+        // User INPUT METER → Hitung pakai rumus (SAAT INI - KEMARIN) × 8000
+        $plnLwbp = max(0, ($lwbpCurr - $lwbpPrev) * $ratio);
+        $plnWbp  = max(0, ($wbpCurr  - $wbpPrev)  * $ratio);
+    } else {
+        // User INPUT LANGSUNG kWh (BACKWARD COMPATIBLE!) Pakai logic lama
+        $plnLwbp  = (float)($_POST['pln_lwbp_kwh'] ?? 0);
+        $plnWbp   = (float)($_POST['pln_wbp_kwh']  ?? 0);
+    }
     $pln      = $plnLwbp + $plnWbp;
+
     $genset   = (float)($_POST['genset_kwh'] ?? 0);
     $solar    = (float)($_POST['solar_liter'] ?? 0);
     $gas      = (float)($_POST['gas_kg'] ?? 0);
@@ -273,6 +306,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_l
         'pln_lwbp_kwh'      => $plnLwbp,
         'pln_wbp_kwh'       => $plnWbp,
         'pln_kwh'           => $pln,
+        'lwbp_meter_prev'   => $lwbpPrev,
+        'lwbp_meter_curr'   => $lwbpCurr,
+        'wbp_meter_prev'    => $wbpPrev,
+        'wbp_meter_curr'    => $wbpCurr,
+        'meter_ratio'       => $ratio,
         'genset_kwh'        => $genset,
         'solar_liter'       => $solar,
         'gas_kg'            => $gas,
@@ -313,9 +351,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit_
         $logDate = $_POST['log_date'] ?? date('Y-m-d');
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $logDate)) $logDate = date('Y-m-d');
         $shift = in_array(strtolower($_POST['shift'] ?? ''), ['pagi','siang','malam'], true) ? strtolower($_POST['shift']) : 'pagi';
-        $plnLwbp  = (float)($_POST['pln_lwbp_kwh'] ?? 0);
-        $plnWbp   = (float)($_POST['pln_wbp_kwh'] ?? 0);
+
+        // 🔥 RUMUS BARU LISTRIK (SAMA PATTERN DENGAN ADD LOG!)
+        $lwbpPrev = (float)($_POST['meter_lwbp_prev'] ?? 0);
+        $lwbpCurr = (float)($_POST['meter_lwbp_curr'] ?? 0);
+        $wbpPrev  = (float)($_POST['meter_wbp_prev']  ?? 0);
+        $wbpCurr  = (float)($_POST['meter_wbp_curr']  ?? 0);
+        $ratio    = (int)($_POST['meter_ratio']       ?? 8000);
+        if ($ratio <= 0) $ratio = 8000;
+        $meterFilled = ($lwbpPrev > 0 || $lwbpCurr > 0 || $wbpPrev > 0 || $wbpCurr > 0);
+        if ($meterFilled) {
+            $plnLwbp = max(0, ($lwbpCurr - $lwbpPrev) * $ratio);
+            $plnWbp  = max(0, ($wbpCurr  - $wbpPrev)  * $ratio);
+        } else {
+            $plnLwbp  = (float)($_POST['pln_lwbp_kwh'] ?? 0);
+            $plnWbp   = (float)($_POST['pln_wbp_kwh']  ?? 0);
+        }
         $pln      = $plnLwbp + $plnWbp;
+
         $genset   = (float)($_POST['genset_kwh'] ?? 0);
         $solar    = (float)($_POST['solar_liter'] ?? 0);
         $gas      = (float)($_POST['gas_kg'] ?? 0);
@@ -331,6 +384,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit_
             'pln_lwbp_kwh'      => $plnLwbp,
             'pln_wbp_kwh'       => $plnWbp,
             'pln_kwh'           => $pln,
+            'lwbp_meter_prev'   => $lwbpPrev,
+            'lwbp_meter_curr'   => $lwbpCurr,
+            'wbp_meter_prev'    => $wbpPrev,
+            'wbp_meter_curr'    => $wbpCurr,
+            'meter_ratio'       => $ratio,
             'genset_kwh'        => $genset,
             'solar_liter'       => $solar,
             'gas_kg'            => $gas,
@@ -721,13 +779,13 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
     <!-- TABLE LIST LOG SHEET - REAL DB -->
     <div class="bg-white rounded-premium border border-slate-200 shadow-sm overflow-hidden mb-6 animate-slide-up" style="animation-delay: 90ms">
         <div class="hide-scrollbar -mx-4 sm:mx-0 px-4 sm:px-0">
-            <table class="w-full text-sm min-w-[1100px] table-auto border-collapse logsheet-ramp">
+            <table class="w-full text-sm min-w-[1400px] table-auto border-collapse logsheet-ramp">
                 <thead class="bg-slate-50 border-b-2 border-slate-200">
                     <tr class="text-left text-secondary text-xs">
                         <th class="px-2 sm:px-3 py-3 font-bold whitespace-nowrap w-12 text-center">#</th>
                         <th class="px-2 sm:px-3 py-3 font-bold whitespace-nowrap">Tanggal</th>
                         <th class="px-2 sm:px-3 py-3 font-bold whitespace-nowrap w-[220px]">Shift</th>
-                        <th class="px-2 sm:px-3 py-3 font-bold text-center whitespace-nowrap w-[95px] border-l border-slate-200" colspan="3">LISTRIK (kWh)</th>
+                        <th class="px-2 sm:px-3 py-3 font-bold text-center whitespace-nowrap w-[350px] border-l border-slate-200" colspan="5">LISTRIK (kWh)</th>
                         <th class="px-2 sm:px-3 py-3 font-bold text-right whitespace-nowrap w-[100px] border-l border-slate-200">Solar (L)</th>
                         <th class="px-2 sm:px-3 py-3 font-bold text-center whitespace-nowrap w-[190px] border-l border-slate-200" colspan="2">GAS (Kg)</th>
                         <th class="px-2 sm:px-3 py-3 font-bold text-center whitespace-nowrap w-[190px] border-l border-slate-200" colspan="2">AIR (m3)</th>
@@ -739,7 +797,9 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                         <th class="px-2 sm:px-3 py-2"></th>
                         <th class="px-2 sm:px-3 py-2"></th>
                         <th class="px-2 sm:px-3 py-2"></th>
-                        <th class="px-2 sm:px-3 py-2 font-bold text-right border-l border-slate-200">LWBP</th>
+                        <th class="px-2 sm:px-3 py-2 font-bold text-center border-l border-slate-200 w-[130px]">Meter LWBP</th>
+                        <th class="px-2 sm:px-3 py-2 font-bold text-center w-[130px]">Meter WBP</th>
+                        <th class="px-2 sm:px-3 py-2 font-bold text-right">LWBP</th>
                         <th class="px-2 sm:px-3 py-2 font-bold text-right">WBP</th>
                         <th class="px-2 sm:px-3 py-2 font-bold text-right text-primary">TOTAL</th>
                         <th class="px-2 sm:px-3 py-2 font-bold text-right border-l border-slate-200">Genset</th>
@@ -755,7 +815,7 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                 <tbody class="divide-y divide-slate-100">
                 <?php if (empty($logs)): ?>
                     <tr>
-                        <td colspan="14" class="px-4 py-16 text-center">
+                        <td colspan="16" class="px-4 py-16 text-center">
                             <div class="text-5xl text-slate-300 mb-3"><i class="far fa-folder-open"></i></div>
                             <p class="text-[14px] font-bold text-slate-600 mb-1">Belum ada log energi untuk periode ini</p>
                             <p class="text-[12px] text-slate-500 mb-5">Klik tombol <strong>+ Tambah Log Baru</strong> di pojok kanan atas untuk mulai input data.</p>
@@ -775,6 +835,16 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                         $gasLng = (float)($r['gas_lng_kg'] ?? 0);
                         $airPdam = (float)($r['air_m3'] ?? 0);
                         $airDw   = (float)($r['air_deep_well_m3'] ?? 0);
+
+                        $lwbpPrev = (float)($r['lwbp_meter_prev'] ?? 0);
+                        $lwbpCurr = (float)($r['lwbp_meter_curr'] ?? 0);
+                        $wbpPrev  = (float)($r['wbp_meter_prev']  ?? 0);
+                        $wbpCurr  = (float)($r['wbp_meter_curr']  ?? 0);
+                        $meterRatio = (int)($r['meter_ratio'] ?? 8000);
+                        $lwbpMeterFilled = ($lwbpPrev > 0 || $lwbpCurr > 0);
+                        $wbpMeterFilled  = ($wbpPrev  > 0 || $wbpCurr  > 0);
+                        $lwbpCalcKwh = $lwbpMeterFilled ? max(0, ($lwbpCurr - $lwbpPrev)) * $meterRatio : $lwbp;
+                        $wbpCalcKwh  = $wbpMeterFilled  ? max(0, ($wbpCurr  - $wbpPrev))  * $meterRatio : $wbp;
 
                         $secData = null;
                         $hasEquip = !empty($r['equip_section_data']);
@@ -811,7 +881,27 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                                 <i class="fas fa-clock mr-1.5 text-slate-400 text-[10px]"></i><?= $shiftLabel ?>
                             </span>
                         </td>
-                        <td class="px-2 sm:px-3 py-3 text-right font-mono text-slate-600 align-top tabular-nums border-l border-slate-100"><?= fmtNum($lwbp, 1) ?></td>
+                        <td class="px-2 sm:px-3 py-3 align-top tabular-nums border-l border-slate-100 w-[130px]">
+                            <?php if ($lwbpMeterFilled): ?>
+                                <div class="text-[10px] font-mono leading-tight">
+                                    <div class="text-slate-400 font-bold tracking-tight"><?= fmtNum($lwbpPrev, 4) ?><span class="mx-1 text-slate-300">→</span><?= fmtNum($lwbpCurr, 4) ?></div>
+                                    <div class="text-sky-700 font-black mt-0.5">= <?= fmtNum($lwbpCalcKwh, 1) ?><span class="text-slate-400 font-bold text-[9px] ml-1">kWh</span></div>
+                                </div>
+                            <?php else: ?>
+                                <div class="text-center text-slate-300 font-bold text-xs py-1">—</div>
+                            <?php endif; ?>
+                        </td>
+                        <td class="px-2 sm:px-3 py-3 align-top tabular-nums w-[130px]">
+                            <?php if ($wbpMeterFilled): ?>
+                                <div class="text-[10px] font-mono leading-tight">
+                                    <div class="text-slate-400 font-bold tracking-tight"><?= fmtNum($wbpPrev, 4) ?><span class="mx-1 text-slate-300">→</span><?= fmtNum($wbpCurr, 4) ?></div>
+                                    <div class="text-indigo-700 font-black mt-0.5">= <?= fmtNum($wbpCalcKwh, 1) ?><span class="text-slate-400 font-bold text-[9px] ml-1">kWh</span></div>
+                                </div>
+                            <?php else: ?>
+                                <div class="text-center text-slate-300 font-bold text-xs py-1">—</div>
+                            <?php endif; ?>
+                        </td>
+                        <td class="px-2 sm:px-3 py-3 text-right font-mono text-slate-600 align-top tabular-nums"><?= fmtNum($lwbp, 1) ?></td>
                         <td class="px-2 sm:px-3 py-3 text-right font-mono text-slate-600 align-top tabular-nums"><?= fmtNum($wbp, 1) ?></td>
                         <td class="px-2 sm:px-3 py-3 text-right font-mono font-black text-primary align-top tabular-nums"><?= fmtNum($plnT, 1) ?></td>
                         <td class="px-2 sm:px-3 py-3 text-right font-mono font-bold text-slate-600 align-top tabular-nums border-l border-slate-100"><?= fmtNum($r['genset_kwh'], 1) ?></td>
@@ -947,22 +1037,92 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                     </div>
 
                     <div class="space-y-3 border border-slate-200 rounded-xl p-3 sm:p-4 bg-slate-50/70">
-                        <div class="flex items-center justify-between">
-                            <p class="text-[10px] font-black uppercase tracking-[2px] text-slate-500"><i class="fas fa-bolt text-amber-500 mr-1.5"></i> Listrik PLN (kWh)</p>
-                            <span class="text-[9px] text-slate-400 font-semibold uppercase">total = lwbp + wbp (auto hitung)</span>
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p class="text-[10px] font-black uppercase tracking-[2px] text-slate-500"><i class="fas fa-bolt text-amber-500 mr-1.5"></i> Listrik PLN (Baca Meter + Auto Hitung Rumus ⚡)</p>
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-100 border border-amber-200 text-amber-800 text-[9px] font-black uppercase">
+                                <i class="fas fa-calculator"></i>
+                                Rumus = (Saat Ini − Kemarin) × <span data-role="ratio-label-add">8000</span> = kWh
+                            </span>
                         </div>
-                        <div class="grid grid-cols-3 gap-3">
-                            <div>
-                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">LWBP</label>
-                                <input type="number" step="0.01" min="0" name="pln_lwbp_kwh" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                        <!-- LWBP Meter -->
+                        <div class="border-2 border-sky-100 rounded-xl p-3 sm:p-3.5 bg-white">
+                            <div class="flex items-center justify-between mb-2.5">
+                                <h4 class="text-[11px] font-black uppercase tracking-wider text-sky-700">
+                                    <i class="fas fa-tachometer-alt mr-1.5 text-sky-500"></i> Meter LWBP (Beban Rendah)
+                                </h4>
+                                <div class="inline-flex items-center gap-1.5">
+                                    <div class="text-[9px] font-black uppercase text-slate-400">LWBP kWh = </div>
+                                    <div class="px-2.5 py-1 rounded-lg bg-sky-900 text-white text-[12px] font-black font-mono tabular-nums min-w-[80px] text-right shadow-inner" data-role="lwbp-kwh-add">0.0</div>
+                                </div>
                             </div>
-                            <div>
-                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">WBP</label>
-                                <input type="number" step="0.01" min="0" name="pln_wbp_kwh" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                                <div>
+                                    <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">👈 Meter Kemarin (Prev)</label>
+                                    <input type="number" step="0.0001" min="0" name="meter_lwbp_prev" value="0" class="meter-lwbp meter-prev w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-600" placeholder="Contoh: 10.0000">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">👉 Meter Saat Ini (Curr)</label>
+                                    <input type="number" step="0.0001" min="0" name="meter_lwbp_curr" value="0" class="meter-lwbp meter-curr w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-600" placeholder="Contoh: 11.2500">
+                                </div>
+                                <div class="text-[10px] font-bold text-sky-700/70 text-center sm:text-right leading-tight">
+                                    <div>Pengurangan meter:</div>
+                                    <div class="font-mono font-black text-sky-900 text-sm inline-flex items-center gap-1">
+                                        <span data-role="lwbp-sub-add">0.0000</span>
+                                        <span>×</span>
+                                        <span>8000</span>
+                                    </div>
+                                </div>
                             </div>
+                        </div>
+                        <!-- /LWBP -->
+                        <!-- WBP Meter -->
+                        <div class="border-2 border-indigo-100 rounded-xl p-3 sm:p-3.5 bg-white">
+                            <div class="flex items-center justify-between mb-2.5">
+                                <h4 class="text-[11px] font-black uppercase tracking-wider text-indigo-700">
+                                    <i class="fas fa-tachometer-alt mr-1.5 text-indigo-500"></i> Meter WBP (Beban Puncak)
+                                </h4>
+                                <div class="inline-flex items-center gap-1.5">
+                                    <div class="text-[9px] font-black uppercase text-slate-400">WBP kWh = </div>
+                                    <div class="px-2.5 py-1 rounded-lg bg-indigo-900 text-white text-[12px] font-black font-mono tabular-nums min-w-[80px] text-right shadow-inner" data-role="wbp-kwh-add">0.0</div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                                <div>
+                                    <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">👈 Meter Kemarin (Prev)</label>
+                                    <input type="number" step="0.0001" min="0" name="meter_wbp_prev" value="0" class="meter-wbp meter-prev w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-600" placeholder="Contoh: 23.0000">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">👉 Meter Saat Ini (Curr)</label>
+                                    <input type="number" step="0.0001" min="0" name="meter_wbp_curr" value="0" class="meter-wbp meter-curr w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-600" placeholder="Contoh: 25.7000">
+                                </div>
+                                <div class="text-[10px] font-bold text-indigo-700/70 text-center sm:text-right leading-tight">
+                                    <div>Pengurangan meter:</div>
+                                    <div class="font-mono font-black text-indigo-900 text-sm inline-flex items-center gap-1">
+                                        <span data-role="wbp-sub-add">0.0000</span>
+                                        <span>×</span>
+                                        <span>8000</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- /WBP -->
+                        <!-- Hidden backward-compat kWh fields (handler masih butuh) -->
+                        <input type="hidden" name="pln_lwbp_kwh" data-role="lwbp-hidden-add" value="0">
+                        <input type="hidden" name="pln_wbp_kwh"  data-role="wbp-hidden-add"  value="0">
+                        <input type="hidden" name="meter_ratio" value="8000">
+                        <!-- TOTAL FINAL -->
+                        <div class="grid grid-cols-3 gap-3 pt-1">
+                            <div class="col-span-2"></div>
                             <div class="flex items-end">
-                                <div class="w-full px-3 py-2.5 rounded-xl border-2 border-slate-800/10 bg-slate-100 text-slate-700 text-sm font-black font-mono text-right">
-                                    <span data-role="pln-total">0</span>
+                                <div class="w-full px-3.5 py-3 rounded-xl border-2 border-slate-900 bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-inner flex items-baseline justify-between gap-2">
+                                    <div class="flex items-center gap-1">
+                                        <i class="fas fa-bolt text-amber-400"></i>
+                                        <span class="text-[10px] uppercase font-black tracking-wider opacity-80">TOTAL LISTRIK</span>
+                                    </div>
+                                    <div class="text-right flex items-baseline gap-1">
+                                        <span class="font-mono font-black tabular-nums text-lg" data-role="pln-total">0</span>
+                                        <span class="text-[10px] font-bold opacity-70">kWh</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1668,22 +1828,107 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                     </div>
 
                     <div class="space-y-3 border border-slate-200 rounded-xl p-3 sm:p-4 bg-slate-50/70">
-                        <div class="flex items-center justify-between">
-                            <p class="text-[10px] font-black uppercase tracking-[2px] text-slate-500"><i class="fas fa-bolt text-amber-500 mr-1.5"></i> Listrik PLN (kWh)</p>
-                            <span class="text-[9px] text-slate-400 font-semibold uppercase">total = lwbp + wbp (auto hitung)</span>
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p class="text-[10px] font-black uppercase tracking-[2px] text-slate-500"><i class="fas fa-bolt text-amber-500 mr-1.5"></i> Listrik PLN (Baca Meter + Auto Hitung Rumus ⚡)</p>
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-100 border border-amber-200 text-amber-800 text-[9px] font-black uppercase">
+                                <i class="fas fa-calculator"></i>
+                                Rumus = (Saat Ini − Kemarin) × <span data-role="ratio-label-edit">8000</span> = kWh
+                            </span>
                         </div>
-                        <div class="grid grid-cols-3 gap-3">
-                            <div>
-                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">LWBP</label>
-                                <input type="number" step="0.01" min="0" name="pln_lwbp_kwh" value="<?= (float)($editData['pln_lwbp_kwh'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                        <?php
+                            // Fallback populate meter dari DB. JIKA meter KOSONG semua (data lawas sebelum ada rumus) → JANGAN dipaksa dari kWh langsung!
+                            $edLwbpPrev = (float)($editData['lwbp_meter_prev'] ?? 0);
+                            $edLwbpCurr = (float)($editData['lwbp_meter_curr'] ?? 0);
+                            $edWbpPrev  = (float)($editData['wbp_meter_prev']  ?? 0);
+                            $edWbpCurr  = (float)($editData['wbp_meter_curr']  ?? 0);
+                            $edRatio    = (int)($editData['meter_ratio']       ?? 8000);
+                            if ($edRatio <= 0) $edRatio = 8000;
+                            $edMeterAda = ($edLwbpPrev > 0 || $edLwbpCurr > 0 || $edWbpPrev > 0 || $edWbpCurr > 0);
+                            // Kalau meter TIDAK ADA (data lama), PLN kWh hidden langsung diisi dari DB pln_lwbp_kwh / pln_wbp_kwh.
+                            $edFallbackLwbp = $edMeterAda ? max(0, ($edLwbpCurr - $edLwbpPrev) * $edRatio) : (float)($editData['pln_lwbp_kwh'] ?? 0);
+                            $edFallbackWbp  = $edMeterAda ? max(0, ($edWbpCurr  - $edWbpPrev)  * $edRatio) : (float)($editData['pln_wbp_kwh']  ?? 0);
+                            $edFallbackSubLwbp = $edMeterAda ? ($edLwbpCurr - $edLwbpPrev) : 0;
+                            $edFallbackSubWbp  = $edMeterAda ? ($edWbpCurr  - $edWbpPrev)  : 0;
+                        ?>
+                        <!-- LWBP Meter -->
+                        <div class="border-2 border-sky-100 rounded-xl p-3 sm:p-3.5 bg-white">
+                            <div class="flex items-center justify-between mb-2.5">
+                                <h4 class="text-[11px] font-black uppercase tracking-wider text-sky-700">
+                                    <i class="fas fa-tachometer-alt mr-1.5 text-sky-500"></i> Meter LWBP (Beban Rendah)
+                                </h4>
+                                <div class="inline-flex items-center gap-1.5">
+                                    <div class="text-[9px] font-black uppercase text-slate-400">LWBP kWh = </div>
+                                    <div class="px-2.5 py-1 rounded-lg bg-sky-900 text-white text-[12px] font-black font-mono tabular-nums min-w-[80px] text-right shadow-inner" data-role="lwbp-kwh-edit"><?= fmtNum($edFallbackLwbp,1) ?></div>
+                                </div>
                             </div>
-                            <div>
-                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">WBP</label>
-                                <input type="number" step="0.01" min="0" name="pln_wbp_kwh" value="<?= (float)($editData['pln_wbp_kwh'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                                <div>
+                                    <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">👈 Meter Kemarin (Prev)</label>
+                                    <input type="number" step="0.0001" min="0" name="meter_lwbp_prev" value="<?= number_format($edLwbpPrev, 4, '.', '') ?>" class="meter-lwbp meter-prev w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-600">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">👉 Meter Saat Ini (Curr)</label>
+                                    <input type="number" step="0.0001" min="0" name="meter_lwbp_curr" value="<?= number_format($edLwbpCurr, 4, '.', '') ?>" class="meter-lwbp meter-curr w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-600">
+                                </div>
+                                <div class="text-[10px] font-bold text-sky-700/70 text-center sm:text-right leading-tight">
+                                    <div>Pengurangan meter:</div>
+                                    <div class="font-mono font-black text-sky-900 text-sm inline-flex items-center gap-1">
+                                        <span data-role="lwbp-sub-edit"><?= number_format($edFallbackSubLwbp, 4, '.', '') ?></span>
+                                        <span>×</span>
+                                        <span><?= (int)$edRatio ?></span>
+                                    </div>
+                                </div>
                             </div>
+                        </div>
+                        <!-- /LWBP -->
+                        <!-- WBP Meter -->
+                        <div class="border-2 border-indigo-100 rounded-xl p-3 sm:p-3.5 bg-white">
+                            <div class="flex items-center justify-between mb-2.5">
+                                <h4 class="text-[11px] font-black uppercase tracking-wider text-indigo-700">
+                                    <i class="fas fa-tachometer-alt mr-1.5 text-indigo-500"></i> Meter WBP (Beban Puncak)
+                                </h4>
+                                <div class="inline-flex items-center gap-1.5">
+                                    <div class="text-[9px] font-black uppercase text-slate-400">WBP kWh = </div>
+                                    <div class="px-2.5 py-1 rounded-lg bg-indigo-900 text-white text-[12px] font-black font-mono tabular-nums min-w-[80px] text-right shadow-inner" data-role="wbp-kwh-edit"><?= fmtNum($edFallbackWbp,1) ?></div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                                <div>
+                                    <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">👈 Meter Kemarin (Prev)</label>
+                                    <input type="number" step="0.0001" min="0" name="meter_wbp_prev" value="<?= number_format($edWbpPrev, 4, '.', '') ?>" class="meter-wbp meter-prev w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-600">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">👉 Meter Saat Ini (Curr)</label>
+                                    <input type="number" step="0.0001" min="0" name="meter_wbp_curr" value="<?= number_format($edWbpCurr, 4, '.', '') ?>" class="meter-wbp meter-curr w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-600">
+                                </div>
+                                <div class="text-[10px] font-bold text-indigo-700/70 text-center sm:text-right leading-tight">
+                                    <div>Pengurangan meter:</div>
+                                    <div class="font-mono font-black text-indigo-900 text-sm inline-flex items-center gap-1">
+                                        <span data-role="wbp-sub-edit"><?= number_format($edFallbackSubWbp, 4, '.', '') ?></span>
+                                        <span>×</span>
+                                        <span><?= (int)$edRatio ?></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- /WBP -->
+                        <!-- Hidden backward-compat kWh fields -->
+                        <input type="hidden" name="pln_lwbp_kwh" data-role="lwbp-hidden-edit" value="<?= number_format($edFallbackLwbp, 2, '.', '') ?>">
+                        <input type="hidden" name="pln_wbp_kwh"  data-role="wbp-hidden-edit"  value="<?= number_format($edFallbackWbp, 2, '.', '') ?>">
+                        <input type="hidden" name="meter_ratio" value="<?= (int)$edRatio ?>">
+                        <!-- TOTAL FINAL -->
+                        <div class="grid grid-cols-3 gap-3 pt-1">
+                            <div class="col-span-2"></div>
                             <div class="flex items-end">
-                                <div class="w-full px-3 py-2.5 rounded-xl border-2 border-slate-800/10 bg-slate-100 text-slate-700 text-sm font-black font-mono text-right">
-                                    <span data-role="pln-total-edit"><?= fmtNum((float)(($editData['pln_lwbp_kwh'] ?? 0) + ($editData['pln_wbp_kwh'] ?? 0)), 1) ?></span>
+                                <div class="w-full px-3.5 py-3 rounded-xl border-2 border-slate-900 bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-inner flex items-baseline justify-between gap-2">
+                                    <div class="flex items-center gap-1">
+                                        <i class="fas fa-bolt text-amber-400"></i>
+                                        <span class="text-[10px] uppercase font-black tracking-wider opacity-80">TOTAL LISTRIK</span>
+                                    </div>
+                                    <div class="text-right flex items-baseline gap-1">
+                                        <span class="font-mono font-black tabular-nums text-lg" data-role="pln-total-edit"><?= fmtNum($edFallbackLwbp + $edFallbackWbp, 1) ?></span>
+                                        <span class="text-[10px] font-bold opacity-70">kWh</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2328,29 +2573,79 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
 <script>
 (function(){
     function fmt(n, d){
-        n = parseFloat(n || 0);
-        if (isNaN(n)) n = 0;
-        return n.toLocaleString('id-ID', {minimumFractionDigits: d, maximumFractionDigits: d});
+        n = parseFloat(n || 0); if (isNaN(n)) n = 0;
+        return n.toLocaleString('id-ID', {minimumFractionDigits: (d ?? 1), maximumFractionDigits: (d ?? 1)});
     }
+    function fmt4(n){
+        n = parseFloat(n || 0); if (isNaN(n)) n = 0;
+        return n.toLocaleString('id-ID', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+    }
+    /* 🔥 Helper HITUNG OTOMATIS METER LWBP & WBP + UPDATE TOTAL PLN
+       suffix = ''      -> addLogModal
+       suffix = '-edit'  -> editLogModal
+       ratio  = default 8000 (dari hidden input meter_ratio)
+    */
+    function calculateElectricity(suffix){
+        suffix = suffix || '';
+        const $ = sel => document.querySelector(sel + (suffix ? ('-' + suffix.replace(/^-/,'')) : ''));
+        const $$ = sel => document.querySelectorAll(sel);
+        // Ambil ratio dari hidden input
+        let ratio = 8000;
+        try {
+            const inputs = document.querySelectorAll('input[name="meter_ratio"]');
+            const which = (suffix.indexOf('edit') >= 0 && inputs[1]) ? inputs[1] : inputs[0];
+            if (which && parseInt(which.value) > 0) ratio = parseInt(which.value);
+        } catch(_) {}
+        try { const rl = $('[data-role="ratio-label'); if(rl) rl.textContent = String(ratio); } catch(_) {}
+
+        // ===== LWBP =====
+        const lwbpPrevInput = document.querySelectorAll('input[name="meter_lwbp_prev"]');
+        const lwbpCurrInput = document.querySelectorAll('input[name="meter_lwbp_curr"]');
+        const wbpPrevInput  = document.querySelectorAll('input[name="meter_wbp_prev"]');
+        const wbpCurrInput  = document.querySelectorAll('input[name="meter_wbp_curr"]');
+        const idx = (suffix.indexOf('edit') >= 0) ? 1 : 0;
+        const lp = lwbpPrevInput[idx] ? parseFloat(lwbpPrevInput[idx].value || 0) : 0;
+        const lc = lwbpCurrInput[idx] ? parseFloat(lwbpCurrInput[idx].value || 0) : 0;
+        const wp = wbpPrevInput[idx]  ? parseFloat(wbpPrevInput[idx].value  || 0) : 0;
+        const wc = wbpCurrInput[idx]  ? parseFloat(wbpCurrInput[idx].value  || 0) : 0;
+        const subLwbp = Math.max(0, lc - lp);
+        const subWbp  = Math.max(0, wc - wp);
+        const kwhLwbp = subLwbp * ratio;
+        const kwhWbp  = subWbp  * ratio;
+        const kwhTot = kwhLwbp + kwhWbp;
+
+        // Update tampilan subtract (Curr-Prev)
+        const sl = document.querySelector('[data-role="lwbp-sub' + suffix + '"]');
+        const sw = document.querySelector('[data-role="wbp-sub' + suffix + '"]');
+        if (sl) sl.textContent = subLwbp.toLocaleString('id-ID', {minimumFractionDigits:4, maximumFractionDigits:4});
+        if (sw) sw.textContent = subWbp.toLocaleString('id-ID', {minimumFractionDigits:4, maximumFractionDigits:4});
+        // Update Badge kWh result LWBP/WBP
+        const kl = document.querySelector('[data-role="lwbp-kwh' + suffix + '"]');
+        const kw = document.querySelector('[data-role="wbp-kwh' + suffix + '"]');
+        if (kl) kl.textContent = fmt(kwhLwbp,1);
+        if (kw) kw.textContent = fmt(kwhWbp,1);
+        // Update hidden backward compat kWh fields
+        const hl = document.querySelector('[data-role="lwbp-hidden' + suffix + '"]');
+        const hw = document.querySelector('[data-role="wbp-hidden' + suffix + '"]');
+        if (hl) hl.value = String(Math.round(kwhLwbp * 100) / 100);
+        if (hw) hw.value = String(Math.round(kwhWbp  * 100) / 100);
+        // Update TOTAL PLN
+        const tv = document.querySelector('[data-role="pln-total' + suffix + '"]');
+        if (tv) tv.textContent = fmt(kwhTot, 1);
+    }
+
     function bindAdd(){
-        var lw = document.querySelector('input[name="pln_lwbp_kwh"]');
-        var wb = document.querySelector('input[name="pln_wbp_kwh"]');
-        var tv = document.querySelector('[data-role="pln-total"]');
-        if(!lw || !wb || !tv) return;
-        function up(){ tv.textContent = fmt((parseFloat(lw.value)||0) + (parseFloat(wb.value)||0), 1); }
-        lw.addEventListener('input', up);
-        wb.addEventListener('input', up);
-        up();
+        const inputs = document.querySelectorAll('#addLogModal input[name="meter_lwbp_prev"], #addLogModal input[name="meter_lwbp_curr"], #addLogModal input[name="meter_wbp_prev"], #addLogModal input[name="meter_wbp_curr"]');
+        const run = () => calculateElectricity('');
+        inputs.forEach(i => { i.addEventListener('input', run); });
+        setTimeout(run, 20);
     }
     function bindEdit(){
-        var lw = document.querySelectorAll('input[name="pln_lwbp_kwh"]')[1];
-        var wb = document.querySelectorAll('input[name="pln_wbp_kwh"]')[1];
-        var tv = document.querySelector('[data-role="pln-total-edit"]');
-        if(!lw || !wb || !tv) return;
-        function up(){ tv.textContent = fmt((parseFloat(lw.value)||0) + (parseFloat(wb.value)||0), 1); }
-        lw.addEventListener('input', up);
-        wb.addEventListener('input', up);
-        up();
+        const inputs = document.querySelectorAll('#editLogModal input[name="meter_lwbp_prev"], #editLogModal input[name="meter_lwbp_curr"], #editLogModal input[name="meter_wbp_prev"], #editLogModal input[name="meter_wbp_curr"]');
+        if(!inputs || inputs.length === 0) return;
+        const run = () => calculateElectricity('-edit');
+        inputs.forEach(i => { i.addEventListener('input', run); });
+        setTimeout(run, 20);
     }
     bindAdd();
     bindEdit();
