@@ -150,7 +150,7 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
 // ───────────────────────────────────────────────────────────────
 $sumBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $dateFrom, $dateTo, 'SUM');
 
-// ── Query SPLIT energy_logs untuk kartu Gas LPG / Gas LNG / Air PDAM / Deep Well (split tidak ada di daily_logs)
+// ── Query SPLIT energy_logs untuk kartu Gas LPG / Gas LNG / Deep Well (split tidak ada di daily_logs)
 $elWhere  = "el.log_date BETWEEN ? AND ?";
 $elParams = [$dateFrom, $dateTo];
 if ($userRole === 'engineer') {
@@ -181,12 +181,21 @@ $gasSisaDaily = max(0, $gasBothTotal - ($gasLpgSplit + $gasLngSplit));
 $gasLpgTotal  = $gasLpgSplit + $gasSisaDaily;
 $gasLngTotal  = $gasLngSplit;
 
-$airPdamSplit = (float)($splitEL['air_pdam'] ?? 0);
 $airDeepSplit = (float)($splitEL['air_deep'] ?? 0);
-$airBothTotal = (float)($sumBoth['water'] ?? 0);
-$airSisaDaily = max(0, $airBothTotal - ($airPdamSplit + $airDeepSplit));
-$airPdamTotal = $airPdamSplit + $airSisaDaily;
 $airDeepTotal = $airDeepSplit;
+
+// Konsumsi Air = akumulasi selisih konsumsi Main Building per hari (total_water di daily_logs)
+try {
+    $mbWaterRow = $db->fetchOne(
+        "SELECT COALESCE(SUM(CAST(COALESCE(dl.total_water,0) AS DECIMAL(18,4))),0) as mb_water
+         FROM daily_logs dl
+         WHERE DATE(dl.log_date) BETWEEN ? AND ? AND dl.status='approved' $statusWhere",
+        [$dateFrom, $dateTo]
+    );
+    $konsumsiAirTotal = (float)($mbWaterRow['mb_water'] ?? 0);
+} catch (\Throwable $ex) {
+    $konsumsiAirTotal = 0.0;
+}
 
 function fmtENum($n, $dec = 2)
 {
@@ -201,7 +210,7 @@ $energyStats = [
     ['label' => 'Konsumsi Solar',   'unit' => 'Liter', 'val' => fmtENum($solarTotal, 2), 'sub' => $periodeLabel],
     ['label' => 'Konsumsi Gas LPG', 'unit' => 'Kg',    'val' => fmtENum($gasLpgTotal, 1),'sub' => $periodeLabel],
     ['label' => 'Konsumsi Gas LNG', 'unit' => 'Kg',    'val' => fmtENum($gasLngTotal, 1),'sub' => $periodeLabel],
-    ['label' => 'Air PDAM',         'unit' => 'm3',    'val' => fmtENum($airPdamTotal, 1),'sub' => $periodeLabel],
+    ['label' => 'Konsumsi Air',     'unit' => 'm3',    'val' => fmtENum($konsumsiAirTotal, 1),'sub' => $periodeLabel],
     ['label' => 'Air Deep Well',    'unit' => 'm3',    'val' => fmtENum($airDeepTotal, 1),'sub' => $periodeLabel],
 ];
 

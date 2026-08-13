@@ -78,6 +78,23 @@ $log = $db->fetchOne(
     [$logId]
 );
 
+// --- READING METER MAIN BUILDING (Yesterday - Today → Consumption) untuk tampilan review ---
+$_mbYesterday = 0.0;
+$_mbYesterdayDate = null;
+$_mbToday = $log && isset($log['water_main_building']) ? (float)$log['water_main_building'] : 0.0;
+$_mbCons = $log && isset($log['total_water']) ? (float)$log['total_water'] : max(0.0, $_mbToday - $_mbYesterday);
+if ($log && !empty($log['log_date']) && !empty($log['engineer_id'])) {
+    $_yd = date('Y-m-d', strtotime($log['log_date'] . ' -1 day'));
+    $_mbYesterdayDate = $_yd;
+    $_yl = $db->fetchOne(
+        "SELECT water_main_building FROM daily_logs WHERE engineer_id = ? AND log_date = ? LIMIT 1",
+        [(int)$log['engineer_id'], $_yd]
+    );
+    if ($_yl && isset($_yl['water_main_building'])) $_mbYesterday = (float)$_yl['water_main_building'];
+    // Recalc ulang untuk konsistensi visual (jika total_water di DB mismatch)
+    $_mbCons = max(0.0, $_mbToday - $_mbYesterday);
+}
+
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/navbar.php';
 
@@ -368,6 +385,58 @@ $_rvBadge = function($v, $type='text') {
                     <div><p class="text-xs text-orange-700 uppercase tracking-wider font-semibold">Gas</p><p class="text-[10px] text-orange-600">Total Consume</p></div>
                 </div>
                 <div class="text-3xl font-bold text-orange-700"><?= formatNumber($log['total_gas']) ?> <span class="text-sm font-semibold">kg</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🏊 WATER SUB DETAILS (PDAM + MAIN BUILDING READING METER + COOLING TOWER) -->
+    <div class="bg-surface rounded-premium border border-blue-200/60 shadow-sm overflow-hidden mb-6 animate-slide-up" style="animation-delay: 75ms">
+        <div class="px-5 lg:px-6 py-4 border-b border-blue-100/80 bg-gradient-to-r from-blue-50/90 via-sky-50/60 to-cyan-50/70">
+            <h3 class="font-bold text-primary flex items-center gap-2">
+                <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30"><i class="fas fa-droplet text-sm"></i></span>
+                Rincian Konsumsi Air (PDAM, Main Building, Cooling Tower)
+            </h3>
+            <p class="text-xs text-secondary mt-0.5">Main Building menggunakan perhitungan selisih meter: <b>Today − Yesterday = Konsumsi</b></p>
+        </div>
+        <div class="p-5 lg:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <!-- 1. PDAM -->
+            <div class="rounded-card border border-slate-200 bg-slate-50/60 p-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-600 mb-2">PDAM</p>
+                <div class="flex items-end justify-between">
+                    <div class="text-2xl font-bold text-slate-700"><?= formatNumber($log['water_pdam'] ?? 0) ?> <span class="text-xs font-semibold text-slate-500">m3</span></div>
+                    <div class="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center text-slate-600"><i class="fas fa-faucet-drip text-xs"></i></div>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-2 italic">Nilai konsumsi input langsung</p>
+            </div>
+            <!-- 2. MAIN BUILDING (Reading Meter) -->
+            <div class="rounded-card border-2 border-dashed border-cyan-200 bg-cyan-50/50 p-4">
+                <div class="flex items-center justify-between mb-2.5">
+                    <p class="text-[10px] font-black uppercase tracking-[0.15em] text-cyan-700">Main Building</p>
+                    <span class="text-[9px] font-black tracking-wider uppercase px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 border border-cyan-200">Reading Meter</span>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-slate-500 font-semibold">Yesterday<?= $_mbYesterdayDate ? ' ('.date('d/m', strtotime($_mbYesterdayDate)).')' : '' ?></span>
+                        <span class="text-slate-700 font-bold"><?= number_format($_mbYesterday, 2) ?> m3</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="text-cyan-700 font-bold">Today (<?= date('d/m', strtotime($log['log_date'])) ?>)</span>
+                        <span class="text-cyan-800 font-extrabold"><?= number_format($_mbToday, 2) ?> m3</span>
+                    </div>
+                    <div class="border-t border-cyan-200/70 pt-2 flex items-center justify-between">
+                        <span class="text-[11px] text-cyan-700 font-bold">= Konsumsi (T − Y)</span>
+                        <span class="text-lg font-black text-cyan-800"><?= number_format($_mbCons, 2) ?> <span class="text-xs font-semibold text-cyan-600">m3</span></span>
+                    </div>
+                </div>
+            </div>
+            <!-- 3. COOLING TOWER -->
+            <div class="rounded-card border border-teal-200 bg-teal-50/60 p-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.15em] text-teal-700 mb-2">Cooling Tower</p>
+                <div class="flex items-end justify-between">
+                    <div class="text-2xl font-bold text-teal-700"><?= formatNumber($log['water_cooling_tower'] ?? 0) ?> <span class="text-xs font-semibold text-teal-500">m3</span></div>
+                    <div class="w-8 h-8 rounded-lg bg-teal-200 flex items-center justify-center text-teal-700"><i class="fas fa-fan text-xs"></i></div>
+                </div>
+                <p class="text-[10px] text-teal-600 mt-2 italic">Nilai konsumsi input langsung</p>
             </div>
         </div>
     </div>

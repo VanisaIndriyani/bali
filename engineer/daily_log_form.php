@@ -246,6 +246,21 @@ $log = $db->fetchOne(
     [$targetEngineerId, $date]
 );
 
+// --- READING METER MAIN BUILDING (Yesterday - Today → Consumption) ---
+// water_main_building = angka METER (READING) hari ini
+// total_water          = consumption = today_read - yesterday_read
+$yesterdayDate = date('Y-m-d', strtotime($date . ' -1 day'));
+$yesterdayLog = $db->fetchOne(
+    "SELECT water_main_building FROM daily_logs WHERE engineer_id = ? AND log_date = ? LIMIT 1",
+    [$targetEngineerId, $yesterdayDate]
+);
+$mbYesterdayRead = $yesterdayLog && isset($yesterdayLog['water_main_building'])
+    ? (float)$yesterdayLog['water_main_building']
+    : 0.0;
+$mbTodayRead = $log && isset($log['water_main_building']) ? (float)$log['water_main_building'] : 0.0;
+// Konsumsi hari ini (untuk display & total_water)
+$mbConsumption = max(0.0, $mbTodayRead - $mbYesterdayRead);
+
 // --- HELPER DEFAULT SHIFT BERDASARKAN JAM SEKARANG (WA: PAGI/SIANG/MALAM, catatan info di form SAJA) ---
 // Pagi = 06:00 - 13:59, Siang = 14:00 - 21:59, Malam = 22:00 - 05:59
 $allShifts = ['pagi','siang','malam'];
@@ -278,10 +293,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $wDw2 = (float)($_POST['water_deepwell_2_brr'] ?? 0);
     $wDwAsean = (float)($_POST['water_deepwell_asean'] ?? 0);
     $wDwLpb = (float)($_POST['water_deepwell_lpb'] ?? 0);
-    $wMainBldg = (float)($_POST['water_main_building'] ?? 0);
+    // Main Building: INPUT = reading meter TODAY (bukan consumption)
+    // ⚠️ SAMA SEPERTI LISTRIK — HANYA BOLEH DI-EDIT OLEH SHIFT PAGI (1x sehari, pagi ke pagi)
+    if ($isShiftPagi) {
+        $wMainBldgRead = (float)($_POST['water_main_building'] ?? 0);
+    } else {
+        // Shift siang / malam: pakai existing reading di DB (tidak boleh ubah)
+        $wMainBldgRead = isset($log['water_main_building']) ? (float)$log['water_main_building'] : 0;
+    }
+    $wMainBldgCons = max(0.0, $wMainBldgRead - $mbYesterdayRead);
+    // $wMainBldg disamakan dengan reading (sesuai jawaban user: kolom existing = reading meter)
+    $wMainBldg = $wMainBldgRead;
     $wCooling = (float)($_POST['water_cooling_tower'] ?? 0);
     $wBottling = (float)($_POST['water_bottling'] ?? 0);
-    $water = $wMainBldg;
+    // TOTAL WATER = HANYA consumption Main Building (selisih reading)
+    $water = $wMainBldgCons;
 
     // ③ Gas 2 types
     $gLpg = (float)($_POST['gas_lpg'] ?? 0);
@@ -1085,36 +1111,90 @@ require_once __DIR__ . '/../includes/navbar.php';
                     <?= T(' Water - Konsumsi Air PDAM, Main Building & Cooling Tower (m3)') ?>
                 </h3>
                 <p class="text-xs text-secondary mt-0.5"><?= T('form_water_sub', '3 sumber sesuai catatan: PDAM / Main Building / Cooling Tower') ?></p>
+                <!-- NOTICE BANNER WATER (sama seperti Listrik: Hanya Shift Pagi yang bisa edit Main Building Reading Meter) -->
+                <div id="waterNotice" class="mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border <?= $isElecEditable ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200' ?>">
+                    <?php if ($isElecEditable): ?>
+                        <i class="fas fa-circle-check mr-1"></i> Shift Pagi — Main Building Reading Meter dapat diedit (pembacaan pagi ke pagi, 1x sehari)
+                    <?php else: ?>
+                        <i class="fas fa-lock mr-1"></i> Shift Siang/Malam — Main Building <b>tidak dapat diubah</b> (pakai nilai dari Shift Pagi hari ini)
+                    <?php endif; ?>
+                </div>
             </div>
             <div class="p-5 lg:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <?php
-                $waterFields = [
-                    ['water_pdam', T('form_water_pdam', 'PDAM'), 'text-slate-600', 'bg-slate-50/60', 'border-slate-200'],
-                    ['water_main_building', T('form_water_main', 'Main Building'), 'text-cyan-600', 'bg-cyan-50/60', 'border-cyan-200'],
-                    ['water_cooling_tower', T('form_water_ct', 'Cooling Tower'), 'text-teal-600', 'bg-teal-50/60', 'border-teal-200'],
-                ];
-                foreach ($waterFields as $wf) {
-                    [$field, $label, $col, $bg, $bor] = $wf;
-                    $val = $log[$field] ?? '0.00';
-                    echo <<<HTML
+                // 1. PDAM (biasa — input nilai langsung)
+                [$field, $label, $col, $bg, $bor] = ['water_pdam', T('form_water_pdam', 'PDAM'), 'text-slate-600', 'bg-slate-50/60', 'border-slate-200'];
+                $val = $log[$field] ?? '0.00';
+                echo <<<HTML
                 <div>
                     <label class="block text-xs font-extrabold text-primary mb-1.5 tracking-wide">{$label}</label>
                     <div class="relative">
                         <input type="number" step="0.01" min="0" name="{$field}" oninput="calcTotals()"
                             value="{$val}"
-                            class="js-sum-water w-full pl-3 pr-12 py-3 rounded-card border {$bor} {$bg} font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all text-sm">
+                            class="w-full pl-3 pr-12 py-3 rounded-card border {$bor} {$bg} font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all text-sm">
                         <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] {$col} font-black bg-white/90 border {$bor} px-1.5 py-0.5 rounded-full">m3</span>
                     </div>
                 </div>
 HTML;
-                }
+
+                // 2. MAIN BUILDING — READING METER (Yesterday - Today = Konsumsi) — HANYA SHIFT PAGI YANG BISA EDIT
+                [$field, $label, $col, $bg, $bor] = ['water_main_building', T('form_water_main', 'Main Building'), 'text-cyan-600', 'bg-cyan-50/60', 'border-cyan-200'];
+                $val = $log[$field] ?? '0.00';
+                $mbYesterdayFmt = number_format($mbYesterdayRead, 2, '.', '');
+                $mbConsFmt = number_format($mbConsumption, 2, '.', '');
+                $yDateLabel = date('d/m/Y', strtotime($yesterdayDate));
+                $mbRdo = $elecReadonly;
+                $mbDisCls = $elecDisabledCls;
+                echo <<<HTML
+                <div class="sm:col-span-1">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-extrabold text-primary tracking-wide">{$label}</label>
+                        <span class="text-[9px] font-black tracking-wider uppercase px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 border border-cyan-200">Reading Meter</span>
+                    </div>
+                    <div class="rounded-card border-2 border-dashed border-cyan-200 bg-cyan-50/40 p-2.5 space-y-2">
+                        <div class="flex items-center justify-between text-[10px] font-bold">
+                            <span class="text-slate-500">Yesterday ({$yDateLabel})</span>
+                            <span class="text-slate-700">{$mbYesterdayFmt} m3</span>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-cyan-700 mb-1">Today (angka meter hari ini)</p>
+                            <div class="relative">
+                                <input type="number" step="0.01" min="0" name="{$field}" id="waterMainBuild" {$mbRdo} oninput="calcTotals()"
+                                    value="{$val}"
+                                    data-yesterday="{$mbYesterdayFmt}"
+                                    class="water-mb-input w-full pl-3 pr-12 py-2 rounded-md border {$bor} {$bg} font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all text-sm {$mbDisCls}">
+                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] {$col} font-black bg-white/90 border {$bor} px-1.5 py-0.5 rounded-full">m3</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] font-bold pt-1 border-t border-cyan-200/70">
+                            <span class="text-cyan-700">Konsumsi = Today − Yesterday</span>
+                            <span class="text-cyan-800" id="waterMainCons">{$mbConsFmt} m3</span>
+                        </div>
+                    </div>
+                </div>
+HTML;
+
+                // 3. COOLING TOWER (biasa — input nilai langsung)
+                [$field, $label, $col, $bg, $bor] = ['water_cooling_tower', T('form_water_ct', 'Cooling Tower'), 'text-teal-600', 'bg-teal-50/60', 'border-teal-200'];
+                $val = $log[$field] ?? '0.00';
+                echo <<<HTML
+                <div>
+                    <label class="block text-xs font-extrabold text-primary mb-1.5 tracking-wide">{$label}</label>
+                    <div class="relative">
+                        <input type="number" step="0.01" min="0" name="{$field}" oninput="calcTotals()"
+                            value="{$val}"
+                            class="w-full pl-3 pr-12 py-3 rounded-card border {$bor} {$bg} font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all text-sm">
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] {$col} font-black bg-white/90 border {$bor} px-1.5 py-0.5 rounded-full">m3</span>
+                    </div>
+                </div>
+HTML;
                 ?>
                 <div class="sm:col-span-2 md:col-span-3 pt-1 mt-1 border-t border-dashed border-blue-100">
                     <div class="flex items-center justify-between gap-4">
                         <label class="text-sm font-extrabold text-primary flex items-center gap-1.5"><i class="fas fa-calculator text-primary"></i><?= T('form_water_total_label', 'Konsumsi Air') ?></label>
                         <div class="relative w-full sm:w-56">
                             <input type="number" id="totalWater" readonly step="0.01" min="0"
-                                value="<?= $log['total_water'] ?? '0.00' ?>"
+                                value="<?= number_format($mbConsumption, 2, '.', '') ?>"
                                 class="w-full pl-3 pr-11 py-3 rounded-card border-2 border-blue-600/85 bg-gradient-to-br from-blue-600 to-blue-800 text-white font-black shadow-md shadow-blue-500/15 cursor-not-allowed opacity-95">
                             <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/95 font-black border border-white/25 px-1.5 py-0.5 rounded-full bg-white/10">m3</span>
                         </div>
@@ -1913,31 +1993,53 @@ HTML;
         function onShiftChange() {
             const sel = document.getElementById('shiftSelect');
             const isPagi = sel && sel.value === 'pagi';
-            // Toggle readonly & required pada input WBP / LWBP
+            const disCls = ['!bg-slate-100','!text-slate-500','!cursor-not-allowed','!border-slate-300','opacity-80'];
+            // 1. Toggle readonly & required pada input WBP / LWBP (Listrik)
             document.querySelectorAll('.elec-input').forEach(inp => {
                 if (isPagi) {
                     inp.removeAttribute('readonly');
                     inp.setAttribute('required','');
-                    inp.classList.remove('!bg-slate-100','!text-slate-500','!cursor-not-allowed','!border-slate-300','opacity-80');
+                    inp.classList.remove(...disCls);
                 } else {
                     inp.setAttribute('readonly','');
                     inp.removeAttribute('required');
-                    inp.classList.add('!bg-slate-100','!text-slate-500','!cursor-not-allowed','!border-slate-300','opacity-80');
+                    inp.classList.add(...disCls);
                 }
             });
-            // Update notice banner
-            const notice = document.getElementById('elecNotice');
-            if (notice) {
+            // 2. NOTICE BANNER LISTRIK
+            const eNotice = document.getElementById('elecNotice');
+            if (eNotice) {
                 if (isPagi) {
-                    notice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-emerald-50 text-emerald-700 border-emerald-200';
-                    notice.innerHTML = '<i class="fas fa-circle-check mr-1"></i> Shift Pagi — Listrik dapat diedit (pembacaan pagi ke pagi, 1x sehari)';
+                    eNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-emerald-50 text-emerald-700 border-emerald-200';
+                    eNotice.innerHTML = '<i class="fas fa-circle-check mr-1"></i> Shift Pagi — Listrik dapat diedit (pembacaan pagi ke pagi, 1x sehari)';
                 } else {
-                    notice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-slate-50 text-slate-600 border-slate-200';
-                    notice.innerHTML = '<i class="fas fa-lock mr-1"></i> Shift Siang/Malam — Listrik <b>tidak dapat diubah</b> (diambil dari catatan Shift Pagi hari ini)';
+                    eNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-slate-50 text-slate-600 border-slate-200';
+                    eNotice.innerHTML = '<i class="fas fa-lock mr-1"></i> Shift Siang/Malam — Listrik <b>tidak dapat diubah</b> (diambil dari catatan Shift Pagi hari ini)';
                 }
             }
-            // Toggle asterisk (*) pada label WBP / LWBP
-            document.querySelectorAll('label:has(.elec-ast)').forEach(() => {});
+            // 3. Toggle readonly pada input Water Main Building (sama aturan seperti Listrik)
+            document.querySelectorAll('.water-mb-input').forEach(inp => {
+                if (isPagi) {
+                    inp.removeAttribute('readonly');
+                    inp.setAttribute('required','');
+                    inp.classList.remove(...disCls);
+                } else {
+                    inp.setAttribute('readonly','');
+                    inp.removeAttribute('required');
+                    inp.classList.add(...disCls);
+                }
+            });
+            // 4. NOTICE BANNER WATER
+            const wNotice = document.getElementById('waterNotice');
+            if (wNotice) {
+                if (isPagi) {
+                    wNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-emerald-50 text-emerald-700 border-emerald-200';
+                    wNotice.innerHTML = '<i class="fas fa-circle-check mr-1"></i> Shift Pagi — Main Building Reading Meter dapat diedit (pembacaan pagi ke pagi, 1x sehari)';
+                } else {
+                    wNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-slate-50 text-slate-600 border-slate-200';
+                    wNotice.innerHTML = '<i class="fas fa-lock mr-1"></i> Shift Siang/Malam — Main Building <b>tidak dapat diubah</b> (pakai nilai dari Shift Pagi hari ini)';
+                }
+            }
             // Recalc tetap aman (nilai tidak berubah jika readonly)
             calcTotals();
         }
@@ -1946,10 +2048,18 @@ HTML;
             let e = 0;
             document.querySelectorAll('.js-sum-electric').forEach(el => e += parseFloat(el.value || 0));
             document.getElementById('totalElectricity').value = e.toFixed(2);
-            // Total Water = HANYA MAIN BUILDING SAJA
-            let wmb = document.querySelector('input[name="water_main_building"]');
-            let w = wmb ? parseFloat(wmb.value || 0) : 0;
-            document.getElementById('totalWater').value = w.toFixed(2);
+            // Total Water = HANYA MAIN BUILDING SAJA (Konsumsi = Today − Yesterday)
+            let wmb = document.getElementById('waterMainBuild');
+            if (wmb) {
+                let yWater = parseFloat(wmb.getAttribute('data-yesterday') || 0);
+                let tWater = parseFloat(wmb.value || 0);
+                let wCons = Math.max(0, tWater - yWater);
+                let lblCons = document.getElementById('waterMainCons');
+                if (lblCons) lblCons.textContent = wCons.toFixed(2) + ' m3';
+                document.getElementById('totalWater').value = wCons.toFixed(2);
+            } else {
+                document.getElementById('totalWater').value = '0.00';
+            }
             // Total Gas = sum 2 js-sum-gas
             let g = 0;
             document.querySelectorAll('.js-sum-gas').forEach(el => g += parseFloat(el.value || 0));
