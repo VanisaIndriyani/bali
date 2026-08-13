@@ -1554,7 +1554,7 @@ HTML;
         <div class="chart-card animate-slide-up overflow-hidden" style="animation-delay: 450ms">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                 <div>
-                    <h3 class="font-bold text-xl text-primary mb-1">âš¡ <?= T('sup_elec_title', 'Total Consume Listrik') ?></h3>
+                    <h3 class="font-bold text-xl text-primary mb-1"> <?= T('sup_elec_title', 'Total Consume Listrik') ?></h3>
                     <p class="text-xs text-secondary"><?= T('sup_chart_period', 'Periode') ?>: <?= formatDate($dateFromE) ?> - <?= formatDate($dateToE) ?> (kWh)</p>
                 </div>
             </div>
@@ -1601,7 +1601,7 @@ HTML;
         <div class="chart-card animate-slide-up overflow-hidden" style="animation-delay: 500ms">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                 <div>
-                    <h3 class="font-bold text-xl text-primary mb-1">ðŸ’§ <?= T('sup_water_title', 'Total Consume Air') ?></h3>
+                    <h3 class="font-bold text-xl text-primary mb-1"> <?= T('sup_water_title', 'Total Consume Air') ?></h3>
                     <p class="text-xs text-secondary"><?= T('sup_chart_period', 'Periode') ?>: <?= formatDate($dateFromW) ?> - <?= formatDate($dateToW) ?> (mÂ³)</p>
                 </div>
             </div>
@@ -1648,7 +1648,7 @@ HTML;
         <div class="chart-card animate-slide-up overflow-hidden" style="animation-delay: 550ms">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                 <div>
-                    <h3 class="font-bold text-xl text-primary mb-1">ðŸ”¥ <?= T('sup_gas_title', 'Total Consume Gas') ?></h3>
+                    <h3 class="font-bold text-xl text-primary mb-1"> <?= T('sup_gas_title', 'Total Consume Gas') ?></h3>
                     <p class="text-xs text-secondary"><?= T('sup_chart_period', 'Periode') ?>: <?= formatDate($dateFromG) ?> - <?= formatDate($dateToG) ?> (kg)</p>
                 </div>
             </div>

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 return [
     'app_title' => 'Engineering Daily Log',
     'app_brand' => 'ST. REGIS BALI',
@@ -216,7 +216,7 @@ return [
     'form_water_main' => 'Main Building',
     'form_water_ct' => 'Cooling Tower',
     'form_water_bottling' => 'Bottling Water',
-    'form_water_total_label' => 'TOTAL KONSUMSI AIR (Auto sum 9 sumber)',
+    'form_water_total_label' => 'Konsumsi Air',
 
     'form_gas_title' => '③ Gas Konsumsi - LPG & LNG (kg)',
     'form_gas_sub' => 'Isi masing-masing tipe gas — Total auto dijumlah',

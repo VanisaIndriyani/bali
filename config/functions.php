@@ -82,7 +82,8 @@ function getFlash() {
 }
 
 function cleanInput($data) {
-    return htmlspecialchars(trim($data), ENT_QUOTES, 'UTF-8');
+    if ($data === null) return '';
+    return htmlspecialchars(trim((string)$data), ENT_QUOTES, 'UTF-8');
 }
 
 function formatDate($date, $format = 'd/m/Y') {

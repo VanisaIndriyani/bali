@@ -247,12 +247,7 @@ include __DIR__ . '/includes/sidebar.php';
         <div>
             <h1 class="font-display text-2xl lg:text-3xl font-bold text-primary mb-1">Energy Dashboard</h1>
         </div>
-        <div class="flex items-center gap-2 self-start sm:self-end">
-            <a href="<?= BASE_URL ?>energy_logsheet.php" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-card bg-white border border-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-50 hover:-translate-y-0.5 transition shadow-sm">
-                <i class="fas fa-table-list text-slate-500"></i>
-                Buka Log Sheet
-            </a>
-        </div>
+     
     </div>
 
     <!-- FILTER PERIODE TANGGAL (REAL FILTER! submit ke GET parameter) -->
