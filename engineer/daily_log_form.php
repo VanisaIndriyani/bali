@@ -259,9 +259,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // ① SHIFT (info catatan tambahan, TIDAK multiple entries) — cuma disimpan sebagai label di log
     $shift = trim((string)($_POST['shift'] ?? ''));
     if (!in_array($shift, $allShifts, true)) $shift = $defaultShiftNow; // aman fallback (tidak perlu error flash — cuma label)
-    // ① Electricity Subdetails
-    $eWbp = (float)($_POST['electricity_wbp'] ?? 0);
-    $eLwbp = (float)($_POST['electricity_lwbp'] ?? 0);
+    // ① Electricity Subdetails — HANYA BOLEH DI-EDIT OLEH SHIFT PAGI (pagi ke pagi, 1x sehari)
+    $isShiftPagi = ($shift === 'pagi');
+    if ($isShiftPagi) {
+        $eWbp = (float)($_POST['electricity_wbp'] ?? 0);
+        $eLwbp = (float)($_POST['electricity_lwbp'] ?? 0);
+    } else {
+        // Shift siang / malam: pakai existing value di DB (tidak boleh ubah listrik)
+        $eWbp = isset($log['electricity_wbp']) ? (float)$log['electricity_wbp'] : 0;
+        $eLwbp = isset($log['electricity_lwbp']) ? (float)$log['electricity_lwbp'] : 0;
+    }
     $electricity = $eWbp + $eLwbp;
 
     // ② Water 9 sources
@@ -778,6 +785,11 @@ require_once __DIR__ . '/../includes/navbar.php';
                 'siang' => '🌤️ Siang',
                 'malam' => '🌙 Malam',
             ];
+            // Listrik HANYA bisa diedit jika shift = PAGI (pembacaan pagi ke pagi, 1x sehari)
+            $isElecEditable = ($curShiftVal === 'pagi');
+            $elecReadonly = $isElecEditable ? '' : 'readonly';
+            $elecRequired = $isElecEditable ? 'required' : '';
+            $elecDisabledCls = $isElecEditable ? '' : '!bg-slate-100 !text-slate-500 !cursor-not-allowed !border-slate-300 opacity-80';
         ?>
         <div class="bg-surface rounded-premium border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 30ms">
          
@@ -786,7 +798,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                     <div>
                         <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><i class="fas fa-clock-rotate-left mr-1 text-slate-600"></i>Pilih Shift Bertugas</label>
                         <div class="relative">
-                            <select name="shift"
+                            <select name="shift" id="shiftSelect" onchange="onShiftChange()"
                                 class="w-full pl-4 pr-12 py-3.5 rounded-card border border-slate-300 bg-white text-lg font-semibold text-primary placeholder-secondary/60
                                        focus:outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-500/15 transition-all appearance-none cursor-pointer">
                                 <?php foreach ($allShifts as $_sKey): ?>
@@ -1017,7 +1029,7 @@ require_once __DIR__ . '/../includes/navbar.php';
         unset($_defTarNow, $tDef, $tariffReadonly, $tariffCursorCls, $roleCanEditTariff);
         ?>
 
-        <!-- ① TOTAL LISTRIK - WBP LWBP -->
+        <!-- ① TOTAL LISTRIK - WBP LWBP (HANYA SHIFT PAGI YANG BISA EDIT — PAGI KE PAGI, 1X SEHARI) -->
         <div class="bg-surface rounded-premium border border-amber-200/60 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 50ms">
             <div class="px-5 lg:px-6 py-4 border-b border-amber-100/80 bg-gradient-to-r from-amber-50/90 via-amber-50/60 to-yellow-50">
                 <h3 class="font-bold text-primary flex items-center gap-2">
@@ -1025,23 +1037,31 @@ require_once __DIR__ . '/../includes/navbar.php';
                     <?= T('form_section_elec', '① Total Consume Listrik (Kwh)') ?>
                 </h3>
                 <p class="text-xs text-secondary mt-0.5"><?= T('form_elec_sub', 'Di isi WBP (Wilayah Beban Puncak) + LWBP (Luar WBP) — Total otomatis dijumlah') ?></p>
+                <!-- NOTICE BANNER -->
+                <div id="elecNotice" class="mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border <?= $isElecEditable ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200' ?>">
+                    <?php if ($isElecEditable): ?>
+                        <i class="fas fa-circle-check mr-1"></i> Shift Pagi — Listrik dapat diedit (pembacaan pagi ke pagi, 1x sehari)
+                    <?php else: ?>
+                        <i class="fas fa-lock mr-1"></i> Shift Siang/Malam — Listrik <b>tidak dapat diubah</b> (diambil dari catatan Shift Pagi hari ini)
+                    <?php endif; ?>
+                </div>
             </div>
             <div class="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div>
-                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_elec_wbp', 'KWH WBP') ?> <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_elec_wbp', 'KWH WBP') ?> <?php if ($isElecEditable): ?><span class="text-red-500">*</span><?php endif; ?></label>
                     <div class="relative">
-                        <input type="number" step="0.01" min="0" name="electricity_wbp" required oninput="calcTotals()"
+                        <input type="number" step="0.01" min="0" name="electricity_wbp" <?= $elecRequired ?> <?= $elecReadonly ?> oninput="calcTotals()"
                             value="<?= $log['electricity_wbp'] ?? '0.00' ?>"
-                            class="js-sum-electric w-full pl-4 pr-16 py-3.5 rounded-card border border-amber-200 bg-amber-50/60 text-lg font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 focus:bg-white transition-all">
+                            class="js-sum-electric elec-input w-full pl-4 pr-16 py-3.5 rounded-card border border-amber-200 bg-amber-50/60 text-lg font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 focus:bg-white transition-all <?= $elecDisabledCls ?>">
                         <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-amber-700 font-bold bg-amber-100 px-2 py-0.5 rounded-full">kWh</span>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_elec_lwbp', 'KWH LWBP') ?> <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_elec_lwbp', 'KWH LWBP') ?> <?php if ($isElecEditable): ?><span class="text-red-500">*</span><?php endif; ?></label>
                     <div class="relative">
-                        <input type="number" step="0.01" min="0" name="electricity_lwbp" required oninput="calcTotals()"
+                        <input type="number" step="0.01" min="0" name="electricity_lwbp" <?= $elecRequired ?> <?= $elecReadonly ?> oninput="calcTotals()"
                             value="<?= $log['electricity_lwbp'] ?? '0.00' ?>"
-                            class="js-sum-electric w-full pl-4 pr-16 py-3.5 rounded-card border border-yellow-300 bg-yellow-50/70 text-lg font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-yellow-600 focus:ring-4 focus:ring-yellow-500/10 focus:bg-white transition-all">
+                            class="js-sum-electric elec-input w-full pl-4 pr-16 py-3.5 rounded-card border border-yellow-300 bg-yellow-50/70 text-lg font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-yellow-600 focus:ring-4 focus:ring-yellow-500/10 focus:bg-white transition-all <?= $elecDisabledCls ?>">
                         <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-yellow-800 font-bold bg-yellow-100 px-2 py-0.5 rounded-full">kWh</span>
                     </div>
                 </div>
@@ -1890,6 +1910,37 @@ HTML;
         </script>
 
         <script>
+        function onShiftChange() {
+            const sel = document.getElementById('shiftSelect');
+            const isPagi = sel && sel.value === 'pagi';
+            // Toggle readonly & required pada input WBP / LWBP
+            document.querySelectorAll('.elec-input').forEach(inp => {
+                if (isPagi) {
+                    inp.removeAttribute('readonly');
+                    inp.setAttribute('required','');
+                    inp.classList.remove('!bg-slate-100','!text-slate-500','!cursor-not-allowed','!border-slate-300','opacity-80');
+                } else {
+                    inp.setAttribute('readonly','');
+                    inp.removeAttribute('required');
+                    inp.classList.add('!bg-slate-100','!text-slate-500','!cursor-not-allowed','!border-slate-300','opacity-80');
+                }
+            });
+            // Update notice banner
+            const notice = document.getElementById('elecNotice');
+            if (notice) {
+                if (isPagi) {
+                    notice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-emerald-50 text-emerald-700 border-emerald-200';
+                    notice.innerHTML = '<i class="fas fa-circle-check mr-1"></i> Shift Pagi — Listrik dapat diedit (pembacaan pagi ke pagi, 1x sehari)';
+                } else {
+                    notice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-slate-50 text-slate-600 border-slate-200';
+                    notice.innerHTML = '<i class="fas fa-lock mr-1"></i> Shift Siang/Malam — Listrik <b>tidak dapat diubah</b> (diambil dari catatan Shift Pagi hari ini)';
+                }
+            }
+            // Toggle asterisk (*) pada label WBP / LWBP
+            document.querySelectorAll('label:has(.elec-ast)').forEach(() => {});
+            // Recalc tetap aman (nilai tidak berubah jika readonly)
+            calcTotals();
+        }
         function calcTotals() {
             // Total Listrik = sum all js-sum-electric
             let e = 0;
