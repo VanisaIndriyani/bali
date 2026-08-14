@@ -1,11 +1,11 @@
-﻿<?php
+<?php
 $pageTitle = 'Riwayat Daily Log';
 require_once __DIR__ . '/config/config.php';
 requireLogin();
 
 $db = Database::getInstance();
 $user = currentUser();
-$isSupervisor = $user['role'] === 'supervisor';
+$isSupervisor = in_array($user['role'], ['supervisor', 'manager', 'admin']);
 
 $dateFrom = $_GET['date_from'] ?? date('Y-m-01');
 $dateTo = $_GET['date_to'] ?? date('Y-m-t');

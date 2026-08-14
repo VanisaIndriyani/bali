@@ -1108,7 +1108,7 @@ require_once __DIR__ . '/../includes/navbar.php';
             <div class="px-5 lg:px-6 py-4 border-b border-blue-100/80 bg-gradient-to-r from-blue-50/90 via-sky-50/60 to-cyan-50/70">
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30"><i class="fas fa-droplet text-sm"></i></span>
-                    <?= T(' Water - Konsumsi Air PDAM, Main Building & Cooling Tower (m3)') ?>
+                    <?= T('form_water_title', '② Water - Konsumsi Air 9 Sumber (m3)') ?>
                 </h3>
                 <p class="text-xs text-secondary mt-0.5"><?= T('form_water_sub', '3 sumber sesuai catatan: PDAM / Main Building / Cooling Tower') ?></p>
                 <!-- NOTICE BANNER WATER (sama seperti Listrik: Hanya Shift Pagi yang bisa edit Main Building Reading Meter) -->

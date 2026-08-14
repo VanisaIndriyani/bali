@@ -979,7 +979,7 @@ require_once __DIR__ . '/includes/navbar.php';
                             [$label, $icon, $col, $iconBg, $lyVal, $nowVal, $unit, $costLY, $costNow, $cardBg, $cardBorder, $dividerBorder] = array_pad(array_slice($ur, 0, 13), 13, '');
                             $shortName = $label;
                             if ($label === 'ELECTRICITY') $shortName = 'Listrik PLN';
-                            elseif ($label === 'WATER') $shortName = 'Air PDAM';
+                            elseif ($label === 'WATER') $shortName = 'Konsumsi Air';
                             elseif ($label === 'GAS') $shortName = 'Gas LPG';
                             elseif ($label === 'FUEL') $shortName = 'Solar BBM';
                             $costDiff = (float)$costNow - (float)$costLY;

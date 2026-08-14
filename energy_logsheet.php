@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * 📋 ENERGY LOG SHEET - Form Input & Daftar Catatan Konsumsi Energi Harian
  * Full CRUD: Tambah, Edit, Hapus, Filter, List Data REAL dari DB (table energy_logs)
@@ -1177,7 +1177,7 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                                 <input type="number" step="0.01" min="0" name="gas_lng_kg" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
                             </div>
                             <div>
-                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Air PDAM (m3)</label>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Konsumsi Air (m3)</label>
                                 <input type="number" step="0.01" min="0" name="air_m3" value="0" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
                             </div>
                             <div>
@@ -1983,7 +1983,7 @@ table.logsheet-ramp th, table.logsheet-ramp td { padding-top: 10px !important; p
                                 <input type="number" step="0.01" min="0" name="gas_lng_kg" value="<?= (float)($editData['gas_lng_kg'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
                             </div>
                             <div>
-                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Air PDAM (m3)</label>
+                                <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 block">Konsumsi Air (m3)</label>
                                 <input type="number" step="0.01" min="0" name="air_m3" value="<?= (float)($editData['air_m3'] ?? 0) ?>" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-primary text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-600">
                             </div>
                             <div>
@@ -2723,7 +2723,7 @@ const viewLogDataMap = <?= json_encode($viewLogDataMap, JSON_UNESCAPED_UNICODE |
             ${statCard('Solar', e.solar, 'Liter', 'text-orange-700')}
             ${statCard('Gas LPG', e.gas_lpg, 'Kg', 'text-rose-700')}
             ${statCard('Gas LNG', e.gas_lng, 'Kg', 'text-rose-700')}
-            ${statCard('Air PDAM', e.air_pdam, 'm3', 'text-blue-700')}
+            ${statCard('Konsumsi Air', e.air_pdam, 'm3', 'text-blue-700')}
             ${statCard('Air Deep Well', e.air_dw, 'm3', 'text-blue-700')}
         </div>`;
     }
