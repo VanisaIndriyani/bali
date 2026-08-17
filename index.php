@@ -268,10 +268,13 @@ if ($todayOccVal > 0) {
 $thisYearDays = date('z') + 1;
 $lastYearDays = 365;
 
-$lyElecAvg = $utilLY['log_count'] > 0 ? $utilLY['elec'] / max(1, $utilLY['log_count']) : 0;
-$lyWaterAvg = $utilLY['log_count'] > 0 ? $utilLY['water'] / max(1, $utilLY['log_count']) : 0;
-$lyGasAvg = $utilLY['log_count'] > 0 ? $utilLY['gas'] / max(1, $utilLY['log_count']) : 0;
-$lyFuelAvg = $utilLY['log_count'] > 0 ? $utilLY['fuel'] / max(1, $utilLY['log_count']) : 0;
+// ✅ BARU: Utility Report LY • Avg/Day — ketemunya TANGGAL SAMA TAHUN LALU (bukan avg seluruh tahun lalu)
+//    Misal: Hari ini = 17/08/2026 → LY = data tanggal 17/08/2025 (single date, bukan rata-rata 1 tahun)
+$lySameDayBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $sameDayLastYear, $sameDayLastYear, 'SUM', $TARIF);
+$lyElecAvg  = (float)($lySameDayBoth['elec']  ?? 0);
+$lyWaterAvg = (float)($lySameDayBoth['water'] ?? 0);
+$lyGasAvg   = (float)($lySameDayBoth['gas']   ?? 0);
+$lyFuelAvg  = (float)($lySameDayBoth['fuel']  ?? 0);
 
 // ============ â‘¡ ENG ACTIVITY - Counters bulan ini ============
 // Catatan: Counter OTOMATIS dihitung dari child table daily_log_activities (baris per aktivitas), BUKAN dari parent counter column manual
