@@ -246,21 +246,6 @@ $log = $db->fetchOne(
     [$targetEngineerId, $date]
 );
 
-// --- READING METER MAIN BUILDING (Yesterday - Today → Consumption) ---
-// water_main_building = angka METER (READING) hari ini
-// total_water          = consumption = today_read - yesterday_read
-$yesterdayDate = date('Y-m-d', strtotime($date . ' -1 day'));
-$yesterdayLog = $db->fetchOne(
-    "SELECT water_main_building FROM daily_logs WHERE engineer_id = ? AND log_date = ? LIMIT 1",
-    [$targetEngineerId, $yesterdayDate]
-);
-$mbYesterdayRead = $yesterdayLog && isset($yesterdayLog['water_main_building'])
-    ? (float)$yesterdayLog['water_main_building']
-    : 0.0;
-$mbTodayRead = $log && isset($log['water_main_building']) ? (float)$log['water_main_building'] : 0.0;
-// Konsumsi hari ini (untuk display & total_water)
-$mbConsumption = max(0.0, $mbTodayRead - $mbYesterdayRead);
-
 // --- HELPER DEFAULT SHIFT BERDASARKAN JAM SEKARANG (WA: PAGI/SIANG/MALAM, catatan info di form SAJA) ---
 // Pagi = 06:00 - 13:59, Siang = 14:00 - 21:59, Malam = 22:00 - 05:59
 $allShifts = ['pagi','siang','malam'];
@@ -269,22 +254,70 @@ if ($_curHour >= 6 && $_curHour < 14) $defaultShiftNow = 'pagi';
 elseif ($_curHour >= 14 && $_curHour < 22) $defaultShiftNow = 'siang';
 else $defaultShiftNow = 'malam';
 
+// --- READING METER MAIN BUILDING & LISTRIK (Yesterday MALAM - Today MALAM → Consumption) ---
+// water_main_building / electricity = angka METER (READING) hari ini
+// total_water / total_electricity   = consumption = today_read - yesterday_malam_read
+// HANYA SHIFT MALAM SAJA YANG MENGHITUNG SELISIH → masuk ke total_electricity & total_water
+// (Shift Pagi/Siang hanya catatan reading, TIDAK mempengaruhi total konsumsi → total = 0)
+$yesterdayDate = date('Y-m-d', strtotime($date . ' -1 day'));
+// Yesterday = cari log TANGGAL KEMARIN, SHIFT = MALAM (karena pola: MALAM ketemu MALAM)
+$yesterdayLogMalam = $db->fetchOne(
+    "SELECT water_main_building, electricity_wbp, electricity_lwbp
+     FROM daily_logs
+     WHERE engineer_id = ? AND log_date = ? AND COALESCE(shift,'malam') = 'malam'
+     LIMIT 1",
+    [$targetEngineerId, $yesterdayDate]
+);
+// Fallback: jika kemarin shift malam belum ada (data lama sebelum shift field), coba ambil log apapun kemarin
+if (!$yesterdayLogMalam || empty($yesterdayLogMalam)) {
+    $yesterdayLogMalam = $db->fetchOne(
+        "SELECT water_main_building, electricity_wbp, electricity_lwbp
+         FROM daily_logs WHERE engineer_id = ? AND log_date = ? LIMIT 1",
+        [$targetEngineerId, $yesterdayDate]
+    );
+}
+$mbYesterdayRead = $yesterdayLogMalam && isset($yesterdayLogMalam['water_main_building'])
+    ? (float)$yesterdayLogMalam['water_main_building']
+    : 0.0;
+$elecYesterdayWbp = $yesterdayLogMalam && isset($yesterdayLogMalam['electricity_wbp'])
+    ? (float)$yesterdayLogMalam['electricity_wbp']
+    : 0.0;
+$elecYesterdayLwbp = $yesterdayLogMalam && isset($yesterdayLogMalam['electricity_lwbp'])
+    ? (float)$yesterdayLogMalam['electricity_lwbp']
+    : 0.0;
+$elecYesterdayTotal = $elecYesterdayWbp + $elecYesterdayLwbp;
+
+$mbTodayRead = $log && isset($log['water_main_building']) ? (float)$log['water_main_building'] : 0.0;
+$elecTodayWbp   = $log && isset($log['electricity_wbp'])   ? (float)$log['electricity_wbp']   : 0.0;
+$elecTodayLwbp  = $log && isset($log['electricity_lwbp'])  ? (float)$log['electricity_lwbp']  : 0.0;
+$elecTodayTotal = $elecTodayWbp + $elecTodayLwbp;
+
+// Konsumsi hari ini (hanya berlaku jika SHIFT = MALAM. Pagi/Siang = 0)
+$curLogShift = (!empty($log['shift']) && in_array($log['shift'], $allShifts, true)) ? (string)$log['shift'] : '';
+$existingIsMalam = ($curLogShift === 'malam');
+$mbConsumption      = $existingIsMalam ? max(0.0, $mbTodayRead     - $mbYesterdayRead)   : (float)($log['total_water'] ?? 0);
+$elecConsumptionNow = $existingIsMalam ? max(0.0, $elecTodayTotal - $elecYesterdayTotal) : (float)($log['total_electricity'] ?? 0);
+unset($existingIsMalam, $curLogShift);
+
 // --- POST HANDLER ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // ① SHIFT (info catatan tambahan, TIDAK multiple entries) — cuma disimpan sebagai label di log
     $shift = trim((string)($_POST['shift'] ?? ''));
     if (!in_array($shift, $allShifts, true)) $shift = $defaultShiftNow; // aman fallback (tidak perlu error flash — cuma label)
-    // ① Electricity Subdetails — HANYA BOLEH DI-EDIT OLEH SHIFT PAGI (pagi ke pagi, 1x sehari)
-    $isShiftPagi = ($shift === 'pagi');
-    if ($isShiftPagi) {
-        $eWbp = (float)($_POST['electricity_wbp'] ?? 0);
-        $eLwbp = (float)($_POST['electricity_lwbp'] ?? 0);
+
+    // ① Electricity Subdetails — SEMUA SHIFT BOLEH EDIT (Pagi/Siang/Malam)
+    // Nilai WBP / LWBP = READING METER (sama seperti Main Building Water)
+    // HANYA SHIFT MALAM SAJA YANG MENGHITUNG TOTAL KONSUMSI (today - yesterday_malam)
+    // Shift Pagi/Siang: total_electricity = 0 (catatan reading saja, tidak masuk kalkulasi cost)
+    $eWbp = (float)($_POST['electricity_wbp'] ?? 0);
+    $eLwbp = (float)($_POST['electricity_lwbp'] ?? 0);
+    $eTodayTotal = $eWbp + $eLwbp;
+    $isShiftMalam = ($shift === 'malam');
+    if ($isShiftMalam) {
+        $electricity = max(0.0, $eTodayTotal - $elecYesterdayTotal);
     } else {
-        // Shift siang / malam: pakai existing value di DB (tidak boleh ubah listrik)
-        $eWbp = isset($log['electricity_wbp']) ? (float)$log['electricity_wbp'] : 0;
-        $eLwbp = isset($log['electricity_lwbp']) ? (float)$log['electricity_lwbp'] : 0;
+        $electricity = 0.0;
     }
-    $electricity = $eWbp + $eLwbp;
 
     // ② Water 9 sources
     $wPdam = (float)($_POST['water_pdam'] ?? 0);
@@ -293,21 +326,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $wDw2 = (float)($_POST['water_deepwell_2_brr'] ?? 0);
     $wDwAsean = (float)($_POST['water_deepwell_asean'] ?? 0);
     $wDwLpb = (float)($_POST['water_deepwell_lpb'] ?? 0);
-    // Main Building: INPUT = reading meter TODAY (bukan consumption)
-    // ⚠️ SAMA SEPERTI LISTRIK — HANYA BOLEH DI-EDIT OLEH SHIFT PAGI (1x sehari, pagi ke pagi)
-    if ($isShiftPagi) {
-        $wMainBldgRead = (float)($_POST['water_main_building'] ?? 0);
+    // Main Building: SEMUA SHIFT BOLEH EDIT READING METER (tidak dikunci lagi seperti sebelumnya)
+    // HANYA SHIFT MALAM yang hitung konsumsi (today - yesterday_malam). Pagi/Siang total_water = 0.
+    $wMainBldgRead = (float)($_POST['water_main_building'] ?? 0);
+    if ($isShiftMalam) {
+        $wMainBldgCons = max(0.0, $wMainBldgRead - $mbYesterdayRead);
+        $water = $wMainBldgCons;
     } else {
-        // Shift siang / malam: pakai existing reading di DB (tidak boleh ubah)
-        $wMainBldgRead = isset($log['water_main_building']) ? (float)$log['water_main_building'] : 0;
+        $wMainBldgCons = 0.0;
+        $water = 0.0;
     }
-    $wMainBldgCons = max(0.0, $wMainBldgRead - $mbYesterdayRead);
     // $wMainBldg disamakan dengan reading (sesuai jawaban user: kolom existing = reading meter)
     $wMainBldg = $wMainBldgRead;
     $wCooling = (float)($_POST['water_cooling_tower'] ?? 0);
     $wBottling = (float)($_POST['water_bottling'] ?? 0);
-    // TOTAL WATER = HANYA consumption Main Building (selisih reading)
-    $water = $wMainBldgCons;
+    unset($eTodayTotal);
 
     // ③ Gas 2 types
     $gLpg = (float)($_POST['gas_lpg'] ?? 0);
@@ -811,11 +844,20 @@ require_once __DIR__ . '/../includes/navbar.php';
                 'siang' => '🌤️ Siang',
                 'malam' => '🌙 Malam',
             ];
-            // Listrik HANYA bisa diedit jika shift = PAGI (pembacaan pagi ke pagi, 1x sehari)
-            $isElecEditable = ($curShiftVal === 'pagi');
-            $elecReadonly = $isElecEditable ? '' : 'readonly';
-            $elecRequired = $isElecEditable ? 'required' : '';
-            $elecDisabledCls = $isElecEditable ? '' : '!bg-slate-100 !text-slate-500 !cursor-not-allowed !border-slate-300 opacity-80';
+            // ✅ BARU 2026-08-17: SEMUA SHIFT (Pagi/Siang/Malam) BOLEH EDIT Listrik (WBP/LWBP) & Air Main Building
+            // ❌ TIDAK ADA readonly / disabled lagi untuk field input
+            // ⚠️ HANYA SHIFT MALAM SAJA YANG "MENGHITUNG TOTAL KONSUMSI" (rumus = Today − Yesterday Malam)
+            //    Pagi/Siang = 0 total_electricity & total_water (cuma catatan reading meter saja, tdk masuk cost)
+            $isElecEditable = true;
+            $isMalamNow = ($curShiftVal === 'malam');
+            $elecReadonly = '';
+            $elecRequired = 'required';
+            $elecDisabledCls = '';
+            // Yesterday values (untuk dikirim ke JS calcTotals frontend)
+            $yElecWbpJs = number_format($elecYesterdayWbp, 2, '.', '');
+            $yElecLwbpJs = number_format($elecYesterdayLwbp, 2, '.', '');
+            $yElecTotalJs = number_format($elecYesterdayTotal, 2, '.', '');
+            $yWaterMbJs  = number_format($mbYesterdayRead, 2, '.', '');
         ?>
         <div class="bg-surface rounded-premium border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 30ms">
          
@@ -1055,26 +1097,26 @@ require_once __DIR__ . '/../includes/navbar.php';
         unset($_defTarNow, $tDef, $tariffReadonly, $tariffCursorCls, $roleCanEditTariff);
         ?>
 
-        <!-- ① TOTAL LISTRIK - WBP LWBP (HANYA SHIFT PAGI YANG BISA EDIT — PAGI KE PAGI, 1X SEHARI) -->
+        <!-- ① TOTAL LISTRIK - WBP LWBP (SEMUA SHIFT BISA ISI — TOTAL KONSUMSI HANYA DIHITUNG JIKA SHIFT MALAM) -->
         <div class="bg-surface rounded-premium border border-amber-200/60 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 50ms">
             <div class="px-5 lg:px-6 py-4 border-b border-amber-100/80 bg-gradient-to-r from-amber-50/90 via-amber-50/60 to-yellow-50">
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white shadow-md shadow-amber-500/30"><i class="fas fa-bolt text-sm"></i></span>
-                    <?= T('form_section_elec', '① Total Consume Listrik (Kwh)') ?>
+                    <?= T('form_section_elec', '① Konsumsi Listrik (kWh)') ?>
                 </h3>
-                <p class="text-xs text-secondary mt-0.5"><?= T('form_elec_sub', 'Di isi WBP (Wilayah Beban Puncak) + LWBP (Luar WBP) — Total otomatis dijumlah') ?></p>
+                <p class="text-xs text-secondary mt-0.5"><?= T('form_elec_sub', 'Di isi WBP (Wilayah Beban Puncak) + LWBP (Luar WBP) — Reading Meter semua shift bisa diisi') ?></p>
                 <!-- NOTICE BANNER -->
-                <div id="elecNotice" class="mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border <?= $isElecEditable ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200' ?>">
-                    <?php if ($isElecEditable): ?>
-                        <i class="fas fa-circle-check mr-1"></i> Shift Pagi — Listrik dapat diedit (pembacaan pagi ke pagi, 1x sehari)
+                <div id="elecNotice" class="mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border <?= $isMalamNow ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' ?>">
+                    <?php if ($isMalamNow): ?>
+                        <i class="fas fa-moon mr-1"></i> <b>Shift Malam</b> — Total Konsumsi = Reading Hari ini − Reading Shift Malam Kemarin. Hasil otomatis masuk ke Cost & Dashboard.
                     <?php else: ?>
-                        <i class="fas fa-lock mr-1"></i> Shift Siang/Malam — Listrik <b>tidak dapat diubah</b> (diambil dari catatan Shift Pagi hari ini)
+                        <i class="fas fa-circle-check mr-1"></i> <b>Shift Pagi/Siang</b> — Reading Meter Listrik <b>bisa diisi</b> (tidak dikunci). Total Konsumsi = 0 (tidak masuk kalkulasi biaya).
                     <?php endif; ?>
                 </div>
             </div>
             <div class="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div>
-                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_elec_wbp', 'KWH WBP') ?> <?php if ($isElecEditable): ?><span class="text-red-500">*</span><?php endif; ?></label>
+                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_elec_wbp', 'KWH WBP') ?> <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <input type="number" step="0.01" min="0" name="electricity_wbp" <?= $elecRequired ?> <?= $elecReadonly ?> oninput="calcTotals()"
                             value="<?= $log['electricity_wbp'] ?? '0.00' ?>"
@@ -1083,7 +1125,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_elec_lwbp', 'KWH LWBP') ?> <?php if ($isElecEditable): ?><span class="text-red-500">*</span><?php endif; ?></label>
+                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_elec_lwbp', 'KWH LWBP') ?> <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <input type="number" step="0.01" min="0" name="electricity_lwbp" <?= $elecRequired ?> <?= $elecReadonly ?> oninput="calcTotals()"
                             value="<?= $log['electricity_lwbp'] ?? '0.00' ?>"
@@ -1095,7 +1137,7 @@ require_once __DIR__ . '/../includes/navbar.php';
                     <label class="block text-sm font-extrabold text-primary mb-2 tracking-tight"><i class="fas fa-calculator mr-1 text-primary"></i><?= T('form_elec_total', 'TOTAL LISTRIK (Auto)') ?></label>
                     <div class="relative">
                         <input type="number" id="totalElectricity" readonly step="0.01" min="0" name="total_electricity_show"
-                            value="<?= $log['total_electricity'] ?? '0.00' ?>"
+                            value="<?= $elecConsumptionNow > 0 ? number_format($elecConsumptionNow, 2, '.', '') : ($log['total_electricity'] ?? '0.00') ?>"
                             class="w-full pl-4 pr-16 py-3.5 rounded-card border-2 border-primary/80 bg-gradient-to-br from-primary to-primary/85 text-lg font-black text-white placeholder-white/80 shadow-lg shadow-primary/10 cursor-not-allowed opacity-90">
                         <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-white/95 font-extrabold border border-white/30 px-2 py-0.5 rounded-full bg-white/10">kWh</span>
                     </div>
@@ -1103,7 +1145,7 @@ require_once __DIR__ . '/../includes/navbar.php';
             </div>
         </div>
 
-        <!-- ② WATER PDAM + MAIN BUILDING + COOLING TOWER (3 SUMBER) -->
+        <!-- ② WATER 9 SUMBER (SEMUA SHIFT BISA ISI — TOTAL KONSUMSI HANYA DIHITUNG JIKA SHIFT MALAM) -->
         <div class="bg-surface rounded-premium border border-blue-200/60 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 90ms">
             <div class="px-5 lg:px-6 py-4 border-b border-blue-100/80 bg-gradient-to-r from-blue-50/90 via-sky-50/60 to-cyan-50/70">
                 <h3 class="font-bold text-primary flex items-center gap-2">
@@ -1111,12 +1153,12 @@ require_once __DIR__ . '/../includes/navbar.php';
                     <?= T('form_water_title', '② Water - Konsumsi Air 9 Sumber (m3)') ?>
                 </h3>
                 <p class="text-xs text-secondary mt-0.5"><?= T('form_water_sub', '3 sumber sesuai catatan: PDAM / Main Building / Cooling Tower') ?></p>
-                <!-- NOTICE BANNER WATER (sama seperti Listrik: Hanya Shift Pagi yang bisa edit Main Building Reading Meter) -->
-                <div id="waterNotice" class="mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border <?= $isElecEditable ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200' ?>">
-                    <?php if ($isElecEditable): ?>
-                        <i class="fas fa-circle-check mr-1"></i> Shift Pagi — Main Building Reading Meter dapat diedit (pembacaan pagi ke pagi, 1x sehari)
+                <!-- NOTICE BANNER WATER (sama seperti Listrik: Semua shift bisa isi, HANYA MALAM hitung total konsumsi) -->
+                <div id="waterNotice" class="mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border <?= $isMalamNow ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' ?>">
+                    <?php if ($isMalamNow): ?>
+                        <i class="fas fa-moon mr-1"></i> <b>Shift Malam</b> — Total Konsumsi = Main Building Hari ini − Shift Malam Kemarin. Hasil otomatis masuk ke Cost & Dashboard.
                     <?php else: ?>
-                        <i class="fas fa-lock mr-1"></i> Shift Siang/Malam — Main Building <b>tidak dapat diubah</b> (pakai nilai dari Shift Pagi hari ini)
+                        <i class="fas fa-circle-check mr-1"></i> <b>Shift Pagi/Siang</b> — Main Building Reading Meter <b>bisa diisi</b> (tidak dikunci). Total Konsumsi = 0 (tidak masuk kalkulasi biaya).
                     <?php endif; ?>
                 </div>
             </div>
@@ -1137,14 +1179,15 @@ require_once __DIR__ . '/../includes/navbar.php';
                 </div>
 HTML;
 
-                // 2. MAIN BUILDING — READING METER (Yesterday - Today = Konsumsi) — HANYA SHIFT PAGI YANG BISA EDIT
+                // 2. MAIN BUILDING — READING METER (Yesterday MALAM - Today MALAM = Konsumsi, HANYA HITUNG JIKA SHIFT MALAM)
+                //    Semua shift BISA EDIT READING (tidak dikunci readonly)
                 [$field, $label, $col, $bg, $bor] = ['water_main_building', T('form_water_main', 'Main Building'), 'text-cyan-600', 'bg-cyan-50/60', 'border-cyan-200'];
                 $val = $log[$field] ?? '0.00';
                 $mbYesterdayFmt = number_format($mbYesterdayRead, 2, '.', '');
                 $mbConsFmt = number_format($mbConsumption, 2, '.', '');
                 $yDateLabel = date('d/m/Y', strtotime($yesterdayDate));
-                $mbRdo = $elecReadonly;
-                $mbDisCls = $elecDisabledCls;
+                $mbRdo = '';
+                $mbDisCls = '';
                 echo <<<HTML
                 <div class="sm:col-span-1">
                     <div class="flex items-center justify-between mb-1.5">
@@ -1153,7 +1196,7 @@ HTML;
                     </div>
                     <div class="rounded-card border-2 border-dashed border-cyan-200 bg-cyan-50/40 p-2.5 space-y-2">
                         <div class="flex items-center justify-between text-[10px] font-bold">
-                            <span class="text-slate-500">Yesterday ({$yDateLabel})</span>
+                            <span class="text-slate-500">Yesterday Malam ({$yDateLabel})</span>
                             <span class="text-slate-700">{$mbYesterdayFmt} m3</span>
                         </div>
                         <div>
@@ -1167,7 +1210,7 @@ HTML;
                             </div>
                         </div>
                         <div class="flex items-center justify-between text-[10px] font-bold pt-1 border-t border-cyan-200/70">
-                            <span class="text-cyan-700">Konsumsi = Today − Yesterday</span>
+                            <span class="text-cyan-700">Konsumsi = Today − Yesterday (Hanya Shift Malam)</span>
                             <span class="text-cyan-800" id="waterMainCons">{$mbConsFmt} m3</span>
                         </div>
                     </div>
@@ -1990,82 +2033,70 @@ HTML;
         </script>
 
         <script>
+        // Global yesterday values (dari PHP: Shift MALAM kemarin) — diisi secara server-side
+        window.Y_ELEC_WBP     = parseFloat('<?= $yElecWbpJs ?>')   || 0;
+        window.Y_ELEC_LWBP    = parseFloat('<?= $yElecLwbpJs ?>')  || 0;
+        window.Y_ELEC_TOTAL   = parseFloat('<?= $yElecTotalJs ?>') || 0;
+        window.Y_WATER_MB     = parseFloat('<?= $yWaterMbJs ?>')   || 0;
+
         function onShiftChange() {
             const sel = document.getElementById('shiftSelect');
-            const isPagi = sel && sel.value === 'pagi';
-            const disCls = ['!bg-slate-100','!text-slate-500','!cursor-not-allowed','!border-slate-300','opacity-80'];
-            // 1. Toggle readonly & required pada input WBP / LWBP (Listrik)
-            document.querySelectorAll('.elec-input').forEach(inp => {
-                if (isPagi) {
-                    inp.removeAttribute('readonly');
-                    inp.setAttribute('required','');
-                    inp.classList.remove(...disCls);
-                } else {
-                    inp.setAttribute('readonly','');
-                    inp.removeAttribute('required');
-                    inp.classList.add(...disCls);
-                }
-            });
-            // 2. NOTICE BANNER LISTRIK
+            const isMalam = sel && sel.value === 'malam';
+
+            // 1. NOTICE BANNER LISTRIK
             const eNotice = document.getElementById('elecNotice');
             if (eNotice) {
-                if (isPagi) {
-                    eNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-emerald-50 text-emerald-700 border-emerald-200';
-                    eNotice.innerHTML = '<i class="fas fa-circle-check mr-1"></i> Shift Pagi — Listrik dapat diedit (pembacaan pagi ke pagi, 1x sehari)';
+                if (isMalam) {
+                    eNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-indigo-50 text-indigo-700 border-indigo-200';
+                    eNotice.innerHTML = '<i class="fas fa-moon mr-1"></i> <b>Shift Malam</b> — Total Konsumsi = (WBP+LWBP) Hari ini − (WBP+LWBP) Shift Malam Kemarin. Hasil otomatis masuk ke Cost & Dashboard.';
                 } else {
-                    eNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-slate-50 text-slate-600 border-slate-200';
-                    eNotice.innerHTML = '<i class="fas fa-lock mr-1"></i> Shift Siang/Malam — Listrik <b>tidak dapat diubah</b> (diambil dari catatan Shift Pagi hari ini)';
+                    eNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-emerald-50 text-emerald-700 border-emerald-200';
+                    eNotice.innerHTML = '<i class="fas fa-circle-check mr-1"></i> <b>Shift Pagi/Siang</b> — WBP & LWBP <b>bisa diisi</b> (tidak dikunci). Total Konsumsi = 0 (tidak masuk kalkulasi biaya).';
                 }
             }
-            // 3. Toggle readonly pada input Water Main Building (sama aturan seperti Listrik)
-            document.querySelectorAll('.water-mb-input').forEach(inp => {
-                if (isPagi) {
-                    inp.removeAttribute('readonly');
-                    inp.setAttribute('required','');
-                    inp.classList.remove(...disCls);
-                } else {
-                    inp.setAttribute('readonly','');
-                    inp.removeAttribute('required');
-                    inp.classList.add(...disCls);
-                }
-            });
-            // 4. NOTICE BANNER WATER
+
+            // 2. NOTICE BANNER WATER
             const wNotice = document.getElementById('waterNotice');
             if (wNotice) {
-                if (isPagi) {
-                    wNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-emerald-50 text-emerald-700 border-emerald-200';
-                    wNotice.innerHTML = '<i class="fas fa-circle-check mr-1"></i> Shift Pagi — Main Building Reading Meter dapat diedit (pembacaan pagi ke pagi, 1x sehari)';
+                if (isMalam) {
+                    wNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-indigo-50 text-indigo-700 border-indigo-200';
+                    wNotice.innerHTML = '<i class="fas fa-moon mr-1"></i> <b>Shift Malam</b> — Total Konsumsi = Main Building Hari ini − Shift Malam Kemarin. Hasil otomatis masuk ke Cost & Dashboard.';
                 } else {
-                    wNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-slate-50 text-slate-600 border-slate-200';
-                    wNotice.innerHTML = '<i class="fas fa-lock mr-1"></i> Shift Siang/Malam — Main Building <b>tidak dapat diubah</b> (pakai nilai dari Shift Pagi hari ini)';
+                    wNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-emerald-50 text-emerald-700 border-emerald-200';
+                    wNotice.innerHTML = '<i class="fas fa-circle-check mr-1"></i> <b>Shift Pagi/Siang</b> — Main Building Reading Meter <b>bisa diisi</b> (tidak dikunci). Total Konsumsi = 0 (tidak masuk kalkulasi biaya).';
                 }
             }
-            // Recalc tetap aman (nilai tidak berubah jika readonly)
             calcTotals();
         }
         function calcTotals() {
-            // Total Listrik = sum all js-sum-electric
-            let e = 0;
-            document.querySelectorAll('.js-sum-electric').forEach(el => e += parseFloat(el.value || 0));
-            document.getElementById('totalElectricity').value = e.toFixed(2);
-            // Total Water = HANYA MAIN BUILDING SAJA (Konsumsi = Today − Yesterday)
+            const isMalam = document.getElementById('shiftSelect').value === 'malam';
+
+            // 1. TOTAL LISTRIK: hanya MALAM hitung selisih Today − Yesterday MALAM
+            let wbpInp = document.querySelector('input[name="electricity_wbp"]');
+            let lwbpInp = document.querySelector('input[name="electricity_lwbp"]');
+            let tWbp  = parseFloat(wbpInp  && wbpInp.value  || 0);
+            let tLwbp = parseFloat(lwbpInp && lwbpInp.value || 0);
+            let tElecToday = tWbp + tLwbp;
+            let totalElec = isMalam ? Math.max(0, tElecToday - (window.Y_ELEC_TOTAL || 0)) : 0;
+            document.getElementById('totalElectricity').value = totalElec.toFixed(2);
+
+            // 2. TOTAL WATER = HANYA MAIN BUILDING SAJA, hanya MALAM hitung selisih
             let wmb = document.getElementById('waterMainBuild');
+            let wCons = 0;
             if (wmb) {
                 let yWater = parseFloat(wmb.getAttribute('data-yesterday') || 0);
                 let tWater = parseFloat(wmb.value || 0);
-                let wCons = Math.max(0, tWater - yWater);
+                wCons = isMalam ? Math.max(0, tWater - yWater) : 0;
                 let lblCons = document.getElementById('waterMainCons');
                 if (lblCons) lblCons.textContent = wCons.toFixed(2) + ' m3';
-                document.getElementById('totalWater').value = wCons.toFixed(2);
-            } else {
-                document.getElementById('totalWater').value = '0.00';
             }
-            // Total Gas = sum 2 js-sum-gas
+            document.getElementById('totalWater').value = wCons.toFixed(2);
+
+            // 3. Total Gas = sum 2 js-sum-gas (tetap sama seperti dulu, tidak dipengaruhi shift)
             let g = 0;
             document.querySelectorAll('.js-sum-gas').forEach(el => g += parseFloat(el.value || 0));
             document.getElementById('totalGas').value = g.toFixed(2);
         }
-        // Initialize totals saat page load (jika ada data dari DB yang sudah di set ke input field hidden tapi sumnya update)
         document.addEventListener('DOMContentLoaded', calcTotals);
         </script>
 
