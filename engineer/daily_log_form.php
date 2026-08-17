@@ -1898,7 +1898,6 @@ HTML;
                     <i class="fas fa-plus-circle mr-2 text-lg"></i> TAMBAH BARIS PEKERJAAN BARU
                 </button>
                 <input type="hidden" id="hidden_work_activities" name="work_activities" value="">
-                <p class="text-[11px] text-secondary mt-1.5"><i class="fas fa-info-circle mr-1"></i><?= T('form_work_activities_min', 'Minimal 10 karakter • Total per baris dikumpulkan') ?></p>
             </div>
         </div>
 
@@ -1939,7 +1938,6 @@ HTML;
                 <h3 class="font-bold text-primary flex items-center gap-2">
                     <i class="fas fa-clipboard-list text-accent"></i><?= T('form_work_title', 'Catatan Kendala & Solusi') ?>
                 </h3>
-                <p class="text-xs text-secondary mt-0.5">Isi kendala yang dihadapi dan solusi tindak lanjutnya</p>
             </div>
             <div class="p-5 lg:p-6 space-y-5">
                 <div>
