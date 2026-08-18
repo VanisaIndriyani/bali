@@ -235,6 +235,8 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
 /* ---------- 4. DATA UTILITY (WRAP TRY/CATCH SUPAYA TABLE TIDAK ADA = TIDAK FATAL ERROR) — SUPPORT RANGE DATE ---------- */
 $elecToday = $waterToday = $gasToday = $fuelToday = 0;
 $elecLY = $waterLY = $gasLY = $fuelLY = 0;
+$costElecToday = $costWaterToday = $costGasToday = $costFuelToday = 0;
+$costElecLY = $costWaterLY = $costGasLY = $costFuelLY = 0;
 
 // ✅ ATURAN LY (Last Year): SESUAI REQUEST USER = "SAMA TANGGAL TAHUN LALU" (bukan range bulan lalu / tahun lalu)
 //    - Jika 1 TANGGAL (TODAY MODE):       LY = reportDate - 1 TAHUN  (misal 18/8/26 → LY = 18/8/25, 1 HARI SAJA)
@@ -256,6 +258,12 @@ try {
     $waterToday = (float)($sumToday['water'] ?? 0);
     $gasToday   = (float)($sumToday['gas']   ?? 0);
     $fuelToday  = (float)($sumToday['fuel']  ?? 0);
+    // ✅ COST: pakai dari helper merge (SUDAH dihitung SQL pakai tarif snapshot per-log + step D validasi cnt_d=0)
+    //    ❌ SEBELUMNYA: perkalian MANUAL $elecToday * $TARIF_LISTRIK → tidak sinkron step D, tidak akurat kalo tarif snapshot beda!
+    $costElecToday  = (float)($sumToday['cost_elec']  ?? 0);
+    $costWaterToday = (float)($sumToday['cost_water'] ?? 0);
+    $costGasToday   = (float)($sumToday['cost_gas']   ?? 0);
+    $costFuelToday  = (float)($sumToday['cost_fuel']  ?? 0);
 
     // ✅ QUERY LY: log_date BETWEEN (from-1year) AND (to-1year) — JUGA PAKAI MERGE (100% sama dashboard)
     //    Sesuai permintaan user WA: "tanggal tahun kemarin ketemu tanggal hari ini"
@@ -265,6 +273,10 @@ try {
     $waterLY = (float)($sumLY['water'] ?? 0);
     $gasLY   = (float)($sumLY['gas']   ?? 0);
     $fuelLY  = (float)($sumLY['fuel']  ?? 0);
+    $costElecLY  = (float)($sumLY['cost_elec']  ?? 0);
+    $costWaterLY = (float)($sumLY['cost_water'] ?? 0);
+    $costGasLY   = (float)($sumLY['cost_gas']   ?? 0);
+    $costFuelLY  = (float)($sumLY['cost_fuel']  ?? 0);
 } catch (Exception $e) {
     error_log('daily_summary utility MERGE ERROR: '.$e->getMessage());
     /* utility kosong - biarkan 0 */
@@ -720,45 +732,45 @@ if ($format === 'excel') {
                 <td rowspan="2" class="bold cen mid">ELECTRICITY</td>
                 <td class="cen">(LY)</td>
                 <td class="num"><?=repFmtIndo($elecLY, 0)?> kWh</td>
-                <td class="num"><?=repFmtRupiah($elecLY * $TARIF_LISTRIK)?></td>
+                <td class="num"><?=repFmtRupiah($costElecLY)?></td>
             </tr>
             <tr>
                 <td class="cen">(TODAY)</td>
                 <td class="num"><?=repFmtIndo($elecToday, 0)?> kWh</td>
-                <td class="num"><?=repFmtRupiah($elecToday * $TARIF_LISTRIK)?></td>
+                <td class="num"><?=repFmtRupiah($costElecToday)?></td>
             </tr>
             <tr>
                 <td rowspan="2" class="bold cen mid">WATER</td>
                 <td class="cen">(LY)</td>
                 <td class="num"><?=repFmtIndo($waterLY, 0)?> m&sup3;</td>
-                <td class="num"><?=repFmtRupiah($waterLY * $TARIF_AIR)?></td>
+                <td class="num"><?=repFmtRupiah($costWaterLY)?></td>
             </tr>
             <tr>
                 <td class="cen">(TODAY)</td>
                 <td class="num"><?=repFmtIndo($waterToday, 0)?> m&sup3;</td>
-                <td class="num"><?=repFmtRupiah($waterToday * $TARIF_AIR)?></td>
+                <td class="num"><?=repFmtRupiah($costWaterToday)?></td>
             </tr>
             <tr>
                 <td rowspan="2" class="bold cen mid">GAS</td>
                 <td class="cen">(LY)</td>
                 <td class="num"><?=repFmtIndo($gasLY, 0)?> kg</td>
-                <td class="num"><?=repFmtRupiah($gasLY * $TARIF_GAS)?></td>
+                <td class="num"><?=repFmtRupiah($costGasLY)?></td>
             </tr>
             <tr>
                 <td class="cen">(TODAY)</td>
                 <td class="num"><?=repFmtIndo($gasToday, 0)?> kg</td>
-                <td class="num"><?=repFmtRupiah($gasToday * $TARIF_GAS)?></td>
+                <td class="num"><?=repFmtRupiah($costGasToday)?></td>
             </tr>
             <tr>
                 <td rowspan="2" class="bold cen mid">FUEL</td>
                 <td class="cen">(LY)</td>
                 <td class="num"><?=repFmtIndo($fuelLY, 0)?> Liter</td>
-                <td class="num"><?=repFmtRupiah($fuelLY * $TARIF_FUEL)?></td>
+                <td class="num"><?=repFmtRupiah($costFuelLY)?></td>
             </tr>
             <tr>
                 <td class="cen">(TODAY)</td>
                 <td class="num"><?=repFmtIndo($fuelToday, 0)?> Liter</td>
-                <td class="num"><?=repFmtRupiah($fuelToday * $TARIF_FUEL)?></td>
+                <td class="num"><?=repFmtRupiah($costFuelToday)?></td>
             </tr>
         </tbody>
     </table>

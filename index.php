@@ -460,35 +460,31 @@ $actListLand  = buildActivityListQuery($db, $userRole, $userId, 'landscape',   $
 
 // ============== 🔹 BARU: DAILY ENGINEERING SUMMARY REPORT DATA (Customer format kertas) 🔹 ==============
 
-// 1) UTILITY TODAY & LY — kalkulasi VALUE + COST per row (LY / TODAY)
-// TODAY: pakai MERGE daily_logs + energy_logs (data dari energy_logsheet.php)
-// ✅ COST dihitung SQL pakai TARIF SNAPSHOT per-log (jika ada), fallback global TARIF settings
-$_tBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $today, $today, 'SUM', $TARIF);
-$elecToday  = (float)($_tBoth['elec']  ?? 0);
-$waterToday = (float)($_tBoth['water'] ?? 0);
-$gasToday   = (float)($_tBoth['gas']   ?? 0);
-$fuelToday  = (float)($_tBoth['fuel']  ?? 0);
-$costElecToday  = (float)($_tBoth['cost_elec']  ?? 0);
-$costWaterToday = (float)($_tBoth['cost_water'] ?? 0);
-$costGasToday   = (float)($_tBoth['cost_gas']   ?? 0);
-$costFuelToday  = (float)($_tBoth['cost_fuel']  ?? 0);
-unset($_tBoth);
+// 1) UTILITY TODAY & LY — KALKULASI VALUE + COST (SINGLE SOURCE OF TRUTH, TIDAK ADA DUPLIKAT!)
+//    ✅ TODAY: 1 SUMBER SAJA = $todayBoth (L263) = single date HARI INI (usage + cost 100% KONSISTEN!)
+//    ✅ LY (Last Year SAME DATE / SAME DAY) — 1 SUMBER SAJA = $lySameDayBoth (L299) = single date TAHUN LALU (sesuai label "LY • Avg/Day" & "LY Same Day" di card!)
+//    ❌ SEBELUMNYA: ada $_tBoth & $_lBoth = CALL ULANG fungsi SAMA → hasil BEDA (Today Cost=0, LY Cost=479 JUTA dari angka meteran bulanan!)
+$elecToday  = (float)($todayBoth['elec']  ?? 0);
+$waterToday = (float)($todayBoth['water'] ?? 0);
+$gasToday   = (float)($todayBoth['gas']   ?? 0);
+$fuelToday  = (float)($todayBoth['fuel']  ?? 0);
+$costElecToday  = (float)($todayBoth['cost_elec']  ?? 0);
+$costWaterToday = (float)($todayBoth['cost_water'] ?? 0);
+$costGasToday   = (float)($todayBoth['cost_gas']   ?? 0);
+$costFuelToday  = (float)($todayBoth['cost_fuel']  ?? 0);
 
-// LY: Pakai data Last Year — AVG per day of SAME MONTH last year (bukan total) untuk cocok "per-day"
-$lySameMonth = (intval($lastYear)) . '-' . date('m') . '-01';
-$lySameMonthEnd = (intval($lastYear)) . '-' . date('m') . '-' . date('t', strtotime($lySameMonth));
-$_lBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $lySameMonth, $lySameMonthEnd, 'AVG', $TARIF);
-$elecLY  = (float)($_lBoth['elec']  ?? 0);
-$waterLY = (float)($_lBoth['water'] ?? 0);
-$gasLY   = (float)($_lBoth['gas']   ?? 0);
-$fuelLY  = (float)($_lBoth['fuel']  ?? 0);
-$costElecLY  = (float)($_lBoth['cost_elec']  ?? 0);
-$costWaterLY = (float)($_lBoth['cost_water'] ?? 0);
-$costGasLY   = (float)($_lBoth['cost_gas']   ?? 0);
-$costFuelLY  = (float)($_lBoth['cost_fuel']  ?? 0);
-unset($_lBoth);
+// ✅ LY = SINGLE DATE SAMA TAHUN LALU (18/08/26 → 18/08/25), BUKAN range bulan! (sesuai label LY Same Day / LY • Avg/Day)
+//    Step D validasi anti meteran: kalau cnt_d=0 (sistem belum jalan tahun lalu) → otomatis LY = cost = 0 (tidak 479jt lagi!)
+$elecLY  = (float)($lySameDayBoth['elec']  ?? 0);
+$waterLY = (float)($lySameDayBoth['water'] ?? 0);
+$gasLY   = (float)($lySameDayBoth['gas']   ?? 0);
+$fuelLY  = (float)($lySameDayBoth['fuel']  ?? 0);
+$costElecLY  = (float)($lySameDayBoth['cost_elec']  ?? 0);
+$costWaterLY = (float)($lySameDayBoth['cost_water'] ?? 0);
+$costGasLY   = (float)($lySameDayBoth['cost_gas']   ?? 0);
+$costFuelLY  = (float)($lySameDayBoth['cost_fuel']  ?? 0);
 
-// Helper: Display usage â€” rounding & unit
+// Helper: Display usage — rounding & unit
 function uUsage($n, $unit, $dec=0) {
     if ($n <= 0) return "0 {$unit}";
     return number_format($n, $dec, ',', '.') . " {$unit}";
