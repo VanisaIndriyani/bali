@@ -536,6 +536,69 @@ $actsGRP = [
     'landscape'   => actGroupWithStatus($actListLand),
 ];
 
+// ============== 🔹 TAMBAHAN: Merge data activity_counter 4 JSON kolom ke actsGRP (counter header) 🔹 ==============
+// Tujuan: Master Activity yang dipilih user via COUNTER 4 KATEGORI (disimpan di daily_logs.activity_*_items JSON)
+//         SEKARANG MUNCUL DENGAN NAMA ENGINEER YANG BENAR (bukan "- (Master Activity)").
+//         Sebelumnya: aktivitas counter ini TIDAK di-merge ke actsGRP, jadi blok di bawah menambah dari tabel
+//         activity_masters GLOBAL dengan label eng="-". Sekarang di-merge dulu agar cek existing title ke-detect.
+try {
+    $roleWhereAct = '';
+    $actParams = [];
+    if ($userRole === 'engineer') {
+        $roleWhereAct = ' AND dl.engineer_id = ?';
+        $actParams[] = $userId;
+    }
+    $actColMap = [
+        'operation'   => 'activity_operation_items',
+        'maintenance' => 'activity_maintenance_items',
+        'project'     => 'activity_project_items',
+        'landscape'   => 'activity_landscape_items',
+    ];
+    $_jsonTitleUsed = [];
+    foreach ($actColMap as $dv => $col) {
+        if (!isset($actsGRP[$dv]) || !is_array($actsGRP[$dv])) $actsGRP[$dv] = [];
+        foreach ($actsGRP[$dv] as $_r) { $_jsonTitleUsed[$dv][mb_strtolower(trim((string)($_r['title'] ?? '')))] = true; }
+    }
+    foreach ($actColMap as $dv => $col) {
+        $sqlAct = "SELECT dl.id as dlid, dl.log_date, u.name as engineer_name, dl.$col as json_col
+                    FROM daily_logs dl
+                    LEFT JOIN users u ON u.id = dl.engineer_id
+                    WHERE dl.status='approved' $roleWhereAct
+                      AND dl.log_date BETWEEN ? AND ?
+                      AND dl.$col IS NOT NULL AND dl.$col <> ''
+                    ORDER BY dl.log_date DESC, dl.id DESC";
+        $rowsAct = $db->fetchAll($sqlAct, array_merge($actParams, [$monthStart, $today]));
+        foreach ($rowsAct as $_ra) {
+            $_rawJson = (string)($_ra['json_col'] ?? '');
+            if ($_rawJson === '') continue;
+            $_arrAct = json_decode($_rawJson, true);
+            if (!is_array($_arrAct) || count($_arrAct) === 0) continue;
+            foreach ($_arrAct as $_ia) {
+                if (!is_array($_ia)) continue;
+                $_ttl = trim((string)($_ia['t'] ?? ''));
+                if ($_ttl === '') continue;
+                $_st  = (string)($_ia['s'] ?? 'progress');
+                $_keyLower = mb_strtolower($_ttl);
+                if (isset($_jsonTitleUsed[$dv][$_keyLower])) continue; // hindari dobel
+                $_jsonTitleUsed[$dv][$_keyLower] = true;
+                // Status rule = heuristik (sama dengan actGroupWithStatus)
+                $_tl = mb_strtolower($_ttl);
+                $_isProg = ($_st === 'progress')
+                        || (strpos($_tl, 'progress') !== false) || (strpos($_tl, 'install') !== false)
+                        || (strpos($_tl, 'perbaikan') !== false) || (strpos($_tl, 'new ') !== false)
+                        || (strpos($_tl, 'buat') !== false)     || (strpos($_tl, 'meeting') !== false);
+                $actsGRP[$dv][] = [
+                    'title'  => $_ttl,
+                    'status' => $_isProg ? 'progress' : 'complete',
+                    'date'   => (string)($_ra['log_date'] ?? ''),
+                    'eng'    => (string)($_ra['engineer_name'] ?? '-'),
+                ];
+            }
+        }
+    }
+    unset($rowsAct, $_ra, $_rawJson, $_arrAct, $_ia, $_ttl, $_st, $_keyLower, $_tl, $_isProg);
+} catch (Throwable $eAct) {}
+
 // ============== ðŸ”¹ BARU: ENGINEERING ACTIVITIES YANG MASIH IN PROGRESS (Dashboard Widget) ðŸ”¹ ==============
 // INI STATUS ASLI (BUKAN HEURISTIK DARI TITLE!) diambil dari 4 JSON kolom daily_logs.*_items
 // Jika s = 'complete' otomatis HILANG dari widget ini; hanya s='progress' saja yang muncul.
@@ -613,6 +676,8 @@ try {
     $titleUsedDaily = [];
     foreach ($progressActivities as $pd) { if ($pd['source'] === 'daily_log') $titleUsedDaily[mb_strtolower(trim((string)($pd['activity'] ?? '')))] = true; }
     $idxDaily = count($progressActivities);
+    // ✅ Fallback nama engineer untuk progress widget master (belum ditugaskan): pakai nama user login
+    $userNameForProgMaster = !empty($user['name']) ? (string)$user['name'] : '- (Belum ditugaskan)';
     foreach ($masterRows as $m) {
         $title = trim((string)($m['activity_name'] ?? ''));
         if ($title === '') continue;
@@ -623,7 +688,7 @@ try {
             'division'      => (string)($m['division'] ?? 'operation'),
             'activity'      => $title,
             'log_date'      => (string)($m['created_at'] ?? ''),
-            'engineer_name' => '- (Belum ditugaskan)',
+            'engineer_name' => $userNameForProgMaster,
             'daily_log_id'  => 0,
             'source'        => 'master_template',
             'master_id'     => (int)($m['mid'] ?? 0),
@@ -653,6 +718,9 @@ $progressCount = count($progressActivities);
 try {
     $_tmpMastersAct = $db->fetchAll("SELECT division, activity_name, sort_order, created_at, status_default FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
     $_existingTitleAct = [];
+    // ✅ Fallback engineer label untuk master activity yang benar-benar belum dipakai di log manapun:
+    //    Pakai NAMA USER YANG SEDANG LOGIN (semua role, sesuai request: "siapa yg punya akun langsung jadi namanya dia yg mengetik")
+    $userNameForMaster = !empty($user['name']) ? (string)$user['name'] : '- (Master Activity)';
     foreach (['operation','maintenance','project','landscape'] as $dv) {
         if (!isset($actsGRP[$dv]) || !is_array($actsGRP[$dv])) $actsGRP[$dv] = [];
         foreach ($actsGRP[$dv] as $_r) { $_existingTitleAct[$dv][mb_strtolower(trim((string)($_r['title'] ?? '')))] = true; }
@@ -664,12 +732,12 @@ try {
         $title = trim((string)($_m['activity_name'] ?? ''));
         if ($title === '') continue;
         $key = mb_strtolower($title);
-        if (isset($_existingTitleAct[$dv][$key])) continue; // hindari dobel dengan daily log title
+        if (isset($_existingTitleAct[$dv][$key])) continue; // hindari dobel dengan daily log title (counter / child table)
         $st = (string)($_m['status_default'] ?? 'progress');
-        $actsGRP[$dv][] = ['title' => $title, 'status' => ($st === 'complete' ? 'complete' : 'progress'), 'date' => (string)($_m['created_at'] ?? ''), 'eng' => '- (Master Activity)'];
+        $actsGRP[$dv][] = ['title' => $title, 'status' => ($st === 'complete' ? 'complete' : 'progress'), 'date' => (string)($_m['created_at'] ?? ''), 'eng' => $userNameForMaster];
         $_existingTitleAct[$dv][$key] = true;
     }
-    unset($_tmpMastersAct, $_existingTitleAct, $dv, $_m, $title, $key, $st);
+    unset($_tmpMastersAct, $_existingTitleAct, $dv, $_m, $title, $key, $st, $userNameForMaster);
 } catch (Throwable $e) {}
 
 // --- Reusable: render TABLE DAFTAR AKTIVITAS PEKERJAAN (untuk ditempel di bawah chart modal) ---
