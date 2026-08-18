@@ -72,39 +72,175 @@ $TARIF_AIR     = (int)($_tariff['water_per_m3']        ?? 9600);
 $TARIF_GAS     = (int)($_tariff['gas_per_kg']          ?? 24500);
 $TARIF_FUEL    = (int)($_tariff['fuel_per_liter']      ?? 17450);
 
+/* ============================================================
+ * 🔗 HELPER BARU (COPY 100% DARI INDEX.PHP utilFetchBoth_Db):
+ *    MERGE DATA UTILITY DARI daily_logs + energy_logs
+ *    (Data user input di energy_logsheet.php disimpan ke energy_logs,
+ *     SEBELUMNYA PDF HANYA baca daily_logs → banyak data HILANG!)
+ * Aggregation: 'SUM' atau 'AVG'
+ * Return: [elec, water, gas, fuel, cnt, cnt_en, cost_*]
+ * ============================================================ */
+function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFrom, $dateTo, $agg = 'SUM', $fallbackTariffs = null) {
+    $isSum = ($agg !== 'AVG');
+    $aggFn = $isSum ? 'SUM' : 'AVG';
+    $cntFn  = 'COUNT';
+    if (!is_array($fallbackTariffs)) $fallbackTariffs = ['electricity_per_kwh'=>1850,'water_per_m3'=>9600,'gas_per_kg'=>24500,'fuel_per_liter'=>17450];
+    $ftEL = (int)($fallbackTariffs['electricity_per_kwh'] ?? 1850);
+    $ftWA = (int)($fallbackTariffs['water_per_m3']       ?? 9600);
+    $ftGA = (int)($fallbackTariffs['gas_per_kg']         ?? 24500);
+    $ftFU = (int)($fallbackTariffs['fuel_per_liter']     ?? 17450);
+
+    /* --- (A) daily_logs (primary legacy) --- */
+    try {
+        $sqlD = "SELECT
+            COALESCE($aggFn(CAST(total_electricity AS DECIMAL(18,4))),0) as elec,
+            COALESCE($aggFn(CAST(total_water AS DECIMAL(18,4))),0) as water,
+            COALESCE($aggFn(CAST(total_gas AS DECIMAL(18,4))),0) as gas,
+            COALESCE($aggFn(CAST(total_fuel AS DECIMAL(18,4))),0) as fuel,
+            COALESCE($cntFn(*),0) as cnt,
+            COALESCE($aggFn(
+                CAST(COALESCE(total_electricity,0) AS DECIMAL(18,4))
+                * CAST(COALESCE(NULLIF(tariff_electricity_per_kwh,0), {$ftEL}) AS DECIMAL(18,4))
+            ),0) as cost_elec,
+            COALESCE($aggFn(
+                CAST(COALESCE(total_water,0) AS DECIMAL(18,4))
+                * CAST(COALESCE(NULLIF(tariff_water_per_m3,0),       {$ftWA}) AS DECIMAL(18,4))
+            ),0) as cost_water,
+            COALESCE($aggFn(
+                CAST(COALESCE(total_gas,0) AS DECIMAL(18,4))
+                * CAST(COALESCE(NULLIF(tariff_gas_per_kg,0),         {$ftGA}) AS DECIMAL(18,4))
+            ),0) as cost_gas,
+            COALESCE($aggFn(
+                CAST(COALESCE(total_fuel,0) AS DECIMAL(18,4))
+                * CAST(COALESCE(NULLIF(tariff_fuel_per_liter,0),     {$ftFU}) AS DECIMAL(18,4))
+            ),0) as cost_fuel
+        FROM daily_logs
+        WHERE DATE(log_date) BETWEEN ? AND ? AND $approvedWhereDaily";
+        $d = $db->fetchOne($sqlD, [$dateFrom, $dateTo]);
+    } catch (Throwable $e) {
+        $d = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0,'cost_elec'=>0,'cost_water'=>0,'cost_gas'=>0,'cost_fuel'=>0];
+        error_log('repUtilFetchBoth daily_logs ERROR: '.$e->getMessage());
+    }
+    if (!$d) $d = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0,'cost_elec'=>0,'cost_water'=>0,'cost_gas'=>0,'cost_fuel'=>0];
+    $d['elec']=(float)($d['elec']??0); $d['water']=(float)($d['water']??0);
+    $d['gas']=(float)($d['gas']??0); $d['fuel']=(float)($d['fuel']??0);
+    $d['cnt']=(int)($d['cnt']??0);
+    $d['cost_elec']=(float)($d['cost_elec']??0); $d['cost_water']=(float)($d['cost_water']??0);
+    $d['cost_gas']=(float)($d['cost_gas']??0); $d['cost_fuel']=(float)($d['cost_fuel']??0);
+
+    /* --- (B) energy_logs (energy_logsheet.php input user) - TIDAK ADA per-log tariff, pakai global fallback --- */
+    try {
+        $wE = ["DATE(log_date) BETWEEN ? AND ?"];
+        $pE = [$dateFrom, $dateTo];
+        if ($userRole === 'engineer') {
+            $wE[] = "created_by = ?";
+            $pE[] = $userId;
+        }
+        $whereE = 'WHERE ' . implode(' AND ', $wE);
+        $sqlE = "SELECT
+            COALESCE($aggFn(CAST(pln_lwbp_kwh AS DECIMAL(18,4)) + CAST(pln_wbp_kwh AS DECIMAL(18,4)) + CAST(COALESCE(genset_kwh,0) AS DECIMAL(18,4))),0)  as elec,
+            COALESCE($aggFn(CAST(COALESCE(air_m3,0) AS DECIMAL(18,4)) + CAST(COALESCE(air_deep_well_m3,0) AS DECIMAL(18,4))),0)                as water,
+            COALESCE($aggFn(CAST(COALESCE(gas_kg,0) AS DECIMAL(18,4)) + CAST(COALESCE(gas_lng_kg,0) AS DECIMAL(18,4))),0)                      as gas,
+            COALESCE($aggFn(CAST(COALESCE(solar_liter,0) AS DECIMAL(18,4))),0)                               as fuel,
+            COALESCE($cntFn(*),0) as cnt,
+            COALESCE($aggFn(
+                (CAST(pln_lwbp_kwh AS DECIMAL(18,4)) + CAST(pln_wbp_kwh AS DECIMAL(18,4)) + CAST(COALESCE(genset_kwh,0) AS DECIMAL(18,4)))
+                * {$ftEL}
+            ),0) as cost_elec,
+            COALESCE($aggFn(
+                (CAST(COALESCE(air_m3,0) AS DECIMAL(18,4)) + CAST(COALESCE(air_deep_well_m3,0) AS DECIMAL(18,4)))
+                * {$ftWA}
+            ),0) as cost_water,
+            COALESCE($aggFn(
+                (CAST(COALESCE(gas_kg,0) AS DECIMAL(18,4)) + CAST(COALESCE(gas_lng_kg,0) AS DECIMAL(18,4)))
+                * {$ftGA}
+            ),0) as cost_gas,
+            COALESCE($aggFn(
+                CAST(COALESCE(solar_liter,0) AS DECIMAL(18,4))
+                * {$ftFU}
+            ),0) as cost_fuel
+        FROM energy_logs $whereE";
+        $e = $db->fetchOne($sqlE, $pE);
+    } catch (Throwable $e) {
+        $e = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0,'cost_elec'=>0,'cost_water'=>0,'cost_gas'=>0,'cost_fuel'=>0];
+        error_log('repUtilFetchBoth energy_logs ERROR: '.$e->getMessage());
+    }
+    if (!$e) $e = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0,'cost_elec'=>0,'cost_water'=>0,'cost_gas'=>0,'cost_fuel'=>0];
+    $e['elec']=(float)($e['elec']??0); $e['water']=(float)($e['water']??0);
+    $e['gas']=(float)($e['gas']??0); $e['fuel']=(float)($e['fuel']??0);
+    $e['cnt']=(int)($e['cnt']??0);
+    $e['cost_elec']=(float)($e['cost_elec']??0); $e['cost_water']=(float)($e['cost_water']??0);
+    $e['cost_gas']=(float)($e['cost_gas']??0); $e['cost_fuel']=(float)($e['cost_fuel']??0);
+
+    /* --- (C) MERGE: SUM mode dijumlah; AVG mode pilih salah satu (hindari double count) --- */
+    if ($isSum) {
+        $out = [
+            'elec'  => (float)($d['elec']  + $e['elec']),
+            'water' => (float)($d['water'] + $e['water']),
+            'gas'   => (float)($d['gas']   + $e['gas']),
+            'fuel'  => (float)($d['fuel']  + $e['fuel']),
+            'cnt'   => (int)($d['cnt']   + $e['cnt']),
+            'cost_elec'  => (float)($d['cost_elec']  + $e['cost_elec']),
+            'cost_water' => (float)($d['cost_water'] + $e['cost_water']),
+            'cost_gas'   => (float)($d['cost_gas']   + $e['cost_gas']),
+            'cost_fuel'  => (float)($d['cost_fuel']  + $e['cost_fuel']),
+        ];
+    } else {
+        $pickDaily = ($d['elec'] > 0 || $d['water'] > 0 || $d['gas'] > 0 || $d['fuel'] > 0);
+        $s = $pickDaily ? $d : $e;
+        $out = [
+            'elec'  => (float)$s['elec'],
+            'water' => (float)$s['water'],
+            'gas'   => (float)$s['gas'],
+            'fuel'  => (float)$s['fuel'],
+            'cnt'   => (int)$s['cnt'],
+            'cost_elec'  => (float)$s['cost_elec'],
+            'cost_water' => (float)$s['cost_water'],
+            'cost_gas'   => (float)$s['cost_gas'],
+            'cost_fuel'  => (float)$s['cost_fuel'],
+        ];
+    }
+    $out['log_count'] = max(1, (int)($out['cnt'] ?? 1));
+    return $out;
+}
+
 /* ---------- 4. DATA UTILITY (WRAP TRY/CATCH SUPAYA TABLE TIDAK ADA = TIDAK FATAL ERROR) — SUPPORT RANGE DATE ---------- */
 $elecToday = $waterToday = $gasToday = $fuelToday = 0;
 $elecLY = $waterLY = $gasLY = $fuelLY = 0;
+
+// ✅ ATURAN LY (Last Year): SESUAI REQUEST USER = "SAMA TANGGAL TAHUN LALU" (bukan range bulan lalu / tahun lalu)
+//    - Jika 1 TANGGAL (TODAY MODE):       LY = reportDate - 1 TAHUN  (misal 18/8/26 → LY = 18/8/25, 1 HARI SAJA)
+//    - Jika RANGE BEBERAPA HARI:          LY = 1 per 1 TANGGAL SAMA di TAHUN LALU (bukan average)
+//                                         contoh: 15-18/8/26 → LY = 15-18/8/25 (4 HARI SAMA PERSIS)
 $lyRangeFrom = date('Y-m-d', strtotime($reportDateFrom . ' -1 year'));
 $lyRangeTo   = date('Y-m-d', strtotime($reportDateTo   . ' -1 year'));
+
 try {
-    $sumToday = $db->fetchOne("SELECT
-        COALESCE(SUM(total_electricity),0) as elec,
-        COALESCE(SUM(total_water),0)       as water,
-        COALESCE(SUM(total_gas),0)         as gas,
-        COALESCE(SUM(total_fuel),0)        as fuel
-        FROM daily_logs WHERE status='approved' AND log_date BETWEEN ? AND ?",
-        [$reportDateFrom, $reportDateTo]);
-    if ($sumToday) {
-        $elecToday  = (float)($sumToday['elec']  ?? 0);
-        $waterToday = (float)($sumToday['water'] ?? 0);
-        $gasToday   = (float)($sumToday['gas']   ?? 0);
-        $fuelToday  = (float)($sumToday['fuel']  ?? 0);
-    }
-    $sumLY = $db->fetchOne("SELECT
-        COALESCE(SUM(total_electricity),0) as elec,
-        COALESCE(SUM(total_water),0)       as water,
-        COALESCE(SUM(total_gas),0)         as gas,
-        COALESCE(SUM(total_fuel),0)        as fuel
-        FROM daily_logs WHERE status='approved' AND log_date BETWEEN ? AND ?",
-        [$lyRangeFrom, $lyRangeTo]);
-    if ($sumLY) {
-        $elecLY  = (float)($sumLY['elec']  ?? 0);
-        $waterLY = (float)($sumLY['water'] ?? 0);
-        $gasLY   = (float)($sumLY['gas']   ?? 0);
-        $fuelLY  = (float)($sumLY['fuel']  ?? 0);
-    }
-} catch (Exception $e) { /* utility kosong */ }
+    // ✅ BARU: PAKAI repUtilFetchBoth() = MERGE daily_logs + energy_logs
+    //    SEBELUMNYA: HANYA baca daily_logs → data input di energy_logsheet.php (energy_logs) TIDAK KEBACA di PDF
+    //    SEKARANG: 100% SAMA PERSIS dengan dashboard index.php utilFetchBoth_Db()
+    $_approvedWhere = "status = 'approved'";
+    if ($userRole === 'engineer') { $_approvedWhere .= " AND engineer_id = $userId"; }
+    $_tariffFb = ['electricity_per_kwh'=>$TARIF_LISTRIK,'water_per_m3'=>$TARIF_AIR,'gas_per_kg'=>$TARIF_GAS,'fuel_per_liter'=>$TARIF_FUEL];
+
+    $sumToday = repUtilFetchBoth($db, $_approvedWhere, $userId, $userRole, $reportDateFrom, $reportDateTo, 'SUM', $_tariffFb);
+    $elecToday  = (float)($sumToday['elec']  ?? 0);
+    $waterToday = (float)($sumToday['water'] ?? 0);
+    $gasToday   = (float)($sumToday['gas']   ?? 0);
+    $fuelToday  = (float)($sumToday['fuel']  ?? 0);
+
+    // ✅ QUERY LY: log_date BETWEEN (from-1year) AND (to-1year) — JUGA PAKAI MERGE (100% sama dashboard)
+    //    Sesuai permintaan user WA: "tanggal tahun kemarin ketemu tanggal hari ini"
+    //    Contoh: report 18/8/26 → LY = tgl 18/8/25 (1 data), BUKAN rata-rata / sum 1 tahun 2025.
+    $sumLY = repUtilFetchBoth($db, $_approvedWhere, $userId, $userRole, $lyRangeFrom, $lyRangeTo, 'SUM', $_tariffFb);
+    $elecLY  = (float)($sumLY['elec']  ?? 0);
+    $waterLY = (float)($sumLY['water'] ?? 0);
+    $gasLY   = (float)($sumLY['gas']   ?? 0);
+    $fuelLY  = (float)($sumLY['fuel']  ?? 0);
+} catch (Exception $e) {
+    error_log('daily_summary utility MERGE ERROR: '.$e->getMessage());
+    /* utility kosong - biarkan 0 */
+}
 
 /* ---------- 5. KPI OCCUPANCY + ITR + M&U + GITB (RANGE DATE SUPPORT) ---------- */
 $kpiData = [['Occupancy Rate','- %','- %','-','-','-']];
