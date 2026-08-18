@@ -1886,24 +1886,6 @@ HTML;
         </div>
         <?php endif; ?>
 
-        <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 370ms">
-            <div class="px-5 lg:px-6 py-4 border-b border-border bg-muted/30">
-                <h3 class="font-bold text-primary flex items-center gap-2">
-                    <i class="fas fa-list-check text-green-600"></i><?= T('form_work_activities', '⑨ Aktivitas Pekerjaan (Per Baris)') ?> <span class="text-red-500">*</span>
-                </h3>
-                <p class="text-xs text-secondary mt-0.5">Kategori pekerjaan OTOMATIS hitung Counter di atas! Tambah baris untuk setiap aktivitas.</p>
-            </div>
-            <div class="p-5 lg:p-6 space-y-4">
-                <div id="actList" class="space-y-3">
-                    <!-- Dynamic Rows diisi JS dari existingActivities JSON -->
-                </div>
-                <button type="button" onclick="addActRow()" class="w-full py-3 rounded-xl border-2 border-dashed border-green-300 bg-green-50/70 hover:bg-green-50 hover:border-green-500 text-green-700 font-semibold transition-all">
-                    <i class="fas fa-plus-circle mr-2 text-lg"></i> TAMBAH BARIS PEKERJAAN BARU
-                </button>
-                <input type="hidden" id="hidden_work_activities" name="work_activities" value="">
-            </div>
-        </div>
-
         <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 410ms">
             <div class="px-5 lg:px-6 py-4 border-b border-border bg-muted/30">
                 <h3 class="font-bold text-primary flex items-center gap-2">
