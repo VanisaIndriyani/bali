@@ -172,19 +172,34 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
     $e['cost_elec']=(float)($e['cost_elec']??0); $e['cost_water']=(float)($e['cost_water']??0);
     $e['cost_gas']=(float)($e['cost_gas']??0); $e['cost_fuel']=(float)($e['cost_fuel']??0);
 
-    /* --- (C) MERGE: SUM mode dijumlah; AVG mode pilih salah satu (hindari double count) --- */
+    /* --- (C) MERGE: PRIORITY DAILY_LOGS (hindari DOUBLE COUNT karena user bisa input di 2 form!) --- */
+    /*     RULE FIX 2026-08-18 (Bug Air 59651):
+             - JIKA daily_logs SUDAH PUNYA NILAI NONZERO (total_xx > 0) = ambil HANYA DARI daily_logs (karena dihitung Today-Yesterday akurat)
+             - JIKA daily_logs = 0 / TIDAK ADA DATA = baru pakai energy_logs (user hanya input di energy_logsheet)
+             - INI JAUH LEBIH AMAN, menghindari kasus user input METER READING (bukan selisih) di energy_logsheet → TIDAK BOLEH dijumlah!
+             - Berlaku untuk Elec, Water, Gas, Fuel BESERTA COST masing-masing (cost juga pakai aturan sama persis) */
     if ($isSum) {
+        $pickD_elec = ($d['elec']  > 0.00001);
+        $pickD_water = ($d['water'] > 0.00001);
+        $pickD_gas = ($d['gas']   > 0.00001);
+        $pickD_fuel = ($d['fuel']  > 0.00001);
         $out = [
-            'elec'  => (float)($d['elec']  + $e['elec']),
-            'water' => (float)($d['water'] + $e['water']),
-            'gas'   => (float)($d['gas']   + $e['gas']),
-            'fuel'  => (float)($d['fuel']  + $e['fuel']),
+            'elec'  => $pickD_elec  ? (float)$d['elec']  : (float)($d['elec']  + $e['elec']),
+            'water' => $pickD_water ? (float)$d['water'] : (float)($d['water'] + $e['water']),
+            'gas'   => $pickD_gas   ? (float)$d['gas']   : (float)($d['gas']   + $e['gas']),
+            'fuel'  => $pickD_fuel  ? (float)$d['fuel']  : (float)($d['fuel']  + $e['fuel']),
             'cnt'   => (int)($d['cnt']   + $e['cnt']),
-            'cost_elec'  => (float)($d['cost_elec']  + $e['cost_elec']),
-            'cost_water' => (float)($d['cost_water'] + $e['cost_water']),
-            'cost_gas'   => (float)($d['cost_gas']   + $e['cost_gas']),
-            'cost_fuel'  => (float)($d['cost_fuel']  + $e['cost_fuel']),
+            'cnt_d' => (int)$d['cnt'],
+            'cnt_e' => (int)$e['cnt'],
+            'cost_elec'  => $pickD_elec  ? (float)$d['cost_elec']  : (float)($d['cost_elec']  + $e['cost_elec']),
+            'cost_water' => $pickD_water ? (float)$d['cost_water'] : (float)($d['cost_water'] + $e['cost_water']),
+            'cost_gas'   => $pickD_gas   ? (float)$d['cost_gas']   : (float)($d['cost_gas']   + $e['cost_gas']),
+            'cost_fuel'  => $pickD_fuel  ? (float)$d['cost_fuel']  : (float)($d['cost_fuel']  + $e['cost_fuel']),
         ];
+        $out['_prio_elec']  = $pickD_elec  ? 'daily_logs' : 'merged_or_energy';
+        $out['_prio_water'] = $pickD_water ? 'daily_logs' : 'merged_or_energy';
+        $out['_prio_gas']   = $pickD_gas   ? 'daily_logs' : 'merged_or_energy';
+        $out['_prio_fuel']  = $pickD_fuel  ? 'daily_logs' : 'merged_or_energy';
     } else {
         $pickDaily = ($d['elec'] > 0 || $d['water'] > 0 || $d['gas'] > 0 || $d['fuel'] > 0);
         $s = $pickDaily ? $d : $e;
@@ -194,6 +209,8 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
             'gas'   => (float)$s['gas'],
             'fuel'  => (float)$s['fuel'],
             'cnt'   => (int)$s['cnt'],
+            'cnt_d' => (int)$d['cnt'],
+            'cnt_e' => (int)$e['cnt'],
             'cost_elec'  => (float)$s['cost_elec'],
             'cost_water' => (float)$s['cost_water'],
             'cost_gas'   => (float)$s['cost_gas'],
