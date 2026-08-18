@@ -600,10 +600,10 @@ if (empty($printAllActs)) {
             <p class="text-xs text-secondary mt-1.5"><?= T('eng_act_subtitle', 'Ringkasan 4 divisi Operation, Maintenance, Project dan Landscape per bulan.') ?></p>
         </div>
         <div class="flex flex-wrap gap-2 self-start">
-            <a href="<?= BASE_URL ?>reports/pdf.php" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 hover:from-rose-600 hover:to-rose-800 text-white text-[12px] font-bold shadow hover:shadow-lg transition-all">
+            <a href="<?= BASE_URL ?>reports/dashboard_activities_pdf.php" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-br from-rose-500 to-rose-700 hover:from-rose-600 hover:to-rose-800 text-white text-[12px] font-bold shadow hover:shadow-lg transition-all">
                 <i class="far fa-file-pdf text-[11px]"></i> <?= T('btn_export_pdf', 'Export PDF') ?>
             </a>
-            <a href="<?= BASE_URL ?>reports/excel.php" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white text-[12px] font-bold shadow hover:shadow-lg transition-all">
+            <a href="<?= BASE_URL ?>reports/dashboard_activities_excel.php" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white text-[12px] font-bold shadow hover:shadow-lg transition-all">
                 <i class="far fa-file-excel text-[11px]"></i> <?= T('btn_export_excel', 'Export Excel') ?>
             </a>
             <button type="button" onclick="openMasterModal()"
@@ -1469,7 +1469,7 @@ if (empty($printAllActs)) {
         }, 120);
     }
 
-    // ================================ JS: DINAMIS ROW INPUT TEXT MANUAL (TIDAK PAKAI DROPDOWN MASTER!) ================================
+    // ================================ JS: DINAMIS ROW INPUT — DROPDOWN MASTER ACTIVITY + OPSI CUSTOM ================================
     function addActRow(divCode) {
         const map = {
             op: { prefix: 'act_op',       color: 'indigo', border: 'border-slate-200', bg: 'bg-slate-50/70' },
@@ -1485,19 +1485,47 @@ if (empty($printAllActs)) {
         curNum += 1;
         container.setAttribute('data-rows', String(curNum));
 
+        // Ambil daftar master per divisi (full code = operation/maintenance/project/landscape)
+        const divFull = window.DIV_CODE_TO_FULL ? (window.DIV_CODE_TO_FULL[divCode] || divCode) : divCode;
+        const masterList = window.ACTIVITY_MASTERS && window.ACTIVITY_MASTERS[divFull] ? window.ACTIVITY_MASTERS[divFull] : [];
+
+        // Bangun opsi dropdown master
+        let optsHtml = `<option value="">-- Pilih Master Activity --</option>`;
+        if (masterList.length > 0) {
+            optsHtml += `<optgroup label="📋 Master Template Divisi">`;
+            masterList.forEach(function(m) {
+                const mid = parseInt(m.id || 0, 10);
+                const name = (m.activity_name || m.name || '').trim();
+                if (!name) return;
+                const st = (m.status_default === 'complete') ? '✅ Done' : '⏳ Progress';
+                // Value format = "Nama Activity|masterId" (sesuai fnParseItems backend yang pakai explode('|', 2))
+                optsHtml += `<option value="${mEscapeHtml(name)}|${mid}">${mEscapeHtml(name)} · ${st}</option>`;
+            });
+            optsHtml += `</optgroup>`;
+        }
+        optsHtml += `<option value="__custom__">✏️ Tulis Aktivitas Sendiri (Custom)</option>`;
+
         const row = document.createElement('div');
         row.className = 'flex flex-col sm:flex-row gap-2 items-stretch sm:items-center p-2.5 rounded-xl ' + cfg.bg + ' border ' + cfg.border + ' animate-fade-in';
         row.setAttribute('data-act-row', '1');
+        row.setAttribute('data-div-code', divCode);
 
         row.innerHTML = `
             <span class="inline-flex w-8 h-8 rounded-lg bg-white border ` + cfg.border + ` items-center justify-center text-[11px] font-black text-slate-600 shrink-0 self-start sm:self-center">` + curNum + `</span>
-            <div class="flex-1 min-w-0">
-                <input type="text" name="` + cfg.prefix + `_text[]"
-                    placeholder="Ketik nama aktivitas... Contoh: Perbaikan AC Lobby Lantai 2"
-                    class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition" required>
+            <div class="flex-1 min-w-0 space-y-1.5">
+                <select data-role="master-select"
+                    class="w-full px-3 py-2 rounded-lg border border-indigo-300 bg-indigo-50/70 text-sm font-bold text-indigo-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-500 transition appearance-none pr-9">
+                    ${optsHtml}
+                </select>
+                <div data-role="custom-input-wrap" class="hidden">
+                    <input type="text" data-role="custom-text"
+                        placeholder="Ketik aktivitas custom di sini... Contoh: Perbaikan AC Lobby Lantai 2"
+                        class="w-full px-3 py-2 rounded-lg border border-amber-300 bg-amber-50/60 text-sm font-semibold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-500 transition">
+                </div>
+                <input type="hidden" name="` + cfg.prefix + `_text[]" data-role="final-text" value="">
             </div>
             <div class="sm:w-44">
-                <select name="` + cfg.prefix + `_status[]"
+                <select name="` + cfg.prefix + `_status[]" data-role="status-select"
                     class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-bold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition appearance-none pr-8">
                     <option value="progress">⏳ In Progress</option>
                     <option value="complete">✅ Complete</option>
@@ -1511,11 +1539,54 @@ if (empty($printAllActs)) {
         `;
         container.appendChild(row);
 
-        // Auto focus input text baris baru agar user bisa langsung ketik
+        // ------ Bind event handlers ke row baru ------
+        const selMaster = row.querySelector('[data-role="master-select"]');
+        const wrapCustom = row.querySelector('[data-role="custom-input-wrap"]');
+        const inpCustom = row.querySelector('[data-role="custom-text"]');
+        const inpFinal  = row.querySelector('[data-role="final-text"]');
+        const selStatus = row.querySelector('[data-role="status-select"]');
+
+        function syncFinalValue() {
+            const v = (selMaster.value || '').trim();
+            if (v === '') {
+                // Belum pilih apapun → final kosong (required tapi user belum pilih — nanti di cek submit)
+                inpFinal.value = '';
+                return;
+            }
+            if (v === '__custom__') {
+                wrapCustom.classList.remove('hidden');
+                const txt = (inpCustom.value || '').trim();
+                inpFinal.value = txt;  // Custom = tanpa pipe, tanpa mid (backend: mid = 0)
+                return;
+            }
+            // Pilihan master (format: "Nama|mid")
+            wrapCustom.classList.add('hidden');
+            inpFinal.value = v;
+
+            // Otomatis sinkron status default dari master (jika user pilih master)
+            const parts = v.split('|');
+            const nm = (parts[0] || '').trim();
+            const mid = parseInt(parts[1] || '0', 10);
+            if (mid > 0 && masterList.length > 0) {
+                const mObj = masterList.find(function(x){ return parseInt((x.id||0),10) === mid; });
+                if (mObj && mObj.status_default && selStatus) {
+                    selStatus.value = (mObj.status_default === 'complete') ? 'complete' : 'progress';
+                }
+            }
+            void nm;
+        }
+
+        selMaster.addEventListener('change', syncFinalValue);
+        if (inpCustom) inpCustom.addEventListener('input', syncFinalValue);
+        syncFinalValue(); // inisialisasi awal
+
+        // Auto-focus ke dropdown master (atau text custom jika terpilih) agar user langsung interaksi
         setTimeout(() => {
-            const inpTxt = row.querySelector('input[type="text"]');
-            if (inpTxt) inpTxt.focus();
+            if (selMaster) selMaster.focus();
         }, 50);
+
+        // ✨ Bug Fix #2: Auto-update counter activity per divisi setiap baris ditambah / diubah
+        recalcCounters();
     }
     function removeActRow(btn) {
         if (!btn) return;
@@ -1532,6 +1603,62 @@ if (empty($printAllActs)) {
             });
             container.setAttribute('data-rows', String(n));
         }
+        recalcCounters();
+    }
+
+    // ================================ ✨ JS: AUTO SYNC COUNTER AKTIVITAS (4 DIVISI) ================================
+    // Counter number input (activity_operation / dll) OTOMATIS = JUMLAH BARIS di Daftar Activity (bukan manual).
+    // User sebelumnya harus isi manual → sering lupa isi → dianggap "tidak masuk master job".
+    function recalcCounters() {
+        const mapCnt = {
+            op: 'activity_operation',
+            mt: 'activity_maintenance',
+            pr: 'activity_project',
+            la: 'activity_landscape',
+        };
+        Object.keys(mapCnt).forEach(function(divCode) {
+            const container = document.getElementById('actRows_' + divCode);
+            const targetInp = document.querySelector('input[name="' + mapCnt[divCode] + '"]');
+            if (!targetInp) return;
+            let cnt = 0;
+            if (container) {
+                // Hitung baris yang MEMILIKI final-text TIDAK KOSONG (sudah dipilih master / diketik custom)
+                const allRows = container.querySelectorAll('[data-act-row]');
+                allRows.forEach(function(r) {
+                    const f = r.querySelector('[data-role="final-text"]');
+                    if (f && String(f.value || '').trim() !== '') cnt += 1;
+                });
+                // Fallback: untuk data lama sebelum update, pakai jumlah baris saja
+                if (cnt === 0 && allRows.length > 0) cnt = allRows.length;
+            }
+            targetInp.value = String(cnt);
+        });
+    }
+    // Bind form submit = auto recalc dulu sebelum POST
+    document.addEventListener('DOMContentLoaded', function() {
+        const frmMgr = document.querySelector('form[action$="manager/activities.php"]');
+        if (frmMgr) {
+            frmMgr.addEventListener('submit', function(ev) {
+                recalcCounters();
+                // Validasi ringan: minimal harus ADA engineer yang dipilih & ada setidaknya 1 activity atau counter ada
+                const engSel = document.getElementById('engineer_id_activity');
+                if (engSel && !engSel.value) {
+                    ev.preventDefault();
+                    alert('⚠️ Pilih Engineer / Staff terlebih dahulu sebelum menyimpan.');
+                    if (engSel && engSel.focus) engSel.focus();
+                    return false;
+                }
+            });
+        }
+        // Initial recalc saat load
+        try { recalcCounters(); } catch(e) {}
+    });
+
+    // Utility helper escape HTML untuk dropdown option
+    function mEscapeHtml(s) {
+        if (s === null || s === undefined) return '';
+        s = String(s);
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     // ================================ ESCAPE KEY CLOSE SEMUA MODAL (TERMASUK MASTER) ================================
