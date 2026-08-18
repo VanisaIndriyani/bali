@@ -1506,37 +1506,60 @@ if (empty($printAllActs)) {
         optsHtml += `<option value="__custom__">✏️ Tulis Aktivitas Sendiri (Custom)</option>`;
 
         const row = document.createElement('div');
-        row.className = 'flex flex-col sm:flex-row gap-2 items-stretch sm:items-center p-2.5 rounded-xl ' + cfg.bg + ' border ' + cfg.border + ' animate-fade-in';
+        row.className = 'flex flex-col gap-2.5 p-3 sm:p-3.5 rounded-2xl ' + cfg.bg + ' border-2 border-slate-200 shadow-sm animate-fade-in hover:shadow-md transition';
         row.setAttribute('data-act-row', '1');
         row.setAttribute('data-div-code', divCode);
 
         row.innerHTML = `
-            <span class="inline-flex w-8 h-8 rounded-lg bg-white border ` + cfg.border + ` items-center justify-center text-[11px] font-black text-slate-600 shrink-0 self-start sm:self-center">` + curNum + `</span>
-            <div class="flex-1 min-w-0 space-y-1.5">
-                <select data-role="master-select"
-                    class="w-full px-3 py-2 rounded-lg border border-indigo-300 bg-indigo-50/70 text-sm font-bold text-indigo-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-500 transition appearance-none pr-9">
-                    ${optsHtml}
-                </select>
-                <div data-role="custom-input-wrap" class="hidden">
-                    <input type="text" data-role="custom-text"
-                        placeholder="Ketik aktivitas custom di sini... Contoh: Perbaikan AC Lobby Lantai 2"
-                        class="w-full px-3 py-2 rounded-lg border border-amber-300 bg-amber-50/60 text-sm font-semibold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-500 transition">
+            <div class="flex items-center gap-2">
+                <span class="inline-flex w-9 h-9 rounded-xl bg-white border ` + cfg.border + ` items-center justify-center text-[12px] font-black text-slate-600 shrink-0 shadow-sm">` + curNum + `</span>
+                <div class="flex-1 min-w-0 flex flex-col gap-1">
+                    <label class="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-slate-500 pl-0.5">
+                        <i class="fas fa-list-check text-indigo-500 text-[10px]"></i>
+                        Pilih template master / tulis custom
+                    </label>
+                    <select data-role="master-select"
+                        class="w-full px-4 py-2.5 min-h-[46px] rounded-xl border-2 border-indigo-300 bg-indigo-50/80 text-[14px] leading-snug font-bold text-indigo-900 shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-200 focus:border-indigo-500 transition appearance-none pr-10">
+                        ${optsHtml}
+                    </select>
                 </div>
+                <div class="w-full sm:w-56 flex flex-col gap-1">
+                    <label class="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-slate-500 pl-0.5">
+                        <i class="fas fa-signal text-slate-500 text-[10px]"></i>
+                        Status Pekerjaan
+                    </label>
+                    <select name="` + cfg.prefix + `_status[]" data-role="status-select"
+                        class="w-full px-4 py-2.5 min-h-[46px] rounded-xl border-2 border-slate-300 bg-white text-[14px] leading-snug font-bold text-primary shadow-sm focus:outline-none focus:ring-4 focus:ring-indigo-200 focus:border-indigo-400 transition appearance-none pr-10">
+                        <option value="progress">⏳ In Progress (Sedang Berjalan)</option>
+                        <option value="complete">✅ Complete (Selesai)</option>
+                    </select>
+                </div>
+                <button type="button" onclick="removeActRow(this)"
+                    class="w-11 h-11 rounded-xl bg-slate-50 hover:bg-rose-500 text-slate-600 hover:text-white border-2 border-slate-200 hover:border-rose-500 flex items-center justify-center transition shrink-0 self-stretch sm:self-center shadow-sm"
+                    aria-label="Hapus activity ini" title="Hapus baris ini">
+                    <i class="fas fa-trash-can text-[15px] hover:text-white"></i>
+                </button>
+            </div>
+
+            <div data-role="custom-input-wrap" class="hidden w-full rounded-xl bg-amber-50/70 border-2 border-amber-300 p-3 sm:p-4 shadow-inner animate-fade-in">
+                <label class="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-amber-800 pl-0.5 mb-2">
+                    <i class="fas fa-pen-ruler text-amber-600 text-[11px]"></i>
+                    ✏️ Ketik detail aktivitas Anda di bawah ini (bisa panjang & jelas):
+                </label>
+                <input type="text" data-role="custom-text"
+                    placeholder="Contoh: Perbaikan AC Lobby Lantai 2 — ganti compressor baru + freon R32 + test suhu ruang 1 jam..."
+                    class="w-full px-4 py-3 min-h-[52px] rounded-xl border-2 border-amber-400 bg-white text-[15px] leading-snug font-semibold text-slate-900 placeholder:text-slate-500 placeholder:font-medium shadow-lg focus:outline-none focus:ring-4 focus:ring-amber-300 focus:border-amber-500 transition">
+                <p class="text-[10px] font-semibold text-amber-700/80 mt-1.5 pl-1"><i class="fas fa-lightbulb text-[10px] mr-1"></i> Tips: tulis detail lokasi + tindakan + hasil, biar mudah diingat di laporan akhir bulan.</p>
                 <input type="hidden" name="` + cfg.prefix + `_text[]" data-role="final-text" value="">
             </div>
-            <div class="sm:w-44">
-                <select name="` + cfg.prefix + `_status[]" data-role="status-select"
-                    class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm font-bold text-primary shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition appearance-none pr-8">
-                    <option value="progress">⏳ In Progress</option>
-                    <option value="complete">✅ Complete</option>
-                </select>
-            </div>
-            <button type="button" onclick="removeActRow(this)"
-                class="w-10 h-10 rounded-lg bg-slate-50 hover:bg-rose-500 text-slate-600 hover:text-white border border-slate-200 hover:border-rose-500 flex items-center justify-center transition shrink-0 self-start sm:self-center"
-                aria-label="Hapus activity ini" title="Hapus baris ini">
-                <i class="fas fa-trash-can text-[14px] hover:text-white"></i>
-            </button>
+
+            ${'' /* Fallback hidden final-text (jika custom wrap hidden, final-text di atas kosong maka yang di-master yang diisi via sync) */}
+            <noscript><input type="hidden" name="` + cfg.prefix + `_text[]" data-role="final-text-nojs" value=""></noscript>
         `;
+        // Remove duplicate empty final-texts: row now has ONE hidden final-text inside custom wrap OR attach one outside. We need exactly 1 final-text per row always.
+        const dupNojs = row.querySelector('[data-role="final-text-nojs"]');
+        if (dupNojs) dupNojs.remove();
+        // Jika custom input wrap hidden, maka final-text didalamnya OK, sync akan isi keduanya (satu elemen saja)
         container.appendChild(row);
 
         // ------ Bind event handlers ke row baru ------
@@ -1549,21 +1572,20 @@ if (empty($printAllActs)) {
         function syncFinalValue() {
             const v = (selMaster.value || '').trim();
             if (v === '') {
-                // Belum pilih apapun → final kosong (required tapi user belum pilih — nanti di cek submit)
                 inpFinal.value = '';
+                wrapCustom.classList.add('hidden');
                 return;
             }
             if (v === '__custom__') {
                 wrapCustom.classList.remove('hidden');
                 const txt = (inpCustom.value || '').trim();
-                inpFinal.value = txt;  // Custom = tanpa pipe, tanpa mid (backend: mid = 0)
+                inpFinal.value = txt;
+                // Auto fokus ke text input saat user pilih custom — langsung ngetik ✨
+                setTimeout(() => { if (inpCustom) { inpCustom.focus(); inpCustom.scrollIntoView({behavior:'smooth', block:'center'}); } }, 60);
                 return;
             }
-            // Pilihan master (format: "Nama|mid")
             wrapCustom.classList.add('hidden');
             inpFinal.value = v;
-
-            // Otomatis sinkron status default dari master (jika user pilih master)
             const parts = v.split('|');
             const nm = (parts[0] || '').trim();
             const mid = parseInt(parts[1] || '0', 10);
@@ -1578,14 +1600,11 @@ if (empty($printAllActs)) {
 
         selMaster.addEventListener('change', syncFinalValue);
         if (inpCustom) inpCustom.addEventListener('input', syncFinalValue);
-        syncFinalValue(); // inisialisasi awal
-
-        // Auto-focus ke dropdown master (atau text custom jika terpilih) agar user langsung interaksi
+        syncFinalValue();
         setTimeout(() => {
             if (selMaster) selMaster.focus();
         }, 50);
 
-        // ✨ Bug Fix #2: Auto-update counter activity per divisi setiap baris ditambah / diubah
         recalcCounters();
     }
     function removeActRow(btn) {
