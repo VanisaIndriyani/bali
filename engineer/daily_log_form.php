@@ -293,9 +293,10 @@ $elecTodayLwbp  = $log && isset($log['electricity_lwbp'])  ? (float)$log['electr
 $elecTodayTotal = $elecTodayWbp + $elecTodayLwbp;
 
 // Konsumsi hari ini (hanya berlaku jika SHIFT = MALAM. Pagi/Siang = 0)
+// ✅ Rumus Konsumsi Air = (MB Hari Ini − MB Kemarin) × 10 (dikalikan 10 sesuai request user)
 $curLogShift = (!empty($log['shift']) && in_array($log['shift'], $allShifts, true)) ? (string)$log['shift'] : '';
 $existingIsMalam = ($curLogShift === 'malam');
-$mbConsumption      = $existingIsMalam ? max(0.0, $mbTodayRead     - $mbYesterdayRead)   : (float)($log['total_water'] ?? 0);
+$mbConsumption      = $existingIsMalam ? (max(0.0, $mbTodayRead     - $mbYesterdayRead)   * 10) : (float)($log['total_water'] ?? 0);
 $elecConsumptionNow = $existingIsMalam ? max(0.0, $elecTodayTotal - $elecYesterdayTotal) : (float)($log['total_electricity'] ?? 0);
 unset($existingIsMalam, $curLogShift);
 
@@ -328,9 +329,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $wDwLpb = (float)($_POST['water_deepwell_lpb'] ?? 0);
     // Main Building: SEMUA SHIFT BOLEH EDIT READING METER (tidak dikunci lagi seperti sebelumnya)
     // HANYA SHIFT MALAM yang hitung konsumsi (today - yesterday_malam). Pagi/Siang total_water = 0.
+    // ✅ Rumus Konsumsi Air = (MB Hari Ini − MB Kemarin) × 10 (dikalikan 10 sesuai request user)
     $wMainBldgRead = (float)($_POST['water_main_building'] ?? 0);
     if ($isShiftMalam) {
-        $wMainBldgCons = max(0.0, $wMainBldgRead - $mbYesterdayRead);
+        $wMainBldgConsRaw = max(0.0, $wMainBldgRead - $mbYesterdayRead);
+        $wMainBldgCons = $wMainBldgConsRaw * 10;
         $water = $wMainBldgCons;
     } else {
         $wMainBldgCons = 0.0;
@@ -2079,12 +2082,14 @@ HTML;
             document.getElementById('totalElectricity').value = totalElec.toFixed(2);
 
             // 2. TOTAL WATER = HANYA MAIN BUILDING SAJA, hanya MALAM hitung selisih
+            // ✅ Rumus Konsumsi Air = (MB Hari Ini − MB Kemarin) × 10 (sesuai request user)
             let wmb = document.getElementById('waterMainBuild');
             let wCons = 0;
             if (wmb) {
                 let yWater = parseFloat(wmb.getAttribute('data-yesterday') || 0);
                 let tWater = parseFloat(wmb.value || 0);
-                wCons = isMalam ? Math.max(0, tWater - yWater) : 0;
+                let wDiff = Math.max(0, tWater - yWater);
+                wCons = isMalam ? (wDiff * 10) : 0;
                 let lblCons = document.getElementById('waterMainCons');
                 if (lblCons) lblCons.textContent = wCons.toFixed(2) + ' m3';
             }
