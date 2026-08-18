@@ -240,7 +240,11 @@ function fmtDt($d) {
     }
     .detail li + li { border-top: 1px dashed #f1f5f9; padding-top: 7px; margin-top: 3px; }
     .detail .bulu { color:#64748b; width: 6px; height: 6px; border-radius: 50%; background:#94a3b8; display:inline-block; flex-shrink:0; margin-top: 8px; }
+    .detail .bulu.b-prog { background:#f59e0b; }
+    .detail .bulu.b-done { background:#10b981; width: 10px; height: 10px; border-radius: 50%; position: relative; margin-top: 6px; }
+    .detail .bulu.b-done::after { content:"✓"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size: 7px; font-weight: 900; line-height: 1; }
     .detail .title { font-weight: 600; color:#0f172a; font-size: 13px; line-height: 1.45; }
+    .detail li.item-done .title { color:#475569; text-decoration: line-through; text-decoration-color:#10b981; text-decoration-thickness:1.5px; }
     .detail .meta { margin-top: 3px; display:flex; flex-wrap: wrap; align-items: center; gap: 6px; }
     .detail .meta .tag {
         display:inline-flex; align-items:center; gap: 4px;
@@ -248,6 +252,18 @@ function fmtDt($d) {
         border: 1px solid #e2e8f0; background: #fcfcfd;
         font-size: 9.5px; font-weight: 700; color:#64748b;
     }
+    /* ===== GROUP PEMISAH STATUS (Done vs Prog TIDAK KECAMPUR) ===== */
+    .detail .grp-wrap { display:flex; flex-direction: column; gap: 10px; }
+    .detail .grp-head {
+        display:inline-flex; align-items:center; gap: 6px;
+        padding: 2.5px 9px; border-radius: 6px;
+        font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase;
+        margin: 0 0 5px 0;
+    }
+    .detail .grp-head.prog { background:#fff7ed; color:#9a3412; border: 1px solid #fed7aa; }
+    .detail .grp-head.done { background:#ecfdf5; color:#065f46; border: 1px solid #a7f3d0; }
+    .detail .grp-sep { border-top: 1px dashed #d1d5db; margin: 4px 0 6px 0; opacity: .8; }
+    .detail .grp-list { padding: 0; margin: 0; list-style: none; }
 
     .statuscol {
         text-align: center; vertical-align: middle;
@@ -394,24 +410,75 @@ function fmtDt($d) {
                     </div>
                 </td>
                 <td class="detail">
-                    <ul>
-                        <?php foreach ($rows as $ar): ?>
-                        <li>
-                            <span class="bulu" aria-hidden="true"></span>
-                            <div class="flex-1">
-                                <div class="title"><?= htmlspecialchars((string)($ar['title'] ?? '')) ?></div>
-                                <div class="meta">
-                                    <?php $d = fmtDt($ar['date'] ?? ''); if ($d !== ''): ?>
-                                    <span class="tag"><i class="far fa-calendar" style="color:#94a3b8;font-size:8.5px;"></i> <?= $d ?></span>
-                                    <?php endif; ?>
-                                    <?php if (strlen((string)($ar['eng'] ?? '')) > 0): ?>
-                                    <span class="tag"><i class="fas fa-user-helmet-safety" style="color:#94a3b8;font-size:8.5px;"></i> <?= htmlspecialchars((string)($ar['eng'])) ?></span>
-                                    <?php endif; ?>
+                    <?php
+                    // ✅ PISAHKAN DONE vs PROGRESS (TIDAK KECAMPUR) — 100% sama dashboard
+                    $rowsDone = []; $rowsProg = [];
+                    foreach ($rows as $_rr) {
+                        if (($_rr['status'] ?? '') === 'complete') $rowsDone[] = $_rr;
+                        else                                             $rowsProg[] = $_rr;
+                    }
+                    $hasP = count($rowsProg) > 0;
+                    $hasD = count($rowsDone) > 0;
+                    ?>
+                    <div class="grp-wrap">
+                        <?php if ($hasP): ?>
+                            <div>
+                                <div class="grp-head prog">
+                                    <i class="fas fa-spinner" style="font-size:9px;"></i>
+                                    Sedang Berjalan <span style="opacity:.75;">(<?= count($rowsProg) ?>)</span>
                                 </div>
+                                <ul class="grp-list">
+                                    <?php foreach ($rowsProg as $ar): ?>
+                                    <li>
+                                        <span class="bulu b-prog" aria-hidden="true"></span>
+                                        <div class="flex-1">
+                                            <div class="title"><?= htmlspecialchars((string)($ar['title'] ?? '')) ?></div>
+                                            <div class="meta">
+                                                <?php $d = fmtDt($ar['date'] ?? ''); if ($d !== ''): ?>
+                                                <span class="tag"><i class="far fa-calendar" style="color:#94a3b8;font-size:8.5px;"></i> <?= $d ?></span>
+                                                <?php endif; ?>
+                                                <?php if (strlen((string)($ar['eng'] ?? '')) > 0): ?>
+                                                <span class="tag" style="background:#fffbeb;border-color:#fde68a;color:#92400e;"><i class="fas fa-user-helmet-safety" style="color:#92400e;font-size:8.5px;"></i> <?= htmlspecialchars((string)($ar['eng'])) ?></span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </li>
+                                    <?php endforeach; ?>
+                                </ul>
                             </div>
-                        </li>
-                        <?php endforeach; ?>
-                    </ul>
+                        <?php endif; ?>
+
+                        <?php if ($hasP && $hasD): ?>
+                            <div class="grp-sep" aria-hidden="true"></div>
+                        <?php endif; ?>
+
+                        <?php if ($hasD): ?>
+                            <div>
+                                <div class="grp-head done">
+                                    <i class="fas fa-circle-check" style="font-size:9px;"></i>
+                                    Selesai / Done <span style="opacity:.75;">(<?= count($rowsDone) ?>)</span>
+                                </div>
+                                <ul class="grp-list">
+                                    <?php foreach ($rowsDone as $ar): ?>
+                                    <li class="item-done">
+                                        <span class="bulu b-done" aria-hidden="true"></span>
+                                        <div class="flex-1">
+                                            <div class="title"><?= htmlspecialchars((string)($ar['title'] ?? '')) ?></div>
+                                            <div class="meta">
+                                                <?php $d = fmtDt($ar['date'] ?? ''); if ($d !== ''): ?>
+                                                <span class="tag"><i class="far fa-calendar" style="color:#94a3b8;font-size:8.5px;"></i> <?= $d ?></span>
+                                                <?php endif; ?>
+                                                <?php if (strlen((string)($ar['eng'] ?? '')) > 0): ?>
+                                                <span class="tag" style="background:#ecfdf5;border-color:#a7f3d0;color:#065f46;"><i class="fas fa-user-helmet-safety" style="color:#065f46;font-size:8.5px;"></i> <?= htmlspecialchars((string)($ar['eng'])) ?></span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                        <?php endif; ?>
+                    </div>
                 </td>
                 <td class="statuscol">
                     <?php if ($done > 0): ?>

@@ -468,18 +468,55 @@ if ($format === 'excel') {
             $out .= repCsvEscape($d) . $sep . repCsvEscape('Belum ada aktivitas bulan ini.') . $sep . repCsvEscape($stSummary) . "\n";
             continue;
         }
+        // ✅ CSV juga PISAH GROUP Prog & Done (TIDAK KECAMPUR sama seperti tampilan web & dashboard)
+        $listDoneCSV = []; $listProgCSV = [];
+        foreach ($list as $itx) {
+            $sx = (string)($itx['status'] ?? 'progress');
+            if ($sx === 'complete' || $sx === 'completed') $listDoneCSV[] = $itx;
+            else                                                $listProgCSV[] = $itx;
+        }
+        // Output BERJALAN DULU (sesuai urutan visual web), baru SELESAI, pakai header pemisah di detail
         $first = true;
-        foreach ($list as $item) {
-            $meta = [];
-            if ($f = repFmtDateAct($item['date'] ?? '')) $meta[] = $f;
-            if (trim((string)($item['eng'] ?? '')) !== '') $meta[] = (string)$item['eng'];
-            $detail = (string)($item['name'] ?? '');
-            if (count($meta) > 0) $detail .= '   [ ' . implode(' | ', $meta) . ' ]';
-            $st = repStatusLabel($item['status'] ?? 'progress');
-            $out .= ($first ? repCsvEscape($d) . '  [' . $stSummary . ']' : '') . $sep
-                  . repCsvEscape($detail) . $sep
-                  . repCsvEscape(($first ? $stSummary . '  |  ' : '') . $st) . "\n";
-            $first = false;
+        $flushedProgHeader = false; $flushedDoneHeader = false;
+        if (count($listProgCSV) > 0) {
+            foreach ($listProgCSV as $item) {
+                $meta = [];
+                if ($f = repFmtDateAct($item['date'] ?? '')) $meta[] = $f;
+                if (trim((string)($item['eng'] ?? '')) !== '') $meta[] = (string)$item['eng'];
+                $detail = (string)($item['name'] ?? '');
+                if (count($meta) > 0) $detail .= '   [ ' . implode(' | ', $meta) . ' ]';
+                $st = repStatusLabel($item['status'] ?? 'progress');
+                if (!$flushedProgHeader) {
+                    $out .= ($first ? repCsvEscape($d) . '  [' . $stSummary . ']' : '') . $sep
+                          . repCsvEscape('▶▶ SEDANG BERJALAN (In Progress: ' . count($listProgCSV) . ')') . $sep
+                          . repCsvEscape(($first ? $stSummary . '  |  ' : '') . '— GROUP —') . "\n";
+                    $flushedProgHeader = true; $first = false;
+                }
+                $out .= ($first ? repCsvEscape($d) . '  [' . $stSummary . ']' : '') . $sep
+                      . repCsvEscape('   • ' . $detail) . $sep
+                      . repCsvEscape(($first ? $stSummary . '  |  ' : '') . $st) . "\n";
+                $first = false;
+            }
+        }
+        if (count($listDoneCSV) > 0) {
+            foreach ($listDoneCSV as $item) {
+                $meta = [];
+                if ($f = repFmtDateAct($item['date'] ?? '')) $meta[] = $f;
+                if (trim((string)($item['eng'] ?? '')) !== '') $meta[] = (string)$item['eng'];
+                $detail = (string)($item['name'] ?? '');
+                if (count($meta) > 0) $detail .= '   [ ' . implode(' | ', $meta) . ' ]';
+                $st = repStatusLabel($item['status'] ?? 'progress');
+                if (!$flushedDoneHeader) {
+                    $out .= ($first ? repCsvEscape($d) . '  [' . $stSummary . ']' : '') . $sep
+                          . repCsvEscape('■■ SELESAI / DONE (Complete: ' . count($listDoneCSV) . ')') . $sep
+                          . repCsvEscape(($first ? $stSummary . '  |  ' : '') . '— GROUP —') . "\n";
+                    $flushedDoneHeader = true; $first = false;
+                }
+                $out .= ($first ? repCsvEscape($d) . '  [' . $stSummary . ']' : '') . $sep
+                      . repCsvEscape('   ✓ ' . $detail) . $sep
+                      . repCsvEscape(($first ? $stSummary . '  |  ' : '') . $st) . "\n";
+                $first = false;
+            }
         }
     }
     $out .= "\n";
@@ -560,6 +597,13 @@ if ($format === 'excel') {
     .st-done .count { border-color:#a7f3d0; color:#065f46;}
     .empty-act { padding:4px 0; color:#9ca3af; font-style:italic;}
     .empty-act i { margin-right:6px; opacity:60%;}
+    /* ===== GRUP PEMISAH STATUS (TIDAK KECAMPUR Done vs Progress) ===== */
+    .act-group { margin: 0 0 9px 0; padding: 0;}
+    .act-group-hdr { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:6px; font-size:10px; font-weight:900; letter-spacing:.06em; margin:2px 0 5px 0; text-transform: uppercase;}
+    .act-group-hdr.prog { background:#fff7ed; color:#9a3412; border:1px solid #fed7aa;}
+    .act-group-hdr.done { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;}
+    .act-group-divider { border-top:1px dashed #d1d5db; margin:7px 0 7px 0; opacity:.8;}
+    .act-list li.act-done .act-name { color:#4b5563; text-decoration: line-through; text-decoration-color: #10b981; text-decoration-thickness: 1.5px;}
 </style>
 </head>
 <body>
@@ -670,28 +714,84 @@ if ($format === 'excel') {
                     <?php if (count($list) === 0): ?>
                         <span class="empty-act"><i class="fa-solid fa-box-open"></i>Belum ada aktivitas bulan ini.</span>
                     <?php else: ?>
-                        <ul class="act-list">
-                        <?php foreach ($list as $item):
-                            $name = (string)($item['name'] ?? '');
-                            $date = (string)($item['date'] ?? '');
-                            $eng  = trim((string)($item['eng'] ?? ''));
-                            $fDate = repFmtDateAct($date);
+                        <?php
+                        // ✅ PISAHKAN Done vs Progress (TIDAK KECAMPUR) — sama persis dengan dashboard
+                        $listDone = []; $listProg = [];
+                        foreach ($list as $itx) {
+                            $sx = (string)($itx['status'] ?? 'progress');
+                            if ($sx === 'complete' || $sx === 'completed') $listDone[] = $itx;
+                            else                                                 $listProg[] = $itx;
+                        }
+                        $hProg = count($listProg) > 0;
+                        $hDone = count($listDone) > 0;
                         ?>
-                            <li>
-                                <span class="act-name">&bull; <?=htmlspecialchars($name)?></span>
-                                <?php if ($fDate !== '' || $eng !== ''): ?>
-                                    <div class="meta">
-                                        <?php if ($fDate !== ''): ?>
-                                            <span class="meta-tag meta-date"><i class="fa-solid fa-calendar" style="font-size:9px;opacity:.7;"></i> <?=htmlspecialchars($fDate)?></span>
-                                        <?php endif; ?>
-                                        <?php if ($eng !== ''): ?>
-                                            <span class="meta-tag meta-eng"><i class="fa-solid fa-user-hard-hat" style="font-size:9px;opacity:.8;"></i> <?=htmlspecialchars($eng)?></span>
-                                        <?php endif; ?>
+                        <div style="margin-bottom:2px;">
+                            <?php if ($hProg): ?>
+                                <div class="act-group">
+                                    <div class="act-group-hdr prog">
+                                        <i class="fa-solid fa-spinner" style="font-size:9px;opacity:.8;"></i>
+                                        Sedang Berjalan <span style="opacity:.7;">(<?= count($listProg) ?>)</span>
                                     </div>
-                                <?php endif; ?>
-                            </li>
-                        <?php endforeach; ?>
-                        </ul>
+                                    <ul class="act-list">
+                                    <?php foreach ($listProg as $item):
+                                        $name = (string)($item['name'] ?? '');
+                                        $date = (string)($item['date'] ?? '');
+                                        $eng  = trim((string)($item['eng'] ?? ''));
+                                        $fDate = repFmtDateAct($date);
+                                    ?>
+                                        <li>
+                                            <span class="act-name">&bull; <?=htmlspecialchars($name)?></span>
+                                            <?php if ($fDate !== '' || $eng !== ''): ?>
+                                                <div class="meta">
+                                                    <?php if ($fDate !== ''): ?>
+                                                        <span class="meta-tag meta-date"><i class="fa-solid fa-calendar" style="font-size:9px;opacity:.7;"></i> <?=htmlspecialchars($fDate)?></span>
+                                                    <?php endif; ?>
+                                                    <?php if ($eng !== ''): ?>
+                                                        <span class="meta-tag meta-eng"><i class="fa-solid fa-user-hard-hat" style="font-size:9px;opacity:.8;"></i> <?=htmlspecialchars($eng)?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </li>
+                                    <?php endforeach; ?>
+                                    </ul>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if ($hProg && $hDone): ?>
+                                <div class="act-group-divider"></div>
+                            <?php endif; ?>
+
+                            <?php if ($hDone): ?>
+                                <div class="act-group">
+                                    <div class="act-group-hdr done">
+                                        <i class="fa-solid fa-circle-check" style="font-size:9px;opacity:.85;"></i>
+                                        Selesai / Done <span style="opacity:.7;">(<?= count($listDone) ?>)</span>
+                                    </div>
+                                    <ul class="act-list">
+                                    <?php foreach ($listDone as $item):
+                                        $name = (string)($item['name'] ?? '');
+                                        $date = (string)($item['date'] ?? '');
+                                        $eng  = trim((string)($item['eng'] ?? ''));
+                                        $fDate = repFmtDateAct($date);
+                                    ?>
+                                        <li class="act-done">
+                                            <span class="act-name">&bull; <?=htmlspecialchars($name)?></span>
+                                            <?php if ($fDate !== '' || $eng !== ''): ?>
+                                                <div class="meta">
+                                                    <?php if ($fDate !== ''): ?>
+                                                        <span class="meta-tag meta-date"><i class="fa-solid fa-calendar" style="font-size:9px;opacity:.7;"></i> <?=htmlspecialchars($fDate)?></span>
+                                                    <?php endif; ?>
+                                                    <?php if ($eng !== ''): ?>
+                                                        <span class="meta-tag meta-eng"><i class="fa-solid fa-user-hard-hat" style="font-size:9px;opacity:.8;"></i> <?=htmlspecialchars($eng)?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </li>
+                                    <?php endforeach; ?>
+                                    </ul>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     <?php endif; ?>
                 </td>
                 <td class="status-col <?=$bg?>" style="text-align:right;">

@@ -1206,28 +1206,91 @@ require_once __DIR__ . '/includes/navbar.php';
                                                 Belum ada aktivitas bulan ini.
                                             </div>
                                         <?php else: ?>
-                                            <ul class="space-y-2">
-                                                <?php foreach ($rows as $ar): ?>
-                                                <li class="flex items-start gap-2.5">
-                                                    <i class="fas fa-circle text-[7px] text-gray-500 mt-1.5 shrink-0"></i>
-                                                    <div class="flex-1 leading-relaxed">
-                                                        <span class="font-semibold text-gray-800"><?= cleanInput($ar['title']) ?></span>
-                                                        <?php if (strlen($ar['date'] ?? '') > 0): ?>
-                                                            <span class="ml-2 text-[10px] font-semibold text-gray-400 border border-gray-200 rounded px-1.5 py-0.5 bg-white/70">
-                                                                <i class="far fa-calendar mr-0.5"></i>
-                                                                <?= (new DateTime($ar['date']))->format('d M Y') ?>
+                                            <?php
+                                            // ✅ PISAHKAN Done vs Progress (TIDAK KECAMPUR) - sesuai request user:
+                                            //    "kalau sudah selesai di buatin sendiri aja biar ga k kecampur"
+                                            $rowsDone = [];
+                                            $rowsProg = [];
+                                            foreach ($rows as $ar) {
+                                                if (($ar['status'] ?? '') === 'complete') $rowsDone[] = $ar;
+                                                else                                        $rowsProg[] = $ar;
+                                            }
+                                            $hasDone = (count($rowsDone) > 0);
+                                            $hasProg = (count($rowsProg) > 0);
+                                            ?>
+                                            <div class="space-y-3">
+                                                <?php if ($hasProg): ?>
+                                                    <div>
+                                                        <div class="flex items-center gap-2 mb-2">
+                                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100/80 border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-wider">
+                                                                <i class="fas fa-circle-notch fa-spin" style="--fa-animation-duration:1.8s"></i>
+                                                                Sedang Berjalan
+                                                                <span class="ml-0.5">(<?= count($rowsProg) ?>)</span>
                                                             </span>
-                                                        <?php endif; ?>
-                                                        <?php if (strlen($ar['eng'] ?? '') > 0): ?>
-                                                            <span class="ml-1 text-[10px] font-semibold text-gray-500 border border-gray-200 rounded px-1.5 py-0.5 bg-white/70">
-                                                                <i class="fas fa-user-helmet-safety mr-0.5"></i>
-                                                                <?= cleanInput($ar['eng']) ?>
-                                                            </span>
-                                                        <?php endif; ?>
+                                                        </div>
+                                                        <ul class="space-y-2">
+                                                            <?php foreach ($rowsProg as $ar): ?>
+                                                            <li class="flex items-start gap-2.5 pl-0.5">
+                                                                <i class="fas fa-circle text-[7px] text-amber-500 mt-1.5 shrink-0"></i>
+                                                                <div class="flex-1 leading-relaxed">
+                                                                    <span class="font-semibold text-gray-800"><?= cleanInput($ar['title']) ?></span>
+                                                                    <?php if (strlen($ar['date'] ?? '') > 0): ?>
+                                                                        <span class="ml-2 text-[10px] font-semibold text-gray-400 border border-gray-200 rounded px-1.5 py-0.5 bg-white/70">
+                                                                            <i class="far fa-calendar mr-0.5"></i>
+                                                                            <?= (new DateTime($ar['date']))->format('d M Y') ?>
+                                                                        </span>
+                                                                    <?php endif; ?>
+                                                                    <?php if (strlen($ar['eng'] ?? '') > 0): ?>
+                                                                        <span class="ml-1 text-[10px] font-semibold text-amber-700 border border-amber-200 rounded px-1.5 py-0.5 bg-amber-50/70">
+                                                                            <i class="fas fa-user-helmet-safety mr-0.5"></i>
+                                                                            <?= cleanInput($ar['eng']) ?>
+                                                                        </span>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                            </li>
+                                                            <?php endforeach; ?>
+                                                        </ul>
                                                     </div>
-                                                </li>
-                                                <?php endforeach; ?>
-                                            </ul>
+                                                <?php endif; ?>
+
+                                                <?php if ($hasDone && $hasProg): ?>
+                                                    <div class="border-t border-dashed border-gray-200 my-1"></div>
+                                                <?php endif; ?>
+
+                                                <?php if ($hasDone): ?>
+                                                    <div>
+                                                        <div class="flex items-center gap-2 mb-2">
+                                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100/80 border border-emerald-300 text-emerald-800 text-[10px] font-black uppercase tracking-wider">
+                                                                <i class="fas fa-circle-check"></i>
+                                                                Selesai / Done
+                                                                <span class="ml-0.5">(<?= count($rowsDone) ?>)</span>
+                                                            </span>
+                                                        </div>
+                                                        <ul class="space-y-2">
+                                                            <?php foreach ($rowsDone as $ar): ?>
+                                                            <li class="flex items-start gap-2.5 pl-0.5 opacity-95">
+                                                                <i class="fas fa-check text-[10px] text-emerald-600 mt-1 shrink-0"></i>
+                                                                <div class="flex-1 leading-relaxed">
+                                                                    <span class="font-semibold text-gray-600 line-through decoration-emerald-400/50 decoration-[1.5px] decoration-skip-ink-none"><?= cleanInput($ar['title']) ?></span>
+                                                                    <?php if (strlen($ar['date'] ?? '') > 0): ?>
+                                                                        <span class="ml-2 text-[10px] font-semibold text-gray-400 border border-gray-200 rounded px-1.5 py-0.5 bg-white/70">
+                                                                            <i class="far fa-calendar mr-0.5"></i>
+                                                                            <?= (new DateTime($ar['date']))->format('d M Y') ?>
+                                                                        </span>
+                                                                    <?php endif; ?>
+                                                                    <?php if (strlen($ar['eng'] ?? '') > 0): ?>
+                                                                        <span class="ml-1 text-[10px] font-semibold text-emerald-700 border border-emerald-200 rounded px-1.5 py-0.5 bg-emerald-50/70">
+                                                                            <i class="fas fa-user-helmet-safety mr-0.5"></i>
+                                                                            <?= cleanInput($ar['eng']) ?>
+                                                                        </span>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                            </li>
+                                                            <?php endforeach; ?>
+                                                        </ul>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
                                         <?php endif; ?>
                                     </td>
                                     <td class="px-4 py-3.5 text-center border-l border-gray-100 align-middle">
