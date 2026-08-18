@@ -133,6 +133,33 @@ function fmtDt($d) {
     if (strlen((string)$d) < 8) return '';
     try { return (new DateTime($d))->format('d M Y'); } catch (Throwable $e) { return ''; }
 }
+/* ✨ Pisahkan tag Master Activity dari nama engineer (sama persis logic daily_summary) */
+function pdfSplitMasterEng($engRaw) {
+    $s = trim((string)$engRaw);
+    if ($s === '' || $s === '-') return [false, ''];
+    if (stripos($s, '(Master Activity)') !== false || stripos($s, '(MASTER ACTIVITY)') !== false || stripos($s, 'master activity') !== false) {
+        return [true, ''];
+    }
+    return [false, $s];
+}
+/* ✨ GROUP per TANGGAL sort ASC — sama persis daily_summary */
+function pdfGroupByDate(&$list) {
+    $grp = [];
+    foreach ($list as $it) {
+        $dt = trim((string)($it['date'] ?? ''));
+        if ($dt === '' || strlen($dt) < 8) $dt = '0000-00-00';
+        if (!isset($grp[$dt]) || !is_array($grp[$dt])) $grp[$dt] = [];
+        $grp[$dt][] = $it;
+    }
+    ksort($grp, SORT_STRING);
+    $ordered = [];
+    foreach ($grp as $k => $arr) {
+        if ($k === '0000-00-00') $ordered['_nodate'] = $arr;
+        else $ordered[$k] = $arr;
+    }
+    if (isset($ordered['_nodate'])) { $x = $ordered['_nodate']; unset($ordered['_nodate']); $ordered['_nodate'] = $x; }
+    return $ordered;
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -252,6 +279,11 @@ function fmtDt($d) {
         border: 1px solid #e2e8f0; background: #fcfcfd;
         font-size: 9.5px; font-weight: 700; color:#64748b;
     }
+    /* ✨ Badges: Master Template (BIRU) vs Real Engineer (HIJAU) vs Tanggal (ABU) */
+    .detail .meta .tag.master-tag { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:900; letter-spacing: .03em;}
+    .detail .meta .tag.master-tag i { color:#2563eb;}
+    .detail .meta .tag.eng-tag { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;}
+    .detail .meta .tag.date-tag { background:#f8fafc; color:#334155; border:1px solid #cbd5e1;}
     /* ===== GROUP PEMISAH STATUS (Done vs Prog TIDAK KECAMPUR) ===== */
     .detail .grp-wrap { display:flex; flex-direction: column; gap: 10px; }
     .detail .grp-head {
@@ -264,6 +296,18 @@ function fmtDt($d) {
     .detail .grp-head.done { background:#ecfdf5; color:#065f46; border: 1px solid #a7f3d0; }
     .detail .grp-sep { border-top: 1px dashed #d1d5db; margin: 4px 0 6px 0; opacity: .8; }
     .detail .grp-list { padding: 0; margin: 0; list-style: none; }
+    /* ===== ✨ GRUP PEMISAH PER-TANGGAL (biar tanggal 07 Aug & 18 Aug TIDAK NYAMPUR) ===== */
+    .detail .date-grp { margin: 0 0 8px 0; padding: 0 0 4px 0;}
+    .detail .date-grp-hdr {
+        display:inline-flex; align-items:center; gap:5px;
+        padding: 1.5px 8px 1.5px 7px; border-radius: 7px;
+        font-size: 9.5px; font-weight: 900; letter-spacing: .04em;
+        background: linear-gradient(90deg,#eef2ff,#e0e7ff); color:#3730a3;
+        border: 1px solid #c7d2fe; margin: 0 0 4px 2px;
+    }
+    .detail .date-grp-hdr .cntmini { background:#fff; padding: 0 6px; border-radius: 999px; border: 1px solid #c7d2fe; color:#4338ca; font-size: 8.5px; font-weight: 900;}
+    .detail .date-grp-sep { border-top: 1px dotted #e2e8f0; margin: 3px 0 5px 0; opacity: .9; }
+    .detail .date-grp:last-child { margin-bottom: 2px;}
 
     .statuscol {
         text-align: center; vertical-align: middle;
@@ -419,6 +463,63 @@ function fmtDt($d) {
                     }
                     $hasP = count($rowsProg) > 0;
                     $hasD = count($rowsDone) > 0;
+
+                    // ✨ Function helper inline: render list (Prog/Done) dengan GROUP PER TANGGAL
+                    $renderListByDate = function($items, $mode) {
+                        if (count($items) === 0) return '';
+                        $grouped = pdfGroupByDate($items);
+                        $isProg = ($mode === 'progress');
+                        $liClass = $isProg ? '' : 'item-done';
+                        $buluClass = $isProg ? 'b-prog' : 'b-done';
+                        $engTagColor = $isProg
+                            ? 'background:#fffbeb;border-color:#fde68a;color:#92400e;'
+                            : 'background:#ecfdf5;border-color:#a7f3d0;color:#065f46;';
+                        $engIconColor = $isProg ? '#92400e' : '#065f46';
+                        $html = '';
+                        $firstGrp = true;
+                        foreach ($grouped as $dtISO => $itemsInDate) {
+                            $isNoDate = ($dtISO === '_nodate');
+                            $hdr = $isNoDate ? '' : fmtDt($dtISO);
+                            if (!$firstGrp) $html .= '<div class="date-grp-sep" aria-hidden="true"></div>';
+                            $firstGrp = false;
+                            $html .= '<div class="date-grp">';
+                            if ($hdr !== '') {
+                                $html .= '<span class="date-grp-hdr"><i class="far fa-calendar-day" style="font-size:8.5px;"></i>';
+                                $html .= '📅 ' . htmlspecialchars($hdr);
+                                $html .= ' <span class="cntmini">' . count($itemsInDate) . '</span>';
+                                $html .= '</span>';
+                            }
+                            $html .= '<ul class="grp-list">';
+                            foreach ($itemsInDate as $ar) {
+                                $title = htmlspecialchars((string)($ar['title'] ?? ''));
+                                $d = $isNoDate ? fmtDt($ar['date'] ?? '') : '';
+                                list($isMaster, $cleanEng) = pdfSplitMasterEng($ar['eng'] ?? '');
+                                $html .= '<li class="' . $liClass . '">';
+                                $html .= '<span class="bulu ' . $buluClass . '" aria-hidden="true"></span>';
+                                $html .= '<div class="flex-1">';
+                                $html .= '<div class="title">' . $title . '</div>';
+                                // Meta tags: date, master, eng
+                                if ($d !== '' || $isMaster || $cleanEng !== '') {
+                                    $html .= '<div class="meta">';
+                                    if ($d !== '') {
+                                        $html .= '<span class="tag date-tag"><i class="far fa-calendar" style="color:#64748b;font-size:8.5px;"></i> ' . htmlspecialchars($d) . '</span>';
+                                    }
+                                    if ($isMaster) {
+                                        $html .= '<span class="tag master-tag"><i class="fas fa-database" style="font-size:8.5px;"></i> MASTER TEMPLATE</span>';
+                                    }
+                                    if ($cleanEng !== '') {
+                                        $html .= '<span class="tag eng-tag" style="' . $engTagColor . '"><i class="fas fa-user-helmet-safety" style="color:' . $engIconColor . ';font-size:8.5px;"></i> ' . htmlspecialchars($cleanEng) . '</span>';
+                                    }
+                                    $html .= '</div>';
+                                }
+                                $html .= '</div>';
+                                $html .= '</li>';
+                            }
+                            $html .= '</ul>';
+                            $html .= '</div>';
+                        }
+                        return $html;
+                    };
                     ?>
                     <div class="grp-wrap">
                         <?php if ($hasP): ?>
@@ -427,24 +528,7 @@ function fmtDt($d) {
                                     <i class="fas fa-spinner" style="font-size:9px;"></i>
                                     Sedang Berjalan <span style="opacity:.75;">(<?= count($rowsProg) ?>)</span>
                                 </div>
-                                <ul class="grp-list">
-                                    <?php foreach ($rowsProg as $ar): ?>
-                                    <li>
-                                        <span class="bulu b-prog" aria-hidden="true"></span>
-                                        <div class="flex-1">
-                                            <div class="title"><?= htmlspecialchars((string)($ar['title'] ?? '')) ?></div>
-                                            <div class="meta">
-                                                <?php $d = fmtDt($ar['date'] ?? ''); if ($d !== ''): ?>
-                                                <span class="tag"><i class="far fa-calendar" style="color:#94a3b8;font-size:8.5px;"></i> <?= $d ?></span>
-                                                <?php endif; ?>
-                                                <?php if (strlen((string)($ar['eng'] ?? '')) > 0): ?>
-                                                <span class="tag" style="background:#fffbeb;border-color:#fde68a;color:#92400e;"><i class="fas fa-user-helmet-safety" style="color:#92400e;font-size:8.5px;"></i> <?= htmlspecialchars((string)($ar['eng'])) ?></span>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                    </li>
-                                    <?php endforeach; ?>
-                                </ul>
+                                <?= $renderListByDate($rowsProg, 'progress') ?>
                             </div>
                         <?php endif; ?>
 
@@ -458,24 +542,7 @@ function fmtDt($d) {
                                     <i class="fas fa-circle-check" style="font-size:9px;"></i>
                                     Selesai / Done <span style="opacity:.75;">(<?= count($rowsDone) ?>)</span>
                                 </div>
-                                <ul class="grp-list">
-                                    <?php foreach ($rowsDone as $ar): ?>
-                                    <li class="item-done">
-                                        <span class="bulu b-done" aria-hidden="true"></span>
-                                        <div class="flex-1">
-                                            <div class="title"><?= htmlspecialchars((string)($ar['title'] ?? '')) ?></div>
-                                            <div class="meta">
-                                                <?php $d = fmtDt($ar['date'] ?? ''); if ($d !== ''): ?>
-                                                <span class="tag"><i class="far fa-calendar" style="color:#94a3b8;font-size:8.5px;"></i> <?= $d ?></span>
-                                                <?php endif; ?>
-                                                <?php if (strlen((string)($ar['eng'] ?? '')) > 0): ?>
-                                                <span class="tag" style="background:#ecfdf5;border-color:#a7f3d0;color:#065f46;"><i class="fas fa-user-helmet-safety" style="color:#065f46;font-size:8.5px;"></i> <?= htmlspecialchars((string)($ar['eng'])) ?></span>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                    </li>
-                                    <?php endforeach; ?>
-                                </ul>
+                                <?= $renderListByDate($rowsDone, 'done') ?>
                             </div>
                         <?php endif; ?>
                     </div>

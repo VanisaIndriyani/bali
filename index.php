@@ -529,6 +529,34 @@ function actGroupWithStatus(&$list) {
     }
     return $out;
 }
+
+/* ✨ Helper: Pisahkan tag MASTER ACTIVITY dari Nama Engineer */
+function dashSplitMasterEng($engRaw) {
+    $s = trim((string)$engRaw);
+    if ($s === '' || $s === '-') return [false, ''];
+    if (stripos($s, '(Master Activity)') !== false || stripos($s, '(MASTER ACTIVITY)') !== false || stripos($s, 'master activity') !== false) {
+        return [true, ''];
+    }
+    return [false, $s];
+}
+/* ✨ Helper: GROUP LIST ACTIVITY PER TANGGAL sort ASC */
+function dashGroupByDate(&$list) {
+    $grp = [];
+    foreach ($list as $it) {
+        $dt = trim((string)($it['date'] ?? ''));
+        if ($dt === '' || strlen($dt) < 8) $dt = '0000-00-00';
+        if (!isset($grp[$dt]) || !is_array($grp[$dt])) $grp[$dt] = [];
+        $grp[$dt][] = $it;
+    }
+    ksort($grp, SORT_STRING);
+    $ordered = [];
+    foreach ($grp as $k => $arr) {
+        if ($k === '0000-00-00') $ordered['_nodate'] = $arr;
+        else $ordered[$k] = $arr;
+    }
+    if (isset($ordered['_nodate'])) { $x = $ordered['_nodate']; unset($ordered['_nodate']); $ordered['_nodate'] = $x; }
+    return $ordered;
+}
 $actsGRP = [
     'operation'   => actGroupWithStatus($actListOp),
     'maintenance' => actGroupWithStatus($actListMaint),
@@ -1219,6 +1247,74 @@ require_once __DIR__ . '/includes/navbar.php';
                                             $hasProg = (count($rowsProg) > 0);
                                             ?>
                                             <div class="space-y-3">
+                                                <?php
+                                                // ===== Helper inline render 1 group (Prog / Done) dikelompokkan PER TANGGAL =====
+                                                $renderGrp = function($rows, $mode) {
+                                                    $grouped = dashGroupByDate($rows);
+                                                    $isProg = ($mode === 'progress');
+                                                    $bulletIcon = $isProg
+                                                        ? '<i class="fas fa-circle text-[7px] text-amber-500 mt-1.5 shrink-0"></i>'
+                                                        : '<i class="fas fa-check text-[10px] text-emerald-600 mt-1 shrink-0"></i>';
+                                                    $titleClass = $isProg
+                                                        ? 'font-semibold text-gray-800'
+                                                        : 'font-semibold text-gray-600 line-through decoration-emerald-400/50 decoration-[1.5px] decoration-skip-ink-none';
+                                                    $engCss = $isProg
+                                                        ? 'text-amber-700 border-amber-200 bg-amber-50/80'
+                                                        : 'text-emerald-700 border-emerald-200 bg-emerald-50/80';
+                                                    $masterCss = 'text-indigo-700 border-indigo-200 bg-indigo-50/90 font-black';
+                                                    $dateCss = 'text-gray-500 border-gray-200 bg-white/80';
+                                                    $html = '';
+                                                    $firstDt = true;
+                                                    foreach ($grouped as $dtISO => $items) {
+                                                        $isNoDate = ($dtISO === '_nodate');
+                                                        $labelDate = $isNoDate ? '' : (new DateTime($dtISO))->format('d M Y');
+                                                        if (!$firstDt) $html .= '<div class="border-t border-dotted border-gray-200 my-2 opacity-80"></div>';
+                                                        $firstDt = false;
+                                                        $html .= '<div class="mb-2">';
+                                                        if ($labelDate !== '') {
+                                                            $html .= '<div class="flex items-center gap-2 mb-2.5 pl-0.5">';
+                                                            $html .= '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-indigo-50 to-indigo-100 border border-indigo-200 text-indigo-700 text-[10.5px] font-black tracking-wide shadow-sm">';
+                                                            $html .= '<i class="far fa-calendar-day text-indigo-500 text-[10px]"></i>';
+                                                            $html .= '📅 ' . htmlspecialchars($labelDate);
+                                                            $html .= '<span class="ml-1 bg-white px-1.5 py-0.5 rounded-full border border-indigo-200 text-[9px] text-indigo-700 font-black">' . count($items) . '</span>';
+                                                            $html .= '</span></div>';
+                                                        }
+                                                        $html .= '<ul class="space-y-2">';
+                                                        foreach ($items as $ar) {
+                                                            $d = $isNoDate ? ((strlen($ar['date'] ?? '') > 0) ? (new DateTime($ar['date']))->format('d M Y') : '') : '';
+                                                            list($isMaster, $cleanEng) = dashSplitMasterEng($ar['eng'] ?? '');
+                                                            $html .= '<li class="flex items-start gap-2.5 pl-0.5 ' . ($isProg ? '' : 'opacity-[0.97]') . '">';
+                                                            $html .= $bulletIcon;
+                                                            $html .= '<div class="flex-1 leading-relaxed">';
+                                                            $html .= '<span class="' . $titleClass . '">' . cleanInput($ar['title']) . '</span>';
+                                                            // Meta tags dalam flexbox baru (wrap, gap) — TIDAK KECAMPURAN
+                                                            $showDate = ($d !== '');
+                                                            $showMaster = $isMaster;
+                                                            $showEng = ($cleanEng !== '');
+                                                            if ($showDate || $showMaster || $showEng) {
+                                                                $html .= '<div class="flex flex-wrap items-center gap-1.5 mt-1.5">';
+                                                                if ($showDate) {
+                                                                    $html .= '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border ' . $dateCss . '">';
+                                                                    $html .= '<i class="far fa-calendar mr-0.5 text-[9px] opacity-70"></i>' . htmlspecialchars($d) . '</span>';
+                                                                }
+                                                                if ($showMaster) {
+                                                                    $html .= '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border ' . $masterCss . '">';
+                                                                    $html .= '<i class="fas fa-database mr-0.5 text-[9px] text-indigo-500"></i>MASTER TEMPLATE</span>';
+                                                                }
+                                                                if ($showEng) {
+                                                                    $html .= '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border ' . $engCss . '">';
+                                                                    $html .= '<i class="fas fa-user-helmet-safety mr-0.5 text-[9px] opacity-80"></i>' . cleanInput($cleanEng) . '</span>';
+                                                                }
+                                                                $html .= '</div>';
+                                                            }
+                                                            $html .= '</div></li>';
+                                                        }
+                                                        $html .= '</ul></div>';
+                                                    }
+                                                    return $html;
+                                                };
+                                                ?>
+
                                                 <?php if ($hasProg): ?>
                                                     <div>
                                                         <div class="flex items-center gap-2 mb-2">
@@ -1228,28 +1324,7 @@ require_once __DIR__ . '/includes/navbar.php';
                                                                 <span class="ml-0.5">(<?= count($rowsProg) ?>)</span>
                                                             </span>
                                                         </div>
-                                                        <ul class="space-y-2">
-                                                            <?php foreach ($rowsProg as $ar): ?>
-                                                            <li class="flex items-start gap-2.5 pl-0.5">
-                                                                <i class="fas fa-circle text-[7px] text-amber-500 mt-1.5 shrink-0"></i>
-                                                                <div class="flex-1 leading-relaxed">
-                                                                    <span class="font-semibold text-gray-800"><?= cleanInput($ar['title']) ?></span>
-                                                                    <?php if (strlen($ar['date'] ?? '') > 0): ?>
-                                                                        <span class="ml-2 text-[10px] font-semibold text-gray-400 border border-gray-200 rounded px-1.5 py-0.5 bg-white/70">
-                                                                            <i class="far fa-calendar mr-0.5"></i>
-                                                                            <?= (new DateTime($ar['date']))->format('d M Y') ?>
-                                                                        </span>
-                                                                    <?php endif; ?>
-                                                                    <?php if (strlen($ar['eng'] ?? '') > 0): ?>
-                                                                        <span class="ml-1 text-[10px] font-semibold text-amber-700 border border-amber-200 rounded px-1.5 py-0.5 bg-amber-50/70">
-                                                                            <i class="fas fa-user-helmet-safety mr-0.5"></i>
-                                                                            <?= cleanInput($ar['eng']) ?>
-                                                                        </span>
-                                                                    <?php endif; ?>
-                                                                </div>
-                                                            </li>
-                                                            <?php endforeach; ?>
-                                                        </ul>
+                                                        <?= $renderGrp($rowsProg, 'progress') ?>
                                                     </div>
                                                 <?php endif; ?>
 
@@ -1266,28 +1341,7 @@ require_once __DIR__ . '/includes/navbar.php';
                                                                 <span class="ml-0.5">(<?= count($rowsDone) ?>)</span>
                                                             </span>
                                                         </div>
-                                                        <ul class="space-y-2">
-                                                            <?php foreach ($rowsDone as $ar): ?>
-                                                            <li class="flex items-start gap-2.5 pl-0.5 opacity-95">
-                                                                <i class="fas fa-check text-[10px] text-emerald-600 mt-1 shrink-0"></i>
-                                                                <div class="flex-1 leading-relaxed">
-                                                                    <span class="font-semibold text-gray-600 line-through decoration-emerald-400/50 decoration-[1.5px] decoration-skip-ink-none"><?= cleanInput($ar['title']) ?></span>
-                                                                    <?php if (strlen($ar['date'] ?? '') > 0): ?>
-                                                                        <span class="ml-2 text-[10px] font-semibold text-gray-400 border border-gray-200 rounded px-1.5 py-0.5 bg-white/70">
-                                                                            <i class="far fa-calendar mr-0.5"></i>
-                                                                            <?= (new DateTime($ar['date']))->format('d M Y') ?>
-                                                                        </span>
-                                                                    <?php endif; ?>
-                                                                    <?php if (strlen($ar['eng'] ?? '') > 0): ?>
-                                                                        <span class="ml-1 text-[10px] font-semibold text-emerald-700 border border-emerald-200 rounded px-1.5 py-0.5 bg-emerald-50/70">
-                                                                            <i class="fas fa-user-helmet-safety mr-0.5"></i>
-                                                                            <?= cleanInput($ar['eng']) ?>
-                                                                        </span>
-                                                                    <?php endif; ?>
-                                                                </div>
-                                                            </li>
-                                                            <?php endforeach; ?>
-                                                        </ul>
+                                                        <?= $renderGrp($rowsDone, 'done') ?>
                                                     </div>
                                                 <?php endif; ?>
                                             </div>

@@ -372,6 +372,41 @@ function repFmtDateAct($d) {
     try { return (new DateTime($d))->format('d M Y'); } catch (Throwable $e) { return ''; }
 }
 
+/* ✨ Helper: Pisahkan tag "Master Activity" dari Nama Engineer, lalu return [$isMaster, $cleanEngName] */
+function repSplitMasterEng($engRaw) {
+    $s = trim((string)$engRaw);
+    if ($s === '' || $s === '-') return [false, ''];
+    // Cocok pola: - (Master Activity) / - (MASTER ACTIVITY) / dimulai dengan dash + ada kata "master activity"
+    if (stripos($s, '(Master Activity)') !== false || stripos($s, '(MASTER ACTIVITY)') !== false || stripos($s, 'master activity') !== false) {
+        return [true, ''];
+    }
+    return [false, $s];
+}
+
+/* ✨ Helper: GROUP Activity LIST PER TANGGAL (sort tanggal ASC). Return array [dateISO=>[items...]] */
+function repGroupActsByDate(&$list) {
+    $grp = [];
+    foreach ($list as $idx => $it) {
+        $dt = trim((string)($it['date'] ?? ''));
+        if ($dt === '' || strlen($dt) < 8) $dt = '0000-00-00';
+        if (!isset($grp[$dt]) || !is_array($grp[$dt])) $grp[$dt] = [];
+        $grp[$dt][] = $it;
+    }
+    ksort($grp, SORT_STRING); // 2026-08-07 datang sebelum 2026-08-18 (ASC)
+    $ordered = [];
+    foreach ($grp as $k => $arr) {
+        if ($k === '0000-00-00') {
+            $ordered['_nodate'] = $arr; // taruh PALING AKHIR nanti
+        } else {
+            $ordered[$k] = $arr;
+        }
+    }
+    if (isset($ordered['_nodate'])) {
+        $x = $ordered['_nodate']; unset($ordered['_nodate']); $ordered['_nodate'] = $x;
+    }
+    return $ordered;
+}
+
 /* ---------- 7. RENDER MODE ---------- */
 $format = isset($_GET['format']) ? strtolower(cleanInput($_GET['format'])) : 'print';
 $fileName = $isRange ? ('Engineering_Report_' . $reportDateFrom . '_to_' . $reportDateTo) : ('Engineering_Report_' . $reportDate);
@@ -604,6 +639,21 @@ if ($format === 'excel') {
     .act-group-hdr.done { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;}
     .act-group-divider { border-top:1px dashed #d1d5db; margin:7px 0 7px 0; opacity:.8;}
     .act-list li.act-done .act-name { color:#4b5563; text-decoration: line-through; text-decoration-color: #10b981; text-decoration-thickness: 1.5px;}
+    /* ===== ✨ GRUP PEMISAH PER-TANGGAL + BADGE MASTER ACTIVITY RAPI ===== */
+    .meta-master { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:900;}
+    .meta-master i.fa-database { color:#2563eb;}
+    .meta-eng-real { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;}
+    .date-group { margin: 0 0 7px 0; padding: 0 0 3px 0;}
+    .date-group-hdr {
+        display:inline-flex; align-items:center; gap:5px;
+        padding:1.5px 10px 1.5px 8px; border-radius: 8px;
+        font-size: 10px; font-weight: 900; letter-spacing: .04em;
+        background:linear-gradient(90deg,#eef2ff,#e0e7ff); color:#3730a3;
+        border:1px solid #c7d2fe; margin:0 0 4px 2px;
+    }
+    .date-group-hdr i.fa-calendar-day { font-size: 9.5px; color:#4338ca;}
+    .date-group-sep { border-top:1px dotted #e5e7eb; margin:3px 0 5px 0; opacity:.9;}
+    .date-group:last-child { margin-bottom: 2px; }
 </style>
 </head>
 <body>
@@ -732,28 +782,53 @@ if ($format === 'excel') {
                                         <i class="fa-solid fa-spinner" style="font-size:9px;opacity:.8;"></i>
                                         Sedang Berjalan <span style="opacity:.7;">(<?= count($listProg) ?>)</span>
                                     </div>
-                                    <ul class="act-list">
-                                    <?php foreach ($listProg as $item):
-                                        $name = (string)($item['name'] ?? '');
-                                        $date = (string)($item['date'] ?? '');
-                                        $eng  = trim((string)($item['eng'] ?? ''));
-                                        $fDate = repFmtDateAct($date);
+                                    <?php
+                                    // ✨ KELOMPOKKAN PER TANGGAL (biar 07 Aug / 18 Aug TIDAK NYAMPUR)
+                                    $grpProg = repGroupActsByDate($listProg);
+                                    $firstProgGrp = true;
+                                    foreach ($grpProg as $dtISO => $itemsInDate):
+                                        $isNoDate = ($dtISO === '_nodate');
+                                        $fHeader = $isNoDate ? '' : repFmtDateAct($dtISO);
+                                        if (!$firstProgGrp):
                                     ?>
-                                        <li>
-                                            <span class="act-name">&bull; <?=htmlspecialchars($name)?></span>
-                                            <?php if ($fDate !== '' || $eng !== ''): ?>
-                                                <div class="meta">
-                                                    <?php if ($fDate !== ''): ?>
-                                                        <span class="meta-tag meta-date"><i class="fa-solid fa-calendar" style="font-size:9px;opacity:.7;"></i> <?=htmlspecialchars($fDate)?></span>
-                                                    <?php endif; ?>
-                                                    <?php if ($eng !== ''): ?>
-                                                        <span class="meta-tag meta-eng"><i class="fa-solid fa-user-hard-hat" style="font-size:9px;opacity:.8;"></i> <?=htmlspecialchars($eng)?></span>
-                                                    <?php endif; ?>
-                                                </div>
-                                            <?php endif; ?>
-                                        </li>
-                                    <?php endforeach; ?>
-                                    </ul>
+                                        <div class="date-group-sep"></div>
+                                    <?php endif; $firstProgGrp = false; ?>
+                                    <div class="date-group">
+                                        <?php if ($fHeader !== ''): ?>
+                                            <span class="date-group-hdr">
+                                                <i class="fa-solid fa-calendar-day"></i>
+                                                📅 Tanggal: <?= htmlspecialchars($fHeader) ?>
+                                                <span style="background:#fff; padding:0 6px; border-radius:999px; border:1px solid #c7d2fe; color:#4338ca; font-size:9px; font-weight:900;"><?= count($itemsInDate) ?> item</span>
+                                            </span>
+                                        <?php endif; ?>
+                                        <ul class="act-list">
+                                        <?php foreach ($itemsInDate as $item):
+                                            $name = (string)($item['name'] ?? '');
+                                            $date = (string)($item['date'] ?? '');
+                                            $engRaw  = trim((string)($item['eng'] ?? ''));
+                                            $fDate = $isNoDate ? repFmtDateAct($date) : '';
+                                            list($isMaster, $cleanEng) = repSplitMasterEng($engRaw);
+                                        ?>
+                                            <li>
+                                                <span class="act-name">&bull; <?=htmlspecialchars($name)?></span>
+                                                <?php if ($fDate !== '' || $cleanEng !== '' || $isMaster): ?>
+                                                    <div class="meta">
+                                                        <?php if ($fDate !== ''): ?>
+                                                            <span class="meta-tag meta-date"><i class="fa-solid fa-calendar" style="font-size:9px;opacity:.7;"></i> <?=htmlspecialchars($fDate)?></span>
+                                                        <?php endif; ?>
+                                                        <?php if ($isMaster): ?>
+                                                            <span class="meta-tag meta-master"><i class="fa-solid fa-database" style="font-size:9px;"></i> MASTER TEMPLATE</span>
+                                                        <?php endif; ?>
+                                                        <?php if ($cleanEng !== ''): ?>
+                                                            <span class="meta-tag meta-eng-real"><i class="fa-solid fa-user-hard-hat" style="font-size:9px;opacity:.85;"></i> <?=htmlspecialchars($cleanEng)?></span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </li>
+                                        <?php endforeach; ?>
+                                        </ul>
+                                    </div>
+                                    <?php endforeach; /* end group date prog */ ?>
                                 </div>
                             <?php endif; ?>
 
@@ -767,28 +842,52 @@ if ($format === 'excel') {
                                         <i class="fa-solid fa-circle-check" style="font-size:9px;opacity:.85;"></i>
                                         Selesai / Done <span style="opacity:.7;">(<?= count($listDone) ?>)</span>
                                     </div>
-                                    <ul class="act-list">
-                                    <?php foreach ($listDone as $item):
-                                        $name = (string)($item['name'] ?? '');
-                                        $date = (string)($item['date'] ?? '');
-                                        $eng  = trim((string)($item['eng'] ?? ''));
-                                        $fDate = repFmtDateAct($date);
+                                    <?php
+                                    $grpDone = repGroupActsByDate($listDone);
+                                    $firstDoneGrp = true;
+                                    foreach ($grpDone as $dtISO => $itemsInDate):
+                                        $isNoDate = ($dtISO === '_nodate');
+                                        $fHeader = $isNoDate ? '' : repFmtDateAct($dtISO);
+                                        if (!$firstDoneGrp):
                                     ?>
-                                        <li class="act-done">
-                                            <span class="act-name">&bull; <?=htmlspecialchars($name)?></span>
-                                            <?php if ($fDate !== '' || $eng !== ''): ?>
-                                                <div class="meta">
-                                                    <?php if ($fDate !== ''): ?>
-                                                        <span class="meta-tag meta-date"><i class="fa-solid fa-calendar" style="font-size:9px;opacity:.7;"></i> <?=htmlspecialchars($fDate)?></span>
-                                                    <?php endif; ?>
-                                                    <?php if ($eng !== ''): ?>
-                                                        <span class="meta-tag meta-eng"><i class="fa-solid fa-user-hard-hat" style="font-size:9px;opacity:.8;"></i> <?=htmlspecialchars($eng)?></span>
-                                                    <?php endif; ?>
-                                                </div>
-                                            <?php endif; ?>
-                                        </li>
-                                    <?php endforeach; ?>
-                                    </ul>
+                                        <div class="date-group-sep"></div>
+                                    <?php endif; $firstDoneGrp = false; ?>
+                                    <div class="date-group">
+                                        <?php if ($fHeader !== ''): ?>
+                                            <span class="date-group-hdr">
+                                                <i class="fa-solid fa-calendar-day"></i>
+                                                📅 Tanggal: <?= htmlspecialchars($fHeader) ?>
+                                                <span style="background:#fff; padding:0 6px; border-radius:999px; border:1px solid #c7d2fe; color:#4338ca; font-size:9px; font-weight:900;"><?= count($itemsInDate) ?> item</span>
+                                            </span>
+                                        <?php endif; ?>
+                                        <ul class="act-list">
+                                        <?php foreach ($itemsInDate as $item):
+                                            $name = (string)($item['name'] ?? '');
+                                            $date = (string)($item['date'] ?? '');
+                                            $engRaw  = trim((string)($item['eng'] ?? ''));
+                                            $fDate = $isNoDate ? repFmtDateAct($date) : '';
+                                            list($isMaster, $cleanEng) = repSplitMasterEng($engRaw);
+                                        ?>
+                                            <li class="act-done">
+                                                <span class="act-name">&bull; <?=htmlspecialchars($name)?></span>
+                                                <?php if ($fDate !== '' || $cleanEng !== '' || $isMaster): ?>
+                                                    <div class="meta">
+                                                        <?php if ($fDate !== ''): ?>
+                                                            <span class="meta-tag meta-date"><i class="fa-solid fa-calendar" style="font-size:9px;opacity:.7;"></i> <?=htmlspecialchars($fDate)?></span>
+                                                        <?php endif; ?>
+                                                        <?php if ($isMaster): ?>
+                                                            <span class="meta-tag meta-master"><i class="fa-solid fa-database" style="font-size:9px;"></i> MASTER TEMPLATE</span>
+                                                        <?php endif; ?>
+                                                        <?php if ($cleanEng !== ''): ?>
+                                                            <span class="meta-tag meta-eng-real"><i class="fa-solid fa-user-hard-hat" style="font-size:9px;opacity:.85;"></i> <?=htmlspecialchars($cleanEng)?></span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </li>
+                                        <?php endforeach; ?>
+                                        </ul>
+                                    </div>
+                                    <?php endforeach; /* end group date done */ ?>
                                 </div>
                             <?php endif; ?>
                         </div>
