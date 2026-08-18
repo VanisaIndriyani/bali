@@ -217,6 +217,17 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
             'cost_fuel'  => (float)$s['cost_fuel'],
         ];
     }
+    /* --- (D) VALIDASI ANTI READING METER BULANAN / DATA SEBELUM SISTEM JALAN --- */
+    /*     RULE FIX LY 2026-08-18:
+             JIKA cnt_d = 0 (TIDAK ADA RECORD daily_logs SAMA SEKALI di range tanggal tsb)
+             → KEMUNGKINAN BESAR: tanggal sebelum sistem beroperasi (misal tahun 2025 = sistem baru 2026)
+             → energy_logs pasti diisi angka METER READING BULANAN (bukan selisih konsumsi HARIAN)
+             → JANGAN DIPAKAI, SET NILAI UTILITY + COST = 0 SEMUA (hindari LY absurd 49.911 m3 lalu -99.2%) */
+    if (((int)($out['cnt_d'] ?? 0)) === 0) {
+        $out['elec'] = 0; $out['water'] = 0; $out['gas'] = 0; $out['fuel'] = 0;
+        $out['cost_elec'] = 0; $out['cost_water'] = 0; $out['cost_gas'] = 0; $out['cost_fuel'] = 0;
+        $out['_skip_reason'] = 'cnt_d_zero_energy_logs_meter_reading_skipped';
+    }
     $out['log_count'] = max(1, (int)($out['cnt'] ?? 1));
     return $out;
 }
