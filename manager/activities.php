@@ -1319,14 +1319,6 @@ if (empty($printAllActs)) {
                                     class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-[12px] font-bold shadow-sm transition">
                                 <i class="fas fa-xmark text-[11px]"></i> Tutup
                             </button>
-                            <a href="<?= BASE_URL ?>reports/excel.php?cat=<?= urlencode($c['id']) ?>&month=<?= date('Y-m') ?>" target="_blank" rel="noopener noreferrer"
-                               class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-[12px] font-bold shadow-md hover:shadow-lg transition">
-                                <i class="far fa-file-excel text-[11px]"></i> Excel
-                            </a>
-                            <a href="<?= BASE_URL ?>reports/pdf.php?cat=<?= urlencode($c['id']) ?>&month=<?= date('Y-m') ?>" target="_blank" rel="noopener noreferrer"
-                               class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100 text-[12px] font-bold shadow-sm hover:shadow transition">
-                                <i class="far fa-file-pdf text-[11px]"></i> PDF
-                            </a>
                         </div>
                     </div>
                 <?php endif; ?>
