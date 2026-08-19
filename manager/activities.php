@@ -1668,8 +1668,8 @@ if (empty($printAllActs)) {
         }, 120);
     }
 
-    // ================================ JS: DINAMIS ROW INPUT â€” DROPDOWN MASTER ACTIVITY + OPSI CUSTOM ================================
-    function addActRow(divCode) {
+    // ================================ JS: DINAMIS ROW INPUT (TEXT INPUT LEBAR, TANPA DROPDOWN MASTER) ================================
+    function addActRow(divCode, existingTitle='', existingStatus='progress') {
         const map = {
             op: { prefix: 'act_op',       color: 'indigo', border: 'border-slate-200', bg: 'bg-slate-50/70' },
             mt: { prefix: 'act_mt',       color: 'indigo', border: 'border-slate-200', bg: 'bg-slate-50/70' },
@@ -1684,114 +1684,47 @@ if (empty($printAllActs)) {
         curNum += 1;
         container.setAttribute('data-rows', String(curNum));
 
-        // Ambil daftar master per divisi (full code = operation/maintenance/project/landscape)
-        const divFull = window.DIV_CODE_TO_FULL ? (window.DIV_CODE_TO_FULL[divCode] || divCode) : divCode;
-        const masterList = window.ACTIVITY_MASTERS && window.ACTIVITY_MASTERS[divFull] ? window.ACTIVITY_MASTERS[divFull] : [];
-
-        // Bangun opsi dropdown master
-        let optsHtml = `<option value="">-- Pilih Master Activity --</option>`;
-        if (masterList.length > 0) {
-            optsHtml += `<optgroup label="Master Template Divisi">`;
-            masterList.forEach(function(m) {
-                const mid = parseInt(m.id || 0, 10);
-                const name = (m.activity_name || m.name || '').trim();
-                if (!name) return;
-                const st = (m.status_default === 'complete') ? '[Done]' : '[Progress]';
-                optsHtml += `<option value="${mEscapeHtml(name)}|${mid}">${mEscapeHtml(name)} · ${st}</option>`;
-            });
-            optsHtml += `</optgroup>`;
-        }
-        optsHtml += `<option value="__custom__">Tulis Aktivitas Sendiri (Custom)</option>`;
-
         const row = document.createElement('div');
         row.className = 'flex flex-col gap-2 p-2.5 rounded-lg bg-white border border-slate-200 shadow-sm animate-fade-in';
         row.setAttribute('data-act-row', '1');
         row.setAttribute('data-div-code', divCode);
+
+        const safeTitle = String(existingTitle || '').replace(/"/g,'&quot;');
+        const stSel1 = (String(existingStatus).toLowerCase() === 'complete') ? '' : 'selected';
+        const stSel2 = (String(existingStatus).toLowerCase() === 'complete') ? 'selected' : '';
 
         row.innerHTML = `
             <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
                 <div class="sm:col-span-1 flex items-center gap-2">
                     <span class="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[12px] font-black text-slate-700 shrink-0 shadow-sm">` + curNum + `</span>
                 </div>
-                <div class="sm:col-span-6 min-w-0 flex flex-col gap-1">
-                    <label class="text-[9px] font-black uppercase tracking-wider text-slate-500 pl-0.5">Activity</label>
-                    <select data-role="master-select"
-                        class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-[12px] leading-snug font-semibold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400 transition appearance-none pr-8">
-                        ${optsHtml}
-                    </select>
+                <div class="sm:col-span-8 min-w-0 flex flex-col gap-1">
+                    <label class="text-[9px] font-black uppercase tracking-wider text-slate-500 pl-0.5">Nama Aktivitas</label>
+                    <input type="text" name="` + cfg.prefix + `_text[]" data-role="final-text" placeholder="Ketik nama aktivitas disini..." value="` + safeTitle + `"
+                        class="w-full px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-[13px] leading-snug font-semibold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400 transition placeholder:text-slate-400 placeholder:font-normal">
                 </div>
-                <div class="sm:col-span-3 min-w-0 flex flex-col gap-1">
+                <div class="sm:col-span-2 min-w-0 flex flex-col gap-1">
                     <label class="text-[9px] font-black uppercase tracking-wider text-slate-500 pl-0.5">Status</label>
                     <select name="` + cfg.prefix + `_status[]" data-role="status-select"
                         class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-[12px] leading-snug font-semibold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400 transition appearance-none pr-8">
-                        <option value="progress">In Progress</option>
-                        <option value="complete">Complete</option>
+                        <option value="progress" ` + stSel1 + `>In Progress</option>
+                        <option value="complete" ` + stSel2 + `>Complete</option>
                     </select>
                 </div>
-                <div class="sm:col-span-2 flex sm:justify-end">
+                <div class="sm:col-span-1 flex sm:justify-end">
                     <button type="button" onclick="removeActRow(this)"
                         class="w-full sm:w-auto px-3 py-2 h-9 rounded-lg bg-slate-50 hover:bg-slate-700 text-slate-600 hover:text-white border border-slate-200 hover:border-slate-700 flex items-center justify-center gap-1.5 transition shadow-sm"
                         aria-label="Hapus" title="Hapus baris">
                         <i class="fas fa-trash-can text-[12px]"></i>
-                        <span class="text-[11px] font-bold sm:inline hidden">Hapus</span>
                     </button>
                 </div>
             </div>
-
-            <div data-role="custom-input-wrap" class="hidden w-full rounded-lg border border-dashed border-slate-300 bg-slate-50/60 p-2.5 animate-fade-in">
-                <label class="text-[9px] font-black uppercase tracking-wider text-slate-600 pl-0.5 mb-1 block">Ketik Aktivitas Baru</label>
-                <input type="text" data-role="custom-text"
-                    placeholder="Contoh: Perbaikan AC Lobby Lantai 2"
-                    class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-[13px] leading-snug font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400 transition">
-                <input type="hidden" name="` + cfg.prefix + `_text[]" data-role="final-text" value="">
-            </div>
         `;
         container.appendChild(row);
-
-        // ------ Bind event handlers ke row baru ------
-        const selMaster = row.querySelector('[data-role="master-select"]');
-        const wrapCustom = row.querySelector('[data-role="custom-input-wrap"]');
-        const inpCustom = row.querySelector('[data-role="custom-text"]');
-        const inpFinal  = row.querySelector('[data-role="final-text"]');
-        const selStatus = row.querySelector('[data-role="status-select"]');
-
-        function syncFinalValue() {
-            const v = (selMaster.value || '').trim();
-            if (v === '') {
-                inpFinal.value = '';
-                wrapCustom.classList.add('hidden');
-                return;
-            }
-            if (v === '__custom__') {
-                wrapCustom.classList.remove('hidden');
-                const txt = (inpCustom.value || '').trim();
-                inpFinal.value = txt;
-                // Auto fokus ke text input saat user pilih custom â€” langsung ngetik âœ¨
-                setTimeout(() => { if (inpCustom) { inpCustom.focus(); inpCustom.scrollIntoView({behavior:'smooth', block:'center'}); } }, 60);
-                return;
-            }
-            wrapCustom.classList.add('hidden');
-            inpFinal.value = v;
-            const parts = v.split('|');
-            const nm = (parts[0] || '').trim();
-            const mid = parseInt(parts[1] || '0', 10);
-            if (mid > 0 && masterList.length > 0) {
-                const mObj = masterList.find(function(x){ return parseInt((x.id||0),10) === mid; });
-                if (mObj && mObj.status_default && selStatus) {
-                    selStatus.value = (mObj.status_default === 'complete') ? 'complete' : 'progress';
-                }
-            }
-            void nm;
-        }
-
-        selMaster.addEventListener('change', syncFinalValue);
-        if (inpCustom) inpCustom.addEventListener('input', syncFinalValue);
-        syncFinalValue();
-        setTimeout(() => {
-            if (selMaster) selMaster.focus();
-        }, 50);
-
+        const inpFinal = row.querySelector('[data-role="final-text"]');
+        setTimeout(() => { if (inpFinal) { inpFinal.focus(); inpFinal.select(); } }, 50);
         recalcCounters();
+        if (inpFinal) inpFinal.addEventListener('input', function(){ try { recalcCounters(); } catch(e){} });
     }
     function removeActRow(btn) {
         if (!btn) return;
