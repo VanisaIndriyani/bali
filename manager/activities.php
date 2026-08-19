@@ -48,7 +48,7 @@ try {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = (string)($_POST['action'] ?? '');
 
-    // âœ… SAVE MASTER (Create / Edit)
+    // SAVE MASTER (Create / Edit)
     if ($act === 'save_master_activity') {
         $masterId  = max(0, (int)($_POST['master_id'] ?? 0));
         $div       = in_array(($_POST['division'] ?? ''), ['operation','maintenance','project','landscape']) ? (string)$_POST['division'] : '';
@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'status_default' => $statusDef,
                     'sort_order' => $sortOrder,
                 ], 'id = :id', ['id' => $masterId]);
-                setFlash('success', 'âœ… Master Activity berhasil di-UPDATE: '.$name);
+                setFlash('success', '[OK] Master Activity berhasil di-UPDATE: '.$name);
             } else {
                 $db->insert('activity_masters', [
                     'division' => $div,
@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'status_default' => $statusDef,
                     'sort_order' => $sortOrder,
                 ]);
-                setFlash('success', 'âœ… Master Activity berhasil di-TAMBAH: '.$name);
+                setFlash('success', '[OK] Master Activity berhasil di-TAMBAH: '.$name);
             }
         } catch (Throwable $e) {
             setFlash('danger', 'ERROR simpan master: '.$e->getMessage());
@@ -83,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('manager/activities.php');
     }
 
-    // âŒ DELETE MASTER by ID
+    // DELETE MASTER by ID
     if ($act === 'delete_master_activity') {
         $masterId = max(0, (int)($_POST['master_id'] ?? 0));
         if ($masterId <= 0) {
@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $row = $db->fetchOne("SELECT activity_name FROM activity_masters WHERE id = ? LIMIT 1", [$masterId]);
             $db->query("DELETE FROM activity_masters WHERE id = ? LIMIT 1", [$masterId]);
-            setFlash('success', 'ðŸ—‘ï¸ Master Activity berhasil di-HAPUS'.($row ? ': '.$row['activity_name'] : ''));
+            setFlash('success', '[Hapus] Master Activity berhasil di-HAPUS'.($row ? ': '.$row['activity_name'] : ''));
         } catch (Throwable $e) {
             setFlash('danger', 'ERROR hapus master: '.$e->getMessage());
         }
@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// âœ… FETCH SEMUA MASTER ACTIVITY PER DIVISI (untuk Modal CRUD & Dropdown Form Input)
+// FETCH SEMUA MASTER ACTIVITY PER DIVISI (untuk Modal CRUD & Dropdown Form Input)
 $allMasters = $db->fetchAll("SELECT * FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
 $mastersByDiv = [
     'operation'   => [],
@@ -1503,7 +1503,7 @@ if (empty($printAllActs)) {
                                                     title="Edit master activity ini" aria-label="Edit">
                                                 <i class="fas fa-pencil text-[13px]"></i>
                                             </button>
-                                            <form method="POST" onsubmit="return confirm('âš ï¸ YAKIN HAPUS master activity ini? Data activity yang sudah tersimpan di Daily Log TIDAK AKAN TERHAPUS (tetap tampil textnya).');">
+                                            <form method="POST" onsubmit="return confirm('YAKIN HAPUS master activity ini? Data activity yang sudah tersimpan di Daily Log TIDAK AKAN TERHAPUS (tetap tampil textnya).');">
                                                 <input type="hidden" name="action" value="delete_master_activity">
                                                 <input type="hidden" name="master_id" value="<?= (int)$m['id'] ?>">
                                                 <button type="submit"
@@ -1694,18 +1694,17 @@ if (empty($printAllActs)) {
         // Bangun opsi dropdown master
         let optsHtml = `<option value="">-- Pilih Master Activity --</option>`;
         if (masterList.length > 0) {
-            optsHtml += `<optgroup label="ðŸ“‹ Master Template Divisi">`;
+            optsHtml += `<optgroup label="Master Template Divisi">`;
             masterList.forEach(function(m) {
                 const mid = parseInt(m.id || 0, 10);
                 const name = (m.activity_name || m.name || '').trim();
                 if (!name) return;
-                const st = (m.status_default === 'complete') ? 'âœ… Done' : 'â³ Progress';
-                // Value format = "Nama Activity|masterId" (sesuai fnParseItems backend yang pakai explode('|', 2))
-                optsHtml += `<option value="${mEscapeHtml(name)}|${mid}">${mEscapeHtml(name)} Â· ${st}</option>`;
+                const st = (m.status_default === 'complete') ? '[Done]' : '[Progress]';
+                optsHtml += `<option value="${mEscapeHtml(name)}|${mid}">${mEscapeHtml(name)} · ${st}</option>`;
             });
             optsHtml += `</optgroup>`;
         }
-        optsHtml += `<option value="__custom__">âœï¸ Tulis Aktivitas Sendiri (Custom)</option>`;
+        optsHtml += `<option value="__custom__">Tulis Aktivitas Sendiri (Custom)</option>`;
 
         const row = document.createElement('div');
         row.className = 'flex flex-col gap-2 p-2.5 rounded-lg bg-white border border-slate-200 shadow-sm animate-fade-in';
@@ -1728,8 +1727,8 @@ if (empty($printAllActs)) {
                     <label class="text-[9px] font-black uppercase tracking-wider text-slate-500 pl-0.5">Status</label>
                     <select name="` + cfg.prefix + `_status[]" data-role="status-select"
                         class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-[12px] leading-snug font-semibold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400 transition appearance-none pr-8">
-                        <option value="progress">â³ In Progress</option>
-                        <option value="complete">âœ… Complete</option>
+                        <option value="progress">[ ] In Progress</option>
+                        <option value="complete">[v] Complete</option>
                     </select>
                 </div>
                 <div class="sm:col-span-2 flex sm:justify-end">
@@ -1853,7 +1852,7 @@ if (empty($printAllActs)) {
                 const engSel = document.getElementById('engineer_id_activity');
                 if (engSel && !engSel.value) {
                     ev.preventDefault();
-                    alert('âš ï¸ Pilih Engineer / Staff terlebih dahulu sebelum menyimpan.');
+                    alert('Pilih Engineer / Staff terlebih dahulu sebelum menyimpan.');
                     if (engSel && engSel.focus) engSel.focus();
                     return false;
                 }
