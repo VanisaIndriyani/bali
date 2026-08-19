@@ -98,17 +98,17 @@ if ($log && !empty($log['log_date']) && !empty($log['engineer_id'])) {
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/navbar.php';
 
-// --- HELPER BADGE SHIFT VISUAL (Pagi/Siang/Malam) untuk ditampilkan di header dan info engineer ---
+// --- HELPER BADGE SHIFT VISUAL (NETRAL) ---
 $__shiftVal = (!empty($log['shift']) && in_array($log['shift'], ['pagi','siang','malam'], true)) ? (string)$log['shift'] : '';
 $__shiftBadge = '';
 if ($__shiftVal === 'pagi') {
-    $__shiftBadge = '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-600 text-white text-xs font-bold tracking-wide uppercase shadow-sm shadow-amber-500/20"><i class="fas fa-sun-plant-wilt"></i> Shift Pagi</span>';
+    $__shiftBadge = '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold tracking-wide uppercase"><i class="fas fa-sun text-[10px]"></i> Pagi</span>';
 } elseif ($__shiftVal === 'siang') {
-    $__shiftBadge = '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-sky-500 to-indigo-600 text-white text-xs font-bold tracking-wide uppercase shadow-sm shadow-sky-500/20"><i class="fas fa-sun"></i> Shift Siang</span>';
+    $__shiftBadge = '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold tracking-wide uppercase"><i class="fas fa-cloud-sun text-[10px]"></i> Siang</span>';
 } elseif ($__shiftVal === 'malam') {
-    $__shiftBadge = '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-slate-900 text-white text-xs font-bold tracking-wide uppercase shadow-sm shadow-indigo-500/20"><i class="fas fa-moon-stars"></i> Shift Malam</span>';
+    $__shiftBadge = '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800 text-white text-[11px] font-bold tracking-wide uppercase"><i class="fas fa-moon text-[10px]"></i> Malam</span>';
 } else {
-    $__shiftBadge = '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-semibold tracking-wide uppercase"><i class="fas fa-circle-question"></i> Belum ada shift</span>';
+    $__shiftBadge = '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-dashed border-slate-200 text-slate-500 text-[11px] font-semibold tracking-wide uppercase"><i class="fas fa-circle-question text-[10px]"></i> Belum ada shift</span>';
 }
 
 // =========================================================
@@ -333,24 +333,26 @@ $_rvBadge = function($v, $type='text') {
         </div>
     </div>
 
-    <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden mb-6 animate-slide-up">
-        <div class="px-5 lg:px-6 py-4 border-b border-border bg-gradient-to-r from-muted/50 to-surface">
-            <h3 class="font-bold text-primary flex items-center gap-2">
-                <i class="fas fa-user-circle text-accent"></i>Informasi Engineer
+    <!-- INFO ENGINEER -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-5 animate-slide-up">
+        <div class="px-4 py-3 border-b border-slate-100">
+            <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-user text-xs"></i></span>
+                Informasi Engineer
             </h3>
         </div>
-        <div class="p-5 lg:p-6">
-            <div class="flex flex-col sm:flex-row gap-4 sm:items-center">
-                <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xl sm:text-2xl font-bold flex-shrink-0 shadow-lg">
+        <div class="p-4 sm:p-5">
+            <div class="flex flex-col sm:flex-row gap-3.5 sm:items-center">
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-slate-700 flex items-center justify-center text-white text-lg sm:text-xl font-bold flex-shrink-0 shadow-sm">
                     <?= strtoupper(mb_substr((string)($log['engineer_name'] ?? 'U'), 0, 1) ?: 'U') ?>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 flex-1 min-w-0">
-                    <div><p class="text-xs text-secondary uppercase tracking-wider mb-0.5">Nama</p><p class="font-semibold text-primary"><?= cleanInput($log['engineer_name']) ?></p></div>
-                    <div><p class="text-xs text-secondary uppercase tracking-wider mb-0.5">Jabatan</p><p class="font-semibold text-primary"><?= cleanInput($log['engineer_position'] ?? '-') ?></p></div>
-                    <div><p class="text-xs text-secondary uppercase tracking-wider mb-0.5">Email</p><p class="font-semibold text-primary text-sm"><?= cleanInput($log['engineer_email']) ?></p></div>
-                    <div><p class="text-xs text-secondary uppercase tracking-wider mb-0.5">Phone</p><p class="font-semibold text-primary"><?= cleanInput($log['engineer_phone'] ?? '-') ?></p></div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 flex-1 min-w-0">
+                    <div><p class="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Nama</p><p class="font-semibold text-slate-800 text-sm"><?= cleanInput($log['engineer_name']) ?></p></div>
+                    <div><p class="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Jabatan</p><p class="font-semibold text-slate-800 text-sm"><?= cleanInput($log['engineer_position'] ?? '-') ?></p></div>
+                    <div><p class="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Email</p><p class="font-semibold text-slate-800 text-xs"><?= cleanInput($log['engineer_email']) ?></p></div>
+                    <div><p class="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Phone</p><p class="font-semibold text-slate-800 text-sm"><?= cleanInput($log['engineer_phone'] ?? '-') ?></p></div>
                     <div>
-                        <p class="text-xs text-secondary uppercase tracking-wider mb-0.5">Shift Bertugas</p>
+                        <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">Shift</p>
                         <div class="mt-0.5"><?= $__shiftBadge ?></div>
                     </div>
                 </div>
@@ -358,341 +360,352 @@ $_rvBadge = function($v, $type='text') {
         </div>
     </div>
 
-    <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden mb-6 animate-slide-up" style="animation-delay: 50ms">
-        <div class="px-5 lg:px-6 py-4 border-b border-border bg-muted/30">
-            <h3 class="font-bold text-primary flex items-center gap-2">
-                <i class="fas fa-gauge-high text-accent"></i>Data Konsumsi
+    <!-- DATA KONSUMSI -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-5 animate-slide-up" style="animation-delay: 50ms">
+        <div class="px-4 py-3 border-b border-slate-100">
+            <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-gauge-high text-xs"></i></span>
+                Data Konsumsi
             </h3>
         </div>
-        <div class="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="p-5 rounded-card bg-amber-50 border border-amber-100">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center"><i class="fas fa-bolt text-amber-600"></i></div>
-                    <div><p class="text-xs text-amber-700 uppercase tracking-wider font-semibold">Listrik</p><p class="text-[10px] text-amber-600">Total Consume</p></div>
+        <div class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-3 gap-3.5">
+            <div class="p-4 rounded-lg bg-slate-50 border border-slate-200">
+                <div class="flex items-center gap-2.5 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center"><i class="fas fa-bolt text-slate-600 text-sm"></i></div>
+                    <div><p class="text-[10px] text-slate-600 uppercase tracking-wider font-bold">Listrik</p><p class="text-[9px] text-slate-500">Total</p></div>
                 </div>
-                <div class="text-3xl font-bold text-amber-700"><?= formatNumber($log['total_electricity']) ?> <span class="text-sm font-semibold">kWh</span></div>
+                <div class="text-2xl font-bold text-slate-800"><?= formatNumber($log['total_electricity']) ?> <span class="text-xs font-semibold">kWh</span></div>
             </div>
-            <div class="p-5 rounded-card bg-blue-50 border border-blue-100">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center"><i class="fas fa-droplet text-blue-600"></i></div>
-                    <div><p class="text-xs text-blue-700 uppercase tracking-wider font-semibold">Air</p><p class="text-[10px] text-blue-600">Total Consume</p></div>
+            <div class="p-4 rounded-lg bg-slate-50 border border-slate-200">
+                <div class="flex items-center gap-2.5 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center"><i class="fas fa-droplet text-slate-600 text-sm"></i></div>
+                    <div><p class="text-[10px] text-slate-600 uppercase tracking-wider font-bold">Air</p><p class="text-[9px] text-slate-500">Total</p></div>
                 </div>
-                <div class="text-3xl font-bold text-blue-700"><?= formatNumber($log['total_water']) ?> <span class="text-sm font-semibold">m3</span></div>
+                <div class="text-2xl font-bold text-slate-800"><?= formatNumber($log['total_water']) ?> <span class="text-xs font-semibold">m3</span></div>
             </div>
-            <div class="p-5 rounded-card bg-orange-50 border border-orange-100">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center"><i class="fas fa-fire text-orange-600"></i></div>
-                    <div><p class="text-xs text-orange-700 uppercase tracking-wider font-semibold">Gas</p><p class="text-[10px] text-orange-600">Total Consume</p></div>
+            <div class="p-4 rounded-lg bg-slate-50 border border-slate-200">
+                <div class="flex items-center gap-2.5 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center"><i class="fas fa-fire text-slate-600 text-sm"></i></div>
+                    <div><p class="text-[10px] text-slate-600 uppercase tracking-wider font-bold">Gas</p><p class="text-[9px] text-slate-500">Total</p></div>
                 </div>
-                <div class="text-3xl font-bold text-orange-700"><?= formatNumber($log['total_gas']) ?> <span class="text-sm font-semibold">kg</span></div>
+                <div class="text-2xl font-bold text-slate-800"><?= formatNumber($log['total_gas']) ?> <span class="text-xs font-semibold">kg</span></div>
             </div>
         </div>
     </div>
 
-    <!-- 🏊 WATER SUB DETAILS (PDAM + MAIN BUILDING READING METER + COOLING TOWER) -->
-    <div class="bg-surface rounded-premium border border-blue-200/60 shadow-sm overflow-hidden mb-6 animate-slide-up" style="animation-delay: 75ms">
-        <div class="px-5 lg:px-6 py-4 border-b border-blue-100/80 bg-gradient-to-r from-blue-50/90 via-sky-50/60 to-cyan-50/70">
-            <h3 class="font-bold text-primary flex items-center gap-2">
-                <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30"><i class="fas fa-droplet text-sm"></i></span>
-                Rincian Konsumsi Air (PDAM, Main Building, Cooling Tower)
+    <!-- RINCIAN KONSUMSI AIR -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-5 animate-slide-up" style="animation-delay: 75ms">
+        <div class="px-4 py-3 border-b border-slate-100">
+            <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-droplet text-xs"></i></span>
+                Rincian Konsumsi Air
             </h3>
-            <p class="text-xs text-secondary mt-0.5">Main Building menggunakan perhitungan selisih meter: <b>Today − Yesterday = Konsumsi</b></p>
         </div>
-        <div class="p-5 lg:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            <!-- 1. PDAM -->
-            <div class="rounded-card border border-slate-200 bg-slate-50/60 p-4">
-                <p class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-600 mb-2">PDAM</p>
+        <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+            <!-- PDAM -->
+            <div class="rounded-lg border border-slate-200 bg-slate-50/50 p-3.5">
+                <p class="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-2">PDAM</p>
                 <div class="flex items-end justify-between">
-                    <div class="text-2xl font-bold text-slate-700"><?= formatNumber($log['water_pdam'] ?? 0) ?> <span class="text-xs font-semibold text-slate-500">m3</span></div>
-                    <div class="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center text-slate-600"><i class="fas fa-faucet-drip text-xs"></i></div>
+                    <div class="text-xl font-bold text-slate-800"><?= formatNumber($log['water_pdam'] ?? 0) ?> <span class="text-[11px] font-semibold text-slate-500">m3</span></div>
+                    <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"><i class="fas fa-faucet-drip text-[11px]"></i></div>
                 </div>
-                <p class="text-[10px] text-slate-500 mt-2 italic">Nilai konsumsi input langsung</p>
+                <p class="text-[10px] text-slate-500 mt-1.5 italic">Input langsung</p>
             </div>
-            <!-- 2. MAIN BUILDING (Reading Meter) -->
-            <div class="rounded-card border-2 border-dashed border-cyan-200 bg-cyan-50/50 p-4">
+            <!-- MAIN BUILDING -->
+            <div class="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/50 p-3.5">
                 <div class="flex items-center justify-between mb-2.5">
-                    <p class="text-[10px] font-black uppercase tracking-[0.15em] text-cyan-700">Main Building</p>
-                    <span class="text-[9px] font-black tracking-wider uppercase px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 border border-cyan-200">Reading Meter</span>
+                    <p class="text-[10px] font-black uppercase tracking-wider text-slate-700">Main Building</p>
+                    <span class="text-[9px] font-black tracking-wider uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">Reading</span>
                 </div>
-                <div class="space-y-2">
+                <div class="space-y-1.5">
                     <div class="flex items-center justify-between text-[11px]">
                         <span class="text-slate-500 font-semibold">Yesterday<?= $_mbYesterdayDate ? ' ('.date('d/m', strtotime($_mbYesterdayDate)).')' : '' ?></span>
                         <span class="text-slate-700 font-bold"><?= number_format($_mbYesterday, 2) ?> m3</span>
                     </div>
                     <div class="flex items-center justify-between text-[11px]">
-                        <span class="text-cyan-700 font-bold">Today (<?= date('d/m', strtotime($log['log_date'])) ?>)</span>
-                        <span class="text-cyan-800 font-extrabold"><?= number_format($_mbToday, 2) ?> m3</span>
+                        <span class="text-slate-700 font-semibold">Today (<?= date('d/m', strtotime($log['log_date'])) ?>)</span>
+                        <span class="text-slate-800 font-black"><?= number_format($_mbToday, 2) ?> m3</span>
                     </div>
-                    <div class="border-t border-cyan-200/70 pt-2 flex items-center justify-between">
-                        <span class="text-[11px] text-cyan-700 font-bold">= Konsumsi (T − Y)</span>
-                        <span class="text-lg font-black text-cyan-800"><?= number_format($_mbCons, 2) ?> <span class="text-xs font-semibold text-cyan-600">m3</span></span>
+                    <div class="border-t border-slate-200 pt-1.5 flex items-center justify-between">
+                        <span class="text-[11px] text-slate-700 font-bold">= Konsumsi (T − Y)</span>
+                        <span class="text-base font-black text-slate-800"><?= number_format($_mbCons, 2) ?> <span class="text-[11px] font-semibold text-slate-600">m3</span></span>
                     </div>
                 </div>
             </div>
-            <!-- 3. COOLING TOWER -->
-            <div class="rounded-card border border-teal-200 bg-teal-50/60 p-4">
-                <p class="text-[10px] font-black uppercase tracking-[0.15em] text-teal-700 mb-2">Cooling Tower</p>
+            <!-- COOLING TOWER -->
+            <div class="rounded-lg border border-slate-200 bg-slate-50/50 p-3.5">
+                <p class="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-2">Cooling Tower</p>
                 <div class="flex items-end justify-between">
-                    <div class="text-2xl font-bold text-teal-700"><?= formatNumber($log['water_cooling_tower'] ?? 0) ?> <span class="text-xs font-semibold text-teal-500">m3</span></div>
-                    <div class="w-8 h-8 rounded-lg bg-teal-200 flex items-center justify-center text-teal-700"><i class="fas fa-fan text-xs"></i></div>
+                    <div class="text-xl font-bold text-slate-800"><?= formatNumber($log['water_cooling_tower'] ?? 0) ?> <span class="text-[11px] font-semibold text-slate-500">m3</span></div>
+                    <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"><i class="fas fa-fan text-[11px]"></i></div>
                 </div>
-                <p class="text-[10px] text-teal-600 mt-2 italic">Nilai konsumsi input langsung</p>
+                <p class="text-[10px] text-slate-500 mt-1.5 italic">Input langsung</p>
             </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 100ms">
-            <div class="px-5 lg:px-6 py-4 border-b border-border bg-muted/30">
-                <h3 class="font-bold text-primary flex items-center gap-2"><i class="fas fa-camera text-accent"></i>Dokumentasi Foto</h3>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 100ms">
+            <div class="px-4 py-3 border-b border-slate-100">
+                <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-camera text-xs"></i></span>
+                    Dokumentasi Foto
+                </h3>
             </div>
-            <div class="p-5 lg:p-6">
+            <div class="p-4 sm:p-5">
                 <?php if ($log['photo_path']): ?>
                     <a href="<?= UPLOAD_URL . $log['photo_path'] ?>" target="_blank">
-                        <img src="<?= UPLOAD_URL . $log['photo_path'] ?>" alt="Foto Dokumentasi" class="w-full h-64 rounded-card object-cover hover:scale-[1.02] transition-transform duration-300 cursor-pointer shadow-md">
+                        <img src="<?= UPLOAD_URL . $log['photo_path'] ?>" alt="Foto Dokumentasi" class="w-full h-60 rounded-lg object-cover hover:scale-[1.02] transition-transform duration-300 cursor-pointer shadow-sm">
                     </a>
                 <?php else: ?>
-                    <div class="w-full h-64 rounded-card bg-muted/50 border-2 border-dashed border-border flex flex-col items-center justify-center text-secondary">
-                        <i class="fas fa-image text-4xl mb-2 opacity-40"></i>
-                        <p class="text-sm">Tidak ada foto</p>
+                    <div class="w-full h-60 rounded-lg bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
+                        <i class="fas fa-image text-3xl mb-1.5 opacity-50"></i>
+                        <p class="text-xs">Tidak ada foto</p>
                     </div>
                 <?php endif; ?>
             </div>
         </div>
-        <div class="space-y-6">
-            <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 120ms">
-                <div class="px-5 lg:px-6 py-4 border-b border-border bg-muted/30">
-                    <h3 class="font-bold text-primary flex items-center gap-2"><i class="fas fa-list-check text-green-600"></i>Aktivitas Pekerjaan</h3>
+        <div class="space-y-5">
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 120ms">
+                <div class="px-4 py-3 border-b border-slate-100">
+                    <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-list-check text-xs"></i></span>
+                        Aktivitas Pekerjaan
+                    </h3>
                 </div>
-                <div class="p-5 lg:p-6"><div class="text-primary leading-relaxed whitespace-pre-wrap"><?= nl2br(cleanInput($log['work_activities'])) ?></div></div>
+                <div class="p-4 sm:p-5"><div class="text-slate-800 leading-relaxed whitespace-pre-wrap text-sm"><?= nl2br(cleanInput($log['work_activities'])) ?></div></div>
             </div>
-            <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 140ms">
-                <div class="px-5 lg:px-6 py-4 border-b border-border bg-muted/30">
-                    <h3 class="font-bold text-primary flex items-center gap-2"><i class="fas fa-triangle-exclamation text-yellow-600"></i>Kendala</h3>
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 140ms">
+                <div class="px-4 py-3 border-b border-slate-100">
+                    <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-triangle-exclamation text-xs"></i></span>
+                        Kendala
+                    </h3>
                 </div>
-                <div class="p-5 lg:p-6"><div class="text-primary leading-relaxed whitespace-pre-wrap"><?= $log['obstacles'] ? nl2br(cleanInput($log['obstacles'])) : '<span class="text-secondary italic">Tidak ada kendala</span>' ?></div></div>
+                <div class="p-4 sm:p-5"><div class="text-slate-800 leading-relaxed whitespace-pre-wrap text-sm"><?= $log['obstacles'] ? nl2br(cleanInput($log['obstacles'])) : '<span class="text-slate-400 italic text-xs">Tidak ada kendala</span>' ?></div></div>
             </div>
-            <div class="bg-surface rounded-premium border border-border shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 160ms">
-                <div class="px-5 lg:px-6 py-4 border-b border-border bg-muted/30">
-                    <h3 class="font-bold text-primary flex items-center gap-2"><i class="fas fa-lightbulb text-accent"></i>Solusi</h3>
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 160ms">
+                <div class="px-4 py-3 border-b border-slate-100">
+                    <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-lightbulb text-xs"></i></span>
+                        Solusi
+                    </h3>
                 </div>
-                <div class="p-5 lg:p-6"><div class="text-primary leading-relaxed whitespace-pre-wrap"><?= $log['solutions'] ? nl2br(cleanInput($log['solutions'])) : '<span class="text-secondary italic">Tidak ada solusi yang dicatat</span>' ?></div></div>
+                <div class="p-4 sm:p-5"><div class="text-slate-800 leading-relaxed whitespace-pre-wrap text-sm"><?= $log['solutions'] ? nl2br(cleanInput($log['solutions'])) : '<span class="text-slate-400 italic text-xs">Tidak ada solusi yang dicatat</span>' ?></div></div>
             </div>
         </div>
     </div>
 
     <?php if ($_hasEquipment): ?>
-    <!-- ⚙️ 8 SECTION EQUIPMENT LOG -->
-    <div class="space-y-6 mb-6 animate-slide-up" style="animation-delay: 180ms">
+    <!-- 8 SECTION EQUIPMENT LOG -->
+    <div class="space-y-5 mb-5 animate-slide-up" style="animation-delay: 180ms">
 
-        <!-- 1. TRAFO -->
-        <div class="bg-surface rounded-premium border border-blue-200/60 shadow-sm overflow-hidden">
-            <div class="px-5 lg:px-6 py-4 border-b border-blue-100/80 bg-gradient-to-r from-blue-50/90 via-indigo-50/60 to-blue-50/70">
-                <h3 class="font-bold text-primary flex items-center gap-2">
-                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 flex items-center justify-center text-white shadow-md shadow-blue-500/30"><i class="fas fa-bolt text-sm"></i></span>
-                    1. Trafo — 2 Unit (Temp, Ampere LVDP, Oil Level)
+        <!-- 1 TRAFO -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100">
+                <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-bolt text-xs"></i></span>
+                    Trafo — 2 Unit
                 </h3>
             </div>
-            <div class="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <?php for ($tu=1; $tu<=2; $tu++): $tv = $eq['trafo']['units'][$tu]; ?>
-                <div class="rounded-card border-2 border-dashed border-blue-200 bg-blue-50/40 p-4">
-                    <p class="text-xs font-black uppercase tracking-[0.18em] text-blue-800 mb-3"><i class="fas fa-microchip mr-1"></i> Trafo Unit <?= $tu ?></p>
-                    <div class="grid grid-cols-3 gap-3">
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Temp (°C)</p><?= $_rvBadge($tv['temp_c']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Ampere LVDP (A)</p><?= $_rvBadge($tv['ampere_lvdp']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Oil Level (%)</p><?= $_rvBadge($tv['oil_level_pct']) ?></div>
+                <div class="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/40 p-3.5">
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2.5"><i class="fas fa-microchip mr-1 text-[10px]"></i> Trafo Unit <?= $tu ?></p>
+                    <div class="grid grid-cols-3 gap-2.5">
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Temp (°C)</p><?= $_rvBadge($tv['temp_c']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Ampere (A)</p><?= $_rvBadge($tv['ampere_lvdp']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Oil (%)</p><?= $_rvBadge($tv['oil_level_pct']) ?></div>
                     </div>
                 </div>
                 <?php endfor; ?>
             </div>
         </div>
 
-        <!-- 2. GENSET -->
-        <div class="bg-surface rounded-premium border border-amber-200/60 shadow-sm overflow-hidden">
-            <div class="px-5 lg:px-6 py-4 border-b border-amber-100/80 bg-gradient-to-r from-amber-50/90 via-yellow-50/60 to-orange-50/70">
-                <h3 class="font-bold text-primary flex items-center gap-2">
-                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 via-yellow-600 to-orange-700 flex items-center justify-center text-white shadow-md shadow-amber-500/30"><i class="fas fa-industry text-sm"></i></span>
-                    2. Genset — 3 Unit Voltage + Fuel Tank
+        <!-- 2 GENSET -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100">
+                <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-industry text-xs"></i></span>
+                    Genset — 3 Unit + Fuel
                 </h3>
             </div>
-            <div class="p-5 lg:p-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div><p class="text-[10px] font-black uppercase tracking-wider text-amber-700 mb-2">Gen 1 Voltage (V)</p><?= $_rvBadge($eq['genset']['gen_1_volt']) ?></div>
-                <div><p class="text-[10px] font-black uppercase tracking-wider text-amber-700 mb-2">Gen 2 Voltage (V)</p><?= $_rvBadge($eq['genset']['gen_2_volt']) ?></div>
-                <div><p class="text-[10px] font-black uppercase tracking-wider text-amber-700 mb-2">Gen 3 Voltage (V)</p><?= $_rvBadge($eq['genset']['gen_3_volt']) ?></div>
-                <div><p class="text-[10px] font-black uppercase tracking-wider text-rose-700 mb-2">Fuel Tank (L)</p><?= $_rvBadge($eq['genset']['fuel_tank_liter']) ?></div>
+            <div class="p-4 sm:p-5 grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div><p class="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-2">Gen 1 (V)</p><?= $_rvBadge($eq['genset']['gen_1_volt']) ?></div>
+                <div><p class="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-2">Gen 2 (V)</p><?= $_rvBadge($eq['genset']['gen_2_volt']) ?></div>
+                <div><p class="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-2">Gen 3 (V)</p><?= $_rvBadge($eq['genset']['gen_3_volt']) ?></div>
+                <div><p class="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-2">Tank (L)</p><?= $_rvBadge($eq['genset']['fuel_tank_liter']) ?></div>
             </div>
         </div>
 
-        <!-- 3. PUMP ROOM -->
-        <div class="bg-surface rounded-premium border border-emerald-200/60 shadow-sm overflow-hidden">
-            <div class="px-5 lg:px-6 py-4 border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50/90 via-green-50/60 to-teal-50/70">
-                <h3 class="font-bold text-primary flex items-center gap-2">
-                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 via-green-600 to-teal-700 flex items-center justify-center text-white shadow-md shadow-emerald-500/30"><i class="fas fa-water text-sm"></i></span>
-                    3. Pump Room — Boiler, Tank, Hydrant, Filter, Booster
+        <!-- 3 PUMP ROOM -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100">
+                <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-water text-xs"></i></span>
+                    Pump Room
                 </h3>
             </div>
-            <div class="p-5 lg:p-6 space-y-5">
-                <div class="rounded-card border border-emerald-200 bg-emerald-50/30 p-4">
-                    <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-800 mb-3"><i class="fas fa-fire mr-1"></i> Steam Boiler (SB)</p>
-                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-center">
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Unit Op</p><?= $_rvBadge($eq['pump']['sb_unit_op'],'status') ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">SB-1 Hours</p><?= $_rvBadge($eq['pump']['sb1_hours']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">SB-2 Hours</p><?= $_rvBadge($eq['pump']['sb2_hours']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Test TDS/pH</p><?= $_rvBadge($eq['pump']['sb_test']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Steam Press</p><?= $_rvBadge($eq['pump']['sb_press']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Blow Down</p><?= $_rvBadge($eq['pump']['sb_blow']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Econ Temp</p><?= $_rvBadge($eq['pump']['sb_econ_temp']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Econ Press</p><?= $_rvBadge($eq['pump']['sb_econ_press']) ?></div>
+            <div class="p-4 sm:p-5 space-y-3.5">
+                <div class="rounded-lg border border-slate-200 bg-slate-50/30 p-3.5">
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2.5"><i class="fas fa-fire mr-1 text-[10px]"></i> Steam Boiler (SB)</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2.5 text-center">
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Unit Op</p><?= $_rvBadge($eq['pump']['sb_unit_op'],'status') ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">SB-1 Jam</p><?= $_rvBadge($eq['pump']['sb1_hours']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">SB-2 Jam</p><?= $_rvBadge($eq['pump']['sb2_hours']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Test TDS/pH</p><?= $_rvBadge($eq['pump']['sb_test']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Steam Press</p><?= $_rvBadge($eq['pump']['sb_press']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Blow Down</p><?= $_rvBadge($eq['pump']['sb_blow']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Econ Temp</p><?= $_rvBadge($eq['pump']['sb_econ_temp']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Econ Press</p><?= $_rvBadge($eq['pump']['sb_econ_press']) ?></div>
                     </div>
                 </div>
-                <div class="rounded-card border border-green-200 bg-green-50/30 p-4">
-                    <p class="text-xs font-black uppercase tracking-[0.18em] text-green-800 mb-3"><i class="fas fa-mug-hot mr-1"></i> Hot Water Boiler (HWB)</p>
-                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-center">
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Unit Op</p><?= $_rvBadge($eq['pump']['hwb_unit_op'],'status') ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">HWB-1 Hours</p><?= $_rvBadge($eq['pump']['hwb1_hours']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">HWB-2 Hours</p><?= $_rvBadge($eq['pump']['hwb2_hours']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">HW Temp (°C)</p><?= $_rvBadge($eq['pump']['hwb_temp']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Test TDS/pH</p><?= $_rvBadge($eq['pump']['hwb_test']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Circ Pump</p><?= $_rvBadge($eq['pump']['hwb_circ_op']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Flow Press</p><?= $_rvBadge($eq['pump']['hwb_flow']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Return Press</p><?= $_rvBadge($eq['pump']['hwb_ret']) ?></div>
+                <div class="rounded-lg border border-slate-200 bg-slate-50/30 p-3.5">
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2.5"><i class="fas fa-mug-hot mr-1 text-[10px]"></i> Hot Water Boiler (HWB)</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2.5 text-center">
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Unit Op</p><?= $_rvBadge($eq['pump']['hwb_unit_op'],'status') ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">HWB-1 Jam</p><?= $_rvBadge($eq['pump']['hwb1_hours']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">HWB-2 Jam</p><?= $_rvBadge($eq['pump']['hwb2_hours']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">HW Temp</p><?= $_rvBadge($eq['pump']['hwb_temp']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Test TDS/pH</p><?= $_rvBadge($eq['pump']['hwb_test']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Circ Pump</p><?= $_rvBadge($eq['pump']['hwb_circ_op']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Flow Press</p><?= $_rvBadge($eq['pump']['hwb_flow']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Return Press</p><?= $_rvBadge($eq['pump']['hwb_ret']) ?></div>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                    <div class="rounded-card border border-teal-200 bg-teal-50/30 p-4">
-                        <p class="text-xs font-black uppercase tracking-[0.18em] text-teal-800 mb-3"><i class="fas fa-oil-can mr-1"></i> Ground Tank</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div class="rounded-lg border border-slate-200 bg-slate-50/30 p-3.5">
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2.5">Ground Tank</p>
                         <div class="space-y-2">
-                            <div><p class="text-[10px] font-bold text-secondary mb-1">Raw Tank</p><?= $_rvBadge($eq['pump']['tank_raw']) ?></div>
-                            <div><p class="text-[10px] font-bold text-secondary mb-1">Treated Tank</p><?= $_rvBadge($eq['pump']['tank_treated']) ?></div>
-                            <div><p class="text-[10px] font-bold text-secondary mb-1">Irigasi Tank</p><?= $_rvBadge($eq['pump']['tank_irigasi']) ?></div>
+                            <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Raw Tank</p><?= $_rvBadge($eq['pump']['tank_raw']) ?></div>
+                            <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Treated Tank</p><?= $_rvBadge($eq['pump']['tank_treated']) ?></div>
+                            <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Irigasi Tank</p><?= $_rvBadge($eq['pump']['tank_irigasi']) ?></div>
                         </div>
                     </div>
-                    <div class="rounded-card border border-red-200 bg-red-50/30 p-4">
-                        <p class="text-xs font-black uppercase tracking-[0.18em] text-red-800 mb-3"><i class="fas fa-fire-extinguisher mr-1"></i> Hydrant Pump</p>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50/30 p-3.5">
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2.5">Hydrant Pump</p>
                         <div class="space-y-2">
-                            <div><p class="text-[10px] font-bold text-secondary mb-1">Standby/Auto</p><?= $_rvBadge($eq['pump']['hyd_standby'],'status') ?></div>
-                            <div><p class="text-[10px] font-bold text-secondary mb-1">Press Pump-1</p><?= $_rvBadge($eq['pump']['hyd_press1']) ?></div>
-                            <div><p class="text-[10px] font-bold text-secondary mb-1">Press Pump-2</p><?= $_rvBadge($eq['pump']['hyd_press2']) ?></div>
+                            <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Standby/Auto</p><?= $_rvBadge($eq['pump']['hyd_standby'],'status') ?></div>
+                            <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Press Pump-1</p><?= $_rvBadge($eq['pump']['hyd_press1']) ?></div>
+                            <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Press Pump-2</p><?= $_rvBadge($eq['pump']['hyd_press2']) ?></div>
                         </div>
                     </div>
-                    <div class="rounded-card border border-pink-200 bg-pink-50/30 p-4">
-                        <p class="text-xs font-black uppercase tracking-[0.18em] text-pink-800 mb-3"><i class="fas fa-horse-head mr-1"></i> Jockey Pump</p>
-                        <div class="space-y-2 mb-4"><div><p class="text-[10px] font-bold text-secondary mb-1">Standby Press</p><?= $_rvBadge($eq['pump']['jockey_press']) ?></div></div>
-                        <p class="text-xs font-black uppercase tracking-[0.18em] text-cyan-800 mb-3"><i class="fas fa-filter mr-1"></i> Sand Filter</p>
-                        <div class="space-y-2"><div><p class="text-[10px] font-bold text-secondary mb-1">Status</p><?= $_rvBadge($eq['pump']['sf_status'],'status') ?></div></div>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50/30 p-3.5">
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2.5">Jockey Pump</p>
+                        <div class="space-y-2 mb-3"><div><p class="text-[10px] font-semibold text-slate-600 mb-1">Standby Press</p><?= $_rvBadge($eq['pump']['jockey_press']) ?></div></div>
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2.5">Sand Filter</p>
+                        <div class="space-y-2"><div><p class="text-[10px] font-semibold text-slate-600 mb-1">Status</p><?= $_rvBadge($eq['pump']['sf_status'],'status') ?></div></div>
                     </div>
-                    <div class="rounded-card border border-sky-200 bg-sky-50/30 p-4">
-                        <p class="text-xs font-black uppercase tracking-[0.18em] text-sky-800 mb-3"><i class="fas fa-filter-circle-dollar mr-1"></i> SF + Booster</p>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50/30 p-3.5">
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2.5">SF + Booster</p>
                         <div class="space-y-2">
-                            <div><p class="text-[10px] font-bold text-secondary mb-1">SF Press Sand</p><?= $_rvBadge($eq['pump']['sf_press_sand']) ?></div>
-                            <div><p class="text-[10px] font-bold text-secondary mb-1">SF Press Carbon</p><?= $_rvBadge($eq['pump']['sf_press_carbon']) ?></div>
-                            <div><p class="text-[10px] font-bold text-secondary mb-1">SF Pump Status</p><?= $_rvBadge($eq['pump']['sfp_status'],'status') ?></div>
-                            <div><p class="text-[10px] font-bold text-secondary mb-1">SF Pump Op</p><?= $_rvBadge($eq['pump']['sfp_unit_op']) ?></div>
+                            <div><p class="text-[10px] font-semibold text-slate-600 mb-1">SF Press Sand</p><?= $_rvBadge($eq['pump']['sf_press_sand']) ?></div>
+                            <div><p class="text-[10px] font-semibold text-slate-600 mb-1">SF Press Carbon</p><?= $_rvBadge($eq['pump']['sf_press_carbon']) ?></div>
+                            <div><p class="text-[10px] font-semibold text-slate-600 mb-1">SF Pump Status</p><?= $_rvBadge($eq['pump']['sfp_status'],'status') ?></div>
+                            <div><p class="text-[10px] font-semibold text-slate-600 mb-1">SF Pump Op</p><?= $_rvBadge($eq['pump']['sfp_unit_op']) ?></div>
                         </div>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="rounded-card border border-violet-200 bg-violet-50/30 p-4">
-                        <p class="text-xs font-black uppercase tracking-[0.18em] text-violet-800 mb-3"><i class="fas fa-house-chimney mr-1"></i> Booster Pump Villa</p>
-                        <div class="grid grid-cols-2 gap-2"><div><p class="text-[10px] font-bold text-secondary mb-1">Unit Op</p><?= $_rvBadge($eq['pump']['bpv_unit_op']) ?></div><div><p class="text-[10px] font-bold text-secondary mb-1">Press</p><?= $_rvBadge($eq['pump']['bpv_press']) ?></div></div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    <div class="rounded-lg border border-slate-200 bg-slate-50/30 p-3.5">
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2.5">Booster Villa</p>
+                        <div class="grid grid-cols-2 gap-2"><div><p class="text-[10px] font-semibold text-slate-600 mb-1">Unit Op</p><?= $_rvBadge($eq['pump']['bpv_unit_op']) ?></div><div><p class="text-[10px] font-semibold text-slate-600 mb-1">Press</p><?= $_rvBadge($eq['pump']['bpv_press']) ?></div></div>
                     </div>
-                    <div class="rounded-card border border-purple-200 bg-purple-50/30 p-4">
-                        <p class="text-xs font-black uppercase tracking-[0.18em] text-purple-800 mb-3"><i class="fas fa-building mr-1"></i> Booster Pump MH</p>
-                        <div class="grid grid-cols-2 gap-2"><div><p class="text-[10px] font-bold text-secondary mb-1">Unit Op</p><?= $_rvBadge($eq['pump']['bpm_unit_op']) ?></div><div><p class="text-[10px] font-bold text-secondary mb-1">Press</p><?= $_rvBadge($eq['pump']['bpm_press']) ?></div></div>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50/30 p-3.5">
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2.5">Booster MH</p>
+                        <div class="grid grid-cols-2 gap-2"><div><p class="text-[10px] font-semibold text-slate-600 mb-1">Unit Op</p><?= $_rvBadge($eq['pump']['bpm_unit_op']) ?></div><div><p class="text-[10px] font-semibold text-slate-600 mb-1">Press</p><?= $_rvBadge($eq['pump']['bpm_press']) ?></div></div>
                     </div>
-                    <div class="rounded-card border border-lime-200 bg-lime-50/30 p-4">
-                        <p class="text-xs font-black uppercase tracking-[0.18em] text-lime-800 mb-3"><i class="fas fa-seedling mr-1"></i> Irrigation Pump</p>
-                        <div class="grid grid-cols-2 gap-2"><div><p class="text-[10px] font-bold text-secondary mb-1">Unit Op</p><?= $_rvBadge($eq['pump']['irigasi_unit_op']) ?></div><div><p class="text-[10px] font-bold text-secondary mb-1">Press</p><?= $_rvBadge($eq['pump']['irigasi_press']) ?></div></div>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50/30 p-3.5">
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2.5">Irrigation Pump</p>
+                        <div class="grid grid-cols-2 gap-2"><div><p class="text-[10px] font-semibold text-slate-600 mb-1">Unit Op</p><?= $_rvBadge($eq['pump']['irigasi_unit_op']) ?></div><div><p class="text-[10px] font-semibold text-slate-600 mb-1">Press</p><?= $_rvBadge($eq['pump']['irigasi_press']) ?></div></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 4. CHILLER SYSTEM -->
-        <div class="bg-surface rounded-premium border border-cyan-200/70 shadow-sm overflow-hidden">
-            <div class="px-5 lg:px-6 py-4 border-b border-cyan-100/80 bg-gradient-to-r from-cyan-50/90 via-teal-50/60 to-sky-50/70">
-                <h3 class="font-bold text-primary flex items-center gap-2">
-                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 via-sky-600 to-blue-700 flex items-center justify-center text-white shadow-md shadow-cyan-500/30"><i class="fas fa-temperature-low text-sm"></i></span>
-                    4. Chiller System — Unit Op, CWP & CHWP Pump
+        <!-- 4 CHILLER SYSTEM -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100">
+                <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-temperature-low text-xs"></i></span>
+                    Chiller System Equip
                 </h3>
-                <p class="text-xs text-secondary mt-0.5">Equipment System (catatan: section ⑥ di form adalah Chiller 3 Unit + pH/TDS/Temp terpisah)</p>
             </div>
-            <div class="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="rounded-card border border-cyan-200 bg-cyan-50/40 p-4">
-                    <p class="text-xs font-black uppercase tracking-[0.18em] text-cyan-800 mb-3"><i class="fas fa-snowflake mr-1"></i> Chiller Unit</p>
+            <div class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                <div class="rounded-lg border border-slate-200 bg-slate-50/40 p-3.5">
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2.5">Chiller Unit</p>
                     <div class="space-y-2">
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Unit Op</p><?= $_rvBadge($eq['chiller']['unit_op'],'status') ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Chilled Water Test</p><?= $_rvBadge($eq['chiller']['cw_test']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Unit Op</p><?= $_rvBadge($eq['chiller']['unit_op'],'status') ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Chilled Test</p><?= $_rvBadge($eq['chiller']['cw_test']) ?></div>
                     </div>
                 </div>
-                <div class="rounded-card border border-sky-200 bg-sky-50/40 p-4">
-                    <p class="text-xs font-black uppercase tracking-[0.18em] text-sky-800 mb-3"><i class="fas fa-water mr-1"></i> Condensor Water Pump</p>
+                <div class="rounded-lg border border-slate-200 bg-slate-50/40 p-3.5">
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2.5">CWP Pump</p>
                     <div class="space-y-2">
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Unit Op</p><?= $_rvBadge($eq['chiller']['cwp_unit_op']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Water Press (kg/cm2)</p><?= $_rvBadge($eq['chiller']['cwp_press']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Unit Op</p><?= $_rvBadge($eq['chiller']['cwp_unit_op']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Press (kg/cm2)</p><?= $_rvBadge($eq['chiller']['cwp_press']) ?></div>
                     </div>
                 </div>
-                <div class="rounded-card border border-blue-200 bg-blue-50/40 p-4">
-                    <p class="text-xs font-black uppercase tracking-[0.18em] text-blue-800 mb-3"><i class="fas fa-arrows-turn-right mr-1"></i> Chilled Water Pump</p>
+                <div class="rounded-lg border border-slate-200 bg-slate-50/40 p-3.5">
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2.5">CHWP Pump</p>
                     <div class="space-y-2">
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Unit Op</p><?= $_rvBadge($eq['chiller']['chwp_unit_op']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Press In (kg/cm2)</p><?= $_rvBadge($eq['chiller']['chwp_in']) ?></div>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Press Out (kg/cm2)</p><?= $_rvBadge($eq['chiller']['chwp_out']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Unit Op</p><?= $_rvBadge($eq['chiller']['chwp_unit_op']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Press In</p><?= $_rvBadge($eq['chiller']['chwp_in']) ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Press Out</p><?= $_rvBadge($eq['chiller']['chwp_out']) ?></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 5. COOLING TOWER -->
-        <div class="bg-surface rounded-premium border border-sky-200/60 shadow-sm overflow-hidden">
-            <div class="px-5 lg:px-6 py-4 border-b border-sky-100/80 bg-gradient-to-r from-sky-50/90 via-blue-50/60 to-cyan-50/70">
-                <h3 class="font-bold text-primary flex items-center gap-2">
-                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 via-blue-600 to-cyan-700 flex items-center justify-center text-white shadow-md shadow-sky-500/30"><i class="fas fa-fan text-sm"></i></span>
-                    5. Cooling Tower — Unit Op, Water Level & Test
+        <!-- 5 COOLING TOWER -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100">
+                <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-fan text-xs"></i></span>
+                    Cooling Tower
                 </h3>
             </div>
-            <div class="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="p-4 rounded-card bg-sky-50/60 border border-sky-200"><p class="text-xs font-extrabold text-sky-800 uppercase tracking-wide mb-2">Unit Op</p><?= $_rvBadge($eq['ct']['unit_op']) ?></div>
-                <div class="p-4 rounded-card bg-blue-50/60 border border-blue-200"><p class="text-xs font-extrabold text-blue-800 uppercase tracking-wide mb-2">Water Level (%)</p><?= $_rvBadge($eq['ct']['level']) ?></div>
-                <div class="p-4 rounded-card bg-cyan-50/60 border border-cyan-200"><p class="text-xs font-extrabold text-cyan-800 uppercase tracking-wide mb-2">Test TDS/pH</p><?= $_rvBadge($eq['ct']['test']) ?></div>
+            <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="p-3.5 rounded-lg bg-slate-50/60 border border-slate-200"><p class="text-[11px] font-extrabold text-slate-700 uppercase tracking-wide mb-2">Unit Op</p><?= $_rvBadge($eq['ct']['unit_op']) ?></div>
+                <div class="p-3.5 rounded-lg bg-slate-50/60 border border-slate-200"><p class="text-[11px] font-extrabold text-slate-700 uppercase tracking-wide mb-2">Water Level (%)</p><?= $_rvBadge($eq['ct']['level']) ?></div>
+                <div class="p-3.5 rounded-lg bg-slate-50/60 border border-slate-200"><p class="text-[11px] font-extrabold text-slate-700 uppercase tracking-wide mb-2">Test TDS/pH</p><?= $_rvBadge($eq['ct']['test']) ?></div>
             </div>
         </div>
 
-        <!-- 6. REVERSE OSMOSIS -->
-        <div class="bg-surface rounded-premium border border-fuchsia-200/60 shadow-sm overflow-hidden">
-            <div class="px-5 lg:px-6 py-4 border-b border-fuchsia-100/80 bg-gradient-to-r from-fuchsia-50/90 via-pink-50/60 to-rose-50/70">
-                <h3 class="font-bold text-primary flex items-center gap-2">
-                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-fuchsia-500 via-pink-600 to-rose-700 flex items-center justify-center text-white shadow-md shadow-fuchsia-500/30"><i class="fas fa-droplet text-sm"></i></span>
-                    6. Reverse Osmosis (RO) — Water Meter, Permeate & Test
+        <!-- 6 REVERSE OSMOSIS -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100">
+                <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-droplet text-xs"></i></span>
+                    Reverse Osmosis (RO)
                 </h3>
-                <p class="text-xs text-secondary mt-0.5">Catatan: berbeda dengan SWRO di form section konsumsi air (section ④).</p>
             </div>
-            <div class="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="p-4 rounded-card bg-fuchsia-50/60 border border-fuchsia-200"><p class="text-xs font-extrabold text-fuchsia-800 uppercase tracking-wide mb-2">Water Meter (m3)</p><?= $_rvBadge($eq['ro']['meter']) ?></div>
-                <div class="p-4 rounded-card bg-pink-50/60 border border-pink-200"><p class="text-xs font-extrabold text-pink-800 uppercase tracking-wide mb-2">Permeate (m3/jam)</p><?= $_rvBadge($eq['ro']['permeate']) ?></div>
-                <div class="p-4 rounded-card bg-rose-50/60 border border-rose-200"><p class="text-xs font-extrabold text-rose-800 uppercase tracking-wide mb-2">TDS/pH Permeate</p><?= $_rvBadge($eq['ro']['test_permeate']) ?></div>
-                <div class="p-4 rounded-card bg-red-50/60 border border-red-200"><p class="text-xs font-extrabold text-red-800 uppercase tracking-wide mb-2">TDS/pH Deep Well</p><?= $_rvBadge($eq['ro']['test_deepwell']) ?></div>
+            <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div class="p-3.5 rounded-lg bg-slate-50/60 border border-slate-200"><p class="text-[11px] font-extrabold text-slate-700 uppercase tracking-wide mb-2">Water Meter (m3)</p><?= $_rvBadge($eq['ro']['meter']) ?></div>
+                <div class="p-3.5 rounded-lg bg-slate-50/60 border border-slate-200"><p class="text-[11px] font-extrabold text-slate-700 uppercase tracking-wide mb-2">Permeate (m3/jam)</p><?= $_rvBadge($eq['ro']['permeate']) ?></div>
+                <div class="p-3.5 rounded-lg bg-slate-50/60 border border-slate-200"><p class="text-[11px] font-extrabold text-slate-700 uppercase tracking-wide mb-2">TDS/pH Permeate</p><?= $_rvBadge($eq['ro']['test_permeate']) ?></div>
+                <div class="p-3.5 rounded-lg bg-slate-50/60 border border-slate-200"><p class="text-[11px] font-extrabold text-slate-700 uppercase tracking-wide mb-2">TDS/pH Deep Well</p><?= $_rvBadge($eq['ro']['test_deepwell']) ?></div>
             </div>
         </div>
 
-        <!-- 7. POOL SYSTEM -->
-        <div class="bg-surface rounded-premium border border-teal-200/60 shadow-sm overflow-hidden">
-            <div class="px-5 lg:px-6 py-4 border-b border-teal-100/80 bg-gradient-to-r from-teal-50/90 via-emerald-50/60 to-cyan-50/70">
-                <h3 class="font-bold text-primary flex items-center gap-2">
-                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 via-emerald-600 to-cyan-700 flex items-center justify-center text-white shadow-md shadow-teal-500/30"><i class="fas fa-person-swimming text-sm"></i></span>
-                    7. Pool System — Lagoon 1 & 2, Aquavitale, Main Pump Room
+        <!-- 7 POOL SYSTEM -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100">
+                <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-person-swimming text-xs"></i></span>
+                    Pool System
                 </h3>
             </div>
-            <div class="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <?php
                 $poolMap = [
-                    ['l1','Lagoon 1','from-teal-400 to-cyan-600'],
-                    ['l2','Lagoon 2','from-cyan-400 to-blue-600'],
-                    ['aqua','Aquavitale','from-emerald-400 to-teal-600'],
-                    ['mpr','Main Pump Room','from-green-400 to-emerald-600'],
+                    ['l1','Lagoon 1'],
+                    ['l2','Lagoon 2'],
+                    ['aqua','Aquavitale'],
+                    ['mpr','Main Pump Room'],
                 ];
                 foreach ($poolMap as $pm):
-                    [$pkey, $ptitle, $pg] = $pm;
+                    [$pkey, $ptitle] = $pm;
                     $alarmKey = $pkey.'_alarm';
                     $pumpKey  = $pkey.'_pump';
                     $pressKey = $pkey.'_press';
@@ -702,53 +715,53 @@ $_rvBadge = function($v, $type='text') {
                     $hasPump = ($pkey !== 'mpr');
                     $hasPress = ($pkey === 'l1' || $pkey === 'l2');
                 ?>
-                <div class="rounded-card border-2 border-dashed border-teal-200 bg-teal-50/30 p-4">
-                    <div class="flex items-center gap-2 mb-3">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br <?= $pg ?> flex items-center justify-center text-white text-xs shadow-sm"><i class="fas fa-swimming-pool"></i></div>
-                        <p class="text-xs font-black uppercase tracking-[0.15em] text-teal-900"><?= $ptitle ?></p>
+                <div class="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/30 p-3.5">
+                    <div class="flex items-center gap-2 mb-2.5">
+                        <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 text-xs"><i class="fas fa-swimming-pool"></i></div>
+                        <p class="text-[10.5px] font-bold uppercase tracking-wider text-slate-700"><?= $ptitle ?></p>
                     </div>
-                    <div class="space-y-2.5">
+                    <div class="space-y-2">
                         <div class="grid grid-cols-2 gap-2">
-                            <div><p class="text-[10px] font-bold text-secondary mb-1">Alarm</p><?= $_rvBadge($eq['pool'][$alarmKey] ?? 'on','onoff') ?></div>
-                            <?php if ($hasPump): ?><div><p class="text-[10px] font-bold text-secondary mb-1">Pump</p><?= $_rvBadge($eq['pool'][$pumpKey] ?? '') ?></div><?php endif; ?>
+                            <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Alarm</p><?= $_rvBadge($eq['pool'][$alarmKey] ?? 'on','onoff') ?></div>
+                            <?php if ($hasPump): ?><div><p class="text-[10px] font-semibold text-slate-600 mb-1">Pump</p><?= $_rvBadge($eq['pool'][$pumpKey] ?? '') ?></div><?php endif; ?>
                         </div>
-                        <?php if ($hasPress): ?><div><p class="text-[10px] font-bold text-secondary mb-1">Press Tank (kg/cm2)</p><?= $_rvBadge($eq['pool'][$pressKey] ?? '') ?></div><?php endif; ?>
-                        <?php if ($hasHwb): ?><div><p class="text-[10px] font-bold text-secondary mb-1">HWB Temp (°C)</p><?= $_rvBadge($eq['pool'][$hwbKey] ?? '') ?></div><?php endif; ?>
-                        <div><p class="text-[10px] font-bold text-secondary mb-1">Submersible</p><?= $_rvBadge($eq['pool'][$subKey] ?? 'auto','sub') ?></div>
+                        <?php if ($hasPress): ?><div><p class="text-[10px] font-semibold text-slate-600 mb-1">Press Tank</p><?= $_rvBadge($eq['pool'][$pressKey] ?? '') ?></div><?php endif; ?>
+                        <?php if ($hasHwb): ?><div><p class="text-[10px] font-semibold text-slate-600 mb-1">HWB Temp</p><?= $_rvBadge($eq['pool'][$hwbKey] ?? '') ?></div><?php endif; ?>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Submersible</p><?= $_rvBadge($eq['pool'][$subKey] ?? 'auto','sub') ?></div>
                     </div>
                 </div>
                 <?php endforeach; ?>
             </div>
         </div>
 
-        <!-- 8. GAS SYSTEM -->
-        <div class="bg-surface rounded-premium border border-rose-200/60 shadow-sm overflow-hidden">
-            <div class="px-5 lg:px-6 py-4 border-b border-rose-100/80 bg-gradient-to-r from-rose-50/90 via-red-50/60 to-orange-50/70">
-                <h3 class="font-bold text-primary flex items-center gap-2">
-                    <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 via-red-600 to-orange-700 flex items-center justify-center text-white shadow-md shadow-rose-500/30"><i class="fas fa-gas-pump text-sm"></i></span>
-                    8. Gas System — Detector 3 Lokasi (Valve + Alarm)
+        <!-- 8 GAS SYSTEM -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100">
+                <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-fire-flame-curved text-xs"></i></span>
+                    Gas System
                 </h3>
             </div>
-            <div class="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 <?php
                 $gasMap = [
-                    ['boneka','Boneka Resto','from-rose-400 to-red-600'],
-                    ['mainkitchen','Main Kitchen','from-red-400 to-orange-600'],
-                    ['kayuputih','Kayu Putih Resto','from-orange-400 to-rose-600'],
+                    ['boneka','Boneka Resto'],
+                    ['mainkitchen','Main Kitchen'],
+                    ['kayuputih','Kayu Putih Resto'],
                 ];
                 foreach ($gasMap as $gm):
-                    [$gkey, $gtitle, $gg] = $gm;
+                    [$gkey, $gtitle] = $gm;
                     $valveKey = $gkey.'_valve';
                     $alarmKey = $gkey.'_alarm';
                 ?>
-                <div class="rounded-card border-2 border-dashed border-rose-200 bg-rose-50/30 p-4">
-                    <div class="flex items-center gap-2 mb-3">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br <?= $gg ?> flex items-center justify-center text-white text-xs shadow-sm"><i class="fas fa-fire-flame-curved"></i></div>
-                        <p class="text-xs font-black uppercase tracking-[0.15em] text-rose-900"><?= $gtitle ?></p>
+                <div class="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/30 p-3.5">
+                    <div class="flex items-center gap-2 mb-2.5">
+                        <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 text-xs"><i class="fas fa-fire-flame-curved"></i></div>
+                        <p class="text-[10.5px] font-bold uppercase tracking-wider text-slate-700"><?= $gtitle ?></p>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div><p class="text-[11px] font-bold text-secondary mb-1">Selenoid Valve</p><?= $_rvBadge($eq['gas'][$valveKey],'valve') ?></div>
-                        <div><p class="text-[11px] font-bold text-secondary mb-1">Alarm</p><?= $_rvBadge($eq['gas'][$alarmKey],'onoff') ?></div>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Valve</p><?= $_rvBadge($eq['gas'][$valveKey],'valve') ?></div>
+                        <div><p class="text-[10px] font-semibold text-slate-600 mb-1">Alarm</p><?= $_rvBadge($eq['gas'][$alarmKey],'onoff') ?></div>
                     </div>
                 </div>
                 <?php endforeach; ?>
@@ -759,70 +772,76 @@ $_rvBadge = function($v, $type='text') {
     <?php endif; ?>
 
     <?php if ($log['revision_notes']): ?>
-        <div class="mb-6 p-5 rounded-premium bg-red-50 border border-red-200 animate-slide-up">
-            <h3 class="font-bold text-red-700 mb-2 flex items-center gap-2"><i class="fas fa-note-sticky"></i>Catatan Revisi Sebelumnya</h3>
-            <p class="text-red-800 whitespace-pre-wrap"><?= nl2br(cleanInput($log['revision_notes'])) ?></p>
+        <div class="mb-5 p-4 rounded-xl bg-slate-50 border border-slate-200 animate-slide-up">
+            <h3 class="font-semibold text-sm text-slate-800 mb-2 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center"><i class="fas fa-note-sticky text-xs"></i></span>
+                Catatan Revisi Sebelumnya
+            </h3>
+            <p class="text-slate-700 whitespace-pre-wrap text-sm"><?= nl2br(cleanInput($log['revision_notes'])) ?></p>
         </div>
     <?php endif; ?>
 
     <?php if ($log['supervisor_signature']): ?>
-        <div class="mb-6 p-5 bg-green-50 border border-green-200 rounded-premium animate-slide-up">
+        <div class="mb-5 p-4 bg-slate-50 border border-slate-200 rounded-xl animate-slide-up">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h3 class="font-bold text-green-700 flex items-center gap-2 mb-1"><i class="fas fa-signature"></i>Disetujui oleh</h3>
-                    <p class="text-green-800 font-semibold"><?= cleanInput($log['supervisor_name'] ?? $user['name']) ?></p>
-                    <p class="text-xs text-green-600 mt-0.5">Pada: <?= formatDateTime($log['approved_at']) ?></p>
+                    <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2 mb-1">
+                        <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center"><i class="fas fa-signature text-xs"></i></span>
+                        Disetujui oleh
+                    </h3>
+                    <p class="text-slate-800 font-semibold text-sm"><?= cleanInput($log['supervisor_name'] ?? $user['name']) ?></p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Pada: <?= formatDateTime($log['approved_at']) ?></p>
                 </div>
-                <img src="<?= UPLOAD_URL . $log['supervisor_signature'] ?>" alt="Signature" class="h-24 bg-white rounded-lg border border-green-200 p-2 shadow-sm">
+                <img src="<?= UPLOAD_URL . $log['supervisor_signature'] ?>" alt="Signature" class="h-20 bg-white rounded-lg border border-slate-200 p-2 shadow-sm">
             </div>
         </div>
     <?php endif; ?>
 
     <?php if ($log['status'] === 'pending'): ?>
-    <div class="bg-surface rounded-premium border-2 border-primary shadow-xl overflow-hidden animate-slide-up" style="animation-delay: 200ms">
-        <div class="px-5 lg:px-6 py-4 bg-gradient-to-r from-primary via-gray-900 to-primary text-white">
-            <h3 class="font-bold text-lg flex items-center gap-2"><i class="fas fa-file-signature"></i>Approval Digital</h3>
-            <p class="text-xs text-white/70 mt-0.5">Berikan tanda tangan dan persetujuan Anda</p>
+    <div class="bg-white rounded-xl border-2 border-slate-300 shadow-lg overflow-hidden animate-slide-up" style="animation-delay: 200ms">
+        <div class="px-4 sm:px-5 py-3.5 bg-slate-800 text-white">
+            <h3 class="font-bold text-base flex items-center gap-2"><i class="fas fa-file-signature"></i>Approval Digital</h3>
+            <p class="text-[11px] text-slate-300 mt-0.5">Berikan tanda tangan dan persetujuan Anda</p>
         </div>
-        <div class="p-5 lg:p-6 space-y-6">
+        <div class="p-4 sm:p-5 space-y-5">
             <form method="POST" id="reviewForm">
                 <div id="approveSection" class="hidden">
-                    <label class="block text-sm font-semibold text-primary mb-2">
-                        <i class="fas fa-pen mr-1.5 text-accent"></i>Tanda Tangan Digital <span class="text-red-500">*</span>
+                    <label class="block text-sm font-semibold text-slate-800 mb-2">
+                        <i class="fas fa-pen mr-1.5 text-slate-500"></i>Tanda Tangan Digital <span class="text-red-500">*</span>
                     </label>
-                    <div class="rounded-card border-2 border-dashed border-border bg-muted/30 overflow-hidden touch-none">
+                    <div class="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/40 overflow-hidden touch-none">
                         <canvas id="signaturePad" width="800" height="220" class="w-full h-48 sm:h-56 cursor-crosshair bg-white block"></canvas>
                     </div>
                     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mt-3">
                         <button type="button" onclick="clearSignature()" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                            <i class="fas fa-eraser"></i>Hapus Tanda Tangan
+                            <i class="fas fa-eraser text-xs"></i>Hapus Tanda Tangan
                         </button>
-                        <div class="flex items-center gap-2 text-xs text-secondary">
-                            <i class="fas fa-info-circle text-accent"></i>
+                        <div class="flex items-center gap-2 text-[11px] text-slate-500">
+                            <i class="fas fa-info-circle"></i>
                             Tanda tangan Anda sebagai bukti persetujuan
                         </div>
                     </div>
                 </div>
 
                 <div id="rejectSection" class="hidden">
-                    <label class="block text-sm font-semibold text-primary mb-2">
-                        <i class="fas fa-note-sticky mr-1.5 text-red-600"></i>Catatan Revisi <span class="text-red-500">*</span>
+                    <label class="block text-sm font-semibold text-slate-800 mb-2">
+                        <i class="fas fa-note-sticky mr-1.5 text-slate-500"></i>Catatan Revisi <span class="text-red-500">*</span>
                     </label>
                     <textarea id="rejectNotes" name="revision_notes" rows="4"
-                        class="w-full px-4 py-3 rounded-card border border-border bg-muted/50 text-primary placeholder-secondary/60 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 focus:bg-surface transition-all resize-none"
+                        class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50/40 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200 focus:bg-white transition-all resize-none text-sm"
                         placeholder="Jelaskan alasan penolakan dan hal yang perlu diperbaiki..."></textarea>
-                    <p class="text-[11px] text-secondary mt-1.5"><i class="fas fa-info-circle mr-1"></i>Catatan ini akan dikirim ke engineer untuk perbaikan</p>
+                    <p class="text-[11px] text-slate-500 mt-1.5"><i class="fas fa-info-circle mr-1"></i>Catatan ini akan dikirim ke engineer untuk perbaikan</p>
                 </div>
 
-                <div class="flex flex-col sm:flex-row sm:justify-end gap-3 pt-4 border-t border-border">
+                <div class="flex flex-col sm:flex-row sm:justify-end gap-3 pt-4 border-t border-slate-100">
                     <button type="button" onclick="setAction('reject')"
-                        class="px-6 py-3.5 rounded-card bg-red-50 text-red-700 font-semibold border border-red-200 hover:bg-red-100 transition-all duration-300 flex items-center justify-center gap-2 group">
-                        <i class="fas fa-circle-xmark group-hover:scale-110 transition-transform"></i>
+                        class="px-5 py-3 rounded-xl bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:bg-slate-100 hover:border-slate-300 transition-all flex items-center justify-center gap-2 text-sm">
+                        <i class="fas fa-circle-xmark"></i>
                         Reject Daily Log
                     </button>
                     <button type="button" onclick="setAction('approve')"
-                        class="px-6 py-3.5 rounded-card bg-gradient-to-r from-green-600 via-green-700 to-green-600 text-white font-semibold shadow-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 group animate-pulse-glow">
-                        <i class="fas fa-circle-check group-hover:scale-110 transition-transform"></i>
+                        class="px-5 py-3 rounded-xl bg-slate-800 text-white font-semibold shadow-sm hover:bg-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-2 text-sm">
+                        <i class="fas fa-circle-check"></i>
                         Approve Daily Log
                     </button>
                 </div>

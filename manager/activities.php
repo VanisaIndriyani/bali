@@ -379,6 +379,91 @@ try {
     unset($_mastersAll, $_m, $dv, $ttl, $st);
 } catch (Throwable $e) {}
 
+// ================================================================
+// 📋 COLLECT SEMUA ACTIVITY ITEMS (status PROGRESS SAJA) → FLAT ROWS
+//    Sumber: 1) activity_*_items JSON di daily_logs (all approved logs)
+//            2) activity_masters dengan status_default = progress
+// ================================================================
+$engActRows = [];
+try {
+    // 🅰️  DARI DAILY LOGS (semua log, bukan hanya bulan ini, agar history activity progress tetap kelihatan)
+    $colMap = [
+        'operation'   => 'activity_operation_items',
+        'maintenance' => 'activity_maintenance_items',
+        'project'     => 'activity_project_items',
+        'landscape'   => 'activity_landscape_items',
+    ];
+    $sqlLogs = "SELECT dl.id, dl.log_date, dl.engineer_id, COALESCE(u.name,'-') as engineer_name,
+                       dl.activity_operation_items, dl.activity_maintenance_items,
+                       dl.activity_project_items, dl.activity_landscape_items
+                FROM daily_logs dl
+                LEFT JOIN users u ON u.id = dl.engineer_id
+                WHERE dl.status = 'approved'
+                ORDER BY dl.log_date DESC, dl.id DESC";
+    $logRows = $db->fetchAll($sqlLogs);
+    foreach ($logRows as $lr) {
+        foreach ($colMap as $div => $colName) {
+            $json = (string)($lr[$colName] ?? '');
+            if ($json === '') continue;
+            $arr = json_decode($json, true);
+            if (!is_array($arr) || count($arr) === 0) continue;
+            foreach ($arr as $it) {
+                if (!is_array($it) || empty($it['t'])) continue;
+                $st = (($it['s'] ?? 'progress') === 'complete') ? 'complete' : 'progress';
+                if ($st !== 'progress') continue;
+                $engActRows[] = [
+                    'division'       => $div,
+                    'activity_name'  => trim((string)$it['t']),
+                    'log_date'       => (string)$lr['log_date'],
+                    'engineer_name'  => (string)($lr['engineer_name'] ?? '-'),
+                    'status'         => 'progress',
+                    'is_master'      => false,
+                ];
+            }
+        }
+    }
+    unset($logRows, $lr, $it, $arr, $json);
+
+    // 🅱️  DARI ACTIVITY MASTERS (default status = progress) → label "Master Activity" di BY ENG
+    $mstRows = $db->fetchAll("SELECT id, division, activity_name, status_default, created_at
+                              FROM activity_masters
+                              WHERE status_default = 'progress'
+                              ORDER BY FIELD(division,'operation','maintenance','project','landscape'),
+                                       sort_order ASC, id ASC");
+    foreach ($mstRows as $mr) {
+        $engActRows[] = [
+            'division'       => (string)$mr['division'],
+            'activity_name'  => trim((string)$mr['activity_name']),
+            'log_date'       => date('Y-m-d', strtotime((string)($mr['created_at'] ?? 'now'))),
+            'engineer_name'  => 'Master Activity',
+            'status'         => 'progress',
+            'is_master'      => true,
+        ];
+    }
+    unset($mstRows, $mr);
+
+    // 📶 SORT: tanggal TERBARU di ATAS, lalu divisi, lalu nama activity
+    usort($engActRows, function ($a, $b) {
+        if ($a['log_date'] !== $b['log_date']) {
+            return strcmp($b['log_date'], $a['log_date']);
+        }
+        $dvOrder = ['operation'=>0,'maintenance'=>1,'project'=>2,'landscape'=>3];
+        $ao = $dvOrder[$a['division']] ?? 9;
+        $bo = $dvOrder[$b['division']] ?? 9;
+        if ($ao !== $bo) return $ao - $bo;
+        return strcasecmp($a['activity_name'], $b['activity_name']);
+    });
+} catch (Throwable $e) {
+    error_log('manager/activities.php collect progress rows: ' . $e->getMessage());
+    $engActRows = [];
+}
+$divLabelMap = [
+    'operation'   => 'OPERATION',
+    'maintenance' => 'MAINTENANCE',
+    'project'     => 'PROJECT',
+    'landscape'   => 'LANDSCAPE',
+];
+
 foreach ($cats as $c) {
     $todayCnt = buildActCnt($db, $today, $today, $c['id'], $userId, 'manager');
     $monthCnt = buildActCnt($db, $monthStart, $today, $c['id'], $userId, 'manager');
@@ -870,6 +955,156 @@ if (empty($printAllActs)) {
                 </div>
             </div>
             <?php endforeach; ?>
+        </div>
+
+        <!-- ════════════════════════════════════════════════════════════════════ -->
+        <!-- 📋 ENGINEERING ACTIVITIES TABLE (IN PROGRESS ONLY)                   -->
+        <!--     Format: DEPARTMENT | ACTIVITY DETAIL (LEBAR) | DATE | BY ENG | STATUS -->
+        <!-- ════════════════════════════════════════════════════════════════════ -->
+        <div class="mt-6 sm:mt-7 mb-5 sm:mb-6">
+            <div class="mb-4 pb-2.5 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2.5 border-b border-slate-100">
+                <div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 mb-1 pl-1">DAFTAR ON-GOING TASK</p>
+                    <h3 class="font-display text-lg lg:text-xl font-black text-primary flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-white shadow-sm text-[12px]">
+                            <i class="fas fa-list-check"></i>
+                        </span>
+                        Engineering Activities
+                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-700 ml-1">
+                            <i class="fas fa-filter text-[8px]"></i> Only In Progress
+                        </span>
+                    </h3>
+                    <p class="text-[11px] text-slate-500 mt-1 pl-1">Total <span class="font-black text-slate-800"><?= count($engActRows) ?></span> aktivitas sedang berjalan (status Complete otomatis disembunyikan).</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-[13px] border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b-2 border-slate-200">
+                                <th class="px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 w-32 whitespace-nowrap border-r border-slate-200">
+                                    DEPARTMENT
+                                </th>
+                                <th class="px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 min-w-[380px] w-[42%]">
+                                    ACTIVITY DETAIL
+                                </th>
+                                <th class="px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 w-32 whitespace-nowrap text-center border-l border-slate-200">
+                                    DATE
+                                </th>
+                                <th class="px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 w-52 whitespace-nowrap border-l border-slate-200">
+                                    BY ENG
+                                </th>
+                                <th class="px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 w-32 whitespace-nowrap text-center border-l border-slate-200">
+                                    STATUS
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <?php if (empty($engActRows)): ?>
+                            <tr>
+                                <td colspan="5" class="px-4 py-14 text-center">
+                                    <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                                        <i class="far fa-clipboard-list-check text-2xl"></i>
+                                    </div>
+                                    <h5 class="font-black text-slate-700 mb-1 text-sm">Semua Aktivitas Sudah Selesai 🎉</h5>
+                                    <p class="text-[11px] text-slate-500 max-w-sm mx-auto leading-relaxed">Tidak ada aktivitas dengan status <span class="font-bold text-slate-700">In Progress</span> saat ini. Tambahkan activity baru atau ubah status progress melalui form manager.</p>
+                                </td>
+                            </tr>
+                            <?php else:
+                                $prevDept = '';
+                                foreach ($engActRows as $row):
+                                    $dept = (string)($row['division'] ?? 'operation');
+                                    $deptLabel = strtoupper($divLabelMap[$dept] ?? $dept);
+                                    $isSameDept = ($prevDept === $dept);
+                                    $prevDept = $dept;
+                                    $isMaster = !empty($row['is_master']);
+                                    $dateFormatted = date('j-M-y', strtotime((string)$row['log_date']));
+                                    $engName = (string)($row['engineer_name'] ?? '-');
+                                    $actName = trim((string)$row['activity_name'] ?? '');
+                            ?>
+                            <tr class="hover:bg-slate-50/60 transition-colors <?php if ($isMaster) echo 'bg-slate-50/30'; ?>">
+                                <!-- DEPARTMENT -->
+                                <td class="px-4 py-3 align-top border-r border-slate-100">
+                                    <?php if (!$isSameDept): ?>
+                                    <div class="flex flex-col gap-1">
+                                        <?php
+                                            $deptBadgeColor = match($dept) {
+                                                'operation'   => 'border-slate-300 text-slate-800 bg-slate-100',
+                                                'maintenance' => 'border-slate-300 text-slate-800 bg-slate-100',
+                                                'project'     => 'border-slate-300 text-slate-800 bg-slate-100',
+                                                'landscape'   => 'border-slate-300 text-slate-800 bg-slate-100',
+                                                default       => 'border-slate-300 text-slate-800 bg-slate-100',
+                                            };
+                                        ?>
+                                        <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-md border text-[10px] font-black uppercase tracking-[0.15em] whitespace-nowrap <?= $deptBadgeColor ?>">
+                                            <?= $deptLabel ?>
+                                        </span>
+                                    </div>
+                                    <?php endif; ?>
+                                </td>
+                                <!-- ACTIVITY DETAIL (LEBAR) -->
+                                <td class="px-4 py-3 align-top">
+                                    <div class="text-[14px] font-semibold text-slate-800 leading-relaxed break-words pr-1">
+                                        <?= htmlspecialchars($actName) ?>
+                                    </div>
+                                    <?php if ($isMaster): ?>
+                                    <div class="mt-1.5 inline-flex items-center gap-1 text-[9.5px] font-black uppercase tracking-[0.18em] text-sky-700 px-2 py-0.5 rounded-md bg-sky-50 border border-sky-200">
+                                        <i class="fas fa-database text-[8px]"></i> Master Template
+                                    </div>
+                                    <?php endif; ?>
+                                </td>
+                                <!-- DATE -->
+                                <td class="px-4 py-3 align-top text-center border-l border-slate-100">
+                                    <span class="inline-block text-[12px] font-bold text-slate-800 font-mono whitespace-nowrap">
+                                        <?= $dateFormatted ?>
+                                    </span>
+                                </td>
+                                <!-- BY ENG -->
+                                <td class="px-4 py-3 align-top border-l border-slate-100">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <?php if ($isMaster): ?>
+                                        <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 text-white flex items-center justify-center font-black text-[10px] shadow-sm ring-1 ring-white shrink-0">
+                                            <i class="fas fa-database text-[10px]"></i>
+                                        </div>
+                                        <span class="inline-flex items-center gap-1 text-[11px] font-black text-sky-700 px-2 py-0.5 rounded bg-sky-50 border border-sky-200">
+                                            Master Activity
+                                        </span>
+                                        <?php else:
+                                            $init = strtoupper(mb_substr($engName, 0, 1) ?: '?');
+                                        ?>
+                                        <div class="w-7 h-7 rounded-lg bg-slate-700 text-white flex items-center justify-center font-black text-[10px] shadow-sm ring-1 ring-white shrink-0">
+                                            <?= $init ?>
+                                        </div>
+                                        <span class="text-[12px] font-semibold text-slate-800 truncate min-w-0">
+                                            <?= htmlspecialchars($engName) ?>
+                                        </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                                <!-- STATUS -->
+                                <td class="px-4 py-3 align-top text-center border-l border-slate-100">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-300 text-slate-800 text-[10.5px] font-black uppercase tracking-wider whitespace-nowrap">
+                                        <i class="far fa-clock text-[9px]"></i>
+                                        In Progress
+                                    </span>
+                                </td>
+                            </tr>
+                            <?php endforeach; endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php if (!empty($engActRows)): ?>
+                <div class="px-4 py-2.5 border-t border-slate-100 bg-slate-50/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        <i class="fas fa-circle-info mr-1"></i> Menampilkan <?= count($engActRows) ?> dari total seluruh data progress (yang status Complete disembunyikan).
+                    </span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:text-right">
+                        Format: Department • Activity Detail • Date • By Eng • Status
+                    </span>
+                </div>
+                <?php endif; ?>
+            </div>
         </div>
 
         <div class="pt-5 sm:pt-6 border-t border-dashed border-slate-200">

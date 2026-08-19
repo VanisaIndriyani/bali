@@ -197,6 +197,67 @@ try {
     $konsumsiAirTotal = 0.0;
 }
 
+// ───────────────────────────────────────────────────────────────
+// ── 2) DETAIL LOGS PER TANGGAL (sesuai filter) ─────────────────
+// ───────────────────────────────────────────────────────────────
+$detailLogs = [];
+try {
+    $sql = "SELECT
+        DATE(dl.log_date) as tgl,
+        dl.shift,
+        u.name as engineer_name,
+        COALESCE(CAST(COALESCE(dl.total_electricity,0) AS DECIMAL(18,4)),0) as elec,
+        COALESCE(CAST(COALESCE(dl.total_water,0) AS DECIMAL(18,4)),0) as water,
+        COALESCE(CAST(COALESCE(dl.total_gas,0) AS DECIMAL(18,4)),0) as gas,
+        COALESCE(CAST(COALESCE(dl.total_fuel,0) AS DECIMAL(18,4)),0) as fuel
+        FROM daily_logs dl
+        LEFT JOIN users u ON dl.engineer_id = u.id
+        WHERE DATE(dl.log_date) BETWEEN ? AND ? AND dl.status='approved' $statusWhere
+        UNION ALL
+        SELECT
+        DATE(el.log_date) as tgl,
+        '' as shift,
+        COALESCE(u.name, '- Energy') as engineer_name,
+        (CAST(COALESCE(el.pln_lwbp_kwh,0) AS DECIMAL(18,4)) + CAST(COALESCE(el.pln_wbp_kwh,0) AS DECIMAL(18,4)) + CAST(COALESCE(el.genset_kwh,0) AS DECIMAL(18,4))) as elec,
+        (CAST(COALESCE(el.air_m3,0) AS DECIMAL(18,4)) + CAST(COALESCE(el.air_deep_well_m3,0) AS DECIMAL(18,4))) as water,
+        (CAST(COALESCE(el.gas_kg,0) AS DECIMAL(18,4)) + CAST(COALESCE(el.gas_lng_kg,0) AS DECIMAL(18,4))) as gas,
+        CAST(COALESCE(el.solar_liter,0) AS DECIMAL(18,4)) as fuel
+        FROM energy_logs el
+        LEFT JOIN users u ON el.created_by = u.id
+        WHERE DATE(el.log_date) BETWEEN ? AND ?
+        ORDER BY tgl DESC, shift DESC";
+    $params = array_merge([$dateFrom, $dateTo], [$dateFrom, $dateTo]);
+    if ($userRole === 'engineer') {
+        $sqlDPart = "SELECT DATE(dl.log_date) as tgl, dl.shift, u.name as engineer_name,
+            COALESCE(CAST(COALESCE(dl.total_electricity,0) AS DECIMAL(18,4)),0) as elec,
+            COALESCE(CAST(COALESCE(dl.total_water,0) AS DECIMAL(18,4)),0) as water,
+            COALESCE(CAST(COALESCE(dl.total_gas,0) AS DECIMAL(18,4)),0) as gas,
+            COALESCE(CAST(COALESCE(dl.total_fuel,0) AS DECIMAL(18,4)),0) as fuel
+            FROM daily_logs dl LEFT JOIN users u ON dl.engineer_id = u.id
+            WHERE DATE(dl.log_date) BETWEEN ? AND ? AND dl.status='approved' AND dl.engineer_id=?";
+        $elCols = @$db->fetchAll("SHOW COLUMNS FROM energy_logs LIKE 'created_by'");
+        if (!empty($elCols)) {
+            $sql = $sqlDPart . " UNION ALL SELECT DATE(el.log_date) as tgl, '' as shift,
+                COALESCE(u.name, '- Energy') as engineer_name,
+                (CAST(COALESCE(el.pln_lwbp_kwh,0) AS DECIMAL(18,4))+CAST(COALESCE(el.pln_wbp_kwh,0) AS DECIMAL(18,4))+CAST(COALESCE(el.genset_kwh,0) AS DECIMAL(18,4))) as elec,
+                (CAST(COALESCE(el.air_m3,0) AS DECIMAL(18,4))+CAST(COALESCE(el.air_deep_well_m3,0) AS DECIMAL(18,4))) as water,
+                (CAST(COALESCE(el.gas_kg,0) AS DECIMAL(18,4))+CAST(COALESCE(el.gas_lng_kg,0) AS DECIMAL(18,4))) as gas,
+                CAST(COALESCE(el.solar_liter,0) AS DECIMAL(18,4)) as fuel
+                FROM energy_logs el LEFT JOIN users u ON el.created_by = u.id
+                WHERE DATE(el.log_date) BETWEEN ? AND ? AND el.created_by=?
+                ORDER BY tgl DESC, shift DESC";
+            $params = [$dateFrom, $dateTo, $userId, $dateFrom, $dateTo, $userId];
+        } else {
+            $sql = $sqlDPart . " ORDER BY tgl DESC, shift DESC";
+            $params = [$dateFrom, $dateTo, $userId];
+        }
+    }
+    $detailLogs = $db->fetchAll($sql, $params);
+} catch (\Throwable $ex) {
+    $detailLogs = [];
+    error_log('energy.php detailLogs error: '.$ex->getMessage());
+}
+
 function fmtENum($n, $dec = 2)
 {
     if ($n <= 0) return '0';
@@ -262,7 +323,7 @@ include __DIR__ . '/includes/sidebar.php';
         </form>
     </div>
 
-    <!-- 6 STATISTIC CARDS ENERGY (REAL DARI DB! 2 BARIS x 3 KOLOM DI LAPTOP. 6th card Air Deep Well) -->
+    <!-- 6 STATISTIC CARDS ENERGY -->
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3 mb-6 animate-slide-up" style="animation-delay: 80ms">
         <?php foreach ($energyStats as $s): ?>
         <div class="rounded-xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm">
@@ -280,6 +341,68 @@ include __DIR__ . '/includes/sidebar.php';
             </div>
         </div>
         <?php endforeach; ?>
+    </div>
+
+    <!-- DETAIL LOGS PER TANGGAL (FULL SESUAI FILTER) STYLE NETRAL -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 100ms">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3">
+            <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-list text-xs"></i></span>
+                Detail Logs (<?= count($detailLogs) ?> data)
+            </h3>
+            <span class="text-[10px] font-semibold text-slate-500">Periode: <?= date('d/m/Y', strtotime($dateFrom)) ?> - <?= date('d/m/Y', strtotime($dateTo)) ?></span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-[12px]">
+                <thead>
+                    <tr class="bg-slate-50 border-b border-slate-200">
+                        <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600">Tanggal</th>
+                        <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600">Shift</th>
+                        <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600">Engineer</th>
+                        <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 text-right">Listrik (kWh)</th>
+                        <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 text-right">Air (m3)</th>
+                        <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 text-right">Gas (kg)</th>
+                        <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 text-right">Solar (L)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <?php if (empty($detailLogs)): ?>
+                    <tr>
+                        <td colspan="7" class="px-4 py-8 text-center text-slate-400 text-[11px] font-medium italic">
+                            <i class="fas fa-inbox mb-1.5 block text-slate-300 text-xl"></i>
+                            Belum ada data energy di periode ini.
+                        </td>
+                    </tr>
+                    <?php else:
+                        $grpTgl = '';
+                        foreach ($detailLogs as $d):
+                            $tglLabel = date('d M Y', strtotime($d['tgl']));
+                            $sameTgl = ($grpTgl === $d['tgl']);
+                            $grpTgl = $d['tgl'];
+                            $shiftBadge = match(strtolower($d['shift'] ?? '')) {
+                                'pagi' => '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[9.5px] font-bold uppercase"><i class="fas fa-sun text-[8px]"></i> Pagi</span>',
+                                'siang' => '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[9.5px] font-bold uppercase"><i class="fas fa-cloud-sun text-[8px]"></i> Siang</span>',
+                                'malam' => '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 text-white text-[9.5px] font-bold uppercase"><i class="fas fa-moon text-[8px]"></i> Malam</span>',
+                                default => '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-50 border border-dashed border-slate-200 text-slate-500 text-[9.5px] font-bold"><i class="fas fa-plug text-[8px]"></i> Energy</span>',
+                            };
+                    ?>
+                    <tr class="hover:bg-slate-50/60 transition-colors">
+                        <td class="px-4 py-2.5">
+                            <?php if (!$sameTgl): ?>
+                            <span class="font-semibold text-slate-800"><?= $tglLabel ?></span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="px-4 py-2.5"><?= $shiftBadge ?></td>
+                        <td class="px-4 py-2.5 text-slate-700 font-medium"><?= htmlspecialchars($d['engineer_name'] ?? '-') ?></td>
+                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['elec'], 1) ?></td>
+                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['water'], 1) ?></td>
+                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['gas'], 1) ?></td>
+                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['fuel'], 1) ?></td>
+                    </tr>
+                    <?php endforeach; endif; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
 
 
