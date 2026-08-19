@@ -309,12 +309,12 @@ $elecTodayLwbp  = $log && isset($log['electricity_lwbp'])  ? (float)$log['electr
 $elecTodayTotal = $elecTodayWbp + $elecTodayLwbp;
 
 // Konsumsi hari ini (hanya berlaku jika SHIFT = MALAM. Pagi/Siang = 0)
-// ✅ Rumus Konsumsi Air = (MB Hari Ini − MB Kemarin) × 10 (dikalikan 10 sesuai request user)
+// ✅ Rumus Konsumsi Air = (MB Hari Ini − MB Kemarin) → CUKUP SELISIH SAJA (tidak dikali 10 lagi)
 // ✅ Rumus Konsumsi Listrik = (LWBP Hari Ini − LWBP Kemarin) × 8000 + (WBP Hari Ini − WBP Kemarin) × 8000 (Rumus dari WA customer: faktor kali digit meter × 8000 jadi kwh, BUKAN tarif!)
 $curLogShift = (!empty($log['shift']) && in_array($log['shift'], $allShifts, true)) ? (string)$log['shift'] : '';
 $existingIsMalam = ($curLogShift === 'malam');
 // Air
-$mbConsumption = $existingIsMalam ? (max(0.0, $mbTodayRead - $mbYesterdayRead) * 10) : (float)($log['total_water'] ?? 0);
+$mbConsumption = $existingIsMalam ? max(0.0, $mbTodayRead - $mbYesterdayRead) : (float)($log['total_water'] ?? 0);
 // Listrik — sesuai rumus WA customer × 8000 FAKTOR KALI METER (bukan tarif)
 $eLwbpConsNow = $existingIsMalam ? (max(0.0, $elecTodayLwbp - $elecYesterdayLwbp) * 8000) : 0.0;
 $eWbpConsNow  = $existingIsMalam ? (max(0.0, $elecTodayWbp  - $elecYesterdayWbp)  * 8000) : 0.0;
@@ -1209,7 +1209,7 @@ HTML;
                 </h3>
                 <div id="waterNotice" class="mt-2 text-[10.5px] px-2.5 py-1.5 rounded-md border <?= $isMalamNow ? 'bg-slate-50 text-slate-700 border-slate-200' : 'bg-white text-slate-600 border-slate-200' ?>">
                     <?php if ($isMalamNow): ?>
-                        <i class="fas fa-moon mr-1 text-slate-500"></i><b>Malam</b> — Main Bld = (Today−Kemarin) × 10. Total masuk Cost.
+                        <i class="fas fa-moon mr-1 text-slate-500"></i><b>Malam</b> — Main Bld = (Today−Kemarin). Total masuk Cost.
                     <?php else: ?>
                         <i class="fas fa-circle-check mr-1 text-slate-500"></i><b>Pagi/Siang</b> — Bisa isi, Total = 0.
                     <?php endif; ?>
@@ -1256,7 +1256,7 @@ HTML;
                             </div>
                         </div>
                         <div class="flex items-center justify-between text-[10px] font-semibold pt-1 border-t border-slate-200/60">
-                            <span class="text-slate-600">Selisih × 10</span>
+                            <span class="text-slate-600">Selisih</span>
                             <span class="text-slate-800" id="waterMainCons">{$mbConsFmt} m3</span>
                         </div>
                     </div>
@@ -2057,7 +2057,7 @@ HTML;
             if (wNotice) {
                 if (isMalam) {
                     wNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-slate-50 text-slate-700 border-slate-200';
-                    wNotice.innerHTML = '<i class="fas fa-moon mr-1"></i> <b>Malam</b> — Main Bld = (Today − Kemarin) × 10. Hasil masuk Cost & Dashboard.';
+                    wNotice.innerHTML = '<i class="fas fa-moon mr-1"></i> <b>Malam</b> — Main Bld = (Today − Kemarin). Hasil masuk Cost & Dashboard.';
                 } else {
                     wNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-slate-50 text-slate-600 border-slate-200';
                     wNotice.innerHTML = '<i class="fas fa-circle-check mr-1"></i> <b>Pagi/Siang</b> — Reading diisi saja, Total = 0 (tidak masuk cost).';
@@ -2091,14 +2091,14 @@ HTML;
             if (lblLwbp) lblLwbp.textContent = lwbpUsage.toFixed(2) + ' kWh';
 
             // 2. TOTAL WATER = HANYA MAIN BUILDING SAJA, hanya MALAM hitung selisih
-            // ✅ Rumus Konsumsi Air = (MB Hari Ini − MB Kemarin) × 10 (sesuai request user)
+            // ✅ Rumus Konsumsi Air = (MB Hari Ini − MB Kemarin) → CUKUP SELISIH SAJA (tidak × 10 lagi)
             let wmb = document.getElementById('waterMainBuild');
             let wCons = 0;
             if (wmb) {
                 let yWater = parseFloat(wmb.getAttribute('data-yesterday') || 0);
                 let tWater = parseFloat(wmb.value || 0);
                 let wDiff  = Math.max(0, tWater - yWater);
-                wCons = isMalam ? (wDiff * 10) : 0;
+                wCons = isMalam ? wDiff : 0;
                 let lblCons = document.getElementById('waterMainCons');
                 if (lblCons) lblCons.textContent = wCons.toFixed(2) + ' m3';
             }
