@@ -261,18 +261,22 @@ try {
 function fmtENum($n, $dec = 2)
 {
     if ($n <= 0) return '0';
+    if ($dec === null) {
+        $abs = abs($n);
+        $dec = ($abs >= 100) ? 0 : 1;
+    }
     return number_format($n, $dec, ',', '.');
 }
 
 $periodeLabel = date('d M Y', strtotime($dateFrom)) . ' - ' . date('d M Y', strtotime($dateTo));
 
 $energyStats = [
-    ['label' => 'Konsumsi Listrik', 'unit' => 'kWh',   'val' => fmtENum($elecTotal, 2),  'sub' => $periodeLabel],
-    ['label' => 'Konsumsi Solar',   'unit' => 'Liter', 'val' => fmtENum($solarTotal, 2), 'sub' => $periodeLabel],
-    ['label' => 'Konsumsi Gas LPG', 'unit' => 'Kg',    'val' => fmtENum($gasLpgTotal, 1),'sub' => $periodeLabel],
-    ['label' => 'Konsumsi Gas LNG', 'unit' => 'Kg',    'val' => fmtENum($gasLngTotal, 1),'sub' => $periodeLabel],
-    ['label' => 'Konsumsi Air',     'unit' => 'm3',    'val' => fmtENum($konsumsiAirTotal, 1),'sub' => $periodeLabel],
-    ['label' => 'Air Deep Well',    'unit' => 'm3',    'val' => fmtENum($airDeepTotal, 1),'sub' => $periodeLabel],
+    ['label' => 'Konsumsi Listrik', 'unit' => 'kWh',   'val' => fmtENum($elecTotal, null),  'sub' => $periodeLabel],
+    ['label' => 'Konsumsi Solar',   'unit' => 'L',     'val' => fmtENum($solarTotal, null), 'sub' => $periodeLabel],
+    ['label' => 'Konsumsi Gas LPG', 'unit' => 'kg',    'val' => fmtENum($gasLpgTotal, null),'sub' => $periodeLabel],
+    ['label' => 'Konsumsi Gas LNG', 'unit' => 'kg',    'val' => fmtENum($gasLngTotal, null),'sub' => $periodeLabel],
+    ['label' => 'Konsumsi Air',     'unit' => 'm³',    'val' => fmtENum($konsumsiAirTotal, null),'sub' => $periodeLabel],
+    ['label' => 'Air Deep Well',    'unit' => 'm³',    'val' => fmtENum($airDeepTotal, null),'sub' => $periodeLabel],
 ];
 
 $pageTitle = 'Energy Dashboard';
@@ -326,16 +330,18 @@ include __DIR__ . '/includes/sidebar.php';
     <!-- 6 STATISTIC CARDS ENERGY -->
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3 mb-6 animate-slide-up" style="animation-delay: 80ms">
         <?php foreach ($energyStats as $s): ?>
-        <div class="rounded-xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm">
-            <p class="text-[10px] font-black uppercase tracking-wider text-slate-500 leading-tight"><?= htmlspecialchars($s['label']) ?></p>
-            <?php if (!empty($s['sub'])): ?>
-            <p class="text-[9px] font-bold text-slate-400 mt-0.5 leading-tight"><?= htmlspecialchars($s['sub']) ?></p>
-            <?php endif; ?>
-            <div class="mt-2">
+        <div class="rounded-xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm flex flex-col min-h-[122px]">
+            <div class="mb-auto">
+                <p class="text-[10px] font-black uppercase tracking-wider text-slate-500 leading-tight"><?= htmlspecialchars($s['label']) ?></p>
+                <?php if (!empty($s['sub'])): ?>
+                <p class="text-[9px] font-bold text-slate-400 mt-0.5 leading-tight"><?= htmlspecialchars($s['sub']) ?></p>
+                <?php endif; ?>
+            </div>
+            <div class="mt-2 text-right">
                 <p class="font-display text-xl sm:text-2xl font-black text-primary leading-none">
                     <?= htmlspecialchars($s['val']) ?>
                 </p>
-                <p class="text-[12px] font-bold text-slate-400 mt-1.5 leading-tight">
+                <p class="text-[12px] font-bold text-slate-400 mt-1.5 leading-tight tracking-wide">
                     <?= htmlspecialchars($s['unit']) ?>
                 </p>
             </div>
@@ -360,7 +366,7 @@ include __DIR__ . '/includes/sidebar.php';
                         <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600">Shift</th>
                         <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600">Engineer</th>
                         <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 text-right">Listrik (kWh)</th>
-                        <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 text-right">Air (m3)</th>
+                        <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 text-right">Air (m³)</th>
                         <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 text-right">Gas (kg)</th>
                         <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 text-right">Solar (L)</th>
                     </tr>
@@ -394,10 +400,10 @@ include __DIR__ . '/includes/sidebar.php';
                         </td>
                         <td class="px-4 py-2.5"><?= $shiftBadge ?></td>
                         <td class="px-4 py-2.5 text-slate-700 font-medium"><?= htmlspecialchars($d['engineer_name'] ?? '-') ?></td>
-                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['elec'], 1) ?></td>
-                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['water'], 1) ?></td>
-                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['gas'], 1) ?></td>
-                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['fuel'], 1) ?></td>
+                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['elec'], null) ?></td>
+                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['water'], null) ?></td>
+                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['gas'], null) ?></td>
+                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['fuel'], null) ?></td>
                     </tr>
                     <?php endforeach; endif; ?>
                 </tbody>
