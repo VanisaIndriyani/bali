@@ -255,38 +255,50 @@ elseif ($_curHour >= 14 && $_curHour < 22) $defaultShiftNow = 'siang';
 else $defaultShiftNow = 'malam';
 
 // --- READING METER MAIN BUILDING & LISTRIK (Yesterday MALAM - Today MALAM → Consumption) ---
-// water_main_building / electricity = angka METER (READING) hari ini
-// total_water / total_electricity   = consumption = today_read - yesterday_malam_read
+// water_main_building / electricity_wbp / electricity_lwbp = angka METER (READING) hari ini
+// total_water / total_electricity = consumption = today_read - yesterday_malam_read
 // HANYA SHIFT MALAM SAJA YANG MENGHITUNG SELISIH → masuk ke total_electricity & total_water
 // (Shift Pagi/Siang hanya catatan reading, TIDAK mempengaruhi total konsumsi → total = 0)
-$yesterdayDate = date('Y-m-d', strtotime($date . ' -1 day'));
-// Yesterday = cari log TANGGAL KEMARIN, SHIFT = MALAM (karena pola: MALAM ketemu MALAM)
-$yesterdayLogMalam = $db->fetchOne(
-    "SELECT water_main_building, electricity_wbp, electricity_lwbp
-     FROM daily_logs
-     WHERE engineer_id = ? AND log_date = ? AND COALESCE(shift,'malam') = 'malam'
-     LIMIT 1",
-    [$targetEngineerId, $yesterdayDate]
-);
-// Fallback: jika kemarin shift malam belum ada (data lama sebelum shift field), coba ambil log apapun kemarin
-if (!$yesterdayLogMalam || empty($yesterdayLogMalam)) {
-    $yesterdayLogMalam = $db->fetchOne(
-        "SELECT water_main_building, electricity_wbp, electricity_lwbp
-         FROM daily_logs WHERE engineer_id = ? AND log_date = ? LIMIT 1",
-        [$targetEngineerId, $yesterdayDate]
-    );
+//
+// ✅ FIX LOGIC (Customer Lapor Yesterday Selalu 0!):
+//  1. TIDAK FILTER engineer_id (Water & Listrik = MILIK BUILDING, bukan per orang! Ganti engineer shift MALAM bukan berarti data yesterday hilang!)
+//  2. TIDAK H-1 EXACT. Cari LAST KNOWN SHIFT MALAM SEBELUM TANGGAL INI (jika H-1 tidak ada data, ambil H-2 dst sesuai data terakhir).
+//  3. Label Tanggal Yesterday = SESUAI DATA LOG_DATE YANG DITEMUKAN, JANGAN hardcode H-1 (yang bikin label tanggal salah).
+$yestRow = $db->fetchOne("
+    SELECT log_date, water_main_building, electricity_wbp, electricity_lwbp
+    FROM daily_logs
+    WHERE log_date < ?
+      AND COALESCE(shift, 'malam') = 'malam'
+      AND COALESCE(water_main_building,0) + COALESCE(electricity_wbp,0) + COALESCE(electricity_lwbp,0) > 0
+    ORDER BY log_date DESC, id DESC
+    LIMIT 1
+", [$date]);
+// Fallback 1: jika TIDAK ADA record shift='malam' sama sekali, cari record TERAKHIR SEBELUM tanggal ini (apapun shift-nya) yang punya reading meter non-zero.
+if (!$yestRow || empty($yestRow)) {
+    $yestRow = $db->fetchOne("
+        SELECT log_date, water_main_building, electricity_wbp, electricity_lwbp
+        FROM daily_logs
+        WHERE log_date < ?
+          AND (COALESCE(water_main_building,0) > 0 OR COALESCE(electricity_wbp,0) > 0 OR COALESCE(electricity_lwbp,0) > 0)
+        ORDER BY log_date DESC, id DESC
+        LIMIT 1
+    ", [$date]);
 }
-$mbYesterdayRead = $yesterdayLogMalam && isset($yesterdayLogMalam['water_main_building'])
-    ? (float)$yesterdayLogMalam['water_main_building']
-    : 0.0;
-$elecYesterdayWbp = $yesterdayLogMalam && isset($yesterdayLogMalam['electricity_wbp'])
-    ? (float)$yesterdayLogMalam['electricity_wbp']
-    : 0.0;
-$elecYesterdayLwbp = $yesterdayLogMalam && isset($yesterdayLogMalam['electricity_lwbp'])
-    ? (float)$yesterdayLogMalam['electricity_lwbp']
-    : 0.0;
+// Variabel hasil fetch yesterday + label tanggal (sesuai data yang ketemu, TIDAK hardcode H-1!)
+if ($yestRow && !empty($yestRow) && !empty($yestRow['log_date'])) {
+    $yesterdayFoundDate = (string)$yestRow['log_date'];
+    $mbYesterdayRead      = (float)($yestRow['water_main_building'] ?? 0);
+    $elecYesterdayWbp     = (float)($yestRow['electricity_wbp'] ?? 0);
+    $elecYesterdayLwbp    = (float)($yestRow['electricity_lwbp'] ?? 0);
+} else {
+    $yesterdayFoundDate = null;
+    $mbYesterdayRead      = 0.0;
+    $elecYesterdayWbp     = 0.0;
+    $elecYesterdayLwbp    = 0.0;
+}
 $elecYesterdayTotal = $elecYesterdayWbp + $elecYesterdayLwbp;
 
+// Today Read = dari log tanggal INI (jika sudah ada / mode edit)
 $mbTodayRead = $log && isset($log['water_main_building']) ? (float)$log['water_main_building'] : 0.0;
 $elecTodayWbp   = $log && isset($log['electricity_wbp'])   ? (float)$log['electricity_wbp']   : 0.0;
 $elecTodayLwbp  = $log && isset($log['electricity_lwbp'])  ? (float)$log['electricity_lwbp']  : 0.0;
@@ -294,11 +306,30 @@ $elecTodayTotal = $elecTodayWbp + $elecTodayLwbp;
 
 // Konsumsi hari ini (hanya berlaku jika SHIFT = MALAM. Pagi/Siang = 0)
 // ✅ Rumus Konsumsi Air = (MB Hari Ini − MB Kemarin) × 10 (dikalikan 10 sesuai request user)
+// ✅ Rumus Konsumsi Listrik = (LWBP Hari Ini − LWBP Kemarin) × 8000 + (WBP Hari Ini − WBP Kemarin) × 8000 (Rumus dari WA customer: faktor kali digit meter × 8000 jadi kwh, BUKAN tarif!)
 $curLogShift = (!empty($log['shift']) && in_array($log['shift'], $allShifts, true)) ? (string)$log['shift'] : '';
 $existingIsMalam = ($curLogShift === 'malam');
-$mbConsumption      = $existingIsMalam ? (max(0.0, $mbTodayRead     - $mbYesterdayRead)   * 10) : (float)($log['total_water'] ?? 0);
-$elecConsumptionNow = $existingIsMalam ? max(0.0, $elecTodayTotal - $elecYesterdayTotal) : (float)($log['total_electricity'] ?? 0);
-unset($existingIsMalam, $curLogShift);
+// Air
+$mbConsumption = $existingIsMalam ? (max(0.0, $mbTodayRead - $mbYesterdayRead) * 10) : (float)($log['total_water'] ?? 0);
+// Listrik — sesuai rumus WA customer × 8000 FAKTOR KALI METER (bukan tarif)
+$eLwbpConsNow = $existingIsMalam ? (max(0.0, $elecTodayLwbp - $elecYesterdayLwbp) * 8000) : 0.0;
+$eWbpConsNow  = $existingIsMalam ? (max(0.0, $elecTodayWbp  - $elecYesterdayWbp)  * 8000) : 0.0;
+$elecConsumptionNow = $existingIsMalam ? ($eLwbpConsNow + $eWbpConsNow) : (float)($log['total_electricity'] ?? 0);
+unset($eLwbpConsNow, $eWbpConsNow, $existingIsMalam, $curLogShift, $yestRow);
+
+// ========== ALIAS VARIABEL PHP → JS (untuk realtime calcTotals client-side) ==========
+// (Harus sama nama var seperti di <script> window.Y_ELEC_WBP dkk agar tidak undefined notice!)
+$yElecWbpJs   = (float)$elecYesterdayWbp;
+$yElecLwbpJs  = (float)$elecYesterdayLwbp;
+$yElecTotalJs = (float)$elecYesterdayTotal;
+$yWaterMbJs   = (float)$mbYesterdayRead;
+
+// ========== LABEL TANGGAL YESTERDAY UNTUK UI (sesuai data yang DITEMUKAN dari query last known shift malam) ==========
+if ($yesterdayFoundDate) {
+    $yDateLabelFmt = date('d/m/Y', strtotime($yesterdayFoundDate));
+} else {
+    $yDateLabelFmt = T('form_yesterday_never', 'Belum ada data');
+}
 
 // --- POST HANDLER ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -308,14 +339,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // ① Electricity Subdetails — SEMUA SHIFT BOLEH EDIT (Pagi/Siang/Malam)
     // Nilai WBP / LWBP = READING METER (sama seperti Main Building Water)
-    // HANYA SHIFT MALAM SAJA YANG MENGHITUNG TOTAL KONSUMSI (today - yesterday_malam)
+    // HANYA SHIFT MALAM SAJA YANG MENGHITUNG TOTAL KONSUMSI — SESUAI RUMUS WA CUSTOMER:
+    //      LWBP = (Today Read − Yesterday Read) × 8000 → satuan kWh
+    //      WBP  = (Today Read − Yesterday Read) × 8000 → satuan kWh
+    //      TOTAL LISTRIK = LWBP + WBP
     // Shift Pagi/Siang: total_electricity = 0 (catatan reading saja, tidak masuk kalkulasi cost)
     $eWbp = (float)($_POST['electricity_wbp'] ?? 0);
     $eLwbp = (float)($_POST['electricity_lwbp'] ?? 0);
     $eTodayTotal = $eWbp + $eLwbp;
     $isShiftMalam = ($shift === 'malam');
     if ($isShiftMalam) {
-        $electricity = max(0.0, $eTodayTotal - $elecYesterdayTotal);
+        $_eLWBP = max(0.0, $eLwbp - $elecYesterdayLwbp) * 8000;  // faktor kali meter LWBP × 8000
+        $_eWBP  = max(0.0, $eWbp  - $elecYesterdayWbp)  * 8000;  // faktor kali meter WBP × 8000
+        $electricity = $_eLWBP + $_eWBP;
+        unset($_eLWBP, $_eWBP);
     } else {
         $electricity = 0.0;
     }
@@ -1111,32 +1148,84 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <!-- NOTICE BANNER -->
                 <div id="elecNotice" class="mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border <?= $isMalamNow ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200' ?>">
                     <?php if ($isMalamNow): ?>
-                        <i class="fas fa-moon mr-1"></i> <b>Shift Malam</b> — Total Konsumsi = Reading Hari ini − Reading Shift Malam Kemarin. Hasil otomatis masuk ke Cost & Dashboard.
+                        <i class="fas fa-moon mr-1"></i> <b>Shift Malam</b> — LWBP = (Today − Kemarin) × 8.000, WBP = (Today − Kemarin) × 8.000. Total Listrik = LWBP + WBP. Hasil otomatis masuk ke Cost & Dashboard.
                     <?php else: ?>
                         <i class="fas fa-circle-check mr-1"></i> <b>Shift Pagi/Siang</b> — Reading Meter Listrik <b>bisa diisi</b> (tidak dikunci). Total Konsumsi = 0 (tidak masuk kalkulasi biaya).
                     <?php endif; ?>
                 </div>
             </div>
-            <div class="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div>
-                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_elec_wbp', 'KWH WBP') ?> <span class="text-red-500">*</span></label>
-                    <div class="relative">
-                        <input type="number" step="0.01" min="0" name="electricity_wbp" <?= $elecRequired ?> <?= $elecReadonly ?> oninput="calcTotals()"
-                            value="<?= $log['electricity_wbp'] ?? '0.00' ?>"
-                            class="js-sum-electric elec-input w-full pl-4 pr-16 py-3.5 rounded-card border border-amber-200 bg-amber-50/60 text-lg font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 focus:bg-white transition-all <?= $elecDisabledCls ?>">
-                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-amber-700 font-bold bg-amber-100 px-2 py-0.5 rounded-full">kWh</span>
+            <div class="p-5 lg:p-6 space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <?php
+                    // BOX 1 — ELECTRIC WBP (Reading Meter Dashed Box)
+                    $_isLogMalamE = ($log && isset($log['shift']) && $log['shift'] === 'malam');
+                    $_eWbpYFmt = number_format($elecYesterdayWbp, 2, '.', '');
+                    $_eWbpTVal = $log['electricity_wbp'] ?? '0.00';
+                    $_eWbpCons = $_isLogMalamE ? number_format(max(0.0, (float)$_eWbpTVal - $elecYesterdayWbp) * 8000, 2, '.', '') : '0.00';
+                    echo <<<HTML
+                    <div class="md:col-span-1">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-xs font-extrabold text-primary tracking-wide">KWH WBP <span class="text-red-500">*</span></label>
+                            <span class="text-[9px] font-black tracking-wider uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">Reading Meter</span>
+                        </div>
+                        <div class="rounded-card border-2 border-dashed border-amber-300 bg-amber-50/40 p-2.5 space-y-2">
+                            <div class="flex items-center justify-between text-[10px] font-bold">
+                                <span class="text-slate-500">Yesterday Malam ({$yDateLabelFmt})</span>
+                                <span class="text-slate-700">{$_eWbpYFmt} kWh</span>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-bold text-amber-700 mb-1">Today (angka meter hari ini)</p>
+                                <div class="relative">
+                                    <input type="number" step="0.01" min="0" name="electricity_wbp" {$elecRequired} {$elecReadonly} oninput="calcTotals()"
+                                        value="{$_eWbpTVal}"
+                                        class="elec-input w-full pl-3 pr-12 py-2 rounded-md border border-amber-200 bg-amber-50/60 font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 focus:bg-white transition-all text-sm {$elecDisabledCls}">
+                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-amber-700 font-black bg-white/90 border border-amber-200 px-1.5 py-0.5 rounded-full">kWh</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between text-[10px] font-bold pt-1 border-t border-amber-200/70">
+                                <span class="text-amber-700">(Today−Kemarin)×8000 (Hanya Shift Malam)</span>
+                                <span class="text-amber-800" id="elecWbpCons">{$_eWbpCons} kWh</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-primary mb-2 tracking-tight"><?= T('form_elec_lwbp', 'KWH LWBP') ?> <span class="text-red-500">*</span></label>
-                    <div class="relative">
-                        <input type="number" step="0.01" min="0" name="electricity_lwbp" <?= $elecRequired ?> <?= $elecReadonly ?> oninput="calcTotals()"
-                            value="<?= $log['electricity_lwbp'] ?? '0.00' ?>"
-                            class="js-sum-electric elec-input w-full pl-4 pr-16 py-3.5 rounded-card border border-yellow-300 bg-yellow-50/70 text-lg font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-yellow-600 focus:ring-4 focus:ring-yellow-500/10 focus:bg-white transition-all <?= $elecDisabledCls ?>">
-                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-yellow-800 font-bold bg-yellow-100 px-2 py-0.5 rounded-full">kWh</span>
+HTML;
+
+                    // BOX 2 — ELECTRIC LWBP (Reading Meter Dashed Box)
+                    $_eLwbpYFmt = number_format($elecYesterdayLwbp, 2, '.', '');
+                    $_eLwbpTVal = $log['electricity_lwbp'] ?? '0.00';
+                    $_eLwbpCons = $_isLogMalamE ? number_format(max(0.0, (float)$_eLwbpTVal - $elecYesterdayLwbp) * 8000, 2, '.', '') : '0.00';
+                    echo <<<HTML
+                    <div class="md:col-span-1">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-xs font-extrabold text-primary tracking-wide">KWH LWBP <span class="text-red-500">*</span></label>
+                            <span class="text-[9px] font-black tracking-wider uppercase px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 border border-yellow-200">Reading Meter</span>
+                        </div>
+                        <div class="rounded-card border-2 border-dashed border-yellow-300 bg-yellow-50/40 p-2.5 space-y-2">
+                            <div class="flex items-center justify-between text-[10px] font-bold">
+                                <span class="text-slate-500">Yesterday Malam ({$yDateLabelFmt})</span>
+                                <span class="text-slate-700">{$_eLwbpYFmt} kWh</span>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-bold text-yellow-700 mb-1">Today (angka meter hari ini)</p>
+                                <div class="relative">
+                                    <input type="number" step="0.01" min="0" name="electricity_lwbp" {$elecRequired} {$elecReadonly} oninput="calcTotals()"
+                                        value="{$_eLwbpTVal}"
+                                        class="elec-input w-full pl-3 pr-12 py-2 rounded-md border border-yellow-200 bg-yellow-50/60 font-bold text-primary placeholder-secondary/60 focus:outline-none focus:border-yellow-600 focus:ring-4 focus:ring-yellow-500/10 focus:bg-white transition-all text-sm {$elecDisabledCls}">
+                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-yellow-800 font-black bg-white/90 border border-yellow-200 px-1.5 py-0.5 rounded-full">kWh</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between text-[10px] font-bold pt-1 border-t border-yellow-200/70">
+                                <span class="text-yellow-700">(Today−Kemarin)×8000 (Hanya Shift Malam)</span>
+                                <span class="text-yellow-800" id="elecLwbpCons">{$_eLwbpCons} kWh</span>
+                            </div>
+                        </div>
                     </div>
+HTML;
+                    unset($_isLogMalamE, $_eWbpYFmt, $_eWbpTVal, $_eWbpCons, $_eLwbpYFmt, $_eLwbpTVal, $_eLwbpCons);
+                    ?>
                 </div>
-                <div>
+                <!-- TOTAL LISTRIK (Besar di bawah 2 box) -->
+                <div class="pt-1">
                     <label class="block text-sm font-extrabold text-primary mb-2 tracking-tight"><i class="fas fa-calculator mr-1 text-primary"></i><?= T('form_elec_total', 'TOTAL LISTRIK (Auto)') ?></label>
                     <div class="relative">
                         <input type="number" id="totalElectricity" readonly step="0.01" min="0" name="total_electricity_show"
@@ -1188,7 +1277,6 @@ HTML;
                 $val = $log[$field] ?? '0.00';
                 $mbYesterdayFmt = number_format($mbYesterdayRead, 2, '.', '');
                 $mbConsFmt = number_format($mbConsumption, 2, '.', '');
-                $yDateLabel = date('d/m/Y', strtotime($yesterdayDate));
                 $mbRdo = '';
                 $mbDisCls = '';
                 echo <<<HTML
@@ -1199,7 +1287,7 @@ HTML;
                     </div>
                     <div class="rounded-card border-2 border-dashed border-cyan-200 bg-cyan-50/40 p-2.5 space-y-2">
                         <div class="flex items-center justify-between text-[10px] font-bold">
-                            <span class="text-slate-500">Yesterday Malam ({$yDateLabel})</span>
+                            <span class="text-slate-500">Yesterday Malam ({$yDateLabelFmt})</span>
                             <span class="text-slate-700">{$mbYesterdayFmt} m3</span>
                         </div>
                         <div>
@@ -2031,10 +2119,10 @@ HTML;
             if (eNotice) {
                 if (isMalam) {
                     eNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-indigo-50 text-indigo-700 border-indigo-200';
-                    eNotice.innerHTML = '<i class="fas fa-moon mr-1"></i> <b>Shift Malam</b> — Total Konsumsi = (WBP+LWBP) Hari ini − (WBP+LWBP) Shift Malam Kemarin. Hasil otomatis masuk ke Cost & Dashboard.';
+                    eNotice.innerHTML = '<i class="fas fa-moon mr-1"></i> <b>Shift Malam</b> — LWBP = (Today − Kemarin) × 8.000, WBP = (Today − Kemarin) × 8.000. Total Listrik = LWBP + WBP. Hasil otomatis masuk ke Cost & Dashboard.';
                 } else {
                     eNotice.className = 'mt-3 text-[11px] font-semibold px-3 py-2 rounded-lg border bg-emerald-50 text-emerald-700 border-emerald-200';
-                    eNotice.innerHTML = '<i class="fas fa-circle-check mr-1"></i> <b>Shift Pagi/Siang</b> — WBP & LWBP <b>bisa diisi</b> (tidak dikunci). Total Konsumsi = 0 (tidak masuk kalkulasi biaya).';
+                    eNotice.innerHTML = '<i class="fas fa-circle-check mr-1"></i> <b>Shift Pagi/Siang</b> — Reading Meter Listrik LWBP & WBP <b>bisa diisi</b> (tidak dikunci). Total Konsumsi = 0 (tidak masuk kalkulasi biaya, HANYA catatan).';
                 }
             }
 
@@ -2054,14 +2142,27 @@ HTML;
         function calcTotals() {
             const isMalam = document.getElementById('shiftSelect').value === 'malam';
 
-            // 1. TOTAL LISTRIK: hanya MALAM hitung selisih Today − Yesterday MALAM
-            let wbpInp = document.querySelector('input[name="electricity_wbp"]');
-            let lwbpInp = document.querySelector('input[name="electricity_lwbp"]');
-            let tWbp  = parseFloat(wbpInp  && wbpInp.value  || 0);
-            let tLwbp = parseFloat(lwbpInp && lwbpInp.value || 0);
-            let tElecToday = tWbp + tLwbp;
-            let totalElec = isMalam ? Math.max(0, tElecToday - (window.Y_ELEC_TOTAL || 0)) : 0;
+            // 1. TOTAL LISTRIK: SESUAI RUMUS WA CUSTOMER (FAKTOR KALI DIGIT METER × 8000)
+            //    LWBP: (TODAY − YESTERDAY) × 8000 → kWh
+            //    WBP:  (TODAY − YESTERDAY) × 8000 → kWh
+            //    TOTAL LISTRIK = LWBP + WBP
+            let wbpInp   = document.querySelector('input[name="electricity_wbp"]');
+            let lwbpInp  = document.querySelector('input[name="electricity_lwbp"]');
+            let tWbp      = parseFloat(wbpInp  && wbpInp.value  || 0);
+            let tLwbp     = parseFloat(lwbpInp && lwbpInp.value || 0);
+
+            let wbpDiff  = Math.max(0, tWbp  - (window.Y_ELEC_WBP  || 0));
+            let lwbpDiff = Math.max(0, tLwbp - (window.Y_ELEC_LWBP || 0));
+            let wbpUsage  = wbpDiff  * 8000;
+            let lwbpUsage = lwbpDiff * 8000;
+            let totalElec = isMalam ? (wbpUsage + lwbpUsage) : 0;
             document.getElementById('totalElectricity').value = totalElec.toFixed(2);
+
+            // Update label konsumsi di masing-masing box LWBP / WBP (jika ada)
+            let lblWbp = document.getElementById('elecWbpCons');
+            if (lblWbp) lblWbp.textContent = wbpUsage.toFixed(2) + ' kWh';
+            let lblLwbp = document.getElementById('elecLwbpCons');
+            if (lblLwbp) lblLwbp.textContent = lwbpUsage.toFixed(2) + ' kWh';
 
             // 2. TOTAL WATER = HANYA MAIN BUILDING SAJA, hanya MALAM hitung selisih
             // ✅ Rumus Konsumsi Air = (MB Hari Ini − MB Kemarin) × 10 (sesuai request user)
@@ -2070,7 +2171,7 @@ HTML;
             if (wmb) {
                 let yWater = parseFloat(wmb.getAttribute('data-yesterday') || 0);
                 let tWater = parseFloat(wmb.value || 0);
-                let wDiff = Math.max(0, tWater - yWater);
+                let wDiff  = Math.max(0, tWater - yWater);
                 wCons = isMalam ? (wDiff * 10) : 0;
                 let lblCons = document.getElementById('waterMainCons');
                 if (lblCons) lblCons.textContent = wCons.toFixed(2) + ' m3';
