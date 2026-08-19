@@ -704,10 +704,10 @@ function fetchProgressActivities($db, $userRole, $userId, $dateFrom, $dateTo) {
     return $out;
 }
 $divInfo = [
-    'operation'   => ['label'=>'OPERATION',   'icon'=>'<i class="fas fa-gear"></i>', 'col'=>'text-blue-700',   'bg'=>'bg-blue-50', 'chip'=>'bg-blue-100 border-blue-200 text-blue-700'],
-    'maintenance' => ['label'=>'MAINTENANCE', 'icon'=>'<i class="fas fa-wrench"></i>', 'col'=>'text-amber-700',  'bg'=>'bg-amber-50','chip'=>'bg-amber-100 border-amber-200 text-amber-700'],
-    'project'     => ['label'=>'PROJECT',     'icon'=>'<i class="fas fa-diagram-project"></i>', 'col'=>'text-violet-700', 'bg'=>'bg-violet-50','chip'=>'bg-violet-100 border-violet-200 text-violet-700'],
-    'landscape'   => ['label'=>'LANDSCAPE',   'icon'=>'<i class="fas fa-leaf"></i>', 'col'=>'text-emerald-700','bg'=>'bg-emerald-50','chip'=>'bg-emerald-100 border-emerald-200 text-emerald-700'],
+    'operation'   => ['label'=>'OPERATION',   'icon'=>'<i class="fas fa-gear"></i>',            'col'=>'text-slate-700', 'bg'=>'bg-slate-50', 'chip'=>'bg-slate-100 border-slate-200 text-slate-700'],
+    'maintenance' => ['label'=>'MAINTENANCE', 'icon'=>'<i class="fas fa-wrench"></i>',          'col'=>'text-slate-700', 'bg'=>'bg-slate-50', 'chip'=>'bg-slate-100 border-slate-200 text-slate-700'],
+    'project'     => ['label'=>'PROJECT',     'icon'=>'<i class="fas fa-diagram-project"></i>', 'col'=>'text-slate-700', 'bg'=>'bg-slate-50', 'chip'=>'bg-slate-100 border-slate-200 text-slate-700'],
+    'landscape'   => ['label'=>'LANDSCAPE',   'icon'=>'<i class="fas fa-leaf"></i>',            'col'=>'text-slate-700', 'bg'=>'bg-slate-50', 'chip'=>'bg-slate-100 border-slate-200 text-slate-700'],
 ];
 $progressActivities = fetchProgressActivities($db, $userRole, $userId, $monthStart, $today);
 
@@ -795,8 +795,8 @@ function renderActivityTable($list, $themeClass, $iconName, $emptyMsg, $labelSin
     $html = '';
     if (is_array($list) && count($list) > 0) {
         $html .= '<div class="mt-8 rounded-2xl border border-gray-100 shadow-sm overflow-hidden">';
-        $html .=   '<div class="px-5 py-3.5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex items-center justify-between gap-3">';
-        $html .=       '<h3 class="font-bold text-primary flex items-center gap-2"><i class="fas fa-list-ul ' . htmlspecialchars($themeClass) . '"></i> DAFTAR ' . strtoupper($labelSingular) . ' PEKERJAAN BULAN INI</h3>';
+        $html .=   '<div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3">';
+        $html .=       '<h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-list-ul ' . htmlspecialchars($themeClass) . '"></i> DAFTAR ' . strtoupper($labelSingular) . ' PEKERJAAN BULAN INI</h3>';
         $html .=       '<span class="px-3 py-1 rounded-full text-[11px] font-black ' . htmlspecialchars($themeClass) . ' bg-white/90 border border-gray-200 shadow-sm">TOTAL ' . count($list) . '</span>';
         $html .=   '</div>';
         $html .=   '<div class="overflow-x-auto">';
@@ -814,7 +814,7 @@ function renderActivityTable($list, $themeClass, $iconName, $emptyMsg, $labelSin
             $html .= '<tr class="hover:bg-amber-50/30 transition-colors align-top">';
             $html .=   '<td class="px-4 py-3 text-gray-500 font-bold text-xs">' . $n . '.</td>';
             $html .=   '<td class="px-4 py-3 whitespace-nowrap"><span class="px-2.5 py-1 rounded-md bg-gray-50 text-gray-700 text-[11px] font-semibold border border-gray-200"><i class="far fa-calendar mr-1 text-gray-400"></i> ' . htmlspecialchars($tgl) . '</span></td>';
-            $html .=   '<td class="px-4 py-3 text-primary font-semibold leading-relaxed">' . htmlspecialchars($nama) . '</td>';
+            $html .=   '<td class="px-4 py-3 text-slate-800 font-semibold leading-relaxed">' . htmlspecialchars($nama) . '</td>';
             $html .=   '<td class="px-4 py-3"><span class="px-2.5 py-1 rounded-md ' . htmlspecialchars($themeClass) . ' text-[11px] font-bold bg-white border border-gray-200"><i class="fas ' . htmlspecialchars($iconName) . ' mr-1"></i> ' . htmlspecialchars($eng) . '</span></td>';
             $html .= '</tr>';
         }
@@ -840,13 +840,13 @@ require_once __DIR__ . '/includes/navbar.php';
     <div class="mb-6 animate-fade-in">
         <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
             <div>
-                <p class="text-[12px] text-secondary mb-1">
+                <p class="text-[12px] text-slate-500 mb-1">
                     <i class="fas fa-calendar-day mr-1.5 text-slate-400"></i><?= formatDate($today) ?>
                 </p>
-                <h1 class="font-display text-xl lg:text-2xl font-bold text-primary mb-0.5">
+                <h1 class="font-display text-xl lg:text-2xl font-bold text-slate-800 mb-0.5">
                     <?= T('wel_back', 'Selamat Datang') ?>, <?= $userRole === 'engineer' ? T('wel_role_engineer_brand', 'Engineering Department') : cleanInput($userName) ?>
                 </h1>
-                <p class="text-secondary text-[13px]">
+                <p class="text-slate-500 text-[13px]">
                     <?php
                     if ($userRole === 'engineer') echo T('wel_role_engineer', 'Dashboard Engineering Staff');
                     elseif ($userRole === 'manager') echo T('wel_role_manager', 'Dashboard Engineering Manager');
@@ -871,11 +871,11 @@ require_once __DIR__ . '/includes/navbar.php';
                         </div>
                         <?php $hFrom = htmlspecialchars($monthStart ?? '', ENT_QUOTES); $hTo = htmlspecialchars($today ?? '', ENT_QUOTES); ?>
                         <label class="text-[10px] font-bold text-slate-600">Dari</label>
-                        <input type="date" id="rep_date_from" name="date_from" value="<?= $hFrom ?>" class="px-1 py-1 text-[11px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md outline-none focus:ring-1 focus:ring-indigo-400" onchange="updateReportLinks()">
+                        <input type="date" id="rep_date_from" name="date_from" value="<?= $hFrom ?>" class="px-1 py-1 text-[11px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md outline-none focus:ring-1 focus:ring-slate-400" onchange="updateReportLinks()">
                         <span class="text-[11px] font-black text-slate-400">s/d</span>
                         <label class="text-[10px] font-bold text-slate-600">Sampai</label>
-                        <input type="date" id="rep_date_to" name="date_to" value="<?= $hTo ?>" class="px-1 py-1 text-[11px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md outline-none focus:ring-1 focus:ring-indigo-400" onchange="updateReportLinks()">
-                        <button type="submit" class="ml-1 inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] shadow-sm transition">
+                        <input type="date" id="rep_date_to" name="date_to" value="<?= $hTo ?>" class="px-1 py-1 text-[11px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md outline-none focus:ring-1 focus:ring-slate-400" onchange="updateReportLinks()">
+                        <button type="submit" class="ml-1 inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] shadow-sm transition">
                             <i class="fas fa-filter text-[9px]"></i>
                             <span>Terapkan</span>
                         </button>
@@ -886,21 +886,21 @@ require_once __DIR__ . '/includes/navbar.php';
                     </form>
                     <!-- Tombol Download Report (date_from / date_to diisi via JS updateReportLinks) -->
                     <div class="inline-flex flex-wrap items-center gap-1.5">
-                        <a id="btn_excel_energy" href="<?= BASE_URL ?>reports/daily_summary.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
+                        <a id="btn_excel_energy" href="<?= BASE_URL ?>reports/daily_summary.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-800 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
                             <i class="fas fa-file-excel text-[12px]"></i>
                             <span>Energy</span>
                         </a>
-                        <button type="button" id="btn_pdf_energy" onclick="window.open('<?= BASE_URL ?>reports/daily_summary.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>', '_blank')" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
+                        <button type="button" id="btn_pdf_energy" onclick="window.open('<?= BASE_URL ?>reports/daily_summary.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>', '_blank')" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
                             <i class="fas fa-file-pdf text-[12px]"></i>
                             <span>Print</span>
                         </button>
                         <?php if (in_array($userRole, ['supervisor','manager','admin'])): ?>
-                        <a id="btn_xls_activity" href="<?= BASE_URL ?>reports/activity_export.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
+                        <a id="btn_xls_activity" href="<?= BASE_URL ?>reports/activity_export.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-800 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
                             <i class="fas fa-list-check text-[12px]"></i>
                             <span>Activity</span>
                         </a>
                         <?php endif; ?>
-                        <a id="btn_xls_order" href="<?= BASE_URL ?>reports/order_export.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
+                        <a id="btn_xls_order" href="<?= BASE_URL ?>reports/order_export.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>&format=excel" target="_blank" class="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-[11px] shadow-sm hover:shadow-md transition">
                             <i class="fas fa-truck-ramp-box text-[12px]"></i>
                             <span>Order</span>
                         </a>
@@ -911,12 +911,12 @@ require_once __DIR__ . '/includes/navbar.php';
     </div>
 
     <!-- ============ 🔹 SECTION KPI CARD (Full Width) - SAMA POLA 4 CARD UTAMA 🔹 ============ -->
-    <section id="sec_kpi" class="border-2 border-emerald-200 rounded-xl bg-white shadow-sm overflow-hidden mb-5 animate-slide-up self-start border-t-4 border-t-emerald-500">
+    <section id="sec_kpi" class="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden mb-5 animate-slide-up self-start border-t-2 border-t-slate-500">
         <button type="button" onclick="toggleDashSection('kpi')"
                 class="w-full text-left px-3 lg:px-4 py-2 bg-transparent hover:bg-slate-50/80 transition group flex items-center justify-between gap-2 border-b border-slate-200/80">
             <div class="flex items-center flex-wrap gap-x-3 gap-y-1 min-w-0">
-                <span class="w-6 h-6 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-[12px] shadow-sm shadow-emerald-500/30 shrink-0 font-black"><i class="fas fa-chart-line text-[11px]"></i></span>
-                <span class="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-700 hidden sm:inline-flex items-center gap-1 pl-2.5 border-l border-slate-200 h-5"><i class="fas fa-chart-simple text-[9px]"></i> Performance</span>
+                <span class="w-6 h-6 rounded-md bg-slate-700 flex items-center justify-center text-white text-[12px] shadow-sm shrink-0 font-black"><i class="fas fa-chart-line text-[11px]"></i></span>
+                <span class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 hidden sm:inline-flex items-center gap-1 pl-2.5 border-l border-slate-200 h-5"><i class="fas fa-chart-simple text-[9px]"></i> Performance</span>
                 <h2 class="font-display text-[13px] lg:text-[14px] font-black text-gray-900 tracking-wide leading-tight truncate">
                     KEY <span class="text-slate-400 font-black">PERFORMANCE INDICATORS</span>
                 </h2>
@@ -931,38 +931,38 @@ require_once __DIR__ . '/includes/navbar.php';
                 <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
                     <table class="w-full text-[13px]">
                         <thead>
-                            <tr class="bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 text-gray-800 text-[11px] uppercase tracking-[0.12em] font-black">
+                            <tr class="bg-slate-100 text-slate-800 text-[11px] uppercase tracking-[0.12em] font-black">
                                 <th class="px-3 py-2.5 text-left font-black">METRIC</th>
-                                <th class="px-3 py-2.5 text-center font-black border-l border-gray-300">LAST YEAR <span class="font-bold normal-case tracking-normal text-gray-600">(LY)</span></th>
-                                <th class="px-3 py-2.5 text-center font-black border-l border-gray-300">TODAY</th>
-                                <th class="px-3 py-2.5 text-center font-black border-l border-gray-300">ITR</th>
-                                <th class="px-3 py-2.5 text-center font-black border-l border-gray-300">M&amp;U</th>
-                                <th class="px-3 py-2.5 text-center font-black border-l border-gray-300">GITB RANK</th>
+                                <th class="px-3 py-2.5 text-center font-black border-l border-slate-200">LAST YEAR <span class="font-bold normal-case tracking-normal text-slate-600">(LY)</span></th>
+                                <th class="px-3 py-2.5 text-center font-black border-l border-slate-200">TODAY</th>
+                                <th class="px-3 py-2.5 text-center font-black border-l border-slate-200">ITR</th>
+                                <th class="px-3 py-2.5 text-center font-black border-l border-slate-200">M&amp;U</th>
+                                <th class="px-3 py-2.5 text-center font-black border-l border-slate-200">GITB RANK</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            <tr class="hover:bg-emerald-50/40 transition-colors">
+                        <tbody class="divide-y divide-slate-100">
+                            <tr class="hover:bg-slate-50 transition-colors">
                                 <td class="px-3 py-2.5 font-black text-gray-900 text-[14px]">
                                     <span class="inline-flex items-center gap-2">
-                                        <span class="w-6 h-6 rounded bg-amber-100 text-amber-700 flex items-center justify-center text-[11px]"><i class="fas fa-bed"></i></span>
+                                        <span class="w-6 h-6 rounded bg-slate-100 text-slate-700 flex items-center justify-center text-[11px]"><i class="fas fa-bed"></i></span>
                                         Occupancy Rate
                                     </span>
                                 </td>
-                                <td class="px-3 py-2.5 text-center border-l border-gray-100">
-                                    <span class="text-lg font-black text-gray-700"><?= $occLYDisp ?></span>
+                                <td class="px-3 py-2.5 text-center border-l border-slate-100">
+                                    <span class="text-lg font-black text-slate-700"><?= $occLYDisp ?></span>
                                 </td>
-                                <td class="px-3 py-2.5 text-center border-l border-gray-100">
-                                    <span class="text-lg font-black text-emerald-700"><?= $occNowDisp ?></span>
+                                <td class="px-3 py-2.5 text-center border-l border-slate-100">
+                                    <span class="text-lg font-black text-slate-800"><?= $occNowDisp ?></span>
                                     <?php if (($targetOcc > 0) && ($lyOcc > 0) && ($targetOcc != $lyOcc)): ?>
-                                    <div class="mt-0.5 inline-block text-[10px] font-black rounded px-2 py-0.5 <?= $targetOcc > $lyOcc ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700' ?>">
+                                    <div class="mt-0.5 inline-block text-[10px] font-black rounded px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200">
                                         <?= $targetOcc > $lyOcc ? '&#9650; +' : '&#9660; -' ?><?= abs($targetOcc - $lyOcc) ?>%
                                     </div>
                                     <?php endif; ?>
                                 </td>
-                                <td class="px-3 py-2.5 text-center border-l border-gray-100 text-lg font-black text-sky-700"><?= $kpiItr ?></td>
-                                <td class="px-3 py-2.5 text-center border-l border-gray-100 text-lg font-black text-amber-700"><?= $kpiMnU ?></td>
-                                <td class="px-3 py-2.5 text-center border-l border-gray-100">
-                                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white text-lg font-black shadow-md shadow-amber-500/30"><?= $kpiRank ?></span>
+                                <td class="px-3 py-2.5 text-center border-l border-slate-100 text-lg font-black text-slate-700"><?= $kpiItr ?></td>
+                                <td class="px-3 py-2.5 text-center border-l border-slate-100 text-lg font-black text-slate-700"><?= $kpiMnU ?></td>
+                                <td class="px-3 py-2.5 text-center border-l border-slate-100">
+                                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-slate-700 text-white text-lg font-black shadow-sm"><?= $kpiRank ?></span>
                                 </td>
                             </tr>
                         </tbody>
@@ -978,12 +978,12 @@ require_once __DIR__ . '/includes/navbar.php';
         <!-- ==========================================
              CARD #1 - UTILITY REPORT (Eng Dept #1)
              ========================================== -->
-        <section id="sec_utility" class="border-2 border-amber-200 rounded-xl bg-white shadow-sm overflow-hidden self-start border-t-4 border-t-amber-500">
+        <section id="sec_utility" class="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden self-start border-t-2 border-t-slate-500">
             <button type="button" onclick="toggleDashSection('utility')"
                     class="w-full text-left px-3 lg:px-4 py-2 bg-transparent hover:bg-slate-50/80 transition group flex items-center justify-between gap-2 border-b border-slate-200/80">
                 <div class="flex items-center flex-wrap gap-x-3 gap-y-1 min-w-0">
-                    <span class="w-6 h-6 rounded-md bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white text-[11px] shadow-sm shadow-amber-500/30 shrink-0 font-black leading-none">1</span>
-                    <span class="text-[9px] font-black uppercase tracking-[0.2em] text-amber-700 hidden sm:inline-flex items-center gap-1 pl-2.5 border-l border-slate-200 h-5"><i class="fas fa-screwdriver-wrench text-[9px]"></i> Eng. Dept.</span>
+                    <span class="w-6 h-6 rounded-md bg-slate-700 flex items-center justify-center text-white text-[11px] shadow-sm shrink-0 font-black leading-none">1</span>
+                    <span class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 hidden sm:inline-flex items-center gap-1 pl-2.5 border-l border-slate-200 h-5"><i class="fas fa-screwdriver-wrench text-[9px]"></i> Eng. Dept.</span>
                     <h2 class="font-display text-[13px] lg:text-[14px] font-black text-gray-900 tracking-wide leading-tight truncate">
                         Utility <span class="text-slate-400 font-black">Report</span>
                     </h2>
@@ -1000,20 +1000,16 @@ require_once __DIR__ . '/includes/navbar.php';
                     <?php
                     if (!isset($utilRows) || !is_array($utilRows)) {
                         $utilRows = [
-                            ['ELECTRICITY', 'fas fa-bolt', 'text-amber-700', 'from-amber-400 to-amber-600', $elecLY,    $elecToday,    'kWh',   $costElecLY,    $costElecToday,    'bg-amber-50', 'border-amber-200', 'border-amber-200/60'],
-                            ['WATER',       'fas fa-droplet', 'text-sky-700',   'from-sky-400 to-sky-600',     $waterLY,   $waterToday,   'm3',    $costWaterLY,   $costWaterToday,   'bg-sky-50',   'border-sky-200',   'border-sky-200/60'],
-                            ['GAS',         'fas fa-fire', 'text-orange-700','from-orange-400 to-orange-600',$gasLY,     $gasToday,     'kg',    $costGasLY,     $costGasToday,     'bg-orange-50','border-orange-200','border-orange-200/60'],
-                            ['FUEL',        'fas fa-gas-pump', 'text-rose-700',  'from-rose-400 to-rose-600',   $fuelLY,    $fuelToday,    'Liter', $costFuelLY,    $costFuelToday,    'bg-rose-50',  'border-rose-200',  'border-rose-200/60'],
+                            ['ELECTRICITY', 'fas fa-bolt',      'text-slate-800', 'from-slate-600 to-slate-800', $elecLY,    $elecToday,    'kWh',   $costElecLY,    $costElecToday,    'bg-slate-50', 'border-slate-200', 'border-slate-200/60'],
+                            ['WATER',       'fas fa-droplet',   'text-slate-800', 'from-slate-600 to-slate-800', $waterLY,   $waterToday,   'm3',    $costWaterLY,   $costWaterToday,   'bg-slate-50', 'border-slate-200', 'border-slate-200/60'],
+                            ['GAS',         'fas fa-fire',      'text-slate-800', 'from-slate-600 to-slate-800', $gasLY,     $gasToday,     'kg',    $costGasLY,     $costGasToday,     'bg-slate-50', 'border-slate-200', 'border-slate-200/60'],
+                            ['FUEL',        'fas fa-gas-pump',  'text-slate-800', 'from-slate-600 to-slate-800', $fuelLY,    $fuelToday,    'Liter', $costFuelLY,    $costFuelToday,    'bg-slate-50', 'border-slate-200', 'border-slate-200/60'],
                         ];
                     } else {
                         $utilMapped = [];
                         foreach ($utilRows as $urTmp) {
                             $lbl = (string)($urTmp[0] ?? '');
                             $bg = 'bg-slate-50'; $bor = 'border-slate-200'; $borDas = 'border-slate-200/60';
-                            if ($lbl === 'ELECTRICITY') { $bg = 'bg-amber-50'; $bor = 'border-amber-200'; $borDas = 'border-amber-200/60'; }
-                            elseif ($lbl === 'WATER')     { $bg = 'bg-sky-50'; $bor = 'border-sky-200'; $borDas = 'border-sky-200/60'; }
-                            elseif ($lbl === 'GAS')       { $bg = 'bg-orange-50'; $bor = 'border-orange-200'; $borDas = 'border-orange-200/60'; }
-                            elseif ($lbl === 'FUEL')      { $bg = 'bg-rose-50'; $bor = 'border-rose-200'; $borDas = 'border-rose-200/60'; }
                             $urTmp[] = $bg; $urTmp[] = $bor; $urTmp[] = $borDas;
                             $utilMapped[] = $urTmp;
                         }
@@ -1030,17 +1026,17 @@ require_once __DIR__ . '/includes/navbar.php';
                         if ((float)$lyVal > 0) $delta = round((((float)$nowVal - (float)$lyVal) / (float)$lyVal) * 100, 1);
                         $deltaUp = $delta > 0;
                     ?>
-                        <div class="rounded-xl border <?= $cardBorder ?> <?= $cardBg ?> px-3 py-2.5 sm:px-3.5 sm:py-3 shadow-sm transition-all duration-150">
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:px-3.5 sm:py-3 shadow-sm transition-all duration-150">
                             <div class="flex items-start justify-between gap-2 mb-2.5">
                                 <div class="flex items-center gap-2 min-w-0">
-                                    <span class="w-8 h-8 shrink-0 rounded-xl bg-gradient-to-br <?= $iconBg ?> text-white flex items-center justify-center text-[13px] shadow-sm">
+                                    <span class="w-8 h-8 shrink-0 rounded-xl bg-slate-700 text-white flex items-center justify-center text-[13px] shadow-sm">
                                         <i class="<?= $icon ?>"></i>
                                     </span>
                                     <div class="min-w-0 flex-1">
                                         <h3 class="font-black text-[13px] lg:text-[14px] text-gray-900 tracking-wide leading-tight uppercase"><?= $label ?></h3>
                                     </div>
                                 </div>
-                                <a href="<?= BASE_URL ?>energy.php" class="shrink-0 w-7 h-7 rounded-lg bg-white/80 border <?= $cardBorder ?> hover:bg-white text-slate-500 hover:text-slate-800 flex items-center justify-center transition shadow-sm" title="Energy">
+                                <a href="<?= BASE_URL ?>energy.php" class="shrink-0 w-7 h-7 rounded-lg bg-white/80 border border-slate-200 hover:bg-white text-slate-500 hover:text-slate-800 flex items-center justify-center transition shadow-sm" title="Energy">
                                     <i class="fas fa-chevron-right text-[10px]"></i>
                                 </a>
                             </div>
@@ -1057,19 +1053,19 @@ require_once __DIR__ . '/includes/navbar.php';
                             </div>
 
                             <!-- DIVIDER DASHED -->
-                            <div class="border-t border-dashed <?= $dividerBorder ?> my-2"></div>
+                            <div class="border-t border-dashed border-slate-200/60 my-2"></div>
 
                             <!-- TODAY -->
                             <div>
                                 <div class="flex items-center justify-between mb-0.5">
-                                    <p class="text-[9px] font-black uppercase tracking-[0.16em] <?= $col ?>">TODAY</p>
-                                    <span class="hidden sm:inline text-[8px] font-black px-1.5 py-0.5 rounded-full <?= $deltaUp ? 'bg-rose-50 border border-rose-200 text-rose-700' : 'bg-emerald-50 border border-emerald-200 text-emerald-700' ?>">
+                                    <p class="text-[9px] font-black uppercase tracking-[0.16em] text-slate-700">TODAY</p>
+                                    <span class="hidden sm:inline text-[8px] font-black px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700">
                                         <?php if ((float)$lyVal > 0):
                                             echo ($deltaUp ? '&#9650;+' : '&#9660;') . $delta . '%';
                                         else: echo '&ndash;'; endif; ?>
                                     </span>
                                 </div>
-                                <p class="font-mono font-black text-[17px] sm:text-[19px] leading-none <?= $col ?> tracking-tight">
+                                <p class="font-mono font-black text-[17px] sm:text-[19px] leading-none text-slate-800 tracking-tight">
                                     <?= $nowDisp ?>
                                     <span class="text-[10px] font-bold opacity-80 ml-0.5"><?= $unit ?></span>
                                 </p>
@@ -1082,13 +1078,13 @@ require_once __DIR__ . '/includes/navbar.php';
                     <?php
                     // INFO SHIFT HARI INI (catatan kecil di atas cost cards, sama kayak di form Daily Log)
                     $_shH = (int)date('H');
-                    if ($_shH >= 6 && $_shH < 14) { $_shNow = 'pagi';  $_shLbl = 'PAGI';  $_shClr = 'from-yellow-500 to-amber-600'; $_shIc = 'fa-sun-plant-wilt'; }
-                    elseif ($_shH >= 14 && $_shH < 22) { $_shNow = 'siang'; $_shLbl = 'SIANG'; $_shClr = 'from-sky-500 to-indigo-600'; $_shIc = 'fa-sun'; }
-                    else                                      { $_shNow = 'malam'; $_shLbl = 'MALAM'; $_shClr = 'from-indigo-600 to-slate-900'; $_shIc = 'fa-moon-stars'; }
+                    if ($_shH >= 6 && $_shH < 14)      { $_shNow = 'pagi';  $_shLbl = 'PAGI';  $_shIc = 'fa-sun-plant-wilt'; }
+                    elseif ($_shH >= 14 && $_shH < 22) { $_shNow = 'siang'; $_shLbl = 'SIANG'; $_shIc = 'fa-sun'; }
+                    else                                        { $_shNow = 'malam'; $_shLbl = 'MALAM'; $_shIc = 'fa-moon-stars'; }
                     ?>
                     <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
                         <div class="inline-flex items-center gap-2 text-[10.5px] text-slate-600 font-semibold bg-white/70 backdrop-blur-sm border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
-                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br <?= $_shClr ?> text-white shadow-sm">
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-white shadow-sm">
                                 <i class="fas <?= $_shIc ?> text-[11px]"></i>
                             </span>
                             <span class="tracking-[0.06em] uppercase">Shift <?= $_shLbl ?> Hari Ini</span>
@@ -1114,7 +1110,7 @@ require_once __DIR__ . '/includes/navbar.php';
                                 </span>
                                 <span class="text-[8px] font-black text-slate-400 uppercase">HARI INI</span>
                             </div>
-                            <p class="font-mono font-black text-[16px] sm:text-lg text-primary leading-none tracking-tight mb-1">
+                            <p class="font-mono font-black text-[16px] sm:text-lg text-slate-800 leading-none tracking-tight mb-1">
                                 Rp <?= fmtRupiah($costNow) ?>
                             </p>
                             <div class="mt-1.5 pt-1.5 border-t border-dashed border-slate-200 flex items-center justify-between">
@@ -1146,9 +1142,9 @@ require_once __DIR__ . '/includes/navbar.php';
                     $_snapAll  = max(1, (int)($_tariffSnapCheck['all_logs'] ?? 0));
                     $_snapCnt  = (int)($_tariffSnapCheck['snap_logs'] ?? 0);
                     $_snapPct  = round(($_snapCnt / $_snapAll) * 100, 0);
-                    if ($_snapPct >= 80) { $_snapCls = 'text-emerald-700 bg-emerald-50 border-emerald-200'; $_snapIcon = 'fa-circle-check'; $_snapTxt = 'Cost menggunakan Tarif Snapshot per-Hari (permanen sesuai tanggal — tidak berubah walau tarif global diubah besok)'; }
-                    elseif ($_snapPct >= 1) { $_snapCls = 'text-amber-700 bg-amber-50 border-amber-200'; $_snapIcon = 'fa-triangle-exclamation'; $_snapTxt = 'Campuran: sebagian cost pakai Tarif Snapshot permanen, data lama fallback ke Tarif Standar Global.'; }
-                    else { $_snapCls = 'text-sky-700 bg-sky-50 border-sky-200'; $_snapIcon = 'fa-circle-info'; $_snapTxt = 'Semua cost memakai Tarif Standar Global (data lama sebelum fitur Tarif Snapshot diaktifkan).'; }
+                    if ($_snapPct >= 80) { $_snapCls = 'text-slate-700 bg-slate-100 border-slate-200'; $_snapIcon = 'fa-circle-check'; $_snapTxt = 'Cost menggunakan Tarif Snapshot per-Hari (permanen sesuai tanggal — tidak berubah walau tarif global diubah besok)'; }
+                    elseif ($_snapPct >= 1) { $_snapCls = 'text-slate-600 bg-slate-50 border-slate-200'; $_snapIcon = 'fa-triangle-exclamation'; $_snapTxt = 'Campuran: sebagian cost pakai Tarif Snapshot permanen, data lama fallback ke Tarif Standar Global.'; }
+                    else { $_snapCls = 'text-slate-600 bg-slate-50 border-slate-200'; $_snapIcon = 'fa-circle-info'; $_snapTxt = 'Semua cost memakai Tarif Standar Global (data lama sebelum fitur Tarif Snapshot diaktifkan).'; }
                     unset($_tariffSnapCheck, $_snapAll, $_snapCnt);
                     ?>
                     <div class="space-y-1.5 text-[10px] text-gray-500 bg-slate-50 rounded-lg p-2 border border-slate-200 leading-relaxed">
@@ -1190,12 +1186,12 @@ require_once __DIR__ . '/includes/navbar.php';
         <!-- ==========================================
              CARD #2 - ENGINEERING ACTIVITIES (Daily #2) - FULL WIDTH
              ========================================== -->
-        <section id="sec_engact" class="border-2 border-sky-200 rounded-xl bg-white shadow-sm overflow-hidden self-start border-t-4 border-t-sky-700">
+        <section id="sec_engact" class="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden self-start border-t-2 border-t-slate-500">
             <button type="button" onclick="toggleDashSection('engact')"
                     class="w-full text-left px-3 lg:px-4 py-2 bg-transparent hover:bg-slate-50/80 transition group flex items-center justify-between gap-2 border-b border-slate-200/80">
                 <div class="flex items-center flex-wrap gap-x-3 gap-y-1 min-w-0">
-                    <span class="w-6 h-6 rounded-md bg-gradient-to-br from-sky-500 to-sky-700 flex items-center justify-center text-white text-[11px] shadow-sm shadow-sky-500/30 shrink-0 font-black leading-none">2</span>
-                    <span class="text-[9px] font-black uppercase tracking-[0.2em] text-sky-700 hidden sm:inline-flex items-center gap-1 pl-2.5 border-l border-slate-200 h-5"><i class="fas fa-clipboard-check text-[9px]"></i> Daily Activity</span>
+                    <span class="w-6 h-6 rounded-md bg-slate-700 flex items-center justify-center text-white text-[11px] shadow-sm shrink-0 font-black leading-none">2</span>
+                    <span class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 hidden sm:inline-flex items-center gap-1 pl-2.5 border-l border-slate-200 h-5"><i class="fas fa-clipboard-check text-[9px]"></i> Daily Activity</span>
                     <h2 class="font-display text-[13px] lg:text-[14px] font-black text-gray-900 tracking-wide leading-tight truncate">
                         ENGINEERING <span class="text-slate-400 font-black">ACTIVITIES</span>
                     </h2>
@@ -1205,12 +1201,12 @@ require_once __DIR__ . '/includes/navbar.php';
                     <!-- Download PDF / Excel (match data dashboard 100%) -->
                     <span class="ml-1 flex items-center gap-1 shrink-0" onclick="event.stopPropagation();">
                         <a href="<?= BASE_URL ?>reports/dashboard_activities_pdf.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>" target="_blank" rel="noopener noreferrer"
-                           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[9px] font-black transition"
+                           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-[9px] font-black transition"
                            title="Download PDF Engineering Activities (match dashboard)">
                             <i class="fas fa-file-pdf text-[8px]"></i> PDF
                         </a>
                         <a href="<?= BASE_URL ?>reports/dashboard_activities_excel.php?date_from=<?= urlencode($monthStart) ?>&date_to=<?= urlencode($today) ?>" target="_blank" rel="noopener noreferrer"
-                           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[9px] font-black transition"
+                           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-[9px] font-black transition"
                            title="Download Excel Engineering Activities (match dashboard)">
                             <i class="fas fa-file-excel text-[8px]"></i> XLS
                         </a>
@@ -1223,33 +1219,33 @@ require_once __DIR__ . '/includes/navbar.php';
                     <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
                         <table class="w-full text-[13px]">
                             <thead>
-                                <tr class="bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 text-gray-800 text-[11px] uppercase tracking-[0.12em] font-black">
+                                <tr class="bg-slate-100 text-slate-800 text-[11px] uppercase tracking-[0.12em] font-black">
                                     <th class="px-3 py-2 text-left font-black w-64">DEPARTMENT</th>
-                                    <th class="px-3 py-2 text-left font-black border-l border-gray-300">ACTIVITY DETAIL</th>
-                                    <th class="px-3 py-2 text-center font-black border-l border-gray-300 w-40">STATUS</th>
+                                    <th class="px-3 py-2 text-left font-black border-l border-slate-200">ACTIVITY DETAIL</th>
+                                    <th class="px-3 py-2 text-center font-black border-l border-slate-200 w-40">STATUS</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100 align-top">
+                            <tbody class="divide-y divide-slate-100 align-top">
                                 <?php
                                 $deptDef = [
-                                    'operation'   => ['OPERATION',   'fas fa-gear',           'text-blue-700',   'bg-blue-50/50'],
-                                    'maintenance' => ['MAINTENANCE', 'fas fa-wrench',         'text-amber-700',  'bg-amber-50/50'],
-                                    'project'     => ['PROJECT',     'fas fa-clipboard-list', 'text-violet-700', 'bg-violet-50/50'],
-                                    'landscape'   => ['LANDSCAPE',   'fas fa-seedling',       'text-emerald-700','bg-emerald-50/50'],
+                                    'operation'   => ['OPERATION',   'fas fa-gear',           'text-slate-700', 'bg-slate-50/50'],
+                                    'maintenance' => ['MAINTENANCE', 'fas fa-wrench',         'text-slate-700', 'bg-slate-50/50'],
+                                    'project'     => ['PROJECT',     'fas fa-clipboard-list', 'text-slate-700', 'bg-slate-50/50'],
+                                    'landscape'   => ['LANDSCAPE',   'fas fa-seedling',       'text-slate-700', 'bg-slate-50/50'],
                                 ];
                                 foreach ($deptDef as $key => $dd):
                                     [$deptLabel, $deptIcon, $deptCol, $deptBg] = $dd;
                                     $rows = $actsGRP[$key] ?? [];
                                     $empty = (count($rows) === 0);
                                 ?>
-                                <tr class="hover:bg-amber-50/30 transition-colors <?= $deptBg ?>">
-                                    <td class="px-4 py-3.5 border-r border-gray-100">
+                                <tr class="hover:bg-slate-50 transition-colors <?= $deptBg ?>">
+                                    <td class="px-4 py-3.5 border-r border-slate-100">
                                         <div class="flex items-center gap-2.5">
-                                            <span class="w-9 h-9 rounded-lg bg-white shadow-sm border border-gray-200 flex items-center justify-center"><i class="<?= $deptIcon ?> text-base <?= $deptCol ?>"></i></span>
+                                            <span class="w-9 h-9 rounded-lg bg-white shadow-sm border border-slate-200 flex items-center justify-center"><i class="<?= $deptIcon ?> text-base <?= $deptCol ?>"></i></span>
                                             <span class="font-black text-gray-900 text-[15px] tracking-wide"><?= $deptLabel ?></span>
                                         </div>
                                     </td>
-                                    <td class="px-4 py-3.5 border-l border-gray-100">
+                                    <td class="px-4 py-3.5 border-l border-slate-100">
                                         <?php if ($empty): ?>
                                             <div class="flex items-center gap-2 text-gray-400 italic text-sm">
                                                 <i class="fas fa-inbox opacity-70"></i>
@@ -1257,8 +1253,6 @@ require_once __DIR__ . '/includes/navbar.php';
                                             </div>
                                         <?php else: ?>
                                             <?php
-                                            // ✅ PISAHKAN Done vs Progress (TIDAK KECAMPUR) - sesuai request user:
-                                            //    "kalau sudah selesai di buatin sendiri aja biar ga k kecampur"
                                             $rowsDone = [];
                                             $rowsProg = [];
                                             foreach ($rows as $ar) {
@@ -1270,35 +1264,34 @@ require_once __DIR__ . '/includes/navbar.php';
                                             ?>
                                             <div class="space-y-3">
                                                 <?php
-                                                // ===== Helper inline render 1 group (Prog / Done) dikelompokkan PER TANGGAL =====
                                                 $renderGrp = function($rows, $mode) {
                                                     $grouped = dashGroupByDate($rows);
                                                     $isProg = ($mode === 'progress');
                                                     $bulletIcon = $isProg
-                                                        ? '<i class="fas fa-circle text-[7px] text-amber-500 mt-1.5 shrink-0"></i>'
-                                                        : '<i class="fas fa-check text-[10px] text-emerald-600 mt-1 shrink-0"></i>';
+                                                        ? '<i class="fas fa-circle text-[7px] text-slate-500 mt-1.5 shrink-0"></i>'
+                                                        : '<i class="fas fa-check text-[10px] text-slate-600 mt-1 shrink-0"></i>';
                                                     $titleClass = $isProg
                                                         ? 'font-semibold text-gray-800'
-                                                        : 'font-semibold text-gray-600 line-through decoration-emerald-400/50 decoration-[1.5px] decoration-skip-ink-none';
+                                                        : 'font-semibold text-gray-600 line-through decoration-slate-400/50 decoration-[1.5px] decoration-skip-ink-none';
                                                     $engCss = $isProg
-                                                        ? 'text-amber-700 border-amber-200 bg-amber-50/80'
-                                                        : 'text-emerald-700 border-emerald-200 bg-emerald-50/80';
-                                                    $masterCss = 'text-indigo-700 border-indigo-200 bg-indigo-50/90 font-black';
-                                                    $dateCss = 'text-gray-500 border-gray-200 bg-white/80';
+                                                        ? 'text-slate-700 border-slate-200 bg-slate-100/80'
+                                                        : 'text-slate-700 border-slate-200 bg-slate-100/80';
+                                                    $masterCss = 'text-slate-700 border-slate-200 bg-slate-100/90 font-black';
+                                                    $dateCss = 'text-gray-500 border-slate-200 bg-white/80';
                                                     $html = '';
                                                     $firstDt = true;
                                                     foreach ($grouped as $dtISO => $items) {
                                                         $isNoDate = ($dtISO === '_nodate');
                                                         $labelDate = $isNoDate ? '' : (new DateTime($dtISO))->format('d M Y');
-                                                        if (!$firstDt) $html .= '<div class="border-t border-dotted border-gray-200 my-2 opacity-80"></div>';
+                                                        if (!$firstDt) $html .= '<div class="border-t border-dotted border-slate-200 my-2 opacity-80"></div>';
                                                         $firstDt = false;
                                                         $html .= '<div class="mb-2">';
                                                         if ($labelDate !== '') {
                                                             $html .= '<div class="flex items-center gap-2 mb-2.5 pl-0.5">';
-                                                            $html .= '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-indigo-50 to-indigo-100 border border-indigo-200 text-indigo-700 text-[10.5px] font-black tracking-wide shadow-sm">';
-                                                            $html .= '<i class="far fa-calendar-day text-indigo-500 text-[10px]"></i>';
-                                                            $html .= '📅 ' . htmlspecialchars($labelDate);
-                                                            $html .= '<span class="ml-1 bg-white px-1.5 py-0.5 rounded-full border border-indigo-200 text-[9px] text-indigo-700 font-black">' . count($items) . '</span>';
+                                                            $html .= '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-[10.5px] font-black tracking-wide shadow-sm">';
+                                                            $html .= '<i class="far fa-calendar-day text-slate-500 text-[10px]"></i>';
+                                                            $html .= htmlspecialchars($labelDate);
+                                                            $html .= '<span class="ml-1 bg-white px-1.5 py-0.5 rounded-full border border-slate-200 text-[9px] text-slate-700 font-black">' . count($items) . '</span>';
                                                             $html .= '</span></div>';
                                                         }
                                                         $html .= '<ul class="space-y-2">';
@@ -1309,7 +1302,6 @@ require_once __DIR__ . '/includes/navbar.php';
                                                             $html .= $bulletIcon;
                                                             $html .= '<div class="flex-1 leading-relaxed">';
                                                             $html .= '<span class="' . $titleClass . '">' . cleanInput($ar['title']) . '</span>';
-                                                            // Meta tags dalam flexbox baru (wrap, gap) — TIDAK KECAMPURAN
                                                             $showDate = ($d !== '');
                                                             $showMaster = $isMaster;
                                                             $showEng = ($cleanEng !== '');
@@ -1321,7 +1313,7 @@ require_once __DIR__ . '/includes/navbar.php';
                                                                 }
                                                                 if ($showMaster) {
                                                                     $html .= '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border ' . $masterCss . '">';
-                                                                    $html .= '<i class="fas fa-database mr-0.5 text-[9px] text-indigo-500"></i>MASTER TEMPLATE</span>';
+                                                                    $html .= '<i class="fas fa-database mr-0.5 text-[9px] text-slate-500"></i>MASTER TEMPLATE</span>';
                                                                 }
                                                                 if ($showEng) {
                                                                     $html .= '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border ' . $engCss . '">';
@@ -1340,7 +1332,7 @@ require_once __DIR__ . '/includes/navbar.php';
                                                 <?php if ($hasProg): ?>
                                                     <div>
                                                         <div class="flex items-center gap-2 mb-2">
-                                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100/80 border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-wider">
+                                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100/80 border border-slate-300 text-slate-800 text-[10px] font-black uppercase tracking-wider">
                                                                 <i class="fas fa-circle-notch fa-spin" style="--fa-animation-duration:1.8s"></i>
                                                                 Sedang Berjalan
                                                                 <span class="ml-0.5">(<?= count($rowsProg) ?>)</span>
@@ -1351,13 +1343,13 @@ require_once __DIR__ . '/includes/navbar.php';
                                                 <?php endif; ?>
 
                                                 <?php if ($hasDone && $hasProg): ?>
-                                                    <div class="border-t border-dashed border-gray-200 my-1"></div>
+                                                    <div class="border-t border-dashed border-slate-200 my-1"></div>
                                                 <?php endif; ?>
 
                                                 <?php if ($hasDone): ?>
                                                     <div>
                                                         <div class="flex items-center gap-2 mb-2">
-                                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100/80 border border-emerald-300 text-emerald-800 text-[10px] font-black uppercase tracking-wider">
+                                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100/80 border border-slate-300 text-slate-800 text-[10px] font-black uppercase tracking-wider">
                                                                 <i class="fas fa-circle-check"></i>
                                                                 Selesai / Done
                                                                 <span class="ml-0.5">(<?= count($rowsDone) ?>)</span>
@@ -1369,9 +1361,9 @@ require_once __DIR__ . '/includes/navbar.php';
                                             </div>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="px-4 py-3.5 text-center border-l border-gray-100 align-middle">
+                                    <td class="px-4 py-3.5 text-center border-l border-slate-100 align-middle">
                                         <?php if ($empty): ?>
-                                            <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-500">
+                                            <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-500">
                                                 &ndash; No Data &ndash;
                                             </span>
                                         <?php else: ?>
@@ -1382,13 +1374,13 @@ require_once __DIR__ . '/includes/navbar.php';
                                             ?>
                                             <div class="space-y-2 w-full">
                                                 <?php if ($completeCount > 0): ?>
-                                                    <span class="inline-flex items-center gap-1.5 w-full justify-center px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-black tracking-wider">
+                                                    <span class="inline-flex items-center gap-1.5 w-full justify-center px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-[11px] font-black tracking-wider">
                                                         <i class="fas fa-circle-check"></i> Complete
                                                         <span class="ml-0.5 text-xs">(<?= $completeCount ?>)</span>
                                                     </span>
                                                 <?php endif; ?>
                                                 <?php if ($progCount > 0): ?>
-                                                    <span class="inline-flex items-center gap-1.5 w-full justify-center px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-black tracking-wider">
+                                                    <span class="inline-flex items-center gap-1.5 w-full justify-center px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-[11px] font-black tracking-wider">
                                                         <i class="fas fa-circle-notch fa-spin" style="--fa-animation-duration: 1.8s"></i> In Progress
                                                         <span class="ml-0.5 text-xs">(<?= $progCount ?>)</span>
                                                     </span>
@@ -1477,20 +1469,20 @@ require_once __DIR__ . '/includes/navbar.php';
     ?>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 items-start gap-2.5 md:gap-3 lg:gap-3.5 mb-6">
     <!-- ============ â‘  SWRO SYSTEM (WATER TREATMENT REVERSE OSMOSIS) ============ -->
-    <div id="sec_swro" class="self-start min-h-0 bg-surface rounded-premium border border-sky-200/70 shadow-sm overflow-hidden animate-slide-up <?= $swSpan ?>" style="animation-delay: 60ms">
+    <div id="sec_swro" class="self-start min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden animate-slide-up <?= $swSpan ?>" style="animation-delay: 60ms">
         <button type="button" onclick="toggleDashSection('swro')"
-                class="w-full text-left px-3 lg:px-4 py-2 border-b border-sky-100 bg-gradient-to-r from-white via-sky-50/50 to-white hover:via-sky-50 transition group">
+                class="w-full text-left px-3 lg:px-4 py-2 border-b border-slate-200 bg-slate-50 hover:bg-slate-100 transition group">
             <div class="flex items-center justify-between gap-3">
                 <div>
-                    <p class="text-[9px] font-bold uppercase tracking-[0.2em] text-sky-700 mb-0.5">water treatment</p>
+                    <p class="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-600 mb-0.5">water treatment</p>
                     <div class="flex items-center flex-wrap gap-x-3 gap-y-1">
-                        <span class="w-6 h-6 rounded-md bg-gradient-to-br from-sky-400 to-blue-700 flex items-center justify-center text-white shadow-sm shadow-sky-500/25 shrink-0 text-[11px] font-black leading-none">3</span>
-                        <h2 class="font-display text-[13px] lg:text-[14px] font-bold text-primary tracking-wide">
+                        <span class="w-6 h-6 rounded-md bg-slate-700 flex items-center justify-center text-white shrink-0 text-[11px] font-black leading-none">3</span>
+                        <h2 class="font-display text-[13px] lg:text-[14px] font-bold text-slate-800 tracking-wide">
                             <?= T('dash_swro_title', 'swro <span class="opacity-60">&bull;</span> reverse osmosis') ?>
                         </h2>
                     </div>
                 </div>
-                <i id="swro_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[11px] group-hover:text-sky-700"></i>
+                <i id="swro_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[11px] group-hover:text-slate-600"></i>
             </div>
         </button>
         <div id="swro_group" class="transition-all duration-200 overflow-hidden">
@@ -1504,26 +1496,26 @@ require_once __DIR__ . '/includes/navbar.php';
                     'tds' => (float)($todayDailySingle['swro_tds'] ?? 0),
                 ] : ['wm'=>0,'kwh'=>0,'tds'=>0];
                 $swCards = [
-                    ['Watermeter (m3)', $swToday['wm'] > 0 ? formatNumber($swToday['wm'], 1) : '-', 'fas fa-droplet', 'from-sky-400 to-sky-600', 'bg-sky-50', 'border-sky-200', 'text-sky-700', (float)($swMonthly['wm'] ?? 0) > 0 ? formatNumber($swMonthly['wm'] ?? 0, 1).' m3' : '—'],
-                    ['Listrik (kWh)', $swToday['kwh'] > 0 ? formatNumber($swToday['kwh'], 1) : '-', 'fas fa-bolt', 'from-yellow-400 to-amber-600', 'bg-amber-50', 'border-amber-200', 'text-amber-700', (float)($swMonthly['kwh'] ?? 0) > 0 ? formatNumber($swMonthly['kwh'] ?? 0, 1).' kWh' : '—'],
-                    ['TDS Outlet (ppm)', $swToday['tds'] > 0 ? formatNumber($swToday['tds'], 0) : '-', 'fas fa-vial', 'from-slate-400 to-slate-700', 'bg-slate-50', 'border-slate-200', 'text-slate-700', (float)($swMonthly['tds'] ?? 0) > 0 ? formatNumber($swMonthly['tds'], 0).' ppm avg' : '—'],
+                    ['Watermeter (m3)', $swToday['wm'] > 0 ? formatNumber($swToday['wm'], 1) : '-', 'fas fa-droplet', (float)($swMonthly['wm'] ?? 0) > 0 ? formatNumber($swMonthly['wm'] ?? 0, 1).' m3' : '—'],
+                    ['Listrik (kWh)', $swToday['kwh'] > 0 ? formatNumber($swToday['kwh'], 1) : '-', 'fas fa-bolt', (float)($swMonthly['kwh'] ?? 0) > 0 ? formatNumber($swMonthly['kwh'] ?? 0, 1).' kWh' : '—'],
+                    ['TDS Outlet (ppm)', $swToday['tds'] > 0 ? formatNumber($swToday['tds'], 0) : '-', 'fas fa-vial', (float)($swMonthly['tds'] ?? 0) > 0 ? formatNumber($swMonthly['tds'], 0).' ppm avg' : '—'],
                 ];
                 foreach ($swCards as $sc) {
-                    [$lbl, $todayVal, $icon, $grad, $bg, $bor, $col, $monthVal] = $sc;
+                    [$lbl, $todayVal, $icon, $monthVal] = $sc;
                 ?>
-                    <div class="flex items-center justify-between gap-2.5 rounded-xl border-2 <?= $bor ?> <?= $bg ?> px-2.5 sm:px-3 py-2 min-h-[60px] hover:shadow-md hover:bg-white transition cursor-pointer" onclick="openModal('swro')">
+                    <div class="flex items-center justify-between gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 sm:px-3 py-2 min-h-[60px] hover:shadow-sm hover:bg-white transition cursor-pointer" onclick="openModal('swro')">
                         <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                            <div class="w-7 h-7 rounded-lg bg-gradient-to-br <?= $grad ?> flex items-center justify-center text-white shadow-sm shrink-0">
+                            <div class="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center text-white shrink-0">
                                 <i class="<?= $icon ?> text-[12px]"></i>
                             </div>
                             <div class="min-w-0 flex-1">
-                                <p class="font-bold text-primary text-[12px] sm:text-[13px] leading-tight truncate"><?= $lbl ?></p>
-                                <p class="text-[10px] font-semibold <?= $col ?> opacity-90 leading-tight mt-0.5"><i class="far fa-calendar-alt mr-0.5"></i> bulan ini: <?= $monthVal ?></p>
+                                <p class="font-bold text-slate-800 text-[12px] sm:text-[13px] leading-tight truncate"><?= $lbl ?></p>
+                                <p class="text-[10px] font-semibold text-slate-600 opacity-90 leading-tight mt-0.5"><i class="far fa-calendar-alt mr-0.5"></i> bulan ini: <?= $monthVal ?></p>
                             </div>
                         </div>
                     <div class="flex items-center justify-between gap-2.5 shrink-0">
                             <span class="text-lg sm:text-xl font-black text-slate-800 leading-none tabular-nums inline-flex items-center"><?= $todayVal ?></span>
-                            <i class="fas fa-chevron-right <?= $col ?> text-[10px] opacity-70 inline-flex items-center"></i>
+                            <i class="fas fa-chevron-right text-slate-500 text-[10px] opacity-70 inline-flex items-center"></i>
                         </div>
                     </div>
                 <?php } ?>
@@ -1534,53 +1526,53 @@ require_once __DIR__ . '/includes/navbar.php';
 
     <!-- ============ â‘¤ ENGINEERING ACTIVITIES - HANYA SUPERVISOR / MANAGER YANG DAPAT LIHAT ============ -->
     <?php if (in_array($userRole, ['supervisor','manager','admin'], true)): ?>
-    <div class="self-start min-h-0 bg-surface rounded-premium border border-accent/20 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 120ms">
+    <div class="self-start min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 120ms">
         <button type="button" onclick="toggleDashSection('engactcards')"
-                class="w-full text-left px-3 lg:px-4 py-2 border-b border-accent/20 bg-gradient-to-r from-white via-amber-50/30 to-white hover:via-amber-50 transition group">
+                class="w-full text-left px-3 lg:px-4 py-2 border-b border-slate-200 bg-slate-50 hover:bg-slate-100 transition group">
             <div class="flex items-center justify-between gap-3">
                 <div class="flex items-center flex-wrap gap-x-3 gap-y-1">
-                    <span class="w-6 h-6 rounded-md bg-gradient-to-br from-amber-600 to-yellow-800 flex items-center justify-center text-white shadow-sm shadow-amber-500/25 shrink-0 text-[11px] font-black leading-none">4</span>
-                    <h2 class="font-display text-[13px] lg:text-[14px] font-bold text-primary tracking-wide">
+                    <span class="w-6 h-6 rounded-md bg-slate-700 flex items-center justify-center text-white shrink-0 text-[11px] font-black leading-none">4</span>
+                    <h2 class="font-display text-[13px] lg:text-[14px] font-bold text-slate-800 tracking-wide">
                         <?= T('dash_act_title', 'eng activity') ?>
                     </h2>
                 </div>
-                <i id="engactcards_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[11px] group-hover:text-amber-700"></i>
+                <i id="engactcards_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[11px] group-hover:text-slate-600"></i>
             </div>
         </button>
         <div id="engactcards_group" class="transition-all duration-200 overflow-hidden">
         <div class="p-2 sm:p-2.5 lg:p-3 flex flex-col gap-2">
             <?php
             $actCards = [
-                ['operation',   T('dash_act_operation',   'Operation'),   'fas fa-gears',            'from-blue-400 to-blue-600',       'bg-blue-50',    'border-blue-200',    'text-blue-700',    (int)($todayAct['op'] ?? 0),    (int)($activitySum['op'] ?? 0)],
-                ['maintenance', T('dash_act_maintenance', 'Maintenance'),'fas fa-wrench',           'from-emerald-400 to-emerald-600', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-700', (int)($todayAct['maint'] ?? 0), (int)($activitySum['maint'] ?? 0)],
-                ['project',     T('dash_act_project',     'Project'),    'fas fa-diagram-project',  'from-violet-400 to-violet-600',   'bg-violet-50',  'border-violet-200',  'text-violet-700',  (int)($todayAct['proj'] ?? 0),  (int)($activitySum['proj'] ?? 0)],
-                ['landscape',   T('dash_act_landscape',   'Landscape'),  'fas fa-leaf',             'from-teal-400 to-teal-600',       'bg-teal-50',    'border-teal-200',    'text-teal-700',    (int)($todayAct['land'] ?? 0),  (int)($activitySum['land'] ?? 0)],
+                ['operation',   T('dash_act_operation',   'Operation'),   'fas fa-gears',            (int)($todayAct['op'] ?? 0),    (int)($activitySum['op'] ?? 0)],
+                ['maintenance', T('dash_act_maintenance', 'Maintenance'),'fas fa-wrench',           (int)($todayAct['maint'] ?? 0), (int)($activitySum['maint'] ?? 0)],
+                ['project',     T('dash_act_project',     'Project'),    'fas fa-diagram-project',  (int)($todayAct['proj'] ?? 0),  (int)($activitySum['proj'] ?? 0)],
+                ['landscape',   T('dash_act_landscape',   'Landscape'),  'fas fa-leaf',             (int)($todayAct['land'] ?? 0),  (int)($activitySum['land'] ?? 0)],
             ];
             foreach ($actCards as $ac) {
-                [$modalId, $label, $icon, $grad, $bg, $bor, $col, $todayCnt, $monthCnt] = $ac;
+                [$modalId, $label, $icon, $todayCnt, $monthCnt] = $ac;
                 $todayBar = $todayCnt > 0 ? min(100, max(8, ($todayCnt / max(1, max($todayCnt, $monthCnt, 10))) * 100)) : 0;
                 $monthBar = $monthCnt > 0 ? min(100, max(8, ($monthCnt / max(1, max($todayCnt, $monthCnt, 10))) * 100)) : 0;
                 echo <<<HTML
-            <div class="flex flex-col justify-between gap-1.5 rounded-xl border-2 {$bor} {$bg} px-2.5 sm:px-3 py-2 min-h-[60px] hover:shadow-md hover:bg-white transition cursor-pointer" onclick="openModal('{$modalId}')">
+            <div class="flex flex-col justify-between gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 sm:px-3 py-2 min-h-[60px] hover:shadow-sm hover:bg-white transition cursor-pointer" onclick="openModal('{$modalId}')">
                 <div class="flex items-center justify-between gap-2.5">
                     <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                        <div class="w-7 h-7 rounded-lg bg-gradient-to-br {$grad} flex items-center justify-center text-white shadow-sm shrink-0">
+                        <div class="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center text-white shrink-0">
                             <i class="{$icon} text-[12px]"></i>
                         </div>
                         <div class="min-w-0 flex-1">
-                            <p class="font-bold tracking-tight text-[12px] sm:text-[13px] text-primary leading-tight truncate">{$label}</p>
-                            <p class="text-[10px] font-semibold {$col} opacity-90 leading-tight mt-0.5"><i class="far fa-calendar-alt mr-0.5"></i> bulan ini: {$monthCnt}</p>
+                            <p class="font-bold tracking-tight text-[12px] sm:text-[13px] text-slate-800 leading-tight truncate">{$label}</p>
+                            <p class="text-[10px] font-semibold text-slate-600 opacity-90 leading-tight mt-0.5"><i class="far fa-calendar-alt mr-0.5"></i> bulan ini: {$monthCnt}</p>
                         </div>
                     </div>
                     <div class="flex items-center justify-between gap-2.5 shrink-0">
                         <span class="text-lg sm:text-xl font-black text-slate-800 leading-none tabular-nums inline-flex items-center">{$todayCnt}</span>
-                        <i class="fas fa-chevron-right {$col} text-[10px] opacity-70 inline-flex items-center"></i>
+                        <i class="fas fa-chevron-right text-slate-500 text-[10px] opacity-70 inline-flex items-center"></i>
                     </div>
                 </div>
-                <div class="h-1 w-full bg-white/80 rounded-full overflow-hidden border {$bor}/40">
+                <div class="h-1 w-full bg-white rounded-full overflow-hidden border border-slate-200/50">
                     <div class="h-full w-full relative">
-                        <div class="absolute inset-y-0 left-0 bg-gradient-to-r {$grad} opacity-25 rounded-full" style="width: {$monthBar}%"></div>
-                        <div class="absolute inset-y-0 left-0 bg-gradient-to-r {$grad} rounded-full shadow-sm" style="width: {$todayBar}%"></div>
+                        <div class="absolute inset-y-0 left-0 bg-slate-400 opacity-25 rounded-full" style="width: {$monthBar}%"></div>
+                        <div class="absolute inset-y-0 left-0 bg-slate-600 rounded-full" style="width: {$todayBar}%"></div>
                     </div>
                 </div>
             </div>
@@ -1593,24 +1585,24 @@ HTML;
     <?php endif; ?>
     <!-- ============ LOGISTIC - ORDER REQUEST & STATUS ============ -->
     <?php if (in_array($userRole, ['supervisor','manager','admin'])): ?>
-    <div id="section_logistic" class="self-start min-h-0 bg-surface rounded-premium border border-amber-200/70 shadow-sm overflow-hidden animate-slide-up scroll-mt-[90px]" style="animation-delay: 180ms">
+    <div id="section_logistic" class="self-start min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden animate-slide-up scroll-mt-[90px]" style="animation-delay: 180ms">
         <button type="button" onclick="toggleDashSection('logistic')"
-                class="w-full text-left px-3 lg:px-4 py-2 border-b border-amber-100 bg-gradient-to-r from-white via-amber-50/40 to-white hover:via-amber-50 transition group">
+                class="w-full text-left px-3 lg:px-4 py-2 border-b border-slate-200 bg-slate-50 hover:bg-slate-100 transition group">
             <div class="flex items-center justify-between gap-3">
                 <div>
-                    <p class="text-[9px] font-bold uppercase tracking-[0.2em] text-amber-700 mb-0.5">procurement <span class="opacity-60">&bull;</span> logistic</p>
+                    <p class="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-600 mb-0.5">procurement <span class="opacity-60">&bull;</span> logistic</p>
                     <div class="flex items-center flex-wrap gap-x-3 gap-y-1">
-                        <span class="w-6 h-6 rounded-md bg-gradient-to-br from-amber-500 to-amber-800 flex items-center justify-center text-white shadow-sm shadow-amber-500/25 shrink-0 text-[11px] font-black leading-none">5</span>
-                        <h2 class="font-display text-[13px] lg:text-[14px] font-bold text-primary tracking-wide">
+                        <span class="w-6 h-6 rounded-md bg-slate-700 flex items-center justify-center text-white shrink-0 text-[11px] font-black leading-none">5</span>
+                        <h2 class="font-display text-[13px] lg:text-[14px] font-bold text-slate-800 tracking-wide">
                             <?= T('dash_logistic_title', 'logistik & order') ?>
                         </h2>
                     </div>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
-                    <a href="<?= BASE_URL ?>orders/index.php" onclick="event.stopPropagation()" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-white text-[9px] font-bold shadow-sm hover:shadow transition">
+                    <a href="<?= BASE_URL ?>orders/index.php" onclick="event.stopPropagation()" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-[9px] font-bold shadow-sm hover:shadow transition">
                         <i class="fas fa-clipboard-list text-[9px]"></i> <?= T('order_menu_all', 'orders') ?>
                     </a>
-                    <i id="logistic_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[11px] group-hover:text-amber-700"></i>
+                    <i id="logistic_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[11px] group-hover:text-slate-600"></i>
                 </div>
             </div>
         </button>
@@ -1626,30 +1618,30 @@ HTML;
                 $reject = (int)($orderCounts['rejected'] ?? 0);
 
                 $orderBadge = [
-                    ['all',        $allOrder,    'Semua Order',        'from-slate-400 to-slate-600',   'bg-slate-50',   'border-slate-200',   'text-slate-700',   'text-slate-800',   'fa-clipboard-list',  BASE_URL . 'orders/index.php?filter=all'],
-                    ['my queue',   $pendingMine, 'Perlu Tindakan',     'from-amber-400 to-yellow-600',  'bg-yellow-50',  'border-yellow-200',  'text-amber-700',   'text-amber-800',   'fa-clock',           BASE_URL . 'orders/index.php?filter=my_pending'],
-                    ['spv',        $spvPen,      'Wait Supervisor',    'from-orange-400 to-orange-600', 'bg-orange-50',  'border-orange-200',  'text-orange-700',  'text-orange-800',  'fa-hourglass-half',  BASE_URL . 'orders/index.php?filter=pending_supervisor'],
-                    ['mgr',        $mgrPen,      'Wait Manager',       'from-blue-400 to-blue-600',     'bg-blue-50',    'border-blue-200',    'text-blue-700',    'text-blue-800',    'fa-hourglass-start', BASE_URL . 'orders/index.php?filter=pending_manager'],
-                    ['approved',   $approve,     'Selesai / Approved', 'from-emerald-400 to-emerald-600','bg-emerald-50', 'border-emerald-200', 'text-emerald-700', 'text-emerald-800', 'fa-circle-check',    BASE_URL . 'orders/index.php?filter=approved'],
+                    ['all',        $allOrder,    'Semua Order',        'fa-clipboard-list',  BASE_URL . 'orders/index.php?filter=all'],
+                    ['my queue',   $pendingMine, 'Perlu Tindakan',     'fa-clock',           BASE_URL . 'orders/index.php?filter=my_pending'],
+                    ['spv',        $spvPen,      'Wait Supervisor',    'fa-hourglass-half',  BASE_URL . 'orders/index.php?filter=pending_supervisor'],
+                    ['mgr',        $mgrPen,      'Wait Manager',       'fa-hourglass-start', BASE_URL . 'orders/index.php?filter=pending_manager'],
+                    ['approved',   $approve,     'Selesai / Approved', 'fa-circle-check',    BASE_URL . 'orders/index.php?filter=approved'],
                 ];
                 if ($userRole !== 'manager' && $userRole !== 'supervisor') {
-                    $orderBadge[1] = ['rejected', $reject, 'Ditolak / Rejected', 'from-red-400 to-red-600', 'bg-red-50', 'border-red-200', 'text-red-700', 'text-red-800', 'fa-circle-xmark', BASE_URL . 'orders/index.php?filter=rejected'];
+                    $orderBadge[1] = ['rejected', $reject, 'Ditolak / Rejected', 'fa-circle-xmark', BASE_URL . 'orders/index.php?filter=rejected'];
                 }
                 foreach ($orderBadge as $ob) {
-                    [$topLbl, $num, $botLbl, $iconBg, $bg, $bor, $col, $colNum, $icon, $href] = $ob;
+                    [$topLbl, $num, $botLbl, $icon, $href] = $ob;
                 ?>
-                    <a href="<?= $href ?>" class="flex items-center justify-between gap-2.5 rounded-xl border-2 <?= $bor ?> <?= $bg ?> px-2.5 sm:px-3 py-2 min-h-[60px] hover:shadow-md hover:bg-white hover:-translate-y-[1px] transition group">
+                    <a href="<?= $href ?>" class="flex items-center justify-between gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 sm:px-3 py-2 min-h-[60px] hover:shadow-sm hover:bg-white transition group">
                         <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                            <div class="w-7 h-7 rounded-lg bg-gradient-to-br <?= $iconBg ?> flex items-center justify-center shadow-sm shrink-0">
+                            <div class="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center shrink-0">
                                 <i class="fas <?= $icon ?> text-white text-[12px]"></i>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <p class="text-[12px] sm:text-[13px] font-bold uppercase tracking-wide <?= $col ?> leading-tight"><?= $botLbl ?></p>
+                                <p class="text-[12px] sm:text-[13px] font-bold uppercase tracking-wide text-slate-700 leading-tight"><?= $botLbl ?></p>
                             </div>
                         </div>
                         <div class="flex items-center justify-between gap-2.5 shrink-0">
-                            <span class="text-lg sm:text-xl font-black <?= $colNum ?> leading-none tabular-nums inline-flex items-center"><?= $num ?></span>
-                            <i class="fas fa-chevron-right <?= $col ?> text-[10px] opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition inline-flex items-center"></i>
+                            <span class="text-lg sm:text-xl font-black text-slate-800 leading-none tabular-nums inline-flex items-center"><?= $num ?></span>
+                            <i class="fas fa-chevron-right text-slate-500 text-[10px] opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition inline-flex items-center"></i>
                         </div>
                     </a>
                 <?php } ?>
@@ -1663,20 +1655,20 @@ HTML;
     $historyColSpan = $userRole === 'supervisor' ? 6 : 5;
     ?>
     <!-- ============ â‘£ RIWAYAT DAILY LOG (4 CARD SEJAJAR) ============ -->
-    <div class="self-start min-h-0 bg-surface rounded-premium border border-border shadow-sm overflow-hidden animate-slide-up <?= $riwSpan ?>" style="animation-delay: 600ms">
-        <div class="p-2.5 sm:p-3 lg:p-4 border-b border-border flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 sm:justify-between">
+    <div class="self-start min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden animate-slide-up <?= $riwSpan ?>" style="animation-delay: 600ms">
+        <div class="p-2.5 sm:p-3 lg:p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 sm:justify-between">
             <div>
-                <h2 class="font-bold text-[14px] text-primary"><i class="fas fa-clock-rotate-left mr-1.5 text-accent text-[13px]"></i><?= $userRole === 'supervisor' ? T('recent_sup_title', 'Daily Log Terbaru (Semua Staff)') : T('recent_user_title', 'Riwayat Daily Log Saya') ?></h2>
-                <p class="text-[12px] text-secondary"><?= $userRole === 'supervisor' ? T('recent_sup_sub', '5 entri terakhir dari seluruh engineer') : T('recent_user_sub', '5 entri terakhir Anda') ?></p>
+                <h2 class="font-bold text-[14px] text-slate-800"><i class="fas fa-clock-rotate-left mr-1.5 text-slate-600 text-[13px]"></i><?= $userRole === 'supervisor' ? T('recent_sup_title', 'Daily Log Terbaru (Semua Staff)') : T('recent_user_title', 'Riwayat Daily Log Saya') ?></h2>
+                <p class="text-[12px] text-slate-500"><?= $userRole === 'supervisor' ? T('recent_sup_sub', '5 entri terakhir dari seluruh engineer') : T('recent_user_sub', '5 entri terakhir Anda') ?></p>
             </div>
-            <a href="<?= BASE_URL ?>history.php" class="text-[11px] font-semibold text-primary hover:text-accent transition-colors inline-flex items-center gap-1 self-start sm:self-center">
+            <a href="<?= BASE_URL ?>history.php" class="text-[11px] font-semibold text-slate-800 hover:text-slate-600 transition-colors inline-flex items-center gap-1 self-start sm:self-center">
                 <?= T('general_lihat_semua', 'Lihat Semua') ?> <i class="fas fa-arrow-right text-[10px]"></i>
             </a>
         </div>
         <div class="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
             <table class="w-full text-[12px] min-w-[520px]">
-                <thead class="bg-muted">
-                    <tr class="text-left text-secondary">
+                <thead class="bg-slate-100">
+                    <tr class="text-left text-slate-500">
                         <th class="px-3 sm:px-4 py-2 font-semibold whitespace-nowrap"><?= T('table_tanggal', 'Tanggal') ?></th>
                         <?php if ($userRole === 'supervisor'): ?>
                             <th class="px-3 sm:px-4 py-2 font-semibold whitespace-nowrap"><?= T('table_engineer', 'Engineer') ?></th>
@@ -1687,22 +1679,22 @@ HTML;
                         <th class="px-3 sm:px-4 py-2 font-semibold whitespace-nowrap"><?= T('table_status', 'Status') ?></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-border">
+                <tbody class="divide-y divide-slate-200">
                     <?php if (count($recentLogs) > 0): ?>
                         <?php foreach ($recentLogs as $log): ?>
-                            <tr class="hover:bg-muted/50 transition-colors">
-                                <td class="px-3 sm:px-4 py-2.5 font-medium text-primary whitespace-nowrap"><?= formatDate($log['log_date']) ?></td>
+                            <tr class="hover:bg-slate-100/50 transition-colors">
+                                <td class="px-3 sm:px-4 py-2.5 font-medium text-slate-800 whitespace-nowrap"><?= formatDate($log['log_date']) ?></td>
                                 <?php if ($userRole === 'supervisor'): ?>
-                                    <td class="px-3 sm:px-4 py-2.5 text-secondary whitespace-nowrap"><?= cleanInput($log['engineer_name'] ?? '-') ?></td>
+                                    <td class="px-3 sm:px-4 py-2.5 text-slate-500 whitespace-nowrap"><?= cleanInput($log['engineer_name'] ?? '-') ?></td>
                                 <?php endif; ?>
-                                <td class="px-3 sm:px-4 py-2.5 text-right font-medium text-primary whitespace-nowrap"><?= formatNumber($log['total_electricity']) ?> kWh</td>
-                                <td class="px-3 sm:px-4 py-2.5 text-right font-medium text-primary whitespace-nowrap"><?= formatNumber($log['total_water']) ?> mÂ³</td>
-                                <td class="px-3 sm:px-4 py-2.5 text-right font-medium text-primary whitespace-nowrap"><?= formatNumber($log['total_gas']) ?> kg</td>
+                                <td class="px-3 sm:px-4 py-2.5 text-right font-medium text-slate-800 whitespace-nowrap"><?= formatNumber($log['total_electricity']) ?> kWh</td>
+                                <td class="px-3 sm:px-4 py-2.5 text-right font-medium text-slate-800 whitespace-nowrap"><?= formatNumber($log['total_water']) ?> m³</td>
+                                <td class="px-3 sm:px-4 py-2.5 text-right font-medium text-slate-800 whitespace-nowrap"><?= formatNumber($log['total_gas']) ?> kg</td>
                                 <td class="px-3 sm:px-4 py-2.5 whitespace-nowrap"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold <?= getStatusBadgeClass($log['status']) ?>"><?= getStatusText($log['status']) ?></span></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <tr><td colspan="<?= $historyColSpan ?>" class="px-3 sm:px-4 py-8 text-center text-secondary text-[12px]"><i class="fas fa-inbox text-2xl mb-2 block opacity-40"></i><?= T('recent_empty', 'Belum ada data daily log') ?></td></tr>
+                        <tr><td colspan="<?= $historyColSpan ?>" class="px-3 sm:px-4 py-8 text-center text-slate-500 text-[12px]"><i class="fas fa-inbox text-2xl mb-2 block opacity-40"></i><?= T('recent_empty', 'Belum ada data daily log') ?></td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -1713,24 +1705,24 @@ HTML;
 
     <!-- ============ DAILY LOG HARI INI (PINDAH KE BAWAH 4 CARD) ============ -->
     <?php if ($todayData): ?>
-        <div class="mb-8 p-4 sm:p-5 lg:p-6 bg-surface rounded-premium border border-border shadow-sm animate-slide-up">
+        <div class="mb-8 p-4 sm:p-5 lg:p-6 bg-white rounded-lg border border-slate-200 shadow-sm animate-slide-up">
             <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-                <i class="fas fa-calendar-check text-accent text-xl"></i>
-                <h2 class="font-bold text-lg text-primary"><?= T('today_title', 'Daily Log Hari Ini') ?></h2>
+                <i class="fas fa-calendar-check text-slate-600 text-xl"></i>
+                <h2 class="font-bold text-lg text-slate-800"><?= T('today_title', 'Daily Log Hari Ini') ?></h2>
                 <span class="sm:ml-auto px-3 py-1 rounded-full text-xs font-semibold <?= getStatusBadgeClass($todayData['status']) ?>"><?= getStatusText($todayData['status']) ?></span>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-sm">
-                <div><p class="text-secondary mb-1 text-xs sm:text-sm">âš¡ <?= T('card_electricity', 'Listrik') ?></p><p class="font-bold text-primary text-base sm:text-lg"><?= formatNumber($todayData['total_electricity']) ?> kWh</p></div>
-                <div><p class="text-secondary mb-1 text-xs sm:text-sm">ðŸ’§ <?= T('card_water', 'Air') ?></p><p class="font-bold text-primary text-base sm:text-lg"><?= formatNumber($todayData['total_water']) ?> mÂ³</p></div>
-                <div><p class="text-secondary mb-1 text-xs sm:text-sm">ðŸ”¥ <?= T('card_gas', 'Gas') ?></p><p class="font-bold text-primary text-base sm:text-lg"><?= formatNumber($todayData['total_gas']) ?> kg</p></div>
-                <div><p class="text-secondary mb-1 text-xs sm:text-sm">ðŸ“… <?= T('general_date', 'Tanggal') ?></p><p class="font-bold text-primary text-base sm:text-lg"><?= formatDate($todayData['log_date']) ?></p></div>
+                <div><p class="text-slate-500 mb-1 text-xs sm:text-sm"><i class="fas fa-bolt mr-1 text-[11px]"></i><?= T('card_electricity', 'Listrik') ?></p><p class="font-bold text-slate-800 text-base sm:text-lg"><?= formatNumber($todayData['total_electricity']) ?> kWh</p></div>
+                <div><p class="text-slate-500 mb-1 text-xs sm:text-sm"><i class="fas fa-droplet mr-1 text-[11px]"></i><?= T('card_water', 'Air') ?></p><p class="font-bold text-slate-800 text-base sm:text-lg"><?= formatNumber($todayData['total_water']) ?> m³</p></div>
+                <div><p class="text-slate-500 mb-1 text-xs sm:text-sm"><i class="fas fa-fire mr-1 text-[11px]"></i><?= T('card_gas', 'Gas') ?></p><p class="font-bold text-slate-800 text-base sm:text-lg"><?= formatNumber($todayData['total_gas']) ?> kg</p></div>
+                <div><p class="text-slate-500 mb-1 text-xs sm:text-sm"><i class="fas fa-calendar mr-1 text-[11px]"></i><?= T('general_date', 'Tanggal') ?></p><p class="font-bold text-slate-800 text-base sm:text-lg"><?= formatDate($todayData['log_date']) ?></p></div>
             </div>
             <?php if ($todayData['status'] === 'rejected' && $todayData['revision_notes']): ?>
-                <div class="mt-4 p-4 rounded-card bg-red-50 border border-red-200">
-                    <p class="text-xs font-semibold text-red-700 mb-1.5"><i class="fas fa-triangle-exclamation mr-1"></i><?= T('today_revisi_label', 'Catatan Revisi Supervisor') ?>:</p>
-                    <p class="text-sm text-red-800"><?= nl2br(cleanInput($todayData['revision_notes'])) ?></p>
+                <div class="mt-4 p-4 rounded-lg bg-slate-100 border border-slate-300">
+                    <p class="text-xs font-semibold text-slate-700 mb-1.5"><i class="fas fa-triangle-exclamation mr-1"></i><?= T('today_revisi_label', 'Catatan Revisi Supervisor') ?>:</p>
+                    <p class="text-sm text-slate-800"><?= nl2br(cleanInput($todayData['revision_notes'])) ?></p>
                     <?php if ($userRole === 'engineer'): ?>
-                        <a href="<?= BASE_URL ?>engineer/daily_log_form.php?date=<?= $todayData['log_date'] ?>" class="inline-flex items-center gap-1.5 mt-3 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-full transition-all">
+                        <a href="<?= BASE_URL ?>engineer/daily_log_form.php?date=<?= $todayData['log_date'] ?>" class="inline-flex items-center gap-1.5 mt-3 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-full transition-all">
                             <i class="fas fa-redo"></i> <?= T('today_edit_ulang', 'Edit Ulang') ?>
                         </a>
                     <?php endif; ?>
@@ -1742,16 +1734,16 @@ HTML;
     <!-- ============ SUPERVISOR 3 CHARTS (PINDAH KE BAWAH DAILY LOG) ============ -->
     <?php if ($userRole === 'supervisor'): ?>
 
-    <div class="mb-6 bg-surface rounded-premium border border-border p-4 sm:p-5 shadow-sm animate-slide-up" style="animation-delay: 420ms">
+    <div class="mb-6 bg-white rounded-lg border border-slate-200 p-4 sm:p-5 shadow-sm animate-slide-up" style="animation-delay: 420ms">
         <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
-                <h2 class="font-bold text-lg text-primary mb-1"><i class="fas fa-chart-line mr-2 text-accent"></i><?= T('sup_chart_title', 'Grafik Konsumsi Energi') ?></h2>
-                <p class="text-sm text-secondary"><?= T('sup_chart_sub', 'Setiap grafik dilengkapi filter Harian / Bulanan & pilih tanggal sendiri-sendiri') ?></p>
+                <h2 class="font-bold text-lg text-slate-800 mb-1"><i class="fas fa-chart-line mr-2 text-slate-600"></i><?= T('sup_chart_title', 'Grafik Konsumsi Energi') ?></h2>
+                <p class="text-sm text-slate-500"><?= T('sup_chart_sub', 'Setiap grafik dilengkapi filter Harian / Bulanan & pilih tanggal sendiri-sendiri') ?></p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <?php $exportQs = 'view=' . urlencode($viewE) . '&date_from=' . urlencode($dateFromE) . '&date_to=' . urlencode($dateToE); ?>
                 <a href="<?= BASE_URL ?>reports/dashboard_pdf.php?<?= $exportQs ?>" target="_blank"
-                    class="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg bg-red-50 text-red-700 border border-red-200 text-xs sm:text-sm font-semibold hover:bg-red-100 hover:-translate-y-0.5 transition-all duration-200 shadow-sm">
+                    class="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-xs sm:text-sm font-semibold hover:bg-slate-200 hover:-translate-y-0.5 transition-all duration-200 shadow-sm">
                     <i class="fas fa-file-pdf"></i><span class="hidden sm:inline"><?= T('general_export', 'Export') ?></span> PDF
                 </a>
               
@@ -1764,8 +1756,8 @@ HTML;
         <div class="chart-card animate-slide-up overflow-hidden" style="animation-delay: 450ms">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                 <div>
-                    <h3 class="font-bold text-xl text-primary mb-1"> <?= T('sup_elec_title', 'Total Consume Listrik') ?></h3>
-                    <p class="text-xs text-secondary"><?= T('sup_chart_period', 'Periode') ?>: <?= formatDate($dateFromE) ?> - <?= formatDate($dateToE) ?> (kWh)</p>
+                    <h3 class="font-bold text-xl text-slate-800 mb-1"> <?= T('sup_elec_title', 'Total Consume Listrik') ?></h3>
+                    <p class="text-xs text-slate-500"><?= T('sup_chart_period', 'Periode') ?>: <?= formatDate($dateFromE) ?> - <?= formatDate($dateToE) ?> (kWh)</p>
                 </div>
             </div>
             <form method="GET" class="mb-4 flex flex-col gap-3">
@@ -1773,19 +1765,19 @@ HTML;
                     <?php $otherQs = buildOtherQs('e', $viewE, $dateFromE, $dateToE, $viewW, $dateFromW, $dateToW, $viewG, $dateFromG, $dateToG); ?>
                     <div class="flex gap-2 flex-1 sm:flex-none">
                         <a href="?<?= $otherQs ?>view_e=daily&date_from_e=<?= urlencode($dateFromE) ?>&date_to_e=<?= urlencode($dateToE) ?>"
-                            class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border border-border hover:bg-muted transition-colors flex-1 sm:flex-none text-center <?= $viewE === 'daily' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-surface text-primary' ?>"><?= T('filter_daily', 'Harian') ?></a>
+                            class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border border-slate-200 hover:bg-slate-100 transition-colors flex-1 sm:flex-none text-center <?= $viewE === 'daily' ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white text-slate-800' ?>"><?= T('filter_daily', 'Harian') ?></a>
                         <a href="?<?= $otherQs ?>view_e=monthly&date_from_e=<?= urlencode($dateFromE) ?>&date_to_e=<?= urlencode($dateToE) ?>"
-                            class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border border-border hover:bg-muted transition-colors flex-1 sm:flex-none text-center <?= $viewE === 'monthly' ? 'bg-amber-600 text-white border-amber-600 shadow-md' : 'bg-surface text-primary' ?>"><?= T('filter_monthly', 'Bulanan') ?></a>
+                            class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border border-slate-200 hover:bg-slate-100 transition-colors flex-1 sm:flex-none text-center <?= $viewE === 'monthly' ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white text-slate-800' ?>"><?= T('filter_monthly', 'Bulanan') ?></a>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
                     <div class="md:col-span-2">
-                        <label class="text-xs text-secondary font-medium mb-1 block"><?= T('filter_from', 'Dari Tanggal') ?></label>
-                        <input type="date" name="date_from_e" value="<?= $dateFromE ?>" class="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-primary focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10">
+                        <label class="text-xs text-slate-500 font-medium mb-1 block"><?= T('filter_from', 'Dari Tanggal') ?></label>
+                        <input type="date" name="date_from_e" value="<?= $dateFromE ?>" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="text-xs text-secondary font-medium mb-1 block"><?= T('filter_to', 'Sampai Tanggal') ?></label>
-                        <input type="date" name="date_to_e" value="<?= $dateToE ?>" class="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-primary focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10">
+                        <label class="text-xs text-slate-500 font-medium mb-1 block"><?= T('filter_to', 'Sampai Tanggal') ?></label>
+                        <input type="date" name="date_to_e" value="<?= $dateToE ?>" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
                     </div>
                     <div class="flex gap-2 md:col-span-1">
                         <input type="hidden" name="view_e" value="<?= $viewE ?>">
@@ -1795,11 +1787,11 @@ HTML;
                         <input type="hidden" name="view_g" value="<?= $viewG ?>">
                         <input type="hidden" name="date_from_g" value="<?= $dateFromG ?>">
                         <input type="hidden" name="date_to_g" value="<?= $dateToG ?>">
-                        <button type="submit" class="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                        <button type="submit" class="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-sm">
                             <i class="fas fa-filter"></i><span class="hidden sm:inline"><?= T('general_filter', 'Filter') ?></span>
                         </button>
                         <?php $resetQs = buildOtherQs('e', '', '', '', $viewW, $dateFromW, $dateToW, $viewG, $dateFromG, $dateToG); ?>
-                        <a href="?<?= rtrim($resetQs, '&') ?>" class="flex-1 px-4 py-2 bg-muted text-primary text-sm rounded-lg border border-border hover:bg-white transition-colors flex items-center justify-center gap-1.5">
+                        <a href="?<?= rtrim($resetQs, '&') ?>" class="flex-1 px-4 py-2 bg-slate-100 text-slate-800 text-sm rounded-lg border border-slate-200 hover:bg-white transition-colors flex items-center justify-center gap-1.5">
                             <i class="fas fa-rotate-left"></i><span class="hidden sm:inline"><?= T('general_reset', 'Reset') ?></span>
                         </a>
                     </div>
@@ -1811,8 +1803,8 @@ HTML;
         <div class="chart-card animate-slide-up overflow-hidden" style="animation-delay: 500ms">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                 <div>
-                    <h3 class="font-bold text-xl text-primary mb-1"> <?= T('sup_water_title', 'Total Consume Air') ?></h3>
-                    <p class="text-xs text-secondary"><?= T('sup_chart_period', 'Periode') ?>: <?= formatDate($dateFromW) ?> - <?= formatDate($dateToW) ?> (mÂ³)</p>
+                    <h3 class="font-bold text-xl text-slate-800 mb-1"> <?= T('sup_water_title', 'Total Consume Air') ?></h3>
+                    <p class="text-xs text-slate-500"><?= T('sup_chart_period', 'Periode') ?>: <?= formatDate($dateFromW) ?> - <?= formatDate($dateToW) ?> (m³)</p>
                 </div>
             </div>
             <form method="GET" class="mb-4 flex flex-col gap-3">
@@ -1820,19 +1812,19 @@ HTML;
                     <?php $otherQs = buildOtherQs('w', $viewE, $dateFromE, $dateToE, $viewW, $dateFromW, $dateToW, $viewG, $dateFromG, $dateToG); ?>
                     <div class="flex gap-2 flex-1 sm:flex-none">
                         <a href="?<?= $otherQs ?>view_w=daily&date_from_w=<?= urlencode($dateFromW) ?>&date_to_w=<?= urlencode($dateToW) ?>"
-                            class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border border-border hover:bg-muted transition-colors flex-1 sm:flex-none text-center <?= $viewW === 'daily' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-surface text-primary' ?>"><?= T('filter_daily', 'Harian') ?></a>
+                            class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border border-slate-200 hover:bg-slate-100 transition-colors flex-1 sm:flex-none text-center <?= $viewW === 'daily' ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white text-slate-800' ?>"><?= T('filter_daily', 'Harian') ?></a>
                         <a href="?<?= $otherQs ?>view_w=monthly&date_from_w=<?= urlencode($dateFromW) ?>&date_to_w=<?= urlencode($dateToW) ?>"
-                            class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border border-border hover:bg-muted transition-colors flex-1 sm:flex-none text-center <?= $viewW === 'monthly' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-surface text-primary' ?>"><?= T('filter_monthly', 'Bulanan') ?></a>
+                            class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border border-slate-200 hover:bg-slate-100 transition-colors flex-1 sm:flex-none text-center <?= $viewW === 'monthly' ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white text-slate-800' ?>"><?= T('filter_monthly', 'Bulanan') ?></a>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
                     <div class="md:col-span-2">
-                        <label class="text-xs text-secondary font-medium mb-1 block"><?= T('filter_from', 'Dari Tanggal') ?></label>
-                        <input type="date" name="date_from_w" value="<?= $dateFromW ?>" class="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-primary focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+                        <label class="text-xs text-slate-500 font-medium mb-1 block"><?= T('filter_from', 'Dari Tanggal') ?></label>
+                        <input type="date" name="date_from_w" value="<?= $dateFromW ?>" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="text-xs text-secondary font-medium mb-1 block"><?= T('filter_to', 'Sampai Tanggal') ?></label>
-                        <input type="date" name="date_to_w" value="<?= $dateToW ?>" class="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-primary focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+                        <label class="text-xs text-slate-500 font-medium mb-1 block"><?= T('filter_to', 'Sampai Tanggal') ?></label>
+                        <input type="date" name="date_to_w" value="<?= $dateToW ?>" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
                     </div>
                     <div class="flex gap-2 md:col-span-1">
                         <input type="hidden" name="view_w" value="<?= $viewW ?>">
@@ -1842,11 +1834,11 @@ HTML;
                         <input type="hidden" name="view_g" value="<?= $viewG ?>">
                         <input type="hidden" name="date_from_g" value="<?= $dateFromG ?>">
                         <input type="hidden" name="date_to_g" value="<?= $dateToG ?>">
-                        <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                        <button type="submit" class="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-sm">
                             <i class="fas fa-filter"></i><span class="hidden sm:inline"><?= T('general_filter', 'Filter') ?></span>
                         </button>
                         <?php $resetQs = buildOtherQs('w', $viewE, $dateFromE, $dateToE, '', '', '', $viewG, $dateFromG, $dateToG); ?>
-                        <a href="?<?= rtrim($resetQs, '&') ?>" class="flex-1 px-4 py-2 bg-muted text-primary text-sm rounded-lg border border-border hover:bg-white transition-colors flex items-center justify-center gap-1.5">
+                        <a href="?<?= rtrim($resetQs, '&') ?>" class="flex-1 px-4 py-2 bg-slate-100 text-slate-800 text-sm rounded-lg border border-slate-200 hover:bg-white transition-colors flex items-center justify-center gap-1.5">
                             <i class="fas fa-rotate-left"></i><span class="hidden sm:inline"><?= T('general_reset', 'Reset') ?></span>
                         </a>
                     </div>
@@ -1858,8 +1850,8 @@ HTML;
         <div class="chart-card animate-slide-up overflow-hidden" style="animation-delay: 550ms">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                 <div>
-                    <h3 class="font-bold text-xl text-primary mb-1"> <?= T('sup_gas_title', 'Total Consume Gas') ?></h3>
-                    <p class="text-xs text-secondary"><?= T('sup_chart_period', 'Periode') ?>: <?= formatDate($dateFromG) ?> - <?= formatDate($dateToG) ?> (kg)</p>
+                    <h3 class="font-bold text-xl text-slate-800 mb-1"> <?= T('sup_gas_title', 'Total Consume Gas') ?></h3>
+                    <p class="text-xs text-slate-500"><?= T('sup_chart_period', 'Periode') ?>: <?= formatDate($dateFromG) ?> - <?= formatDate($dateToG) ?> (kg)</p>
                 </div>
             </div>
             <form method="GET" class="mb-4 flex flex-col gap-3">
@@ -1867,19 +1859,19 @@ HTML;
                     <?php $otherQs = buildOtherQs('g', $viewE, $dateFromE, $dateToE, $viewW, $dateFromW, $dateToW, $viewG, $dateFromG, $dateToG); ?>
                     <div class="flex gap-2 flex-1 sm:flex-none">
                         <a href="?<?= $otherQs ?>view_g=daily&date_from_g=<?= urlencode($dateFromG) ?>&date_to_g=<?= urlencode($dateToG) ?>"
-                            class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border border-border hover:bg-muted transition-colors flex-1 sm:flex-none text-center <?= $viewG === 'daily' ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'bg-surface text-primary' ?>"><?= T('filter_daily', 'Harian') ?></a>
+                            class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border border-slate-200 hover:bg-slate-100 transition-colors flex-1 sm:flex-none text-center <?= $viewG === 'daily' ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white text-slate-800' ?>"><?= T('filter_daily', 'Harian') ?></a>
                         <a href="?<?= $otherQs ?>view_g=monthly&date_from_g=<?= urlencode($dateFromG) ?>&date_to_g=<?= urlencode($dateToG) ?>"
-                            class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border border-border hover:bg-muted transition-colors flex-1 sm:flex-none text-center <?= $viewG === 'monthly' ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'bg-surface text-primary' ?>"><?= T('filter_monthly', 'Bulanan') ?></a>
+                            class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium border border-slate-200 hover:bg-slate-100 transition-colors flex-1 sm:flex-none text-center <?= $viewG === 'monthly' ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white text-slate-800' ?>"><?= T('filter_monthly', 'Bulanan') ?></a>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
                     <div class="md:col-span-2">
-                        <label class="text-xs text-secondary font-medium mb-1 block"><?= T('filter_from', 'Dari Tanggal') ?></label>
-                        <input type="date" name="date_from_g" value="<?= $dateFromG ?>" class="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-primary focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10">
+                        <label class="text-xs text-slate-500 font-medium mb-1 block"><?= T('filter_from', 'Dari Tanggal') ?></label>
+                        <input type="date" name="date_from_g" value="<?= $dateFromG ?>" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="text-xs text-secondary font-medium mb-1 block"><?= T('filter_to', 'Sampai Tanggal') ?></label>
-                        <input type="date" name="date_to_g" value="<?= $dateToG ?>" class="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-primary focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/10">
+                        <label class="text-xs text-slate-500 font-medium mb-1 block"><?= T('filter_to', 'Sampai Tanggal') ?></label>
+                        <input type="date" name="date_to_g" value="<?= $dateToG ?>" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
                     </div>
                     <div class="flex gap-2 md:col-span-1">
                         <input type="hidden" name="view_g" value="<?= $viewG ?>">
@@ -1889,11 +1881,11 @@ HTML;
                         <input type="hidden" name="view_w" value="<?= $viewW ?>">
                         <input type="hidden" name="date_from_w" value="<?= $dateFromW ?>">
                         <input type="hidden" name="date_to_w" value="<?= $dateToW ?>">
-                        <button type="submit" class="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                        <button type="submit" class="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-sm">
                             <i class="fas fa-filter"></i><span class="hidden sm:inline"><?= T('general_filter', 'Filter') ?></span>
                         </button>
                         <?php $resetQs = buildOtherQs('g', $viewE, $dateFromE, $dateToE, $viewW, $dateFromW, $dateToW, '', '', ''); ?>
-                        <a href="?<?= rtrim($resetQs, '&') ?>" class="flex-1 px-4 py-2 bg-muted text-primary text-sm rounded-lg border border-border hover:bg-white transition-colors flex items-center justify-center gap-1.5">
+                        <a href="?<?= rtrim($resetQs, '&') ?>" class="flex-1 px-4 py-2 bg-slate-100 text-slate-800 text-sm rounded-lg border border-slate-200 hover:bg-white transition-colors flex items-center justify-center gap-1.5">
                             <i class="fas fa-rotate-left"></i><span class="hidden sm:inline"><?= T('general_reset', 'Reset') ?></span>
                         </a>
                     </div>
@@ -1907,18 +1899,18 @@ HTML;
     <?php endif; ?>
 
     <!-- ============ AKTIVITAS DALAM PROGRESS (DIPINDAH KEDALAM PAGE-SHELL AGAR TIDAK OVERLAY JUDUL) ============ -->
-    <div class="static z-0 bg-white rounded-premium border border-gray-200 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 90ms">
-        <div class="px-5 lg:px-8 pt-6 pb-5 border-b border-gray-200 bg-gradient-to-br from-white via-orange-50/30 to-white relative overflow-hidden">
-            <div class="absolute -left-5 -top-6 opacity-[0.07] text-[130px] leading-none text-orange-500 pointer-events-none select-none"><i class="fas fa-list-check"></i></div>
+    <div class="static z-0 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 90ms">
+        <div class="px-5 lg:px-8 pt-6 pb-5 border-b border-gray-200 bg-slate-50 relative overflow-hidden">
+            <div class="absolute -left-5 -top-6 opacity-[0.07] text-[130px] leading-none text-slate-700 pointer-events-none select-none"><i class="fas fa-list-check"></i></div>
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <p class="text-[11px] font-black uppercase tracking-[0.35em] text-orange-700 mb-2"><i class="fas fa-bolt mr-1"></i> FOKUS HARI INI</p>
+                    <p class="text-[11px] font-black uppercase tracking-[0.35em] text-slate-700 mb-2"><i class="fas fa-bolt mr-1"></i> FOKUS HARI INI</p>
                     <h1 class="font-display text-2xl lg:text-4xl font-black text-gray-900 tracking-tight leading-tight">
-                        AKTIVITAS DALAM <span class="text-orange-600">PROGRESS</span>
+                        AKTIVITAS DALAM <span class="text-slate-700">PROGRESS</span>
                     </h1>
                 </div>
                 <div class="flex items-center gap-2.5">
-                    <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-md shadow-orange-500/25 font-black text-sm">
+                    <span class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 text-white shadow-sm font-black text-sm">
                         <i class="fas fa-gears animate-spin-slow text-[13px]"></i>
                         TOTAL PROGRESS:
                         <span class="font-black text-lg leading-none ml-0.5"><?= $progressCount ?></span>
@@ -1934,21 +1926,21 @@ HTML;
         </div>
         <div class="p-5 lg:p-7">
             <?php if ($progressCount === 0): ?>
-                <div class="py-14 px-6 rounded-2xl border-2 border-dashed border-gray-200 bg-gradient-to-br from-gray-50 to-white text-center">
-                    <div class="w-20 h-20 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-4xl text-emerald-600 mx-auto mb-4 shadow-sm">
+                <div class="py-14 px-6 rounded-2xl border-2 border-dashed border-gray-200 bg-slate-50 text-center">
+                    <div class="w-20 h-20 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-4xl text-slate-700 mx-auto mb-4 shadow-sm">
                         <i class="fas fa-check-double"></i>
                     </div>
                     <h3 class="font-black text-xl text-gray-800 mb-2">SEMUA AKTIVITAS SELESAI! ðŸŽ‰</h3>
                     <p class="text-sm text-gray-500 leading-relaxed max-w-lg mx-auto">
                         Tidak ada pekerjaan Engineering yang masih berstatus <b>In Progress</b> untuk bulan ini.
-                        Semua pekerjaan sudah ditandai <b class="text-emerald-600">Complete</b>. Bagus! ðŸ‘
+                        Semua pekerjaan sudah ditandai <b class="text-slate-700">Complete</b>. Bagus! ðŸ‘
                     </p>
                 </div>
             <?php else: ?>
                 <div class="overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 text-gray-800 text-[11px] uppercase tracking-[0.12em] font-black">
+                            <tr class="bg-slate-100 text-gray-800 text-[11px] uppercase tracking-[0.12em] font-black">
                                 <th class="px-5 py-4 text-left font-black w-14">NO</th>
                                 <th class="px-5 py-4 text-left font-black w-40 border-l border-gray-300">DIVISI</th>
                                 <th class="px-5 py-4 text-left font-black border-l border-gray-300">NAMA PEKERJAAN / AKTIVITAS</th>
@@ -1993,13 +1985,13 @@ HTML;
                                 </td>
                                 <td class="px-5 py-4 border-l border-gray-100">
                                     <?php if ($src === 'daily_log'): ?>
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-700 border border-emerald-200 text-[11px] font-black shadow-xs">
-                                            <i class="fas fa-file-pen text-emerald-600"></i>
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-black shadow-xs">
+                                            <i class="fas fa-file-pen text-slate-700"></i>
                                             LOG HARIAN
                                         </span>
                                     <?php else: ?>
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-br from-sky-50 to-sky-100 text-sky-700 border border-sky-200 text-[11px] font-black shadow-xs">
-                                            <i class="fas fa-database text-sky-600"></i>
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-black shadow-xs">
+                                            <i class="fas fa-database text-slate-600"></i>
                                             MASTER TEMPLATE
                                         </span>
                                     <?php endif; ?>
@@ -2012,12 +2004,12 @@ HTML;
                                 </td>
                                 <td class="px-5 py-4 text-center border-l border-gray-100">
                                     <?php if ($src === 'daily_log'): ?>
-                                        <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 text-white font-black text-[11px] shadow-sm shadow-orange-500/30 border border-orange-600">
+                                        <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 text-white font-black text-[11px] shadow-sm border border-slate-700">
                                             <i class="fas fa-gears animate-spin-slow text-[10px]"></i>
                                             IN PROGRESS
                                         </span>
                                     <?php else: ?>
-                                        <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 text-white font-black text-[11px] shadow-sm shadow-sky-500/30 border border-sky-600">
+                                        <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 text-white font-black text-[11px] shadow-sm border border-slate-700">
                                             <i class="fas fa-list-check text-[10px]"></i>
                                             TUGAS BARU
                                         </span>
@@ -2037,14 +2029,14 @@ HTML;
 <!-- ============ 11 MODAL GRAFIK RINCIAN (TETAP LUAR PAGE-SHELL, POSITION FIXED AMAN) ============ -->
 <div id="modalOverlay" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4 sm:p-6 transition-opacity duration-300" onclick="closeAllModals(event)">
     <!-- LISTRIK MODAL -->
-    <div id="modal-electricity" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
-        <div class="bg-gradient-to-r from-amber-500 to-amber-600 p-5 sm:p-6 flex items-center gap-4 relative">
+    <div id="modal-electricity" class="modal-card hidden bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-slate-800 p-5 sm:p-6 flex items-center gap-4 relative">
             <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
                 <i class="fas fa-bolt text-white text-2xl"></i>
             </div>
             <div class="flex-1 min-w-0">
                 <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_elec_title', 'Rincian Konsumsi Listrik') ?></h2>
-                <p class="text-amber-50/90 text-sm"><?= T('modal_elec_sub', 'WBP (Tarif Puncak) & LWBP (Tarif Luar Puncak) Bulan Ini') ?></p>
+                <p class="text-slate-100/90 text-sm"><?= T('modal_elec_sub', 'WBP (Tarif Puncak) & LWBP (Tarif Luar Puncak) Bulan Ini') ?></p>
             </div>
             <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
                 <i class="fas fa-times text-lg"></i>
@@ -2056,14 +2048,14 @@ HTML;
     </div>
 
     <!-- AIR MODAL -->
-    <div id="modal-water" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
-        <div class="bg-gradient-to-r from-blue-500 to-blue-600 p-5 sm:p-6 flex items-center gap-4 relative">
+    <div id="modal-water" class="modal-card hidden bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-slate-800 p-5 sm:p-6 flex items-center gap-4 relative">
             <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
                 <i class="fas fa-droplet text-white text-2xl"></i>
             </div>
             <div class="flex-1 min-w-0">
                 <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_water_title', 'Rincian 9 Sumber Air') ?></h2>
-                <p class="text-blue-50/90 text-sm"><?= T('modal_water_sub', 'PDAM, IKI Gaban, DW 1/2 Brr, ASEAN, LPB, Main Bldg, Cooling, Bottling') ?></p>
+                <p class="text-slate-100/90 text-sm"><?= T('modal_water_sub', 'PDAM, IKI Gaban, DW 1/2 Brr, ASEAN, LPB, Main Bldg, Cooling, Bottling') ?></p>
             </div>
             <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
                 <i class="fas fa-times text-lg"></i>
@@ -2075,14 +2067,14 @@ HTML;
     </div>
 
     <!-- GAS MODAL -->
-    <div id="modal-gas" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
-        <div class="bg-gradient-to-r from-orange-500 to-orange-600 p-5 sm:p-6 flex items-center gap-4 relative">
+    <div id="modal-gas" class="modal-card hidden bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-slate-800 p-5 sm:p-6 flex items-center gap-4 relative">
             <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
                 <i class="fas fa-fire text-white text-2xl"></i>
             </div>
             <div class="flex-1 min-w-0">
                 <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_gas_title', 'Rincian Konsumsi Gas') ?></h2>
-                <p class="text-orange-50/90 text-sm"><?= T('modal_gas_sub', 'Gas LPG & Gas LNG Per Hari') ?></p>
+                <p class="text-slate-100/90 text-sm"><?= T('modal_gas_sub', 'Gas LPG & Gas LNG Per Hari') ?></p>
             </div>
             <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
                 <i class="fas fa-times text-lg"></i>
@@ -2094,14 +2086,14 @@ HTML;
     </div>
 
     <!-- SWRO MODAL -->
-    <div id="modal-swro" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
-        <div class="bg-gradient-to-r from-cyan-500 to-cyan-600 p-5 sm:p-6 flex items-center gap-4 relative">
+    <div id="modal-swro" class="modal-card hidden bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-slate-800 p-5 sm:p-6 flex items-center gap-4 relative">
             <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
                 <i class="fas fa-water text-white text-2xl"></i>
             </div>
             <div class="flex-1 min-w-0">
                 <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_swro_title', 'SWRO System Monitoring') ?></h2>
-                <p class="text-cyan-50/90 text-sm"><?= T('modal_swro_sub', 'Watermeter (mÂ³), kWh Konsumsi, TDS Output (ppm)') ?></p>
+                <p class="text-slate-100/90 text-sm"><?= T('modal_swro_sub', 'Watermeter (m³), kWh Konsumsi, TDS Output (ppm)') ?></p>
             </div>
             <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
                 <i class="fas fa-times text-lg"></i>
@@ -2113,14 +2105,14 @@ HTML;
     </div>
 
     <!-- BOTTLING MODAL -->
-    <div id="modal-bottling" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
-        <div class="bg-gradient-to-r from-violet-500 to-violet-600 p-5 sm:p-6 flex items-center gap-4 relative">
+    <div id="modal-bottling" class="modal-card hidden bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-slate-800 p-5 sm:p-6 flex items-center gap-4 relative">
             <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
                 <i class="fas fa-industry text-white text-2xl"></i>
             </div>
             <div class="flex-1 min-w-0">
                 <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_bottling_title', 'Bottling Plant Monitoring') ?></h2>
-                <p class="text-violet-50/90 text-sm"><?= T('modal_bottling_sub', 'Konsumsi kWh & Watermeter Air Produksi') ?></p>
+                <p class="text-slate-100/90 text-sm"><?= T('modal_bottling_sub', 'Konsumsi kWh & Watermeter Air Produksi') ?></p>
             </div>
             <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
                 <i class="fas fa-times text-lg"></i>
@@ -2132,14 +2124,14 @@ HTML;
     </div>
 
     <!-- CHILLER MODAL -->
-    <div id="modal-chiller" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
-        <div class="bg-gradient-to-r from-emerald-500 to-emerald-600 p-5 sm:p-6 flex items-center gap-4 relative">
+    <div id="modal-chiller" class="modal-card hidden bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-slate-800 p-5 sm:p-6 flex items-center gap-4 relative">
             <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
                 <i class="fas fa-snowflake text-white text-2xl"></i>
             </div>
             <div class="flex-1 min-w-0">
                 <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_chiller_title', 'Chiller System Performance') ?></h2>
-                <p class="text-emerald-50/90 text-sm"><?= T('modal_chiller_sub', 'pH, TDS, Temperature (Â°C) & Status Unit 1/2/3') ?></p>
+                <p class="text-slate-100/90 text-sm"><?= T('modal_chiller_sub', 'pH, TDS, Temperature (Â°C) & Status Unit 1/2/3') ?></p>
             </div>
             <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
                 <i class="fas fa-times text-lg"></i>
@@ -2156,21 +2148,21 @@ HTML;
                 }
                 $chillerOnAvg = $totalChDays > 0 ? round((($chiller1Cnt+$chiller2Cnt+$chiller3Cnt)/($totalChDays*3))*100, 1) : 0;
                 ?>
-                <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
-                    <p class="text-xs text-emerald-700 font-semibold mb-1"><?= T('chiller_unit1_on', 'Unit 1 ON') ?></p>
-                    <p class="text-2xl font-bold text-emerald-800"><?= $totalChDays > 0 ? round(($chiller1Cnt/$totalChDays)*100, 1) : 0 ?><span class="text-sm">%</span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('chiller_unit1_on', 'Unit 1 ON') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $totalChDays > 0 ? round(($chiller1Cnt/$totalChDays)*100, 1) : 0 ?><span class="text-sm">%</span></p>
                 </div>
-                <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
-                    <p class="text-xs text-emerald-700 font-semibold mb-1"><?= T('chiller_unit2_on', 'Unit 2 ON') ?></p>
-                    <p class="text-2xl font-bold text-emerald-800"><?= $totalChDays > 0 ? round(($chiller2Cnt/$totalChDays)*100, 1) : 0 ?><span class="text-sm">%</span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('chiller_unit2_on', 'Unit 2 ON') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $totalChDays > 0 ? round(($chiller2Cnt/$totalChDays)*100, 1) : 0 ?><span class="text-sm">%</span></p>
                 </div>
-                <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
-                    <p class="text-xs text-emerald-700 font-semibold mb-1"><?= T('chiller_unit3_on', 'Unit 3 ON') ?></p>
-                    <p class="text-2xl font-bold text-emerald-800"><?= $totalChDays > 0 ? round(($chiller3Cnt/$totalChDays)*100, 1) : 0 ?><span class="text-sm">%</span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('chiller_unit3_on', 'Unit 3 ON') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $totalChDays > 0 ? round(($chiller3Cnt/$totalChDays)*100, 1) : 0 ?><span class="text-sm">%</span></p>
                 </div>
-                <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
-                    <p class="text-xs text-emerald-700 font-semibold mb-1"><?= T('chiller_rata_rata', 'Rata-Rata Aktif') ?></p>
-                    <p class="text-2xl font-bold text-emerald-800"><?= $chillerOnAvg ?><span class="text-sm">%</span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('chiller_rata_rata', 'Rata-Rata Aktif') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $chillerOnAvg ?><span class="text-sm">%</span></p>
                 </div>
             </div>
             <div class="h-72 sm:h-80 lg:h-96 w-full"><canvas id="modalChillerChart"></canvas></div>
@@ -2178,14 +2170,14 @@ HTML;
     </div>
 
     <!-- FUEL MODAL -->
-    <div id="modal-fuel" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
-        <div class="bg-gradient-to-r from-rose-500 to-red-600 p-5 sm:p-6 flex items-center gap-4 relative">
+    <div id="modal-fuel" class="modal-card hidden bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-slate-800 p-5 sm:p-6 flex items-center gap-4 relative">
             <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
                 <i class="fas fa-gas-pump text-white text-2xl"></i>
             </div>
             <div class="flex-1 min-w-0">
                 <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_fuel_title', 'Rincian Konsumsi Fuel / Solar') ?></h2>
-                <p class="text-rose-50/90 text-sm"><?= T('modal_fuel_sub', 'Total Liter Per Hari Bulan Ini - Kumulatif') ?></p>
+                <p class="text-slate-100/90 text-sm"><?= T('modal_fuel_sub', 'Total Liter Per Hari Bulan Ini - Kumulatif') ?></p>
             </div>
             <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
                 <i class="fas fa-times text-lg"></i>
@@ -2194,17 +2186,17 @@ HTML;
         <div class="p-5 sm:p-6 overflow-y-auto" style="max-height: calc(90vh - 90px)">
             <?php $fuelTot = array_sum(array_column($fuelDetailData, 'total_fuel')); $fuelDays = count($fuelDetailData); ?>
             <div class="mb-5 grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div class="p-4 rounded-xl bg-rose-50 border border-rose-100 text-center">
-                    <p class="text-xs text-rose-700 font-semibold mb-1"><?= T('modal_fuel_total', 'Total Bulan Ini') ?></p>
-                    <p class="text-2xl font-bold text-rose-800"><?= formatNumber($fuelTot, 1) ?> <span class="text-sm">L</span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_fuel_total', 'Total Bulan Ini') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= formatNumber($fuelTot, 1) ?> <span class="text-sm">L</span></p>
                 </div>
-                <div class="p-4 rounded-xl bg-rose-50 border border-rose-100 text-center">
-                    <p class="text-xs text-rose-700 font-semibold mb-1"><?= T('modal_fuel_avg', 'Rata-Rata / Hari') ?></p>
-                    <p class="text-2xl font-bold text-rose-800"><?= $fuelDays>0 ? formatNumber($fuelTot/$fuelDays, 1) : 0 ?> <span class="text-sm">L</span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_fuel_avg', 'Rata-Rata / Hari') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $fuelDays>0 ? formatNumber($fuelTot/$fuelDays, 1) : 0 ?> <span class="text-sm">L</span></p>
                 </div>
-                <div class="p-4 rounded-xl bg-rose-50 border border-rose-100 text-center col-span-2 md:col-span-1">
-                    <p class="text-xs text-rose-700 font-semibold mb-1"><?= T('modal_fuel_days', 'Hari Tercatat') ?></p>
-                    <p class="text-2xl font-bold text-rose-800"><?= $fuelDays ?> <span class="text-sm">hari</span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center col-span-2 md:col-span-1">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_fuel_days', 'Hari Tercatat') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $fuelDays ?> <span class="text-sm">hari</span></p>
                 </div>
             </div>
             <div class="h-72 sm:h-80 lg:h-96 w-full"><canvas id="modalFuelChart"></canvas></div>
@@ -2212,14 +2204,14 @@ HTML;
     </div>
 
     <!-- OPERATION MODAL -->
-    <div id="modal-operation" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
-        <div class="bg-gradient-to-r from-blue-500 to-blue-600 p-5 sm:p-6 flex items-center gap-4 relative">
+    <div id="modal-operation" class="modal-card hidden bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-slate-800 p-5 sm:p-6 flex items-center gap-4 relative">
             <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
                 <i class="fas fa-gears text-white text-2xl"></i>
             </div>
             <div class="flex-1 min-w-0">
                 <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_act_op_title', 'Rincian Aktivitas OPERATION') ?></h2>
-                <p class="text-blue-50/90 text-sm"><?= T('modal_act_op_sub', 'Jumlah aktivitas operasional per hari bulan ini') ?></p>
+                <p class="text-slate-100/90 text-sm"><?= T('modal_act_op_sub', 'Jumlah aktivitas operasional per hari bulan ini') ?></p>
             </div>
             <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
                 <i class="fas fa-times text-lg"></i>
@@ -2228,31 +2220,31 @@ HTML;
         <div class="p-5 sm:p-6 overflow-y-auto" style="max-height: calc(90vh - 90px)">
             <?php $opTot = array_sum(array_column($activityOpDetailData, 'activity_operation')); $opDays = count($activityOpDetailData); ?>
             <div class="mb-5 grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div class="p-4 rounded-xl bg-blue-50 border border-blue-100 text-center">
-                    <p class="text-xs text-blue-700 font-semibold mb-1"><?= T('modal_act_total_month', 'Total Bulan Ini') ?></p>
-                    <p class="text-2xl font-bold text-blue-800"><?= $opTot ?> <span class="text-sm"><?= T('dash_act_count', 'aktivitas') ?></span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_act_total_month', 'Total Bulan Ini') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $opTot ?> <span class="text-sm"><?= T('dash_act_count', 'aktivitas') ?></span></p>
                 </div>
-                <div class="p-4 rounded-xl bg-blue-50 border border-blue-100 text-center">
-                    <p class="text-xs text-blue-700 font-semibold mb-1"><?= T('modal_act_avg_day', 'Rata-Rata / Hari') ?></p>
-                    <p class="text-2xl font-bold text-blue-800"><?= $opDays>0 ? number_format($opTot/$opDays, 1) : '0' ?></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_act_avg_day', 'Rata-Rata / Hari') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $opDays>0 ? number_format($opTot/$opDays, 1) : '0' ?></p>
                 </div>
-                <div class="p-4 rounded-xl bg-blue-50 border border-blue-100 text-center col-span-2 md:col-span-1">
-                    <p class="text-xs text-blue-700 font-semibold mb-1"><?= T('modal_act_days', 'Hari Tercatat') ?></p>
-                    <p class="text-2xl font-bold text-blue-800"><?= $opDays ?> <span class="text-sm">hari</span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center col-span-2 md:col-span-1">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_act_days', 'Hari Tercatat') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $opDays ?> <span class="text-sm">hari</span></p>
                 </div>
             </div>
             <div class="h-72 sm:h-80 lg:h-96 w-full"><canvas id="modalOperationChart"></canvas></div>
-            <?= renderActivityTable($actListOp, 'text-blue-700', 'fa-user-tie', 'Belum ada daftar pekerjaan OPERATION untuk bulan ini.', 'OPERATION'); ?>
+            <?= renderActivityTable($actListOp, 'text-slate-700', 'fa-user-tie', 'Belum ada daftar pekerjaan OPERATION untuk bulan ini.', 'OPERATION'); ?>
         </div>
     </div>
-    <div id="modal-maintenance" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
-        <div class="bg-gradient-to-r from-emerald-500 to-emerald-600 p-5 sm:p-6 flex items-center gap-4 relative">
+    <div id="modal-maintenance" class="modal-card hidden bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-slate-800 p-5 sm:p-6 flex items-center gap-4 relative">
             <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
                 <i class="fas fa-wrench text-white text-2xl"></i>
             </div>
             <div class="flex-1 min-w-0">
                 <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_act_maint_title', 'Rincian Aktivitas MAINTENANCE') ?></h2>
-                <p class="text-emerald-50/90 text-sm"><?= T('modal_act_maint_sub', 'Jumlah perawatan & perbaikan per hari bulan ini') ?></p>
+                <p class="text-slate-100/90 text-sm"><?= T('modal_act_maint_sub', 'Jumlah perawatan & perbaikan per hari bulan ini') ?></p>
             </div>
             <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
                 <i class="fas fa-times text-lg"></i>
@@ -2261,33 +2253,33 @@ HTML;
         <div class="p-5 sm:p-6 overflow-y-auto" style="max-height: calc(90vh - 90px)">
             <?php $maintTot = array_sum(array_column($activityMaintDetailData, 'activity_maintenance')); $maintDays = count($activityMaintDetailData); ?>
             <div class="mb-5 grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
-                    <p class="text-xs text-emerald-700 font-semibold mb-1"><?= T('modal_act_total_month', 'Total Bulan Ini') ?></p>
-                    <p class="text-2xl font-bold text-emerald-800"><?= $maintTot ?> <span class="text-sm"><?= T('dash_act_count', 'aktivitas') ?></span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_act_total_month', 'Total Bulan Ini') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $maintTot ?> <span class="text-sm"><?= T('dash_act_count', 'aktivitas') ?></span></p>
                 </div>
-                <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
-                    <p class="text-xs text-emerald-700 font-semibold mb-1"><?= T('modal_act_avg_day', 'Rata-Rata / Hari') ?></p>
-                    <p class="text-2xl font-bold text-emerald-800"><?= $maintDays>0 ? number_format($maintTot/$maintDays, 1) : '0' ?></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_act_avg_day', 'Rata-Rata / Hari') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $maintDays>0 ? number_format($maintTot/$maintDays, 1) : '0' ?></p>
                 </div>
-                <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-center col-span-2 md:col-span-1">
-                    <p class="text-xs text-emerald-700 font-semibold mb-1"><?= T('modal_act_days', 'Hari Tercatat') ?></p>
-                    <p class="text-2xl font-bold text-emerald-800"><?= $maintDays ?> <span class="text-sm">hari</span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center col-span-2 md:col-span-1">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_act_days', 'Hari Tercatat') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $maintDays ?> <span class="text-sm">hari</span></p>
                 </div>
             </div>
             <div class="h-72 sm:h-80 lg:h-96 w-full"><canvas id="modalMaintenanceChart"></canvas></div>
-            <?= renderActivityTable($actListMaint, 'text-emerald-700', 'fa-user-helmet-safety', 'Belum ada daftar pekerjaan MAINTENANCE untuk bulan ini.', 'MAINTENANCE'); ?>
+            <?= renderActivityTable($actListMaint, 'text-slate-700', 'fa-user-helmet-safety', 'Belum ada daftar pekerjaan MAINTENANCE untuk bulan ini.', 'MAINTENANCE'); ?>
         </div>
     </div>
 
     <!-- PROJECT MODAL -->
-    <div id="modal-project" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
-        <div class="bg-gradient-to-r from-violet-500 to-violet-600 p-5 sm:p-6 flex items-center gap-4 relative">
+    <div id="modal-project" class="modal-card hidden bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-slate-800 p-5 sm:p-6 flex items-center gap-4 relative">
             <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
                 <i class="fas fa-diagram-project text-white text-2xl"></i>
             </div>
             <div class="flex-1 min-w-0">
                 <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_act_proj_title', 'Rincian Aktivitas PROJECT') ?></h2>
-                <p class="text-violet-50/90 text-sm"><?= T('modal_act_proj_sub', 'Progress proyek khusus per hari bulan ini') ?></p>
+                <p class="text-slate-100/90 text-sm"><?= T('modal_act_proj_sub', 'Progress proyek khusus per hari bulan ini') ?></p>
             </div>
             <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
                 <i class="fas fa-times text-lg"></i>
@@ -2296,33 +2288,33 @@ HTML;
         <div class="p-5 sm:p-6 overflow-y-auto" style="max-height: calc(90vh - 90px)">
             <?php $projTot = array_sum(array_column($activityProjDetailData, 'activity_project')); $projDays = count($activityProjDetailData); ?>
             <div class="mb-5 grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div class="p-4 rounded-xl bg-violet-50 border border-violet-100 text-center">
-                    <p class="text-xs text-violet-700 font-semibold mb-1"><?= T('modal_act_total_month', 'Total Bulan Ini') ?></p>
-                    <p class="text-2xl font-bold text-violet-800"><?= $projTot ?> <span class="text-sm"><?= T('dash_act_count', 'aktivitas') ?></span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_act_total_month', 'Total Bulan Ini') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $projTot ?> <span class="text-sm"><?= T('dash_act_count', 'aktivitas') ?></span></p>
                 </div>
-                <div class="p-4 rounded-xl bg-violet-50 border border-violet-100 text-center">
-                    <p class="text-xs text-violet-700 font-semibold mb-1"><?= T('modal_act_avg_day', 'Rata-Rata / Hari') ?></p>
-                    <p class="text-2xl font-bold text-violet-800"><?= $projDays>0 ? number_format($projTot/$projDays, 1) : '0' ?></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_act_avg_day', 'Rata-Rata / Hari') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $projDays>0 ? number_format($projTot/$projDays, 1) : '0' ?></p>
                 </div>
-                <div class="p-4 rounded-xl bg-violet-50 border border-violet-100 text-center col-span-2 md:col-span-1">
-                    <p class="text-xs text-violet-700 font-semibold mb-1"><?= T('modal_act_days', 'Hari Tercatat') ?></p>
-                    <p class="text-2xl font-bold text-violet-800"><?= $projDays ?> <span class="text-sm">hari</span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center col-span-2 md:col-span-1">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_act_days', 'Hari Tercatat') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $projDays ?> <span class="text-sm">hari</span></p>
                 </div>
             </div>
             <div class="h-72 sm:h-80 lg:h-96 w-full"><canvas id="modalProjectChart"></canvas></div>
-            <?= renderActivityTable($actListProj, 'text-violet-700', 'fa-user-pen', 'Belum ada daftar Project untuk bulan ini.', 'PROJECT'); ?>
+            <?= renderActivityTable($actListProj, 'text-slate-700', 'fa-user-pen', 'Belum ada daftar Project untuk bulan ini.', 'PROJECT'); ?>
         </div>
     </div>
 
     <!-- LANDSCAPE MODAL -->
-    <div id="modal-landscape" class="modal-card hidden bg-white rounded-premium shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
-        <div class="bg-gradient-to-r from-teal-500 to-teal-600 p-5 sm:p-6 flex items-center gap-4 relative">
+    <div id="modal-landscape" class="modal-card hidden bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+        <div class="bg-slate-800 p-5 sm:p-6 flex items-center gap-4 relative">
             <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
                 <i class="fas fa-leaf text-white text-2xl"></i>
             </div>
             <div class="flex-1 min-w-0">
                 <h2 class="text-white font-bold text-xl sm:text-2xl"><?= T('modal_act_land_title', 'Rincian Aktivitas LANDSCAPE') ?></h2>
-                <p class="text-teal-50/90 text-sm"><?= T('modal_act_land_sub', 'Perawatan taman & lingkungan per hari bulan ini') ?></p>
+                <p class="text-slate-100/90 text-sm"><?= T('modal_act_land_sub', 'Perawatan taman & lingkungan per hari bulan ini') ?></p>
             </div>
             <button onclick="closeAllModals()" class="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center justify-center shrink-0">
                 <i class="fas fa-times text-lg"></i>
@@ -2331,21 +2323,21 @@ HTML;
         <div class="p-5 sm:p-6 overflow-y-auto" style="max-height: calc(90vh - 90px)">
             <?php $landTot = array_sum(array_column($activityLandDetailData, 'activity_landscape')); $landDays = count($activityLandDetailData); ?>
             <div class="mb-5 grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div class="p-4 rounded-xl bg-teal-50 border border-teal-100 text-center">
-                    <p class="text-xs text-teal-700 font-semibold mb-1"><?= T('modal_act_total_month', 'Total Bulan Ini') ?></p>
-                    <p class="text-2xl font-bold text-teal-800"><?= $landTot ?> <span class="text-sm"><?= T('dash_act_count', 'aktivitas') ?></span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_act_total_month', 'Total Bulan Ini') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $landTot ?> <span class="text-sm"><?= T('dash_act_count', 'aktivitas') ?></span></p>
                 </div>
-                <div class="p-4 rounded-xl bg-teal-50 border border-teal-100 text-center">
-                    <p class="text-xs text-teal-700 font-semibold mb-1"><?= T('modal_act_avg_day', 'Rata-Rata / Hari') ?></p>
-                    <p class="text-2xl font-bold text-teal-800"><?= $landDays>0 ? number_format($landTot/$landDays, 1) : '0' ?></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_act_avg_day', 'Rata-Rata / Hari') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $landDays>0 ? number_format($landTot/$landDays, 1) : '0' ?></p>
                 </div>
-                <div class="p-4 rounded-xl bg-teal-50 border border-teal-100 text-center col-span-2 md:col-span-1">
-                    <p class="text-xs text-teal-700 font-semibold mb-1"><?= T('modal_act_days', 'Hari Tercatat') ?></p>
-                    <p class="text-2xl font-bold text-teal-800"><?= $landDays ?> <span class="text-sm">hari</span></p>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center col-span-2 md:col-span-1">
+                    <p class="text-xs text-slate-700 font-semibold mb-1"><?= T('modal_act_days', 'Hari Tercatat') ?></p>
+                    <p class="text-2xl font-bold text-slate-800"><?= $landDays ?> <span class="text-sm">hari</span></p>
                 </div>
             </div>
             <div class="h-72 sm:h-80 lg:h-96 w-full"><canvas id="modalLandscapeChart"></canvas></div>
-            <?= renderActivityTable($actListLand, 'text-teal-700', 'fa-user-nurse', 'Belum ada daftar pekerjaan LANDSCAPE untuk bulan ini.', 'LANDSCAPE'); ?>
+            <?= renderActivityTable($actListLand, 'text-slate-700', 'fa-user-nurse', 'Belum ada daftar pekerjaan LANDSCAPE untuk bulan ini.', 'LANDSCAPE'); ?>
         </div>
     </div>
 </div>
@@ -2403,7 +2395,7 @@ const waterChart = new Chart(document.getElementById('waterChart'), {
     data: {
         labels: <?= json_encode(array_column($waterData, 'label')) ?>,
         datasets: [{
-            label: 'Air (mÂ³)',
+            label: 'Air (m³)',
             data: toCumulativeBig(<?= json_encode(array_column($waterData, 'value')) ?>),
             borderColor: '#2563eb',
             backgroundColor: 'rgba(37,99,235,0.12)',
@@ -2411,7 +2403,7 @@ const waterChart = new Chart(document.getElementById('waterChart'), {
             pointBorderColor: '#2563eb',
         }]
     },
-    options: chartOptions('mÂ³')
+    options: chartOptions('m³')
 });
 
 const gasChart = new Chart(document.getElementById('gasChart'), {
@@ -2558,7 +2550,7 @@ function renderModalChart(name) {
                         { label: 'Bottling', data: toCumulative(extract(modalWaterData, 'water_bottling')), backgroundColor: waterColors[8], borderRadius: 6, borderSkipped: false }
                     ]
                 },
-                options: { ...modalChartOpts('mÂ³'), scales: { x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b', maxRotation: 45 } }, y: { stacked: true, beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#64748b' } } } }
+                options: { ...modalChartOpts('m³'), scales: { x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b', maxRotation: 45 } }, y: { stacked: true, beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#64748b' } } } }
             });
             break;
         }
@@ -2584,7 +2576,7 @@ function renderModalChart(name) {
                 data: {
                     labels,
                     datasets: [
-                        { label: 'Watermeter (mÂ³)', data: toCumulative(extract(modalSwroData, 'swro_watermeter')), borderColor: '#0891b2', backgroundColor: 'rgba(8,145,178,0.12)', fill: true, pointBorderColor: '#0891b2', yAxisID: 'y' },
+                        { label: 'Watermeter (m³)', data: toCumulative(extract(modalSwroData, 'swro_watermeter')), borderColor: '#0891b2', backgroundColor: 'rgba(8,145,178,0.12)', fill: true, pointBorderColor: '#0891b2', yAxisID: 'y' },
                         { label: 'Konsumsi kWh', data: toCumulative(extract(modalSwroData, 'swro_kwh')), borderColor: '#0e7490', backgroundColor: 'rgba(14,116,144,0.08)', fill: false, pointBorderColor: '#0e7490', yAxisID: 'y' },
                         { label: 'TDS Output (ppm)', data: extract(modalSwroData, 'swro_tds'), borderColor: '#155e75', backgroundColor: 'transparent', fill: false, pointBorderColor: '#155e75', yAxisID: 'y1', borderDash: [5,5] }
                     ]
@@ -2592,7 +2584,7 @@ function renderModalChart(name) {
                 options: { ...modalChartOpts(''),
                     scales: {
                         x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b', maxRotation: 45 } },
-                        y: { type: 'linear', position: 'left', beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#64748b' }, title: { display: true, text: 'mÂ³ / kWh', font: { size: 11 }, color: '#64748b' } },
+                        y: { type: 'linear', position: 'left', beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#64748b' }, title: { display: true, text: 'm³ / kWh', font: { size: 11 }, color: '#64748b' } },
                         y1: { type: 'linear', position: 'right', beginAtZero: true, grid: { display: false }, ticks: { font: { size: 11 }, color: '#155e75' }, title: { display: true, text: 'ppm TDS', font: { size: 11 }, color: '#155e75' } }
                     }
                 }
@@ -2606,11 +2598,11 @@ function renderModalChart(name) {
                 data: {
                     labels,
                     datasets: [
-                        { label: 'Watermeter (mÂ³)', data: toCumulative(extract(modalBottlingData, 'bottling_watermeter')), borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.12)', fill: true, pointBorderColor: '#7c3aed' },
+                        { label: 'Watermeter (m³)', data: toCumulative(extract(modalBottlingData, 'bottling_watermeter')), borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.12)', fill: true, pointBorderColor: '#7c3aed' },
                         { label: 'Konsumsi kWh', data: toCumulative(extract(modalBottlingData, 'bottling_kwh')), borderColor: '#5b21b6', backgroundColor: 'rgba(91,33,182,0.08)', fill: false, pointBorderColor: '#5b21b6' }
                     ]
                 },
-                options: modalChartOpts('mÂ³ / kWh')
+                options: modalChartOpts('m³ / kWh')
             });
             break;
         }
@@ -2778,16 +2770,16 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAllMo
         <div class="p-4 sm:p-5 space-y-3 overflow-y-auto flex-1 min-h-0">
             <div class="grid grid-cols-2 gap-3">
                 <div class="space-y-1.5">
-                    <label class="block text-[10px] font-black uppercase tracking-wider text-sky-700"><i class="fas fa-bolt mr-1"></i> PLN Listrik</label>
+                    <label class="block text-[10px] font-black uppercase tracking-wider text-slate-600"><i class="fas fa-bolt mr-1"></i> PLN Listrik</label>
                     <div class="relative">
                         <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-[10px] font-black text-slate-400 border-r border-slate-200 pr-2 my-1.5">Rp</div>
                         <input type="number" min="0" step="1" name="electricity_per_kwh" value="<?= (int)$TARIF['electricity_per_kwh'] ?>" required
-                               class="w-full pl-11 pr-3 py-2.5 text-sm font-bold rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none bg-white">
+                               class="w-full pl-11 pr-3 py-2.5 text-sm font-bold rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-200 focus:border-slate-400 outline-none bg-white">
                         <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-[10px] font-bold text-slate-400">/kWh</span>
                     </div>
                 </div>
                 <div class="space-y-1.5">
-                    <label class="block text-[10px] font-black uppercase tracking-wider text-cyan-700"><i class="fas fa-droplet mr-1"></i> PDAM Air</label>
+                    <label class="block text-[10px] font-black uppercase tracking-wider text-slate-700"><i class="fas fa-droplet mr-1"></i> PDAM Air</label>
                     <div class="relative">
                         <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-[10px] font-black text-slate-400 border-r border-slate-200 pr-2 my-1.5">Rp</div>
                         <input type="number" min="0" step="1" name="water_per_m3" value="<?= (int)$TARIF['water_per_m3'] ?>" required
@@ -2796,26 +2788,26 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAllMo
                     </div>
                 </div>
                 <div class="space-y-1.5">
-                    <label class="block text-[10px] font-black uppercase tracking-wider text-orange-700"><i class="fas fa-fire mr-1"></i> LPG Gas</label>
+                    <label class="block text-[10px] font-black uppercase tracking-wider text-slate-700"><i class="fas fa-fire mr-1"></i> LPG Gas</label>
                     <div class="relative">
                         <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-[10px] font-black text-slate-400 border-r border-slate-200 pr-2 my-1.5">Rp</div>
                         <input type="number" min="0" step="1" name="gas_per_kg" value="<?= (int)$TARIF['gas_per_kg'] ?>" required
-                               class="w-full pl-11 pr-3 py-2.5 text-sm font-bold rounded-xl border border-slate-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white">
+                               class="w-full pl-11 pr-3 py-2.5 text-sm font-bold rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-200 focus:border-slate-400 outline-none bg-white">
                         <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-[10px] font-bold text-slate-400">/kg</span>
                     </div>
                 </div>
                 <div class="space-y-1.5">
-                    <label class="block text-[10px] font-black uppercase tracking-wider text-amber-700"><i class="fas fa-gas-pump mr-1"></i> Solar BBM</label>
+                    <label class="block text-[10px] font-black uppercase tracking-wider text-slate-600"><i class="fas fa-gas-pump mr-1"></i> Solar BBM</label>
                     <div class="relative">
                         <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-[10px] font-black text-slate-400 border-r border-slate-200 pr-2 my-1.5">Rp</div>
                         <input type="number" min="0" step="1" name="fuel_per_liter" value="<?= (int)$TARIF['fuel_per_liter'] ?>" required
-                               class="w-full pl-11 pr-3 py-2.5 text-sm font-bold rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none bg-white">
+                               class="w-full pl-11 pr-3 py-2.5 text-sm font-bold rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-200 focus:border-slate-400 outline-none bg-white">
                         <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-[10px] font-bold text-slate-400">/Ltr</span>
                     </div>
                 </div>
             </div>
             <div class="mt-1 text-[10px] text-slate-400 leading-relaxed bg-slate-50 rounded-lg border border-slate-200 p-2">
-                <i class="fas fa-lightbulb text-amber-500 mr-1"></i> <strong class="text-slate-600">Catatan:</strong> tarif berbeda tiap hari? Isi sesuai tarif terbaru hari itu sebelum lihat cost summary. Simpanan tarif otomatis tersimpan global.
+                <i class="fas fa-lightbulb text-slate-500 mr-1"></i> <strong class="text-slate-600">Catatan:</strong> tarif berbeda tiap hari? Isi sesuai tarif terbaru hari itu sebelum lihat cost summary. Simpanan tarif otomatis tersimpan global.
             </div>
         </div>
         <div class="flex-shrink-0 px-5 py-3.5 border-t border-slate-200 bg-white rounded-b-2xl flex justify-end gap-2">
