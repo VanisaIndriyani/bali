@@ -652,12 +652,12 @@ if ($format === 'excel') {
     table.act td:last-child { border-right:none;}
     table.act tbody tr:last-child td { border-bottom:none; }
     table.act tbody tr:hover td { background:#f8fafc;}
-    table.act td.dept { font-weight:900; font-size:13px; letter-spacing:.05em; vertical-align: middle;}
-    .dept-ico { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:8px; margin-right:8px; color:#fff; border:1px solid #1e293b; background:#334155; font-size:13px;}
+    table.act td.dept { font-weight:800; font-size:11.5px; letter-spacing:.05em; vertical-align: middle;}
+    .dept-ico { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:7px; margin-right:6px; color:#fff; border:1px solid #1e293b; background:#334155; font-size:11.5px;}
     .ico-op, .ico-mt, .ico-pr, .ico-la { background:#334155; border:1px solid #1e293b;}
-    .date-box { display:inline-flex; align-items:center; justify-content:center; padding:4px 10px; border-radius:6px; background:#f8fafc; border:1px solid #cbd5e1; font-size:11px; font-weight:700; color:#0f172a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;}
-    .eng-box { font-size:12px; font-weight:700; color:#0f172a;}
-    .status-pill { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:999px; font-size:10px; font-weight:900; letter-spacing:.05em; text-transform:uppercase; border:1px solid;}
+    .date-box { display:inline-flex; align-items:center; justify-content:center; padding:3px 8px; border-radius:6px; background:#f8fafc; border:1px solid #cbd5e1; font-size:10.5px; font-weight:700; color:#0f172a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;}
+    .eng-box { font-size:11.5px; font-weight:700; color:#0f172a;}
+    .status-pill { display:inline-flex; align-items:center; gap:3px; padding:2.5px 8px; border-radius:999px; font-size:9px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; border:1px solid; white-space: nowrap;}
     .status-prog { background:#1e293b; color:#fff; border-color:#0f172a;}
     .status-new  { background:#475569; color:#fff; border-color:#334155;}
     .empty-act { padding:10px 0; color:#64748b; font-style:italic; display:inline-flex; align-items:center; gap:6px;}
