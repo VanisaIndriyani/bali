@@ -271,12 +271,12 @@ function fmtENum($n, $dec = 2)
 $periodeLabel = date('d M Y', strtotime($dateFrom)) . ' - ' . date('d M Y', strtotime($dateTo));
 
 $energyStats = [
-    ['label' => 'Konsumsi Listrik', 'unit' => 'kWh',   'val' => fmtENum($elecTotal, 0),  'sub' => $periodeLabel],
-    ['label' => 'Konsumsi Solar',   'unit' => 'L',     'val' => fmtENum($solarTotal, 0), 'sub' => $periodeLabel],
-    ['label' => 'Konsumsi Gas LPG', 'unit' => 'kg',    'val' => fmtENum($gasLpgTotal, 0),'sub' => $periodeLabel],
-    ['label' => 'Konsumsi Gas LNG', 'unit' => 'kg',    'val' => fmtENum($gasLngTotal, 0),'sub' => $periodeLabel],
-    ['label' => 'Konsumsi Air',     'unit' => 'm³',    'val' => fmtENum($konsumsiAirTotal, 0),'sub' => $periodeLabel],
-    ['label' => 'Air Deep Well',    'unit' => 'm³',    'val' => fmtENum($airDeepTotal, 0),'sub' => $periodeLabel],
+    ['label' => 'Konsumsi Listrik', 'unit' => 'kWh',   'val' => fmtENum($elecTotal, 1),  'sub' => $periodeLabel],
+    ['label' => 'Konsumsi Solar',   'unit' => 'L',     'val' => fmtENum($solarTotal, 1), 'sub' => $periodeLabel],
+    ['label' => 'Konsumsi Gas LPG', 'unit' => 'kg',    'val' => fmtENum($gasLpgTotal, 1),'sub' => $periodeLabel],
+    ['label' => 'Konsumsi Gas LNG', 'unit' => 'kg',    'val' => fmtENum($gasLngTotal, 1),'sub' => $periodeLabel],
+    ['label' => 'Konsumsi Air',     'unit' => 'm³',    'val' => fmtENum($konsumsiAirTotal, 1),'sub' => $periodeLabel],
+    ['label' => 'Air Deep Well',    'unit' => 'm³',    'val' => fmtENum($airDeepTotal, 1),'sub' => $periodeLabel],
 ];
 
 $pageTitle = 'Energy Dashboard';
@@ -400,10 +400,10 @@ include __DIR__ . '/includes/sidebar.php';
                         </td>
                         <td class="px-4 py-2.5"><?= $shiftBadge ?></td>
                         <td class="px-4 py-2.5 text-slate-700 font-medium"><?= htmlspecialchars($d['engineer_name'] ?? '-') ?></td>
-                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['elec'], 0) ?></td>
-                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['water'], 0) ?></td>
-                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['gas'], 0) ?></td>
-                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['fuel'], 0) ?></td>
+                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['elec'], 1) ?></td>
+                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['water'], 1) ?></td>
+                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['gas'], 1) ?></td>
+                        <td class="px-4 py-2.5 text-right font-bold text-slate-800"><?= fmtENum((float)$d['fuel'], 1) ?></td>
                     </tr>
                     <?php endforeach; endif; ?>
                 </tbody>
