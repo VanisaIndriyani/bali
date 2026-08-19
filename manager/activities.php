@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../config/config.php';
 $pageTitle = T('eng_act_page_title', 'Engineering Activities');
 requireRole(['admin', 'manager', 'supervisor']);
@@ -13,7 +13,7 @@ $isManager = $user && strtolower((string)($user['role'] ?? '')) === 'manager';
 $monthStart = date('Y-m-01');
 $today = date('Y-m-d');
 
-// 🔧 AUTO ALTER TABLE TAMBAH 4 KOLOM BARU UNTUK LIST ACTIVITY MANUAL PER DIVISI (JIKA BELUM ADA)
+// ðŸ”§ AUTO ALTER TABLE TAMBAH 4 KOLOM BARU UNTUK LIST ACTIVITY MANUAL PER DIVISI (JIKA BELUM ADA)
 try {
     $chkAct = $db->fetchOne("SHOW COLUMNS FROM daily_logs LIKE 'activity_operation_items'");
     if (!$chkAct) {
@@ -24,7 +24,7 @@ try {
     }
 } catch (Throwable $_) {}
 
-// 🔧 AUTO CREATE TABLE activity_masters UNTUK CRUD MASTER DAFTAR AKTIVITAS PER DIVISI (JIKA BELUM ADA)
+// ðŸ”§ AUTO CREATE TABLE activity_masters UNTUK CRUD MASTER DAFTAR AKTIVITAS PER DIVISI (JIKA BELUM ADA)
 try {
     $chkTbl = $db->fetchOne("SHOW TABLES LIKE 'activity_masters'");
     if (!$chkTbl) {
@@ -48,7 +48,7 @@ try {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = (string)($_POST['action'] ?? '');
 
-    // ✅ SAVE MASTER (Create / Edit)
+    // âœ… SAVE MASTER (Create / Edit)
     if ($act === 'save_master_activity') {
         $masterId  = max(0, (int)($_POST['master_id'] ?? 0));
         $div       = in_array(($_POST['division'] ?? ''), ['operation','maintenance','project','landscape']) ? (string)$_POST['division'] : '';
@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'status_default' => $statusDef,
                     'sort_order' => $sortOrder,
                 ], 'id = :id', ['id' => $masterId]);
-                setFlash('success', '✅ Master Activity berhasil di-UPDATE: '.$name);
+                setFlash('success', 'âœ… Master Activity berhasil di-UPDATE: '.$name);
             } else {
                 $db->insert('activity_masters', [
                     'division' => $div,
@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'status_default' => $statusDef,
                     'sort_order' => $sortOrder,
                 ]);
-                setFlash('success', '✅ Master Activity berhasil di-TAMBAH: '.$name);
+                setFlash('success', 'âœ… Master Activity berhasil di-TAMBAH: '.$name);
             }
         } catch (Throwable $e) {
             setFlash('danger', 'ERROR simpan master: '.$e->getMessage());
@@ -83,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('manager/activities.php');
     }
 
-    // ❌ DELETE MASTER by ID
+    // âŒ DELETE MASTER by ID
     if ($act === 'delete_master_activity') {
         $masterId = max(0, (int)($_POST['master_id'] ?? 0));
         if ($masterId <= 0) {
@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $row = $db->fetchOne("SELECT activity_name FROM activity_masters WHERE id = ? LIMIT 1", [$masterId]);
             $db->query("DELETE FROM activity_masters WHERE id = ? LIMIT 1", [$masterId]);
-            setFlash('success', '🗑️ Master Activity berhasil di-HAPUS'.($row ? ': '.$row['activity_name'] : ''));
+            setFlash('success', 'ðŸ—‘ï¸ Master Activity berhasil di-HAPUS'.($row ? ': '.$row['activity_name'] : ''));
         } catch (Throwable $e) {
             setFlash('danger', 'ERROR hapus master: '.$e->getMessage());
         }
@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// ✅ FETCH SEMUA MASTER ACTIVITY PER DIVISI (untuk Modal CRUD & Dropdown Form Input)
+// âœ… FETCH SEMUA MASTER ACTIVITY PER DIVISI (untuk Modal CRUD & Dropdown Form Input)
 $allMasters = $db->fetchAll("SELECT * FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
 $mastersByDiv = [
     'operation'   => [],
@@ -129,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     $actLa = max(0, (int)($_POST['activity_landscape'] ?? 0));
     $ok = [];
 
-    // ✨ HELPER: Parse Activity Items (Text + Status + MasterID) dari POST Array → return JSON or NULL
+    // âœ¨ HELPER: Parse Activity Items (Text + Status + MasterID) dari POST Array â†’ return JSON or NULL
     // Format value dropdown: "Nama Activity|masterId" (split by | LIMIT 2)
     $fnParseItems = function ($keyText, $keyStatus) {
         $texts = $_POST[$keyText] ?? [];
@@ -277,7 +277,7 @@ function buildActCnt($db, $from, $to, $cat, $userId, $userRole) {
     return ['count' => $cntAct, 'sum' => (float)($row['total_sum'] ?? 0)];
 }
 
-// ✨ HELPER: Render Activity Items (JSON Array of [{t:...,s:...}]) → HTML Bullet Badge Status
+// âœ¨ HELPER: Render Activity Items (JSON Array of [{t:...,s:...}]) â†’ HTML Bullet Badge Status
 function renderActItems($jsonItems, $maxItems = null) {
     if (empty($jsonItems)) return '';
     $arr = is_string($jsonItems) ? json_decode($jsonItems, true) : $jsonItems;
@@ -293,7 +293,7 @@ function renderActItems($jsonItems, $maxItems = null) {
         } else {
             $badge = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black text-slate-700 bg-slate-100 border border-slate-200 ml-1.5 whitespace-nowrap shrink-0"><i class="fa-regular fa-clock text-[8px]"></i> Progress</span>';
         }
-        $out[] = '<div class="flex items-start gap-1 text-xs text-slate-900 leading-relaxed"><span class="text-slate-400 font-black shrink-0 mt-0.5">•</span><span class="flex-1 min-w-0 break-words">'.$text.'</span>'.$badge.'</div>';
+        $out[] = '<div class="flex items-start gap-1 text-xs text-slate-900 leading-relaxed"><span class="text-slate-400 font-black shrink-0 mt-0.5">â€¢</span><span class="flex-1 min-w-0 break-words">'.$text.'</span>'.$badge.'</div>';
     }
     if ($maxItems && count($arr) > $maxItems) {
         $out[] = '<div class="text-[10px] font-bold text-slate-500 italic pl-3">+ '.(count($arr) - $maxItems).' item lainnya (klik detail untuk lihat lengkapnya)</div>';
@@ -358,7 +358,7 @@ $reviewedName = T('dash_act_reviewed_name', 'Supervisor Engineering');
 $colLeft = [];
 $colRight = [];
 $catDetailRows = [];
-// 📦 BARU: Simpan activity_masters per divisi + preview items master untuk dipakai render card dan modal nanti
+// ðŸ“¦ BARU: Simpan activity_masters per divisi + preview items master untuk dipakai render card dan modal nanti
 $masterRowsPerDiv = ['operation'=>[], 'maintenance'=>[], 'project'=>[], 'landscape'=>[]];
 $masterPreviewPerDiv = ['operation'=>[], 'maintenance'=>[], 'project'=>[], 'landscape'=>[]];
 $masterCntPerDiv = ['operation'=>0, 'maintenance'=>0, 'project'=>0, 'landscape'=>0];
@@ -380,13 +380,13 @@ try {
 } catch (Throwable $e) {}
 
 // ================================================================
-// 📋 COLLECT SEMUA ACTIVITY ITEMS (status PROGRESS SAJA) → FLAT ROWS
+// ðŸ“‹ COLLECT SEMUA ACTIVITY ITEMS (status PROGRESS SAJA) â†’ FLAT ROWS
 //    Sumber: 1) activity_*_items JSON di daily_logs (all approved logs)
 //            2) activity_masters dengan status_default = progress
 // ================================================================
 $engActRows = [];
 try {
-    // 🅰️  DARI DAILY LOGS (semua log, bukan hanya bulan ini, agar history activity progress tetap kelihatan)
+    // ðŸ…°ï¸  DARI DAILY LOGS (semua log, bukan hanya bulan ini, agar history activity progress tetap kelihatan)
     $colMap = [
         'operation'   => 'activity_operation_items',
         'maintenance' => 'activity_maintenance_items',
@@ -424,7 +424,7 @@ try {
     }
     unset($logRows, $lr, $it, $arr, $json);
 
-    // 🅱️  DARI ACTIVITY MASTERS (default status = progress) → label "Master Activity" di BY ENG
+    // ðŸ…±ï¸  DARI ACTIVITY MASTERS (default status = progress) â†’ label "Master Activity" di BY ENG
     $mstRows = $db->fetchAll("SELECT id, division, activity_name, status_default, created_at
                               FROM activity_masters
                               WHERE status_default = 'progress'
@@ -442,7 +442,7 @@ try {
     }
     unset($mstRows, $mr);
 
-    // 📶 SORT: tanggal TERBARU di ATAS, lalu divisi, lalu nama activity
+    // ðŸ“¶ SORT: tanggal TERBARU di ATAS, lalu divisi, lalu nama activity
     usort($engActRows, function ($a, $b) {
         if ($a['log_date'] !== $b['log_date']) {
             return strcmp($b['log_date'], $a['log_date']);
@@ -485,7 +485,7 @@ foreach ($cats as $c) {
          ORDER BY dl.log_date DESC, dl.id DESC",
         [$monthStart, $today]
     );
-    // ============== ✨ TAMBAHAN: MASUKKAN DATA MASTER KE COUNT & PREVIEW ✨ ==============
+    // ============== âœ¨ TAMBAHAN: MASUKKAN DATA MASTER KE COUNT & PREVIEW âœ¨ ==============
     $div = $c['id'];
     $hasDaily = (is_array($catDetailRows[$div]) && count($catDetailRows[$div]) > 0) || ($cnt > 0);
     $mCnt = (int)($masterCntPerDiv[$div] ?? 0);
@@ -513,7 +513,7 @@ foreach ($cats as $c) {
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/navbar.php';
 
-// ✨ PRINT SIMPLE LISTS STYLE DATA
+// âœ¨ PRINT SIMPLE LISTS STYLE DATA
 $printAllActs = [];
 foreach (['operation','maintenance','project','landscape'] as $dv) {
     foreach ($mastersByDiv[$dv] ?? [] as $mm) $printAllActs[] = $mm;
@@ -523,14 +523,14 @@ if (empty($printAllActs)) {
 }
 
 // ===================================================
-// 🖨️ CSS PRINT GLOBAL (HARUS DI ATAS, URUTAN BENAR: DEFAULT MODE WEB DULU → BARU @media PRINT)
+// ðŸ–¨ï¸ CSS PRINT GLOBAL (HARUS DI ATAS, URUTAN BENAR: DEFAULT MODE WEB DULU â†’ BARU @media PRINT)
 // ===================================================
 ?>
 <style>
-/* ✅ DEFAULT MODE WEB: Hide area print */
+/* âœ… DEFAULT MODE WEB: Hide area print */
 .print-only-area { display: none !important; visibility: hidden !important; }
 
-/* ✅ MODE PRINT: Override BALIK & Hide SEMUA ELEMEN LAIN (PASTIKAN TIDAK ADA NAMA HOTEL / SIDEBAR / NAVBAR MASUK) */
+/* âœ… MODE PRINT: Override BALIK & Hide SEMUA ELEMEN LAIN (PASTIKAN TIDAK ADA NAMA HOTEL / SIDEBAR / NAVBAR MASUK) */
 @media print {
     @page {
         size: A4;
@@ -553,7 +553,7 @@ if (empty($printAllActs)) {
         display: none !important;
         visibility: hidden !important;
     }
-    /* ✨ FORCE SHOW PRINT AREA — PRIORITAS TERTINGGI */
+    /* âœ¨ FORCE SHOW PRINT AREA â€” PRIORITAS TERTINGGI */
     body > .print-only-area,
     .print-only-area,
     .print-only-area * {
@@ -611,12 +611,12 @@ if (empty($printAllActs)) {
 </style>
 <?php
 // ===================================================
-// 🖨️ PRINT ONLY AREA (TAMPIL HANYA SAAT PRINT)
+// ðŸ–¨ï¸ PRINT ONLY AREA (TAMPIL HANYA SAAT PRINT)
 // ===================================================
 ?>
 <div class="print-only-area">
     <div class="min-h-screen" style="background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%); color:#fff;">
-        <!-- 🔝 HEADER BAR PERSIS MICROSOFT LISTS (MOBILE STYLE) -->
+        <!-- ðŸ” HEADER BAR PERSIS MICROSOFT LISTS (MOBILE STYLE) -->
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-4">
                 <div class="w-8 h-8 inline-flex items-center justify-center text-white">
@@ -635,25 +635,25 @@ if (empty($printAllActs)) {
             </div>
         </div>
 
-        <!-- 📝 JUDUL BESAR PUTIH PERSIS LISTS - TIDAK ADA NAMA HOTEL SAMA SEKALI! -->
+        <!-- ðŸ“ JUDUL BESAR PUTIH PERSIS LISTS - TIDAK ADA NAMA HOTEL SAMA SEKALI! -->
         <h1 class="text-white font-black tracking-tight mb-7 leading-none" style="font-size: 38px; line-height: 1.05;">
             Engineering Operation
         </h1>
 
-        <!-- 📋 LOOP SEMUA ACTIVITY = CARD PUTIH ROW PERSIS LISTS -->
+        <!-- ðŸ“‹ LOOP SEMUA ACTIVITY = CARD PUTIH ROW PERSIS LISTS -->
         <div class="flex flex-col gap-3">
             <?php foreach ($printAllActs as $idx => $actRow):
                 $nm = trim((string)($actRow['activity_name'] ?? ''));
                 if ($nm === '') continue;
             ?>
             <div class="bg-white rounded-[14px] px-4 py-3.5 shadow-lg flex items-center gap-3.5" style="background-color:#ffffff !important; color:#0f172a !important; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-                <!-- ⚪ Radio Button Lingkaran Kosong KIRI -->
+                <!-- âšª Radio Button Lingkaran Kosong KIRI -->
                 <div class="w-7 h-7 rounded-full border-[2.5px] border-slate-400 shrink-0 inline-flex items-center justify-center" style="background-color:#ffffff !important; border-color:#94a3b8 !important;"></div>
-                <!-- 📝 TEXT TENGAH 2 BARIS -->
+                <!-- ðŸ“ TEXT TENGAH 2 BARIS -->
                 <div class="flex-1 min-w-0 leading-snug" style="color:#1e293b !important;">
                     <div style="font-size:17px; font-weight:600; color:#0f172a !important; word-wrap:break-word; line-height:1.375;"><?= htmlspecialchars($nm) ?></div>
                 </div>
-                <!-- ⭐ Star Icon KANAN ATAS -->
+                <!-- â­ Star Icon KANAN ATAS -->
                 <div class="shrink-0 pb-6 inline-flex items-center" style="color:#94a3b8 !important;">
                     <i class="far fa-star text-xl"></i>
                 </div>
@@ -661,7 +661,7 @@ if (empty($printAllActs)) {
             <?php endforeach; ?>
         </div>
 
-        <!-- 🔽 BOTTOM FLOATING + ADD A TASK -->
+        <!-- ðŸ”½ BOTTOM FLOATING + ADD A TASK -->
         <div style="position: fixed; left: 0; right: 0; bottom: 0; background: linear-gradient(180deg, rgba(30,64,175,0.0) 0%, rgba(30,64,175,0.98) 35%, #1e3a8a 100%); padding: 40px 18px 22px 18px;">
             <div class="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/15 px-5 py-4 flex items-center gap-4" style="background-color: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.15);">
                 <div class="w-8 h-8 rounded-full bg-white/20 inline-flex items-center justify-center shrink-0" style="background-color: rgba(255,255,255,0.20);">
@@ -675,7 +675,7 @@ if (empty($printAllActs)) {
 <div class="page-shell page-shell--6xl">
     <div class="page-header flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5 animate-fade-in">
         <div>
-            <p class="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 mb-1.5">MANAGER • <?= T('eng_act_header', 'DEPARTMENT PERFORMANCE') ?></p>
+            <p class="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 mb-1.5">MANAGER â€¢ <?= T('eng_act_header', 'DEPARTMENT PERFORMANCE') ?></p>
             <h1 class="font-display text-2xl font-black text-slate-900 flex items-center gap-2.5">
                 <span class="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-white shadow-sm">
                     <span class="text-sm font-black">3</span>
@@ -901,7 +901,7 @@ if (empty($printAllActs)) {
                         if (count($collect) >= 3) break;
                     }
                 }
-                // ✨ BARU: Tambahkan juga master activity preview (max total 3)
+                // âœ¨ BARU: Tambahkan juga master activity preview (max total 3)
                 if (count($collect) < 3) {
                     $mPrev = $masterPreviewPerDiv[$c['id']] ?? [];
                     foreach ($mPrev as $mp) {
@@ -947,10 +947,10 @@ if (empty($printAllActs)) {
             <?php endforeach; ?>
         </div>
 
-        <!-- ════════════════════════════════════════════════════════════════════ -->
-        <!-- 📋 ENGINEERING ACTIVITIES TABLE (IN PROGRESS ONLY)                   -->
+        <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+        <!-- ðŸ“‹ ENGINEERING ACTIVITIES TABLE (IN PROGRESS ONLY)                   -->
         <!--     Format: DEPARTMENT | ACTIVITY DETAIL (LEBAR) | DATE | BY ENG | STATUS -->
-        <!-- ════════════════════════════════════════════════════════════════════ -->
+        <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
         <div class="mt-6 sm:mt-7 mb-5 sm:mb-6">
             <div class="mb-4 pb-2.5 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2.5 border-b border-slate-100">
                 <div>
@@ -997,7 +997,7 @@ if (empty($printAllActs)) {
                                     <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
                                         <i class="far fa-clipboard-list-check text-2xl"></i>
                                     </div>
-                                    <h5 class="font-black text-slate-700 mb-1 text-sm">Semua Aktivitas Sudah Selesai 🎉</h5>
+                                    <h5 class="font-black text-slate-700 mb-1 text-sm">Semua Aktivitas Sudah Selesai ðŸŽ‰</h5>
                                     <p class="text-[11px] text-slate-500 max-w-sm mx-auto leading-relaxed">Tidak ada aktivitas dengan status <span class="font-bold text-slate-700">In Progress</span> saat ini. Tambahkan activity baru atau ubah status progress melalui form manager.</p>
                                 </td>
                             </tr>
@@ -1090,7 +1090,7 @@ if (empty($printAllActs)) {
                         <i class="fas fa-circle-info mr-1"></i> Menampilkan <?= count($engActRows) ?> dari total seluruh data progress (yang status Complete disembunyikan).
                     </span>
                     <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:text-right">
-                        Format: Department • Activity Detail • Date • By Eng • Status
+                        Format: Department â€¢ Activity Detail â€¢ Date â€¢ By Eng â€¢ Status
                     </span>
                 </div>
                 <?php endif; ?>
@@ -1130,30 +1130,26 @@ if (empty($printAllActs)) {
          onclick="if(event.target===this)closeModal('<?= htmlspecialchars($c['id']) ?>')">
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md"></div>
         <div class="relative w-full max-w-4xl max-h-[88vh] bg-white rounded-3xl shadow-[0_30px_100px_-20px_rgba(30,41,59,0.45)] overflow-hidden flex flex-col animate-slide-up-modal border-2 border-slate-200">
-            <!-- HEADER MODAL GRADIENT -->
-            <div class="bg-slate-800 text-white p-3.5 sm:p-4 relative">
-                    <div class="flex items-center gap-2.5">
+            <!-- HEADER MODAL -->
+            <div class="bg-slate-800 text-white p-3.5 sm:p-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div class="flex items-center gap-3">
                         <div class="w-9 h-9 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
                             <i class="<?= $c['icon'] ?> text-[15px] text-white/90"></i>
                         </div>
                         <div>
-                            <h4 class="font-black text-[15px] tracking-wide leading-tight">Divisi <?= $c['label'] ?></h4>
+                            <h4 class="font-black text-[16px] tracking-wide leading-tight">Divisi <?= $c['label'] ?></h4>
                             <p class="text-[9px] uppercase tracking-[0.18em] text-white/60 mt-0.5">Rekap Bulan Ini</p>
                         </div>
                     </div>
-                    <div class="flex flex-wrap items-center gap-1.5">
-                        <span class="px-2 py-0.5 rounded bg-white/10 text-white text-[10px] font-bold">Total: <span class="font-black"><?= count($rows) ?></span></span>
-                        <span class="px-2 py-0.5 rounded bg-white text-slate-800 text-[10px] font-black">Counters: <?= number_format($totalSum, 0, ',', '.') ?></span>
+                    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 sm:justify-end">
+                        <span class="px-2.5 py-1 rounded-lg bg-white/10 text-white text-[10.5px] font-bold border border-white/10">Total: <span class="font-black text-white ml-0.5"><?= count($rows) ?></span></span>
+                        <span class="px-2.5 py-1 rounded-lg bg-white text-slate-800 text-[10.5px] font-black border border-white shadow-sm">Counters: <?= number_format($totalSum, 0, ',', '.') ?></span>
                         <?php if ($showMasterBox): ?>
-                        <span class="px-2 py-0.5 rounded bg-white/10 text-white text-[10px] font-black">Master: <?= $masterCnt ?></span>
+                        <span class="px-2.5 py-1 rounded-lg bg-white/10 text-white text-[10.5px] font-bold border border-white/10">Master: <?= $masterCnt ?></span>
                         <?php endif; ?>
+                        <button type="button" onclick="closeModal('<?= htmlspecialchars($c['id']) ?>')" class="w-8 h-8 ml-0 sm:ml-1 rounded-lg bg-white/10 hover:bg-white text-white hover:text-slate-900 border border-white/15 flex items-center justify-center transition shrink-0" aria-label="Tutup"><i class="fas fa-xmark font-black text-[14px]"></i></button>
                     </div>
-                    <button type="button"
-                            onclick="closeModal('<?= htmlspecialchars($c['id']) ?>')"
-                            class="shrink-0 w-8 h-8 rounded-lg bg-white/10 hover:bg-white text-white hover:text-slate-900 border border-white/15 flex items-center justify-center transition"
-                            aria-label="Tutup">
-                        <i class="fas fa-xmark font-black"></i>
-                    </button>
                 </div>
             </div>
 
@@ -1361,7 +1357,7 @@ if (empty($printAllActs)) {
                         </div>
                         <div>
                             <h4 class="font-black text-[16px] sm:text-[17px] tracking-wide leading-tight">Master Activity</h4>
-                            <p class="text-[9px] uppercase tracking-[0.18em] text-white/60 mt-0.5">4 Divisi Tersedia • Total <?= count($allMasters) ?> Item</p>
+                            <p class="text-[9px] uppercase tracking-[0.18em] text-white/60 mt-0.5">4 Divisi Tersedia â€¢ Total <?= count($allMasters) ?> Item</p>
                         </div>
                     </div>
                     <button type="button"
@@ -1446,7 +1442,7 @@ if (empty($printAllActs)) {
                     <div class="flex items-center justify-between mb-3">
                         <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 flex items-center gap-1.5">
                             <i class="<?= $c['icon'] ?> text-slate-500"></i>
-                            Daftar Master Activity Divisi <?= $c['label'] ?> • Total <span class="font-black text-slate-900"><?= count($listMaster) ?> Item</span>
+                            Daftar Master Activity Divisi <?= $c['label'] ?> â€¢ Total <span class="font-black text-slate-900"><?= count($listMaster) ?> Item</span>
                         </p>
                     </div>
                     <?php if (count($listMaster) === 0): ?>
@@ -1507,7 +1503,7 @@ if (empty($printAllActs)) {
                                                     title="Edit master activity ini" aria-label="Edit">
                                                 <i class="fas fa-pencil text-[13px]"></i>
                                             </button>
-                                            <form method="POST" onsubmit="return confirm('⚠️ YAKIN HAPUS master activity ini? Data activity yang sudah tersimpan di Daily Log TIDAK AKAN TERHAPUS (tetap tampil textnya).');">
+                                            <form method="POST" onsubmit="return confirm('âš ï¸ YAKIN HAPUS master activity ini? Data activity yang sudah tersimpan di Daily Log TIDAK AKAN TERHAPUS (tetap tampil textnya).');">
                                                 <input type="hidden" name="action" value="delete_master_activity">
                                                 <input type="hidden" name="master_id" value="<?= (int)$m['id'] ?>">
                                                 <button type="submit"
@@ -1545,7 +1541,7 @@ if (empty($printAllActs)) {
     <!-- ================================ / END MODAL CRUD MASTER ================================ -->
 
     <script>
-    // ✨ EMBED DATA MASTER ACTIVITY PER DIVISI KE JS GLOBAL (UNTUK DROPDOWN DINAMIS)
+    // âœ¨ EMBED DATA MASTER ACTIVITY PER DIVISI KE JS GLOBAL (UNTUK DROPDOWN DINAMIS)
     window.ACTIVITY_MASTERS = <?= json_encode($mastersByDiv, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.CUR_MASTER_TAB = 'operation';
     window.DIV_META = <?= json_encode($divMeta, JSON_UNESCAPED_UNICODE) ?>;
@@ -1675,7 +1671,7 @@ if (empty($printAllActs)) {
         }, 120);
     }
 
-    // ================================ JS: DINAMIS ROW INPUT — DROPDOWN MASTER ACTIVITY + OPSI CUSTOM ================================
+    // ================================ JS: DINAMIS ROW INPUT â€” DROPDOWN MASTER ACTIVITY + OPSI CUSTOM ================================
     function addActRow(divCode) {
         const map = {
             op: { prefix: 'act_op',       color: 'indigo', border: 'border-slate-200', bg: 'bg-slate-50/70' },
@@ -1698,73 +1694,62 @@ if (empty($printAllActs)) {
         // Bangun opsi dropdown master
         let optsHtml = `<option value="">-- Pilih Master Activity --</option>`;
         if (masterList.length > 0) {
-            optsHtml += `<optgroup label="📋 Master Template Divisi">`;
+            optsHtml += `<optgroup label="ðŸ“‹ Master Template Divisi">`;
             masterList.forEach(function(m) {
                 const mid = parseInt(m.id || 0, 10);
                 const name = (m.activity_name || m.name || '').trim();
                 if (!name) return;
-                const st = (m.status_default === 'complete') ? '✅ Done' : '⏳ Progress';
+                const st = (m.status_default === 'complete') ? 'âœ… Done' : 'â³ Progress';
                 // Value format = "Nama Activity|masterId" (sesuai fnParseItems backend yang pakai explode('|', 2))
-                optsHtml += `<option value="${mEscapeHtml(name)}|${mid}">${mEscapeHtml(name)} · ${st}</option>`;
+                optsHtml += `<option value="${mEscapeHtml(name)}|${mid}">${mEscapeHtml(name)} Â· ${st}</option>`;
             });
             optsHtml += `</optgroup>`;
         }
-        optsHtml += `<option value="__custom__">✏️ Tulis Aktivitas Sendiri (Custom)</option>`;
+        optsHtml += `<option value="__custom__">âœï¸ Tulis Aktivitas Sendiri (Custom)</option>`;
 
         const row = document.createElement('div');
-        row.className = 'flex flex-col gap-2.5 p-3 sm:p-3.5 rounded-2xl ' + cfg.bg + ' border-2 border-slate-200 shadow-sm animate-fade-in hover:shadow-md transition';
+        row.className = 'flex flex-col gap-2 p-2.5 rounded-lg bg-white border border-slate-200 shadow-sm animate-fade-in';
         row.setAttribute('data-act-row', '1');
         row.setAttribute('data-div-code', divCode);
 
         row.innerHTML = `
-            <div class="flex items-center gap-2">
-                <span class="inline-flex w-9 h-9 rounded-xl bg-white border ` + cfg.border + ` items-center justify-center text-[12px] font-black text-slate-600 shrink-0 shadow-sm">` + curNum + `</span>
-                <div class="flex-1 min-w-0 flex flex-col gap-1">
-                    <label class="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-slate-500 pl-0.5">
-                        <i class="fas fa-list-check text-slate-500 text-[10px]"></i>
-                        Pilih template master / tulis custom
-                    </label>
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                <div class="sm:col-span-1 flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[12px] font-black text-slate-700 shrink-0 shadow-sm">` + curNum + `</span>
+                </div>
+                <div class="sm:col-span-6 min-w-0 flex flex-col gap-1">
+                    <label class="text-[9px] font-black uppercase tracking-wider text-slate-500 pl-0.5">Activity</label>
                     <select data-role="master-select"
-                        class="w-full px-4 py-2.5 min-h-[46px] rounded-xl border-2 border-slate-300 bg-slate-50 text-[14px] leading-snug font-bold text-slate-900 shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-200 focus:border-slate-400 transition appearance-none pr-10">
+                        class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-[12px] leading-snug font-semibold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400 transition appearance-none pr-8">
                         ${optsHtml}
                     </select>
                 </div>
-                <div class="w-full sm:w-56 flex flex-col gap-1">
-                    <label class="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-slate-500 pl-0.5">
-                        <i class="fas fa-signal text-slate-500 text-[10px]"></i>
-                        Status Pekerjaan
-                    </label>
+                <div class="sm:col-span-3 min-w-0 flex flex-col gap-1">
+                    <label class="text-[9px] font-black uppercase tracking-wider text-slate-500 pl-0.5">Status</label>
                     <select name="` + cfg.prefix + `_status[]" data-role="status-select"
-                        class="w-full px-4 py-2.5 min-h-[46px] rounded-xl border-2 border-slate-300 bg-white text-[14px] leading-snug font-bold text-slate-900 shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-200 focus:border-slate-400 transition appearance-none pr-10">
-                        <option value="progress">⏳ In Progress (Sedang Berjalan)</option>
-                        <option value="complete">✅ Complete (Selesai)</option>
+                        class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-[12px] leading-snug font-semibold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400 transition appearance-none pr-8">
+                        <option value="progress">â³ In Progress</option>
+                        <option value="complete">âœ… Complete</option>
                     </select>
                 </div>
-                <button type="button" onclick="removeActRow(this)"
-                    class="w-11 h-11 rounded-xl bg-slate-50 hover:bg-slate-700 text-slate-600 hover:text-white border-2 border-slate-200 hover:border-slate-700 flex items-center justify-center transition shrink-0 self-stretch sm:self-center shadow-sm"
-                    aria-label="Hapus activity ini" title="Hapus baris ini">
-                    <i class="fas fa-trash-can text-[15px] hover:text-white"></i>
-                </button>
+                <div class="sm:col-span-2 flex sm:justify-end">
+                    <button type="button" onclick="removeActRow(this)"
+                        class="w-full sm:w-auto px-3 py-2 h-9 rounded-lg bg-slate-50 hover:bg-slate-700 text-slate-600 hover:text-white border border-slate-200 hover:border-slate-700 flex items-center justify-center gap-1.5 transition shadow-sm"
+                        aria-label="Hapus" title="Hapus baris">
+                        <i class="fas fa-trash-can text-[12px]"></i>
+                        <span class="text-[11px] font-bold sm:inline hidden">Hapus</span>
+                    </button>
+                </div>
             </div>
 
-            <div data-role="custom-input-wrap" class="hidden w-full rounded-xl bg-slate-50 border border-dashed border-slate-300 p-3 sm:p-4 animate-fade-in">
-                <label class="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-700 pl-0.5 mb-2">
-                    <i class="fas fa-pen-ruler text-slate-600 text-[11px]"></i>
-                    Tulis Aktivitas Baru
-                </label>
+            <div data-role="custom-input-wrap" class="hidden w-full rounded-lg border border-dashed border-slate-300 bg-slate-50/60 p-2.5 animate-fade-in">
+                <label class="text-[9px] font-black uppercase tracking-wider text-slate-600 pl-0.5 mb-1 block">Ketik Aktivitas Baru</label>
                 <input type="text" data-role="custom-text"
-                    placeholder="Contoh: Perbaikan AC Lobby Lantai 2 — ganti compressor baru"
-                    class="w-full px-4 py-3 min-h-[52px] rounded-xl border-2 border-slate-300 bg-white text-[15px] leading-snug font-semibold text-slate-900 placeholder:text-slate-500 placeholder:font-medium shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-200 focus:border-slate-400 transition">
+                    placeholder="Contoh: Perbaikan AC Lobby Lantai 2"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-[13px] leading-snug font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400 transition">
                 <input type="hidden" name="` + cfg.prefix + `_text[]" data-role="final-text" value="">
             </div>
-
-            ${'' /* Fallback hidden final-text (jika custom wrap hidden, final-text di atas kosong maka yang di-master yang diisi via sync) */}
-            <noscript><input type="hidden" name="` + cfg.prefix + `_text[]" data-role="final-text-nojs" value=""></noscript>
         `;
-        // Remove duplicate empty final-texts: row now has ONE hidden final-text inside custom wrap OR attach one outside. We need exactly 1 final-text per row always.
-        const dupNojs = row.querySelector('[data-role="final-text-nojs"]');
-        if (dupNojs) dupNojs.remove();
-        // Jika custom input wrap hidden, maka final-text didalamnya OK, sync akan isi keduanya (satu elemen saja)
         container.appendChild(row);
 
         // ------ Bind event handlers ke row baru ------
@@ -1785,7 +1770,7 @@ if (empty($printAllActs)) {
                 wrapCustom.classList.remove('hidden');
                 const txt = (inpCustom.value || '').trim();
                 inpFinal.value = txt;
-                // Auto fokus ke text input saat user pilih custom — langsung ngetik ✨
+                // Auto fokus ke text input saat user pilih custom â€” langsung ngetik âœ¨
                 setTimeout(() => { if (inpCustom) { inpCustom.focus(); inpCustom.scrollIntoView({behavior:'smooth', block:'center'}); } }, 60);
                 return;
             }
@@ -1830,9 +1815,9 @@ if (empty($printAllActs)) {
         recalcCounters();
     }
 
-    // ================================ ✨ JS: AUTO SYNC COUNTER AKTIVITAS (4 DIVISI) ================================
+    // ================================ âœ¨ JS: AUTO SYNC COUNTER AKTIVITAS (4 DIVISI) ================================
     // Counter number input (activity_operation / dll) OTOMATIS = JUMLAH BARIS di Daftar Activity (bukan manual).
-    // User sebelumnya harus isi manual → sering lupa isi → dianggap "tidak masuk master job".
+    // User sebelumnya harus isi manual â†’ sering lupa isi â†’ dianggap "tidak masuk master job".
     function recalcCounters() {
         const mapCnt = {
             op: 'activity_operation',
@@ -1868,7 +1853,7 @@ if (empty($printAllActs)) {
                 const engSel = document.getElementById('engineer_id_activity');
                 if (engSel && !engSel.value) {
                     ev.preventDefault();
-                    alert('⚠️ Pilih Engineer / Staff terlebih dahulu sebelum menyimpan.');
+                    alert('âš ï¸ Pilih Engineer / Staff terlebih dahulu sebelum menyimpan.');
                     if (engSel && engSel.focus) engSel.focus();
                     return false;
                 }
