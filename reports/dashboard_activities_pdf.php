@@ -19,12 +19,10 @@ $periodeLabel = date('d M Y', strtotime($monthStart)) . ' — ' . date('d M Y', 
 
 $filename = 'Engineering_Activities_' . substr($monthStart,0,7) . '.pdf';
 header('Content-Type: text/html; charset=utf-8');
-header('Content-Disposition: attachment; filename="' . $filename . '"');
-header('Content-Transfer-Encoding: binary');
+header('Content-Disposition: inline; filename="' . $filename . '"');
 header('Cache-Control: max-age=0, must-revalidate, no-store, no-cache');
 header('Pragma: public');
 ob_start();
-echo "\xEF\xBB\xBF";
 
 $engActRows = [];
 try {
@@ -300,9 +298,25 @@ $total = count($engActRows);
         letter-spacing: 0.1em;
     }
     .foot .count { color:#334155; font-weight: 800; }
+    .toolbar { display:none; position:fixed; top:16px; right:16px; z-index:50; gap:10px; }
+    .toolbar button { border:none; padding: 10px 16px; border-radius: 10px; font-weight:700; cursor:pointer; font-size:13px; box-shadow: 0 6px 18px rgba(0,0,0,0.12);}
+    .btn-primary { background:#0f172a; color:#fff; }
+    .btn-primary:hover { background:#1e293b; }
+    .btn-danger { background:#64748b; color:#fff; }
+    .btn-danger:hover { background:#475569; }
+    @media screen { .toolbar { display:flex; } }
+    @media print {
+        body { background:#fff; }
+        .wrap { margin:0; box-shadow:none; border-radius:0; }
+        .toolbar { display:none !important; }
+    }
 </style>
 </head>
 <body>
+<div class="toolbar no-print">
+    <button class="btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Save as PDF / Cetak</button>
+    <button class="btn-danger" onclick="window.close()"><i class="fas fa-xmark"></i> Tutup</button>
+</div>
 <div class="wrap">
 
     <!-- HEADER -->
@@ -375,6 +389,13 @@ $total = count($engActRows);
 
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" media="all">
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(function () {
+            try { window.focus(); window.print(); } catch (e) {}
+        }, 500);
+    });
+</script>
 </body>
 </html>
 <?php echo ob_get_clean(); exit; ?>

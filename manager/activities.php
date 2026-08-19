@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/config.php';
 $pageTitle = T('eng_act_page_title', 'Engineering Activities');
 requireRole(['admin', 'manager', 'supervisor']);
@@ -685,7 +685,7 @@ if (empty($printAllActs)) {
             <p class="text-xs text-slate-500 mt-1.5"><?= T('eng_act_subtitle', 'Ringkasan 4 divisi Operation, Maintenance, Project dan Landscape per bulan.') ?></p>
         </div>
         <div class="flex flex-wrap gap-2 self-start">
-            <a href="<?= BASE_URL ?>reports/dashboard_activities_pdf.php" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[12px] font-bold shadow-sm hover:shadow transition-all">
+            <a href="<?= BASE_URL ?>reports/dashboard_activities_pdf.php" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[12px] font-bold shadow-sm hover:shadow transition-all">
                 <i class="far fa-file-pdf text-[11px]"></i> Export PDF
             </a>
             <a href="<?= BASE_URL ?>reports/dashboard_activities_excel.php" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-[12px] font-bold shadow-sm hover:shadow transition-all">
