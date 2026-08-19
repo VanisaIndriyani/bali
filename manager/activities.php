@@ -1420,16 +1420,21 @@ if (empty($printAllActs)) {
                             <input type="number" min="0" step="1" name="sort_order" id="masterSortOrder" value="0"
                                    class="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-bold text-slate-900 text-center shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400 transition">
                         </div>
-                        <div class="md:col-span-2 flex gap-2">
-                            <button type="submit"
-                                    class="flex-1 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-1.5">
-                                <i class="fas fa-save text-[13px]"></i> Simpan
-                            </button>
-                            <button type="button" onclick="resetMasterForm()"
-                                    class="w-11 shrink-0 px-2.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-600 text-sm font-bold transition"
-                                    title="Reset Form ke Tambah Baru" aria-label="Reset Form">
-                                <i class="fas fa-rotate-left text-[13px]"></i>
-                            </button>
+                        <div class="md:col-span-2">
+                            <label class="text-[10px] font-black uppercase tracking-wider text-transparent mb-1.5 block select-none pointer-events-none">
+                                Spacer
+                            </label>
+                            <div class="flex gap-2 w-full">
+                                <button type="submit"
+                                        class="flex-1 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold shadow-sm hover:shadow-md transition flex items-center justify-center gap-1.5">
+                                    <i class="fas fa-save text-[13px]"></i> Simpan
+                                </button>
+                                <button type="button" onclick="resetMasterForm()"
+                                        class="w-11 shrink-0 px-2.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-600 text-sm font-bold transition"
+                                        title="Reset Form ke Tambah Baru" aria-label="Reset Form">
+                                    <i class="fas fa-rotate-left text-[13px]"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -1727,8 +1732,8 @@ if (empty($printAllActs)) {
                     <label class="text-[9px] font-black uppercase tracking-wider text-slate-500 pl-0.5">Status</label>
                     <select name="` + cfg.prefix + `_status[]" data-role="status-select"
                         class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-[12px] leading-snug font-semibold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400 transition appearance-none pr-8">
-                        <option value="progress">[ ] In Progress</option>
-                        <option value="complete">[v] Complete</option>
+                        <option value="progress">In Progress</option>
+                        <option value="complete">Complete</option>
                     </select>
                 </div>
                 <div class="sm:col-span-2 flex sm:justify-end">

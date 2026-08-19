@@ -109,9 +109,12 @@ require_once __DIR__ . '/includes/navbar.php';
                     <option value="rejected" <?= $status === 'rejected' ? 'selected' : '' ?>>Rejected</option>
                 </select>
             </div>
-            <button type="submit" class="px-5 py-2.5 rounded-card bg-primary text-white font-semibold hover:bg-secondary transition-all hover:shadow-md">
-                <i class="fas fa-filter mr-1.5"></i>Filter
-            </button>
+            <div>
+                <label class="block text-xs text-secondary uppercase tracking-wider font-semibold mb-1.5 text-transparent select-none pointer-events-none">Spacer</label>
+                <button type="submit" class="w-full px-5 py-2.5 rounded-card bg-primary text-white font-semibold hover:bg-secondary transition-all hover:shadow-sm flex items-center justify-center gap-1.5">
+                    <i class="fas fa-filter mr-1.5"></i>Filter
+                </button>
+            </div>
         </form>
     </div>
 
