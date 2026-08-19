@@ -640,59 +640,51 @@ if ($format === 'excel') {
     .sign-box .lbl { font-weight:600; margin-bottom:46px; }
     .sign-box .line { border-top:1px solid #000; padding-top:5px; font-weight:800; }
     /* ===== ENGINEERING ACTIVITIES (100% SAMA DASHBOARD CARD #2) ===== */
-    table.act { border:1px solid #9ca3af; border-radius:10px; overflow:hidden;}
-    table.act th { background:#e5e7eb; text-align:left; font-weight:800; letter-spacing:.08em; padding:9px 10px; font-size:12px; color:#111; }
+    table.act { border:1px solid #cbd5e1; border-radius:10px; overflow:hidden; border-collapse: separate; border-spacing: 0;}
+    table.act th { background:#f1f5f9; text-align:left; font-weight:900; letter-spacing:.08em; padding:10px 12px; font-size:11px; color:#0f172a; border-bottom:2px solid #cbd5e1;}
     table.act th.dept-col { width: 20%; }
     table.act th.status-col { width: 22%; }
-    table.act td { padding: 10px 10px; vertical-align:top; font-size: 12px; color:#111;}
+    table.act td { padding: 10px 12px; vertical-align:top; font-size: 12.5px; color:#0f172a; border-bottom:1px solid #e2e8f0;}
+    table.act tbody tr:last-child td { border-bottom:none; }
     table.act td.dept { font-weight:900; font-size:13px; letter-spacing:.05em; }
-    table.act td.op-bg { background:#eff6ff33; }
-    table.act td.mt-bg { background:#fffbeb33; }
-    table.act td.pr-bg { background:#f5f3ff33; }
-    table.act td.la-bg { background:#ecfdf533; }
+    table.act td.op-bg, table.act td.mt-bg, table.act td.pr-bg, table.act td.la-bg { background:#f8fafc; }
     .dept-ico { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; color:#fff; font-size:12px; margin-right:8px;}
-    .ico-op { background:#1d4ed8; }
-    .ico-mt { background:#b45309; }
-    .ico-pr { background:#6d28d9; }
-    .ico-la { background:#047857; }
+    .ico-op, .ico-mt, .ico-pr, .ico-la { background:#334155; }
     .act-list { list-style:none; margin:0; padding:0;}
-    .act-list li { padding:2px 0 5px 0; line-height:1.35;}
-    .act-name { font-weight:700; color:#0f172a; margin-right:6px;}
-    .meta { margin-top:3px; display:flex; gap:5px; flex-wrap:wrap;}
-    .meta-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700;}
-    .meta-date { background:#f3f4f6; color:#4b5563; border:1px solid #e5e7eb;}
-    .meta-eng { background:#eef2ff; color:#3730a3; border:1px solid #e0e7ff;}
+    .act-list li { padding:6px 0; line-height:1.45; border-bottom:1px dashed #e2e8f0;}
+    .act-list li:last-child { border-bottom:none; padding-bottom:2px;}
+    .act-name { font-weight:700; color:#0f172a; display:block;}
+    .meta { margin-top:5px; display:flex; gap:5px; flex-wrap:wrap;}
+    .meta-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 7px; border-radius:999px; font-size:9.5px; font-weight:700;}
+    .meta-date { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;}
+    .meta-eng, .meta-eng-real { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;}
     .st-group { display:flex; flex-direction:column; gap:5px; align-items:flex-end;}
     .st-pill { display:inline-flex; align-items:center; gap:6px; padding:4px 10px 4px 8px; border-radius:999px; font-size:10.5px; font-weight:800; letter-spacing:.02em;}
-    .st-nodata { padding:4px 11px; border-radius:999px; background:#f9fafb; color:#6b7280; border:1px solid #d1d5db; font-size:11px; font-weight:700;}
-    .st-prog { background:#fffbeb; color:#92400e; border:1px solid #fde68a; }
-    .st-done { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
+    .st-nodata { padding:4px 11px; border-radius:999px; background:#f8fafc; color:#64748b; border:1px solid #cbd5e1; font-size:11px; font-weight:700;}
+    .st-prog, .st-done { background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; }
     .st-pill .count { background:#fff; font-size:9.5px; padding:1px 6px; border-radius:999px; border:1px solid; font-weight:900;}
-    .st-prog .count { border-color:#fde68a; color:#92400e;}
-    .st-done .count { border-color:#a7f3d0; color:#065f46;}
-    .empty-act { padding:4px 0; color:#9ca3af; font-style:italic;}
+    .st-prog .count, .st-done .count { border-color:#cbd5e1; color:#334155;}
+    .empty-act { padding:4px 0; color:#94a3b8; font-style:italic;}
     .empty-act i { margin-right:6px; opacity:60%;}
     /* ===== GRUP PEMISAH STATUS (TIDAK KECAMPUR Done vs Progress) ===== */
-    .act-group { margin: 0 0 9px 0; padding: 0;}
-    .act-group-hdr { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:6px; font-size:10px; font-weight:900; letter-spacing:.06em; margin:2px 0 5px 0; text-transform: uppercase;}
-    .act-group-hdr.prog { background:#fff7ed; color:#9a3412; border:1px solid #fed7aa;}
-    .act-group-hdr.done { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;}
-    .act-group-divider { border-top:1px dashed #d1d5db; margin:7px 0 7px 0; opacity:.8;}
-    .act-list li.act-done .act-name { color:#4b5563; text-decoration: line-through; text-decoration-color: #10b981; text-decoration-thickness: 1.5px;}
+    .act-group { margin: 0 0 10px 0; padding: 8px 8px 2px 8px; background:#fff; border:1px solid #e2e8f0; border-radius:8px;}
+    .act-group-hdr { display:inline-flex; align-items:center; gap:5px; padding:2px 10px; border-radius:6px; font-size:10px; font-weight:900; letter-spacing:.08em; margin:0 0 8px 0; text-transform: uppercase;}
+    .act-group-hdr.prog, .act-group-hdr.done { background:#334155; color:#fff; border:1px solid #1e293b;}
+    .act-group-divider { border-top:1px dashed #cbd5e1; margin:8px 0 8px 0; opacity:.9;}
+    .act-list li.act-done .act-name { color:#64748b; text-decoration: line-through; text-decoration-color: #94a3b8; text-decoration-thickness: 1.2px;}
     /* ===== ✨ GRUP PEMISAH PER-TANGGAL + BADGE MASTER ACTIVITY RAPI ===== */
-    .meta-master { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:900;}
-    .meta-master i.fa-database { color:#2563eb;}
-    .meta-eng-real { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;}
-    .date-group { margin: 0 0 7px 0; padding: 0 0 3px 0;}
+    .meta-master { background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; font-weight:900;}
+    .meta-master i.fa-database { color:#475569;}
+    .date-group { margin: 0 0 8px 0; padding: 0 0 4px 0; padding-left:10px; border-left:3px solid #cbd5e1;}
     .date-group-hdr {
         display:inline-flex; align-items:center; gap:5px;
-        padding:1.5px 10px 1.5px 8px; border-radius: 8px;
+        padding:2px 10px 2px 8px; border-radius: 8px;
         font-size: 10px; font-weight: 900; letter-spacing: .04em;
-        background:linear-gradient(90deg,#eef2ff,#e0e7ff); color:#3730a3;
-        border:1px solid #c7d2fe; margin:0 0 4px 2px;
+        background:#e2e8f0; color:#334155;
+        border:1px solid #cbd5e1; margin:0 0 6px 0;
     }
-    .date-group-hdr i.fa-calendar-day { font-size: 9.5px; color:#4338ca;}
-    .date-group-sep { border-top:1px dotted #e5e7eb; margin:3px 0 5px 0; opacity:.9;}
+    .date-group-hdr i.fa-calendar-day { font-size: 9.5px; color:#475569;}
+    .date-group-sep { border-top:1px dotted #e2e8f0; margin:4px 0 6px 0; opacity:.9;}
     .date-group:last-child { margin-bottom: 2px; }
 </style>
 </head>
@@ -837,8 +829,8 @@ if ($format === 'excel') {
                                         <?php if ($fHeader !== ''): ?>
                                             <span class="date-group-hdr">
                                                 <i class="fa-solid fa-calendar-day"></i>
-                                                📅 Tanggal: <?= htmlspecialchars($fHeader) ?>
-                                                <span style="background:#fff; padding:0 6px; border-radius:999px; border:1px solid #c7d2fe; color:#4338ca; font-size:9px; font-weight:900;"><?= count($itemsInDate) ?> item</span>
+                                                Tanggal: <?= htmlspecialchars($fHeader) ?>
+                                                <span style="background:#fff; padding:0 6px; border-radius:999px; border:1px solid #cbd5e1; color:#334155; font-size:9px; font-weight:900;"><?= count($itemsInDate) ?> item</span>
                                             </span>
                                         <?php endif; ?>
                                         <ul class="act-list">
@@ -896,8 +888,8 @@ if ($format === 'excel') {
                                         <?php if ($fHeader !== ''): ?>
                                             <span class="date-group-hdr">
                                                 <i class="fa-solid fa-calendar-day"></i>
-                                                📅 Tanggal: <?= htmlspecialchars($fHeader) ?>
-                                                <span style="background:#fff; padding:0 6px; border-radius:999px; border:1px solid #c7d2fe; color:#4338ca; font-size:9px; font-weight:900;"><?= count($itemsInDate) ?> item</span>
+                                                Tanggal: <?= htmlspecialchars($fHeader) ?>
+                                                <span style="background:#fff; padding:0 6px; border-radius:999px; border:1px solid #cbd5e1; color:#334155; font-size:9px; font-weight:900;"><?= count($itemsInDate) ?> item</span>
                                             </span>
                                         <?php endif; ?>
                                         <ul class="act-list">
