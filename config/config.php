@@ -134,10 +134,12 @@ function _tariffAutoMigrate(Database $db): void {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ");
         $defaults = [
-            'tariff_electricity_per_kwh' => 1850,
-            'tariff_water_per_m3'        => 9600,
-            'tariff_gas_per_kg'          => 24500,
-            'tariff_fuel_per_liter'      => 17450,
+            'tariff_electricity_per_kwh'      => 1850,
+            'tariff_electricity_wbp_per_kwh'  => 1850,
+            'tariff_electricity_lwbp_per_kwh' => 1200,
+            'tariff_water_per_m3'             => 9600,
+            'tariff_gas_per_kg'               => 24500,
+            'tariff_fuel_per_liter'           => 17450,
         ];
         foreach ($defaults as $k => $v) {
             $exist = $db->fetchOne("SELECT setting_key FROM settings WHERE setting_key = ?", [$k]);
@@ -157,17 +159,21 @@ function getTariffSettings(): array {
         $out = [];
         foreach ($rows as $r) $out[$r['setting_key']] = (int)$r['setting_value'];
         return [
-            'electricity_per_kwh' => (int)($out['tariff_electricity_per_kwh'] ?? 1850),
-            'water_per_m3'        => (int)($out['tariff_water_per_m3']        ?? 9600),
-            'gas_per_kg'          => (int)($out['tariff_gas_per_kg']          ?? 24500),
-            'fuel_per_liter'      => (int)($out['tariff_fuel_per_liter']      ?? 17450),
+            'electricity_per_kwh'      => (int)($out['tariff_electricity_per_kwh']      ?? 1850),
+            'electricity_wbp_per_kwh'  => (int)($out['tariff_electricity_wbp_per_kwh']  ?? 1850),
+            'electricity_lwbp_per_kwh' => (int)($out['tariff_electricity_lwbp_per_kwh'] ?? 1200),
+            'water_per_m3'             => (int)($out['tariff_water_per_m3']             ?? 9600),
+            'gas_per_kg'               => (int)($out['tariff_gas_per_kg']               ?? 24500),
+            'fuel_per_liter'           => (int)($out['tariff_fuel_per_liter']           ?? 17450),
         ];
     } catch (Throwable $e) {
         return [
-            'electricity_per_kwh' => 1850,
-            'water_per_m3'        => 9600,
-            'gas_per_kg'          => 24500,
-            'fuel_per_liter'      => 17450,
+            'electricity_per_kwh'      => 1850,
+            'electricity_wbp_per_kwh'  => 1850,
+            'electricity_lwbp_per_kwh' => 1200,
+            'water_per_m3'             => 9600,
+            'gas_per_kg'               => 24500,
+            'fuel_per_liter'           => 17450,
         ];
     }
 }
@@ -176,10 +182,12 @@ function saveTariffSettings(array $vals, int $userId = 0): void {
     $db = Database::getInstance();
     _tariffAutoMigrate($db);
     $keys = [
-        'electricity_per_kwh' => 'tariff_electricity_per_kwh',
-        'water_per_m3'        => 'tariff_water_per_m3',
-        'gas_per_kg'          => 'tariff_gas_per_kg',
-        'fuel_per_liter'      => 'tariff_fuel_per_liter',
+        'electricity_per_kwh'      => 'tariff_electricity_per_kwh',
+        'electricity_wbp_per_kwh'  => 'tariff_electricity_wbp_per_kwh',
+        'electricity_lwbp_per_kwh' => 'tariff_electricity_lwbp_per_kwh',
+        'water_per_m3'             => 'tariff_water_per_m3',
+        'gas_per_kg'               => 'tariff_gas_per_kg',
+        'fuel_per_liter'           => 'tariff_fuel_per_liter',
     ];
     foreach ($keys as $inKey => $dbKey) {
         $num = (int)($vals[$inKey] ?? 0);

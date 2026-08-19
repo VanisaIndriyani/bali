@@ -33,8 +33,12 @@ if (empty($_dlMigFlag2)) {
         $colsLC = []; foreach ($cols as $c) $colsLC[strtolower($c['Field'])] = true;
         if (!isset($colsLC['tariff_electricity_per_kwh']))
             $pdoMig2->exec("ALTER TABLE daily_logs ADD COLUMN `tariff_electricity_per_kwh` INT UNSIGNED DEFAULT NULL COMMENT 'Snapshot Tarif PLN (Rp/kWh)' AFTER `{$afterCol}`");
+        if (!isset($colsLC['tariff_electricity_wbp_per_kwh']))
+            $pdoMig2->exec("ALTER TABLE daily_logs ADD COLUMN `tariff_electricity_wbp_per_kwh` INT UNSIGNED DEFAULT NULL COMMENT 'Snapshot Tarif Listrik WBP (Rp/kWh)' AFTER `tariff_electricity_per_kwh`");
+        if (!isset($colsLC['tariff_electricity_lwbp_per_kwh']))
+            $pdoMig2->exec("ALTER TABLE daily_logs ADD COLUMN `tariff_electricity_lwbp_per_kwh` INT UNSIGNED DEFAULT NULL COMMENT 'Snapshot Tarif Listrik LWBP (Rp/kWh)' AFTER `tariff_electricity_wbp_per_kwh`");
         if (!isset($colsLC['tariff_water_per_m3']))
-            $pdoMig2->exec("ALTER TABLE daily_logs ADD COLUMN `tariff_water_per_m3` INT UNSIGNED DEFAULT NULL COMMENT 'Snapshot Tarif PDAM (Rp/m3)' AFTER `tariff_electricity_per_kwh`");
+            $pdoMig2->exec("ALTER TABLE daily_logs ADD COLUMN `tariff_water_per_m3` INT UNSIGNED DEFAULT NULL COMMENT 'Snapshot Tarif PDAM (Rp/m3)' AFTER `tariff_electricity_lwbp_per_kwh`");
         if (!isset($colsLC['tariff_gas_per_kg']))
             $pdoMig2->exec("ALTER TABLE daily_logs ADD COLUMN `tariff_gas_per_kg` INT UNSIGNED DEFAULT NULL COMMENT 'Snapshot Tarif LPG (Rp/kg)' AFTER `tariff_water_per_m3`");
         if (!isset($colsLC['tariff_fuel_per_liter']))
@@ -440,10 +444,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($v > $max) $v = $max;
         return $v;
     };
-    $tarElec = $cleanTarFn('electricity_per_kwh', $_POST, 1850, 100, 10000000);
-    $tarWater = $cleanTarFn('water_per_m3', $_POST, 9600, 100, 10000000);
-    $tarGas = $cleanTarFn('gas_per_kg', $_POST, 24500, 100, 10000000);
-    $tarFuel = $cleanTarFn('fuel_per_liter', $_POST, 17450, 100, 10000000);
+    $tarElec    = $cleanTarFn('electricity_per_kwh',      $_POST, 1850, 100, 10000000);
+    $tarElecWbp = $cleanTarFn('electricity_wbp_per_kwh',  $_POST, 1850, 100, 10000000);
+    $tarElecLwbp= $cleanTarFn('electricity_lwbp_per_kwh', $_POST, 1200, 100, 10000000);
+    $tarWater   = $cleanTarFn('water_per_m3',             $_POST, 9600, 100, 10000000);
+    $tarGas     = $cleanTarFn('gas_per_kg',               $_POST, 24500, 100, 10000000);
+    $tarFuel    = $cleanTarFn('fuel_per_liter',           $_POST, 17450, 100, 10000000);
     unset($cleanTarFn, $_defTar);
 
     // ⑨ Activity Counters
@@ -546,10 +552,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'mu_score'  => $muScore,
             'gitb_rank' => $gitbRank,
             // ⑧ TRIS. TARIF SNAPSHOT (Permanen per-tanggal, tidak berubah ketika global diupdate besok)
-            'tariff_electricity_per_kwh' => $tarElec,
-            'tariff_water_per_m3' => $tarWater,
-            'tariff_gas_per_kg' => $tarGas,
-            'tariff_fuel_per_liter' => $tarFuel,
+            'tariff_electricity_per_kwh'       => $tarElec,
+            'tariff_electricity_wbp_per_kwh'   => $tarElecWbp,
+            'tariff_electricity_lwbp_per_kwh'  => $tarElecLwbp,
+            'tariff_water_per_m3'              => $tarWater,
+            'tariff_gas_per_kg'                => $tarGas,
+            'tariff_fuel_per_liter'            => $tarFuel,
             // ⑩ EQUIPMENT DATA JSON
             'equipment_data' => $equipJson,
             // ⑨ Activity Counters
@@ -1031,10 +1039,12 @@ require_once __DIR__ . '/../includes/navbar.php';
         $roleCanEditTariff = in_array(($user['role'] ?? ''), ['supervisor','manager','admin'], true);
         $_defTarNow = getTariffSettings();
         $tDef = [
-            'electricity' => ( !empty($log['tariff_electricity_per_kwh']) && (int)$log['tariff_electricity_per_kwh'] > 0 ) ? (int)$log['tariff_electricity_per_kwh'] : (int)($_defTarNow['electricity_per_kwh'] ?? 1850),
-            'water'       => ( !empty($log['tariff_water_per_m3']) && (int)$log['tariff_water_per_m3'] > 0 ) ? (int)$log['tariff_water_per_m3'] : (int)($_defTarNow['water_per_m3'] ?? 9600),
-            'gas'         => ( !empty($log['tariff_gas_per_kg']) && (int)$log['tariff_gas_per_kg'] > 0 ) ? (int)$log['tariff_gas_per_kg'] : (int)($_defTarNow['gas_per_kg'] ?? 24500),
-            'fuel'        => ( !empty($log['tariff_fuel_per_liter']) && (int)$log['tariff_fuel_per_liter'] > 0 ) ? (int)$log['tariff_fuel_per_liter'] : (int)($_defTarNow['fuel_per_liter'] ?? 17450),
+            'electricity'      => ( !empty($log['tariff_electricity_per_kwh']) && (int)$log['tariff_electricity_per_kwh'] > 0 ) ? (int)$log['tariff_electricity_per_kwh'] : (int)($_defTarNow['electricity_per_kwh'] ?? 1850),
+            'electricity_wbp'  => ( !empty($log['tariff_electricity_wbp_per_kwh']) && (int)$log['tariff_electricity_wbp_per_kwh'] > 0 ) ? (int)$log['tariff_electricity_wbp_per_kwh'] : (int)($_defTarNow['electricity_wbp_per_kwh'] ?? 1850),
+            'electricity_lwbp' => ( !empty($log['tariff_electricity_lwbp_per_kwh']) && (int)$log['tariff_electricity_lwbp_per_kwh'] > 0 ) ? (int)$log['tariff_electricity_lwbp_per_kwh'] : (int)($_defTarNow['electricity_lwbp_per_kwh'] ?? 1200),
+            'water'            => ( !empty($log['tariff_water_per_m3']) && (int)$log['tariff_water_per_m3'] > 0 ) ? (int)$log['tariff_water_per_m3'] : (int)($_defTarNow['water_per_m3'] ?? 9600),
+            'gas'              => ( !empty($log['tariff_gas_per_kg']) && (int)$log['tariff_gas_per_kg'] > 0 ) ? (int)$log['tariff_gas_per_kg'] : (int)($_defTarNow['gas_per_kg'] ?? 24500),
+            'fuel'             => ( !empty($log['tariff_fuel_per_liter']) && (int)$log['tariff_fuel_per_liter'] > 0 ) ? (int)$log['tariff_fuel_per_liter'] : (int)($_defTarNow['fuel_per_liter'] ?? 17450),
         ];
         $tariffReadonly = $roleCanEditTariff ? '' : 'readonly tabindex="-1"';
         $tariffCursorCls = $roleCanEditTariff ? '' : 'cursor-not-allowed opacity-90';
@@ -1051,11 +1061,19 @@ require_once __DIR__ . '/../includes/navbar.php';
                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-50 text-[9.5px] font-semibold text-slate-600 border border-slate-200"><i class="fas fa-unlock text-[8px]"></i> Editable</span>
                 <?php endif; ?>
             </div>
-            <div class="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <div>
-                    <label class="block text-[10px] font-semibold text-slate-600 mb-1.5">Listrik PLN</label>
+                    <label class="block text-[10px] font-semibold text-slate-600 mb-1.5">Listrik WBP</label>
                     <div class="relative">
-                        <input type="number" step="1" min="100" max="99999999" name="electricity_per_kwh" value="<?= $tDef['electricity'] ?>" <?= $tariffReadonly ?>
+                        <input type="number" step="1" min="100" max="99999999" name="electricity_wbp_per_kwh" value="<?= $tDef['electricity_wbp'] ?>" <?= $tariffReadonly ?>
+                               class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 focus:bg-white transition-all <?= $tariffCursorCls ?>">
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-500">Rp/kWh</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-semibold text-slate-600 mb-1.5">Listrik LWBP</label>
+                    <div class="relative">
+                        <input type="number" step="1" min="100" max="99999999" name="electricity_lwbp_per_kwh" value="<?= $tDef['electricity_lwbp'] ?>" <?= $tariffReadonly ?>
                                class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 focus:bg-white transition-all <?= $tariffCursorCls ?>">
                         <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-500">Rp/kWh</span>
                     </div>
