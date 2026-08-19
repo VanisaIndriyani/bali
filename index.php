@@ -1220,9 +1220,11 @@ require_once __DIR__ . '/includes/navbar.php';
                         <table class="w-full text-[13px] border-collapse">
                             <thead>
                                 <tr class="bg-slate-100 text-slate-800 text-[11px] uppercase tracking-[0.12em] font-black">
-                                    <th class="px-3.5 py-3 text-left font-black w-64 border-r border-slate-200">DEPARTMENT</th>
-                                    <th class="px-3.5 py-3 text-left font-black border-r border-slate-200">ACTIVITY DETAIL</th>
-                                    <th class="px-3.5 py-3 text-center font-black w-48">STATUS</th>
+                                    <th class="px-3.5 py-3 text-left font-black w-44 border-r border-slate-200 shrink-0">DEPARTMENT</th>
+                                    <th class="px-3.5 py-3 text-left font-black border-r border-slate-200 min-w-[320px] w-2/5">ACTIVITY DETAIL</th>
+                                    <th class="px-3.5 py-3 text-center font-black w-36 border-r border-slate-200 shrink-0">DATE</th>
+                                    <th class="px-3.5 py-3 text-left font-black w-52 border-r border-slate-200 shrink-0">BY ENG</th>
+                                    <th class="px-3.5 py-3 text-center font-black w-36 shrink-0">STATUS</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 align-top">
@@ -1233,205 +1235,86 @@ require_once __DIR__ . '/includes/navbar.php';
                                     'project'     => ['PROJECT',     'fas fa-clipboard-list'],
                                     'landscape'   => ['LANDSCAPE',   'fas fa-seedling'],
                                 ];
+                                $totalRowsAll = 0;
+                                $flatRows = [];
                                 foreach ($deptDef as $key => $dd):
                                     [$deptLabel, $deptIcon] = $dd;
                                     $rows = $actsGRP[$key] ?? [];
-                                    $empty = (count($rows) === 0);
+                                    if (count($rows) === 0) continue;
+                                    $rowsProg = [];
+                                    foreach ($rows as $ar) {
+                                        if (($ar['status'] ?? '') !== 'complete') $rowsProg[] = $ar;
+                                    }
+                                    $totalRowsAll += count($rowsProg);
+                                    $rowIdx = 0;
+                                    $rowTotal = count($rowsProg);
+                                    foreach ($rowsProg as $ar):
+                                        $rowIdx++;
+                                        $isFirstRow = ($rowIdx === 1);
+                                        $d = (strlen($ar['date'] ?? '') > 0) ? (new DateTime($ar['date']))->format('d-M-y') : '';
+                                        list($isMaster, $cleanEng) = dashSplitMasterEng($ar['eng'] ?? '');
+                                        $byLabel = $isMaster ? 'Master Activity' : ($cleanEng !== '' ? $cleanEng : '-');
+                                        $flatRows[] = [
+                                            'deptLabel' => $deptLabel,
+                                            'deptIcon'  => $deptIcon,
+                                            'isFirst'   => $isFirstRow,
+                                            'rowTotal'  => $rowTotal,
+                                            'title'     => cleanInput($ar['title']),
+                                            'date'      => $d,
+                                            'byLabel'   => $byLabel,
+                                            'status'    => $ar['status'] ?? 'in_progress',
+                                        ];
+                                    endforeach;
+                                endforeach;
+
+                                if ($totalRowsAll === 0):
                                 ?>
-                                <tr class="hover:bg-slate-50/60 transition-colors bg-slate-50/30">
-                                    <td class="px-4 py-4 border-r border-slate-100">
-                                        <div class="flex items-center gap-2.5">
-                                            <span class="w-9 h-9 rounded-lg bg-slate-700 shadow-sm border border-slate-800 flex items-center justify-center text-white"><i class="<?= $deptIcon ?> text-base"></i></span>
-                                            <span class="font-black text-slate-900 text-[15px] tracking-wide"><?= $deptLabel ?></span>
-                                        </div>
+                                <tr>
+                                    <td colspan="5" class="px-4 py-8 text-center text-slate-400 italic text-sm">
+                                        <i class="fas fa-inbox mr-1.5 opacity-70"></i>
+                                        Semua aktivitas selesai. Tidak ada in progress.
                                     </td>
-                                    <td class="px-4 py-4 border-r border-slate-100">
-                                        <?php if ($empty): ?>
-                                            <div class="flex items-center gap-2 text-slate-400 italic text-sm py-2">
-                                                <i class="fas fa-inbox opacity-70"></i>
-                                                Belum ada aktivitas bulan ini.
-                                            </div>
-                                        <?php else: ?>
-                                            <?php
-                                            $rowsDone = [];
-                                            $rowsProg = [];
-                                            foreach ($rows as $ar) {
-                                                if (($ar['status'] ?? '') === 'complete') $rowsDone[] = $ar;
-                                                else                                        $rowsProg[] = $ar;
-                                            }
-                                            $hasDone = (count($rowsDone) > 0);
-                                            $hasProg = (count($rowsProg) > 0);
-                                            ?>
-                                            <div class="space-y-2.5">
-                                                <?php if ($hasProg):
-                                                    $groupedProg = dashGroupByDate($rowsProg);
-                                                ?>
-                                                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm">
-                                                        <div class="mb-2.5">
-                                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
-                                                                <i class="fas fa-circle-notch fa-spin text-[9px]" style="--fa-animation-duration:1.8s"></i>
-                                                                Sedang Berjalan <span class="opacity-90 font-bold">(<?= count($rowsProg) ?>)</span>
-                                                            </span>
-                                                        </div>
-                                                        <?php
-                                                        $firstDt = true;
-                                                        foreach ($groupedProg as $dtISO => $items):
-                                                            $isNoDate = ($dtISO === '_nodate');
-                                                            $labelDate = $isNoDate ? '' : (new DateTime($dtISO))->format('d M Y');
-                                                            if (!$firstDt):
-                                                        ?>
-                                                            <div class="border-t border-dotted border-slate-200 my-2.5 opacity-90"></div>
-                                                        <?php endif; $firstDt = false; ?>
-                                                        <div class="mb-2">
-                                                            <?php if ($labelDate !== ''): ?>
-                                                            <div class="flex items-center gap-2 mb-2">
-                                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-200/80 border border-slate-300 text-slate-800 text-[10.5px] font-black tracking-wide">
-                                                                    <i class="far fa-calendar-day text-slate-600 text-[9.5px]"></i>
-                                                                    <?= htmlspecialchars($labelDate) ?>
-                                                                    <span class="ml-1 bg-white px-1.5 py-0.5 rounded-full border border-slate-300 text-[9px] text-slate-700 font-black"><?= count($items) ?></span>
-                                                                </span>
-                                                            </div>
-                                                            <?php endif; ?>
-                                                            <ul class="space-y-0 pl-0.5">
-                                                            <?php
-                                                            $itemIdx = 0;
-                                                            $itemTotal = count($items);
-                                                            foreach ($items as $ar):
-                                                                $itemIdx++;
-                                                                $d = $isNoDate ? ((strlen($ar['date'] ?? '') > 0) ? (new DateTime($ar['date']))->format('d M Y') : '') : '';
-                                                                list($isMaster, $cleanEng) = dashSplitMasterEng($ar['eng'] ?? '');
-                                                                $isLastItem = ($itemIdx === $itemTotal);
-                                                                $sep = $isLastItem ? '' : 'border-b border-dashed border-slate-100 pb-2 mb-2';
-                                                            ?>
-                                                                <li class="flex items-start gap-2.5 <?= $sep ?>">
-                                                                    <i class="fas fa-circle text-[6px] text-slate-500 mt-1.5 shrink-0"></i>
-                                                                    <div class="flex-1 min-w-0">
-                                                                        <span class="font-semibold text-slate-900 leading-snug"><?= cleanInput($ar['title']) ?></span>
-                                                                        <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                                                            <?php if ($showEng = ($cleanEng !== '')): ?>
-                                                                            <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border text-slate-700 border-slate-200 bg-slate-100/70">
-                                                                                <i class="fas fa-user-helmet-safety mr-0.5 text-[9px] opacity-80"></i><?= htmlspecialchars($cleanEng) ?></span>
-                                                                            <?php endif; ?>
-                                                                            <?php if ($isMaster): ?>
-                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-800 border-slate-200 bg-slate-100 font-black">
-                                                                                <i class="fas fa-database mr-0.5 text-[9px] text-slate-500"></i>MASTER</span>
-                                                                            <?php endif; ?>
-                                                                            <?php if ($d !== ''): ?>
-                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-600 border-slate-200 bg-white">
-                                                                                <i class="far fa-calendar mr-0.5 text-[9px] opacity-70"></i><?= htmlspecialchars($d) ?></span>
-                                                                            <?php endif; ?>
-                                                                        </div>
-                                                                    </div>
-                                                                </li>
-                                                            <?php endforeach; ?>
-                                                            </ul>
-                                                        </div>
-                                                        <?php endforeach; ?>
-                                                    </div>
-                                                <?php endif; ?>
-
-                                                <?php if ($hasDone && $hasProg): ?>
-                                                    <div class="border-t border-dashed border-slate-300 opacity-80"></div>
-                                                <?php endif; ?>
-
-                                                <?php if ($hasDone):
-                                                    $groupedDone = dashGroupByDate($rowsDone);
-                                                ?>
-                                                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm">
-                                                        <div class="mb-2.5">
-                                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-wider">
-                                                                <i class="fas fa-circle-check text-[9px]"></i>
-                                                                Selesai / Done <span class="opacity-90 font-bold">(<?= count($rowsDone) ?>)</span>
-                                                            </span>
-                                                        </div>
-                                                        <?php
-                                                        $firstDt = true;
-                                                        foreach ($groupedDone as $dtISO => $items):
-                                                            $isNoDate = ($dtISO === '_nodate');
-                                                            $labelDate = $isNoDate ? '' : (new DateTime($dtISO))->format('d M Y');
-                                                            if (!$firstDt):
-                                                        ?>
-                                                            <div class="border-t border-dotted border-slate-200 my-2.5 opacity-90"></div>
-                                                        <?php endif; $firstDt = false; ?>
-                                                        <div class="mb-2">
-                                                            <?php if ($labelDate !== ''): ?>
-                                                            <div class="flex items-center gap-2 mb-2">
-                                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-200/80 border border-slate-300 text-slate-800 text-[10.5px] font-black tracking-wide">
-                                                                    <i class="far fa-calendar-day text-slate-600 text-[9.5px]"></i>
-                                                                    <?= htmlspecialchars($labelDate) ?>
-                                                                    <span class="ml-1 bg-white px-1.5 py-0.5 rounded-full border border-slate-300 text-[9px] text-slate-700 font-black"><?= count($items) ?></span>
-                                                                </span>
-                                                            </div>
-                                                            <?php endif; ?>
-                                                            <ul class="space-y-0 pl-0.5">
-                                                            <?php
-                                                            $itemIdx = 0;
-                                                            $itemTotal = count($items);
-                                                            foreach ($items as $ar):
-                                                                $itemIdx++;
-                                                                $d = $isNoDate ? ((strlen($ar['date'] ?? '') > 0) ? (new DateTime($ar['date']))->format('d M Y') : '') : '';
-                                                                list($isMaster, $cleanEng) = dashSplitMasterEng($ar['eng'] ?? '');
-                                                                $isLastItem = ($itemIdx === $itemTotal);
-                                                                $sep = $isLastItem ? '' : 'border-b border-dashed border-slate-100 pb-2 mb-2';
-                                                            ?>
-                                                                <li class="flex items-start gap-2.5 opacity-[0.98] <?= $sep ?>">
-                                                                    <i class="fas fa-check text-[9px] text-slate-600 mt-1.5 shrink-0"></i>
-                                                                    <div class="flex-1 min-w-0">
-                                                                        <span class="font-semibold text-slate-500 leading-snug line-through decoration-slate-400 decoration-[1.2px] decoration-skip-ink-none"><?= cleanInput($ar['title']) ?></span>
-                                                                        <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                                                            <?php if ($showEng = ($cleanEng !== '')): ?>
-                                                                            <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border text-slate-700 border-slate-200 bg-slate-100/70">
-                                                                                <i class="fas fa-user-helmet-safety mr-0.5 text-[9px] opacity-80"></i><?= htmlspecialchars($cleanEng) ?></span>
-                                                                            <?php endif; ?>
-                                                                            <?php if ($isMaster): ?>
-                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-800 border-slate-200 bg-slate-100 font-black">
-                                                                                <i class="fas fa-database mr-0.5 text-[9px] text-slate-500"></i>MASTER</span>
-                                                                            <?php endif; ?>
-                                                                            <?php if ($d !== ''): ?>
-                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-600 border-slate-200 bg-white">
-                                                                                <i class="far fa-calendar mr-0.5 text-[9px] opacity-70"></i><?= htmlspecialchars($d) ?></span>
-                                                                            <?php endif; ?>
-                                                                        </div>
-                                                                    </div>
-                                                                </li>
-                                                            <?php endforeach; ?>
-                                                            </ul>
-                                                        </div>
-                                                        <?php endforeach; ?>
-                                                    </div>
-                                                <?php endif; ?>
+                                </tr>
+                                <?php else:
+                                    foreach ($flatRows as $fr):
+                                ?>
+                                <tr class="hover:bg-slate-100/70 transition-colors">
+                                    <td class="px-3.5 py-2.5 border-r border-slate-100">
+                                        <?php if ($fr['isFirst']): ?>
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-9 h-9 rounded-lg bg-slate-700 shadow-sm border border-slate-800 flex items-center justify-center text-white shrink-0">
+                                                    <i class="<?= $fr['deptIcon'] ?> text-base"></i>
+                                                </span>
+                                                <span class="font-black text-slate-900 text-[13px] tracking-wide leading-tight"><?= $fr['deptLabel'] ?></span>
                                             </div>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="px-4 py-4 text-center align-middle">
-                                        <?php if ($empty): ?>
-                                            <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-500">
-                                                &ndash; No Data &ndash;
+                                    <td class="px-3.5 py-2.5 border-r border-slate-100">
+                                        <span class="font-semibold text-slate-900 leading-snug"><?= $fr['title'] ?></span>
+                                    </td>
+                                    <td class="px-3.5 py-2.5 border-r border-slate-100 text-center">
+                                        <span class="font-mono text-slate-800 font-semibold text-[12px] tracking-wide inline-flex items-center justify-center px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200"><?= $fr['date'] !== '' ? htmlspecialchars($fr['date']) : '-' ?></span>
+                                    </td>
+                                    <td class="px-3.5 py-2.5 border-r border-slate-100">
+                                        <span class="font-semibold text-slate-700 text-[12.5px] leading-snug"><?= htmlspecialchars($fr['byLabel']) ?></span>
+                                    </td>
+                                    <td class="px-3.5 py-2.5 text-center">
+                                        <?php
+                                        $status = (string)($fr['status'] ?? 'in_progress');
+                                        if ($status === 'in_progress'):
+                                        ?>
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-800 border border-slate-900 text-white text-[10.5px] font-black uppercase tracking-wide shadow-sm">
+                                                <i class="fas fa-circle-notch fa-spin text-[9px]" style="--fa-animation-duration:1.8s"></i>In Progress
                                             </span>
                                         <?php else: ?>
-                                            <?php
-                                            $completeCount = 0;
-                                            $progCount = 0;
-                                            foreach ($rows as $rr) { if (($rr['status'] ?? '') === 'complete') $completeCount++; else $progCount++; }
-                                            ?>
-                                            <div class="space-y-2 w-full">
-                                                <?php if ($progCount > 0): ?>
-                                                    <span class="inline-flex items-center gap-1.5 w-full justify-center px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-white text-[11px] font-black tracking-wider shadow-sm">
-                                                        <i class="fas fa-circle-notch fa-spin text-[10px]" style="--fa-animation-duration: 1.8s"></i> In Progress
-                                                        <span class="ml-0.5 text-xs font-bold bg-white/15 px-1.5 py-0.5 rounded-full border border-white/20">(<?= $progCount ?>)</span>
-                                                    </span>
-                                                <?php endif; ?>
-                                                <?php if ($completeCount > 0): ?>
-                                                    <span class="inline-flex items-center gap-1.5 w-full justify-center px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-[11px] font-black tracking-wider">
-                                                        <i class="fas fa-circle-check text-slate-600"></i> Complete
-                                                        <span class="ml-0.5 text-xs font-bold text-slate-700 bg-white px-1.5 py-0.5 rounded-full border border-slate-200">(<?= $completeCount ?>)</span>
-                                                    </span>
-                                                <?php endif; ?>
-                                            </div>
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-600 border border-slate-700 text-white text-[10.5px] font-black uppercase tracking-wide">
+                                                <i class="fas fa-asterisk text-[9px]"></i>Tugas Baru
+                                            </span>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
-                                <?php endforeach; ?>
+                                <?php endforeach;
+                                endif; ?>
                             </tbody>
                         </table>
                     </div>
