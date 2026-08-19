@@ -1899,13 +1899,13 @@ HTML;
     <?php endif; ?>
 
     <!-- ============ AKTIVITAS DALAM PROGRESS (DIPINDAH KEDALAM PAGE-SHELL AGAR TIDAK OVERLAY JUDUL) ============ -->
-    <div class="static z-0 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 90ms">
-        <div class="px-5 lg:px-8 pt-6 pb-5 border-b border-gray-200 bg-slate-50 relative overflow-hidden">
+    <div class="static z-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8 animate-slide-up" style="animation-delay: 90ms">
+        <div class="px-5 lg:px-8 pt-6 pb-5 border-b border-slate-200 bg-slate-50 relative overflow-hidden">
             <div class="absolute -left-5 -top-6 opacity-[0.07] text-[130px] leading-none text-slate-700 pointer-events-none select-none"><i class="fas fa-list-check"></i></div>
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <p class="text-[11px] font-black uppercase tracking-[0.35em] text-slate-700 mb-2"><i class="fas fa-bolt mr-1"></i> FOKUS HARI INI</p>
-                    <h1 class="font-display text-2xl lg:text-4xl font-black text-gray-900 tracking-tight leading-tight">
+                    <p class="text-[11px] font-black uppercase tracking-[0.35em] text-slate-600 mb-2"><i class="fas fa-bolt mr-1"></i> FOKUS HARI INI</p>
+                    <h1 class="font-display text-2xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight">
                         AKTIVITAS DALAM <span class="text-slate-700">PROGRESS</span>
                     </h1>
                 </div>
@@ -1916,7 +1916,7 @@ HTML;
                         <span class="font-black text-lg leading-none ml-0.5"><?= $progressCount ?></span>
                     </span>
                     <?php if (in_array($userRole, ['manager','admin','supervisor'], true)): ?>
-                    <a href="<?= BASE_URL ?>manager/activities.php" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-gray-800 transition">
+                    <a href="<?= BASE_URL ?>manager/activities.php" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition">
                         <i class="fas fa-arrow-right-to-bracket"></i>
                         BUKA ENGINEERING ACTIVITIES
                     </a>
@@ -1926,31 +1926,31 @@ HTML;
         </div>
         <div class="p-5 lg:p-7">
             <?php if ($progressCount === 0): ?>
-                <div class="py-14 px-6 rounded-2xl border-2 border-dashed border-gray-200 bg-slate-50 text-center">
+                <div class="py-14 px-6 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-center">
                     <div class="w-20 h-20 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-4xl text-slate-700 mx-auto mb-4 shadow-sm">
                         <i class="fas fa-check-double"></i>
                     </div>
-                    <h3 class="font-black text-xl text-gray-800 mb-2">SEMUA AKTIVITAS SELESAI! ðŸŽ‰</h3>
-                    <p class="text-sm text-gray-500 leading-relaxed max-w-lg mx-auto">
+                    <h3 class="font-black text-xl text-slate-800 mb-2">SEMUA AKTIVITAS SELESAI!</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed max-w-lg mx-auto">
                         Tidak ada pekerjaan Engineering yang masih berstatus <b>In Progress</b> untuk bulan ini.
-                        Semua pekerjaan sudah ditandai <b class="text-slate-700">Complete</b>. Bagus! ðŸ‘
+                        Semua pekerjaan sudah ditandai <b class="text-slate-700">Complete</b>. Bagus!
                     </p>
                 </div>
             <?php else: ?>
-                <div class="overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">
-                    <table class="w-full text-sm">
+                <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+                    <table class="w-full text-sm border-collapse">
                         <thead>
-                            <tr class="bg-slate-100 text-gray-800 text-[11px] uppercase tracking-[0.12em] font-black">
-                                <th class="px-5 py-4 text-left font-black w-14">NO</th>
-                                <th class="px-5 py-4 text-left font-black w-40 border-l border-gray-300">DIVISI</th>
-                                <th class="px-5 py-4 text-left font-black border-l border-gray-300">NAMA PEKERJAAN / AKTIVITAS</th>
-                                <th class="px-5 py-4 text-left font-black w-44 border-l border-gray-300">ENGINEER</th>
-                                <th class="px-5 py-4 text-left font-black w-40 border-l border-gray-300">SUMBER DATA</th>
-                                <th class="px-5 py-4 text-center font-black w-36 border-l border-gray-300">TANGGAL</th>
-                                <th class="px-5 py-4 text-center font-black w-40 border-l border-gray-300">STATUS</th>
+                            <tr class="bg-slate-100 text-slate-800 text-[11px] uppercase tracking-[0.12em] font-black">
+                                <th class="px-4 py-3.5 text-left font-black w-14 border-r border-slate-200">NO</th>
+                                <th class="px-4 py-3.5 text-left font-black w-40 border-r border-slate-200">DIVISI</th>
+                                <th class="px-4 py-3.5 text-left font-black border-r border-slate-200">NAMA PEKERJAAN / AKTIVITAS</th>
+                                <th class="px-4 py-3.5 text-left font-black w-44 border-r border-slate-200">ENGINEER</th>
+                                <th class="px-4 py-3.5 text-left font-black w-40 border-r border-slate-200">SUMBER DATA</th>
+                                <th class="px-4 py-3.5 text-center font-black w-36 border-r border-slate-200">TANGGAL</th>
+                                <th class="px-4 py-3.5 text-center font-black w-40">STATUS</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100 align-top">
+                        <tbody class="divide-y divide-slate-100 align-top">
                             <?php
                             $no = 0;
                             foreach ($progressActivities as $pa):
@@ -1960,30 +1960,30 @@ HTML;
                                 $src = $pa['source'] ?? 'daily_log';
                                 $tgl = $pa['log_date'] ?? '';
                                 if (strlen($tgl) > 0) { try { $tglObj = new DateTime($tgl); $tglFmt = $tglObj->format('d M Y'); } catch (Throwable $e) { $tglFmt = $tgl; } } else { $tglFmt = '-'; }
-                                $bgStripe = ($no % 2 === 0) ? ' bg-gray-50/40' : '';
+                                $bgStripe = ($no % 2 === 0) ? ' bg-slate-50/40' : '';
                             ?>
-                            <tr class="hover:bg-orange-50/40 transition-colors<?= $bgStripe ?>">
-                                <td class="px-5 py-4 text-gray-500 font-black text-sm leading-none">
-                                    <span class="w-7 h-7 inline-flex items-center justify-center rounded-md bg-white border border-gray-200 shadow-xs"><?= $no ?></span>
+                            <tr class="hover:bg-slate-100/70 transition-colors<?= $bgStripe ?>">
+                                <td class="px-4 py-3.5 text-slate-600 font-black text-sm leading-none border-r border-slate-100">
+                                    <span class="w-7 h-7 inline-flex items-center justify-center rounded-md bg-white border border-slate-200 shadow-xs"><?= $no ?></span>
                                 </td>
-                                <td class="px-5 py-4 border-l border-gray-100">
+                                <td class="px-4 py-3.5 border-r border-slate-100">
                                     <div class="flex items-center gap-2">
-                                        <span class="w-10 h-10 rounded-lg <?= $info['bg'] ?> border border-gray-200 flex items-center justify-center shadow-xs <?= $info['col'] ?> text-[15px]"><?= $info['icon'] ?></span>
+                                        <span class="w-9 h-9 rounded-lg bg-slate-700 border border-slate-800 flex items-center justify-center shadow-xs text-white text-[14px]"><?= $info['icon'] ?></span>
                                         <div class="flex flex-col gap-0.5">
-                                            <span class="inline-block px-2 py-0.5 rounded border text-[10px] font-black tracking-wider <?= $info['chip'] ?>"><?= $info['label'] ?></span>
+                                            <span class="inline-block px-2 py-0.5 rounded border text-[10px] font-black tracking-wider bg-slate-100 border-slate-200 text-slate-700"><?= $info['label'] ?></span>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-5 py-4 border-l border-gray-100">
-                                    <div class="font-bold text-gray-900 leading-relaxed text-[14px]"><?= cleanInput($pa['activity']) ?></div>
+                                <td class="px-4 py-3.5 border-r border-slate-100">
+                                    <div class="font-bold text-slate-900 leading-relaxed text-[14px]"><?= cleanInput($pa['activity']) ?></div>
                                 </td>
-                                <td class="px-5 py-4 border-l border-gray-100">
+                                <td class="px-4 py-3.5 border-r border-slate-100">
                                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-bold">
                                         <i class="fas fa-user-helmet-safety text-slate-500"></i>
                                         <?= cleanInput($pa['engineer_name']) ?>
                                     </span>
                                 </td>
-                                <td class="px-5 py-4 border-l border-gray-100">
+                                <td class="px-4 py-3.5 border-r border-slate-100">
                                     <?php if ($src === 'daily_log'): ?>
                                         <span class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-black shadow-xs">
                                             <i class="fas fa-file-pen text-slate-700"></i>
@@ -1996,20 +1996,20 @@ HTML;
                                         </span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="px-5 py-4 text-center border-l border-gray-100">
-                                    <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-[11px] font-bold text-gray-700 shadow-xs">
-                                        <i class="far fa-calendar text-gray-400 mr-0.5"></i>
+                                <td class="px-4 py-3.5 text-center border-r border-slate-100">
+                                    <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-[11px] font-bold text-slate-700 shadow-xs font-mono">
+                                        <i class="far fa-calendar text-slate-400 mr-0.5"></i>
                                         <?= $tglFmt ?>
                                     </span>
                                 </td>
-                                <td class="px-5 py-4 text-center border-l border-gray-100">
+                                <td class="px-4 py-3.5 text-center">
                                     <?php if ($src === 'daily_log'): ?>
                                         <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 text-white font-black text-[11px] shadow-sm border border-slate-700">
                                             <i class="fas fa-gears animate-spin-slow text-[10px]"></i>
                                             IN PROGRESS
                                         </span>
                                     <?php else: ?>
-                                        <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 text-white font-black text-[11px] shadow-sm border border-slate-700">
+                                        <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-700 text-white font-black text-[11px] shadow-sm border border-slate-600">
                                             <i class="fas fa-list-check text-[10px]"></i>
                                             TUGAS BARU
                                         </span>
