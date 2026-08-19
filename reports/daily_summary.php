@@ -639,53 +639,29 @@ if ($format === 'excel') {
     .sign-box { text-align:center; font-size:12px; }
     .sign-box .lbl { font-weight:600; margin-bottom:46px; }
     .sign-box .line { border-top:1px solid #000; padding-top:5px; font-weight:800; }
-    /* ===== ENGINEERING ACTIVITIES (100% SAMA DASHBOARD CARD #2) ===== */
+    /* ===== ENGINEERING ACTIVITIES (TABEL 5 KOLOM, SAMA PERSIS DASHBOARD INDEX.PHP) ===== */
     table.act { border:1px solid #cbd5e1; border-radius:10px; overflow:hidden; border-collapse: separate; border-spacing: 0;}
-    table.act th { background:#f1f5f9; text-align:left; font-weight:900; letter-spacing:.08em; padding:10px 12px; font-size:11px; color:#0f172a; border-bottom:2px solid #cbd5e1;}
-    table.act th.dept-col { width: 20%; }
-    table.act th.status-col { width: 22%; }
-    table.act td { padding: 10px 12px; vertical-align:top; font-size: 12.5px; color:#0f172a; border-bottom:1px solid #e2e8f0;}
+    table.act th { background:#f1f5f9; text-align:left; font-weight:900; letter-spacing:.08em; padding:10px 12px; font-size:11px; color:#0f172a; border-bottom:2px solid #cbd5e1; border-right:1px solid #cbd5e1;}
+    table.act th:last-child { border-right:none;}
+    table.act th.dept-col { width: 17%; text-align:left;}
+    table.act th.act-col { width: 43%; text-align:left;}
+    table.act th.date-col { width: 12%; text-align:center;}
+    table.act th.eng-col { width: 18%; text-align:left;}
+    table.act th.status-col { width: 10%; text-align:center;}
+    table.act td { padding: 8px 10px; vertical-align:top; font-size: 12px; color:#0f172a; border-bottom:1px solid #e2e8f0; border-right:1px solid #e2e8f0;}
+    table.act td:last-child { border-right:none;}
     table.act tbody tr:last-child td { border-bottom:none; }
-    table.act td.dept { font-weight:900; font-size:13px; letter-spacing:.05em; }
-    table.act td.op-bg, table.act td.mt-bg, table.act td.pr-bg, table.act td.la-bg { background:#f8fafc; }
-    .dept-ico { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; color:#fff; font-size:12px; margin-right:8px;}
-    .ico-op, .ico-mt, .ico-pr, .ico-la { background:#334155; }
-    .act-list { list-style:none; margin:0; padding:0;}
-    .act-list li { padding:6px 0; line-height:1.45; border-bottom:1px dashed #e2e8f0;}
-    .act-list li:last-child { border-bottom:none; padding-bottom:2px;}
-    .act-name { font-weight:700; color:#0f172a; display:block;}
-    .meta { margin-top:5px; display:flex; gap:5px; flex-wrap:wrap;}
-    .meta-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 7px; border-radius:999px; font-size:9.5px; font-weight:700;}
-    .meta-date { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;}
-    .meta-eng, .meta-eng-real { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;}
-    .st-group { display:flex; flex-direction:column; gap:5px; align-items:flex-end;}
-    .st-pill { display:inline-flex; align-items:center; gap:6px; padding:4px 10px 4px 8px; border-radius:999px; font-size:10.5px; font-weight:800; letter-spacing:.02em;}
-    .st-nodata { padding:4px 11px; border-radius:999px; background:#f8fafc; color:#64748b; border:1px solid #cbd5e1; font-size:11px; font-weight:700;}
-    .st-prog, .st-done { background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; }
-    .st-pill .count { background:#fff; font-size:9.5px; padding:1px 6px; border-radius:999px; border:1px solid; font-weight:900;}
-    .st-prog .count, .st-done .count { border-color:#cbd5e1; color:#334155;}
-    .empty-act { padding:4px 0; color:#94a3b8; font-style:italic;}
-    .empty-act i { margin-right:6px; opacity:60%;}
-    /* ===== GRUP PEMISAH STATUS (TIDAK KECAMPUR Done vs Progress) ===== */
-    .act-group { margin: 0 0 10px 0; padding: 8px 8px 2px 8px; background:#fff; border:1px solid #e2e8f0; border-radius:8px;}
-    .act-group-hdr { display:inline-flex; align-items:center; gap:5px; padding:2px 10px; border-radius:6px; font-size:10px; font-weight:900; letter-spacing:.08em; margin:0 0 8px 0; text-transform: uppercase;}
-    .act-group-hdr.prog, .act-group-hdr.done { background:#334155; color:#fff; border:1px solid #1e293b;}
-    .act-group-divider { border-top:1px dashed #cbd5e1; margin:8px 0 8px 0; opacity:.9;}
-    .act-list li.act-done .act-name { color:#64748b; text-decoration: line-through; text-decoration-color: #94a3b8; text-decoration-thickness: 1.2px;}
-    /* ===== ✨ GRUP PEMISAH PER-TANGGAL + BADGE MASTER ACTIVITY RAPI ===== */
-    .meta-master { background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; font-weight:900;}
-    .meta-master i.fa-database { color:#475569;}
-    .date-group { margin: 0 0 8px 0; padding: 0 0 4px 0; padding-left:10px; border-left:3px solid #cbd5e1;}
-    .date-group-hdr {
-        display:inline-flex; align-items:center; gap:5px;
-        padding:2px 10px 2px 8px; border-radius: 8px;
-        font-size: 10px; font-weight: 900; letter-spacing: .04em;
-        background:#e2e8f0; color:#334155;
-        border:1px solid #cbd5e1; margin:0 0 6px 0;
-    }
-    .date-group-hdr i.fa-calendar-day { font-size: 9.5px; color:#475569;}
-    .date-group-sep { border-top:1px dotted #e2e8f0; margin:4px 0 6px 0; opacity:.9;}
-    .date-group:last-child { margin-bottom: 2px; }
+    table.act tbody tr:hover td { background:#f8fafc;}
+    table.act td.dept { font-weight:900; font-size:13px; letter-spacing:.05em; vertical-align: middle;}
+    .dept-ico { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:8px; margin-right:8px; color:#fff; border:1px solid #1e293b; background:#334155; font-size:13px;}
+    .ico-op, .ico-mt, .ico-pr, .ico-la { background:#334155; border:1px solid #1e293b;}
+    .date-box { display:inline-flex; align-items:center; justify-content:center; padding:4px 10px; border-radius:6px; background:#f8fafc; border:1px solid #cbd5e1; font-size:11px; font-weight:700; color:#0f172a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;}
+    .eng-box { font-size:12px; font-weight:700; color:#0f172a;}
+    .status-pill { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:999px; font-size:10px; font-weight:900; letter-spacing:.05em; text-transform:uppercase; border:1px solid;}
+    .status-prog { background:#1e293b; color:#fff; border-color:#0f172a;}
+    .status-new  { background:#475569; color:#fff; border-color:#334155;}
+    .empty-act { padding:10px 0; color:#64748b; font-style:italic; display:inline-flex; align-items:center; gap:6px;}
+    .empty-act i { opacity:60%;}
 </style>
 </head>
 <body>
@@ -767,186 +743,110 @@ if ($format === 'excel') {
         </tbody>
     </table>
 
-    <!-- ③ ENGINEERING ACTIVITIES (100% MATCH DASHBOARD CARD #2 + RANGE DATE BUKAN SINGLE) -->
+    <!-- ③ ENGINEERING ACTIVITIES (TABEL 5 KOLOM SAMA PERSIS DASHBOARD INDEX.PHP) -->
     <h2>3. ENGINEERING ACTIVITIES</h2>
     <table class="act">
         <colgroup>
-            <col class="dept-col"><col><col class="status-col">
+            <col class="dept-col"><col class="act-col"><col class="date-col"><col class="eng-col"><col class="status-col">
         </colgroup>
         <thead>
-            <tr><th class="dept-col">DEPARTMENT</th><th>ACTIVITY DETAIL</th><th class="status-col">STATUS</th></tr>
+            <tr>
+                <th class="dept-col">DEPARTMENT</th>
+                <th class="act-col">ACTIVITY DETAIL</th>
+                <th class="date-col">DATE</th>
+                <th class="eng-col">BY ENG</th>
+                <th class="status-col">STATUS</th>
+            </tr>
         </thead>
         <tbody>
         <?php
         $bgMap   = ['OPERATION'=>'op-bg','MAINTENANCE'=>'mt-bg','PROJECT'=>'pr-bg','LANDSCAPE'=>'la-bg'];
         $bgIco   = ['OPERATION'=>'ico-op','MAINTENANCE'=>'ico-mt','PROJECT'=>'ico-pr','LANDSCAPE'=>'ico-la'];
         $nameIco = ['OPERATION'=>'fa-gears','MAINTENANCE'=>'fa-wrench','PROJECT'=>'fa-clipboard-list','LANDSCAPE'=>'fa-seedling'];
+
+        $totalRowsAll = 0;
+        $flatRows = [];
         foreach ($divisions as $d) {
             $list = $actByDiv[$d] ?? [];
-            $stN = repCountActStatus($list);
-            $bg    = $bgMap[$d]   ?? '';
             $bico  = $bgIco[$d]   ?? 'ico-op';
             $nicon = $nameIco[$d] ?? 'fa-list';
+
+            // ✅ HANYA TAMPILKAN IN PROGRESS SAJA (complete DIFILTER TIDAK MASUK!)
+            $listProg = [];
+            foreach ($list as $itx) {
+                $sx = (string)($itx['status'] ?? 'progress');
+                if (!($sx === 'complete' || $sx === 'completed')) $listProg[] = $itx;
+            }
+            if (count($listProg) === 0) continue;
+
+            $totalRowsAll += count($listProg);
+            $rowIdx = 0;
+            $rowTotal = count($listProg);
+            foreach ($listProg as $item):
+                $rowIdx++;
+                $isFirstRow = ($rowIdx === 1);
+
+                $name = (string)($item['name'] ?? '');
+                $date = (string)($item['date'] ?? '');
+                $engRaw  = trim((string)($item['eng'] ?? ''));
+                $status  = (string)($item['status'] ?? 'in_progress');
+                $fDate = (strlen($date) > 0) ? repFmtDateAct($date) : '';
+                list($isMaster, $cleanEng) = repSplitMasterEng($engRaw);
+                $byLabel = $isMaster ? 'Master Activity' : ($cleanEng !== '' ? $cleanEng : '-');
+
+                $flatRows[] = [
+                    'deptName' => $d,
+                    'deptIco'  => $bico,
+                    'nameIco'  => $nicon,
+                    'isFirst'  => $isFirstRow,
+                    'title'    => $name,
+                    'date'     => $fDate,
+                    'byLabel'  => $byLabel,
+                    'status'   => $status,
+                ];
+            endforeach;
+        }
+
+        if ($totalRowsAll === 0):
         ?>
             <tr>
-                <td class="dept <?=$bg?>">
-                    <span class="dept-ico <?=$bico?>"><i class="fa-solid <?=$nicon?>"></i></span><?=htmlspecialchars($d)?>
+                <td colspan="5" class="dept">
+                    <span class="empty-act"><i class="fa-solid fa-inbox"></i>Semua aktivitas selesai. Tidak ada in progress.</span>
                 </td>
-                <td class="<?=$bg?>">
-                    <?php if (count($list) === 0): ?>
-                        <span class="empty-act"><i class="fa-solid fa-box-open"></i>Belum ada aktivitas bulan ini.</span>
-                    <?php else: ?>
-                        <?php
-                        // ✅ PISAHKAN Done vs Progress (TIDAK KECAMPUR) — sama persis dengan dashboard
-                        $listDone = []; $listProg = [];
-                        foreach ($list as $itx) {
-                            $sx = (string)($itx['status'] ?? 'progress');
-                            if ($sx === 'complete' || $sx === 'completed') $listDone[] = $itx;
-                            else                                                 $listProg[] = $itx;
-                        }
-                        $hProg = count($listProg) > 0;
-                        $hDone = count($listDone) > 0;
-                        ?>
-                        <div style="margin-bottom:2px;">
-                            <?php if ($hProg): ?>
-                                <div class="act-group">
-                                    <div class="act-group-hdr prog">
-                                        <i class="fa-solid fa-spinner" style="font-size:9px;opacity:.8;"></i>
-                                        Sedang Berjalan <span style="opacity:.7;">(<?= count($listProg) ?>)</span>
-                                    </div>
-                                    <?php
-                                    // ✨ KELOMPOKKAN PER TANGGAL (biar 07 Aug / 18 Aug TIDAK NYAMPUR)
-                                    $grpProg = repGroupActsByDate($listProg);
-                                    $firstProgGrp = true;
-                                    foreach ($grpProg as $dtISO => $itemsInDate):
-                                        $isNoDate = ($dtISO === '_nodate');
-                                        $fHeader = $isNoDate ? '' : repFmtDateAct($dtISO);
-                                        if (!$firstProgGrp):
-                                    ?>
-                                        <div class="date-group-sep"></div>
-                                    <?php endif; $firstProgGrp = false; ?>
-                                    <div class="date-group">
-                                        <?php if ($fHeader !== ''): ?>
-                                            <span class="date-group-hdr">
-                                                <i class="fa-solid fa-calendar-day"></i>
-                                                Tanggal: <?= htmlspecialchars($fHeader) ?>
-                                                <span style="background:#fff; padding:0 6px; border-radius:999px; border:1px solid #cbd5e1; color:#334155; font-size:9px; font-weight:900;"><?= count($itemsInDate) ?> item</span>
-                                            </span>
-                                        <?php endif; ?>
-                                        <ul class="act-list">
-                                        <?php foreach ($itemsInDate as $item):
-                                            $name = (string)($item['name'] ?? '');
-                                            $date = (string)($item['date'] ?? '');
-                                            $engRaw  = trim((string)($item['eng'] ?? ''));
-                                            $fDate = $isNoDate ? repFmtDateAct($date) : '';
-                                            list($isMaster, $cleanEng) = repSplitMasterEng($engRaw);
-                                        ?>
-                                            <li>
-                                                <span class="act-name">&bull; <?=htmlspecialchars($name)?></span>
-                                                <?php if ($fDate !== '' || $cleanEng !== '' || $isMaster): ?>
-                                                    <div class="meta">
-                                                        <?php if ($fDate !== ''): ?>
-                                                            <span class="meta-tag meta-date"><i class="fa-solid fa-calendar" style="font-size:9px;opacity:.7;"></i> <?=htmlspecialchars($fDate)?></span>
-                                                        <?php endif; ?>
-                                                        <?php if ($isMaster): ?>
-                                                            <span class="meta-tag meta-master"><i class="fa-solid fa-database" style="font-size:9px;"></i> MASTER TEMPLATE</span>
-                                                        <?php endif; ?>
-                                                        <?php if ($cleanEng !== ''): ?>
-                                                            <span class="meta-tag meta-eng-real"><i class="fa-solid fa-user-hard-hat" style="font-size:9px;opacity:.85;"></i> <?=htmlspecialchars($cleanEng)?></span>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                <?php endif; ?>
-                                            </li>
-                                        <?php endforeach; ?>
-                                        </ul>
-                                    </div>
-                                    <?php endforeach; /* end group date prog */ ?>
-                                </div>
-                            <?php endif; ?>
-
-                            <?php if ($hProg && $hDone): ?>
-                                <div class="act-group-divider"></div>
-                            <?php endif; ?>
-
-                            <?php if ($hDone): ?>
-                                <div class="act-group">
-                                    <div class="act-group-hdr done">
-                                        <i class="fa-solid fa-circle-check" style="font-size:9px;opacity:.85;"></i>
-                                        Selesai / Done <span style="opacity:.7;">(<?= count($listDone) ?>)</span>
-                                    </div>
-                                    <?php
-                                    $grpDone = repGroupActsByDate($listDone);
-                                    $firstDoneGrp = true;
-                                    foreach ($grpDone as $dtISO => $itemsInDate):
-                                        $isNoDate = ($dtISO === '_nodate');
-                                        $fHeader = $isNoDate ? '' : repFmtDateAct($dtISO);
-                                        if (!$firstDoneGrp):
-                                    ?>
-                                        <div class="date-group-sep"></div>
-                                    <?php endif; $firstDoneGrp = false; ?>
-                                    <div class="date-group">
-                                        <?php if ($fHeader !== ''): ?>
-                                            <span class="date-group-hdr">
-                                                <i class="fa-solid fa-calendar-day"></i>
-                                                Tanggal: <?= htmlspecialchars($fHeader) ?>
-                                                <span style="background:#fff; padding:0 6px; border-radius:999px; border:1px solid #cbd5e1; color:#334155; font-size:9px; font-weight:900;"><?= count($itemsInDate) ?> item</span>
-                                            </span>
-                                        <?php endif; ?>
-                                        <ul class="act-list">
-                                        <?php foreach ($itemsInDate as $item):
-                                            $name = (string)($item['name'] ?? '');
-                                            $date = (string)($item['date'] ?? '');
-                                            $engRaw  = trim((string)($item['eng'] ?? ''));
-                                            $fDate = $isNoDate ? repFmtDateAct($date) : '';
-                                            list($isMaster, $cleanEng) = repSplitMasterEng($engRaw);
-                                        ?>
-                                            <li class="act-done">
-                                                <span class="act-name">&bull; <?=htmlspecialchars($name)?></span>
-                                                <?php if ($fDate !== '' || $cleanEng !== '' || $isMaster): ?>
-                                                    <div class="meta">
-                                                        <?php if ($fDate !== ''): ?>
-                                                            <span class="meta-tag meta-date"><i class="fa-solid fa-calendar" style="font-size:9px;opacity:.7;"></i> <?=htmlspecialchars($fDate)?></span>
-                                                        <?php endif; ?>
-                                                        <?php if ($isMaster): ?>
-                                                            <span class="meta-tag meta-master"><i class="fa-solid fa-database" style="font-size:9px;"></i> MASTER TEMPLATE</span>
-                                                        <?php endif; ?>
-                                                        <?php if ($cleanEng !== ''): ?>
-                                                            <span class="meta-tag meta-eng-real"><i class="fa-solid fa-user-hard-hat" style="font-size:9px;opacity:.85;"></i> <?=htmlspecialchars($cleanEng)?></span>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                <?php endif; ?>
-                                            </li>
-                                        <?php endforeach; ?>
-                                        </ul>
-                                    </div>
-                                    <?php endforeach; /* end group date done */ ?>
-                                </div>
-                            <?php endif; ?>
-                        </div>
+            </tr>
+        <?php else:
+            foreach ($flatRows as $fr):
+        ?>
+            <tr>
+                <td class="dept">
+                    <?php if ($fr['isFirst']): ?>
+                        <span class="dept-ico <?=$fr['deptIco']?>"><i class="fa-solid <?=$fr['nameIco']?>"></i></span><?=htmlspecialchars($fr['deptName'])?>
                     <?php endif; ?>
                 </td>
-                <td class="status-col <?=$bg?>" style="text-align:right;">
-                    <?php if (count($list) === 0): ?>
-                        <span class="st-nodata">&ndash; No Data &ndash;</span>
+                <td><span class="act-name"><?=htmlspecialchars($fr['title'])?></span></td>
+                <td style="text-align:center; vertical-align: middle;">
+                    <?php if ($fr['date'] !== ''): ?>
+                        <span class="date-box"><?=htmlspecialchars($fr['date'])?></span>
                     <?php else: ?>
-                        <div class="st-group">
-                            <?php if ($stN['prog'] > 0): ?>
-                                <span class="st-pill st-prog">
-                                    <i class="fa-solid fa-spinner" style="font-size:9.5px;opacity:.8;"></i>
-                                    In Progress <span class="count"><?=$stN['prog']?></span>
-                                </span>
-                            <?php endif; ?>
-                            <?php if ($stN['done'] > 0): ?>
-                                <span class="st-pill st-done">
-                                    <i class="fa-solid fa-circle-check" style="font-size:9.5px;opacity:.8;"></i>
-                                    Complete <span class="count"><?=$stN['done']?></span>
-                                </span>
-                            <?php endif; ?>
-                        </div>
+                        <span class="date-box" style="color:#64748b;">-</span>
+                    <?php endif; ?>
+                </td>
+                <td><span class="eng-box"><?=htmlspecialchars($fr['byLabel'])?></span></td>
+                <td style="text-align:center; vertical-align: middle;">
+                    <?php
+                    $s = (string)$fr['status'];
+                    if ($s === 'complete' || $s === 'completed'):
+                    ?>
+                        <span class="status-pill status-new"><i class="fa-solid fa-circle-check" style="font-size:9px;"></i>Done</span>
+                    <?php elseif ($s === 'new' || $s === 'tugas_baru'): ?>
+                        <span class="status-pill status-new"><i class="fa-solid fa-asterisk" style="font-size:9px;"></i>Baru</span>
+                    <?php else: ?>
+                        <span class="status-pill status-prog"><i class="fa-solid fa-spinner fa-spin" style="font-size:9px;"></i>In Progress</span>
                     <?php endif; ?>
                 </td>
             </tr>
-        <?php } ?>
+        <?php endforeach;
+        endif; ?>
         </tbody>
     </table>
 
