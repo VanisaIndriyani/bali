@@ -1263,99 +1263,156 @@ require_once __DIR__ . '/includes/navbar.php';
                                             $hasProg = (count($rowsProg) > 0);
                                             ?>
                                             <div class="space-y-2.5">
-                                                <?php
-                                                $renderGrp = function($rows, $mode) {
-                                                    $grouped = dashGroupByDate($rows);
-                                                    $isProg = ($mode === 'progress');
-                                                    $groupTitle = $isProg
-                                                        ? ['Sedang Berjalan', 'fas fa-circle-notch fa-spin', ' style="--fa-animation-duration:1.8s"']
-                                                        : ['Selesai / Done', 'fas fa-circle-check', ''];
-                                                    $bulletIcon = $isProg
-                                                        ? '<i class="fas fa-circle text-[6px] text-slate-500 mt-1.5 shrink-0"></i>'
-                                                        : '<i class="fas fa-check text-[9px] text-slate-600 mt-1.5 shrink-0"></i>';
-                                                    $titleClass = $isProg
-                                                        ? 'font-semibold text-slate-900 leading-snug'
-                                                        : 'font-semibold text-slate-500 leading-snug line-through decoration-slate-400 decoration-[1.2px] decoration-skip-ink-none';
-                                                    $engCss = 'text-slate-700 border-slate-200 bg-slate-100';
-                                                    $masterCss = 'text-slate-800 border-slate-200 bg-slate-100 font-black';
-                                                    $dateCss = 'text-slate-600 border-slate-200 bg-white';
-                                                    $html = '';
-                                                    $html .= '<div class="rounded-lg border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm">';
-                                                    $html .= '<div class="mb-2.5">';
-                                                    $html .= '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">';
-                                                    $html .= '<i class="' . $groupTitle[1] . ' text-[9px]"' . $groupTitle[2] . '></i>';
-                                                    $html .= $groupTitle[0] . ' <span class="opacity-90 font-bold">(' . count($rows) . ')</span>';
-                                                    $html .= '</span>';
-                                                    $html .= '</div>';
-                                                    $firstDt = true;
-                                                    foreach ($grouped as $dtISO => $items) {
-                                                        $isNoDate = ($dtISO === '_nodate');
-                                                        $labelDate = $isNoDate ? '' : (new DateTime($dtISO))->format('d M Y');
-                                                        if (!$firstDt) $html .= '<div class="border-t border-dotted border-slate-200 my-2.5 opacity-90"></div>';
-                                                        $firstDt = false;
-                                                        if ($labelDate !== '') {
-                                                            $html .= '<div class="pl-2.5 mb-2 border-l-[3px] border-slate-300">';
-                                                            $html .= '<div class="flex items-center gap-2 mb-2">';
-                                                            $html .= '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-200/80 border border-slate-300 text-slate-800 text-[10.5px] font-black tracking-wide">';
-                                                            $html .= '<i class="far fa-calendar-day text-slate-600 text-[9.5px]"></i>';
-                                                            $html .= htmlspecialchars($labelDate);
-                                                            $html .= '<span class="ml-1 bg-white px-1.5 py-0.5 rounded-full border border-slate-300 text-[9px] text-slate-700 font-black">' . count($items) . '</span>';
-                                                            $html .= '</span>';
-                                                            $html .= '</div>';
-                                                        } else {
-                                                            $html .= '<div class="pl-2.5 mb-2 border-l-[3px] border-slate-200">';
-                                                        }
-                                                        $html .= '<ul class="space-y-0">';
-                                                        $itemIdx = 0;
-                                                        $itemTotal = count($items);
-                                                        foreach ($items as $ar) {
-                                                            $itemIdx++;
-                                                            $d = $isNoDate ? ((strlen($ar['date'] ?? '') > 0) ? (new DateTime($ar['date']))->format('d M Y') : '') : '';
-                                                            list($isMaster, $cleanEng) = dashSplitMasterEng($ar['eng'] ?? '');
-                                                            $isLastItem = ($itemIdx === $itemTotal);
-                                                            $sep = $isLastItem ? '' : ' border-b border-dashed border-slate-100 pb-2 mb-2';
-                                                            $html .= '<li class="flex items-start gap-2.5 pl-0.5 ' . ($isProg ? '' : 'opacity-[0.98]') . $sep . '">';
-                                                            $html .= $bulletIcon;
-                                                            $html .= '<div class="flex-1 min-w-0">';
-                                                            $html .= '<span class="' . $titleClass . '">' . cleanInput($ar['title']) . '</span>';
-                                                            $showDate = ($d !== '');
-                                                            $showMaster = $isMaster;
-                                                            $showEng = ($cleanEng !== '');
-                                                            if ($showDate || $showMaster || $showEng) {
-                                                                $html .= '<div class="flex flex-wrap items-center gap-1.5 mt-1.5">';
-                                                                if ($showDate) {
-                                                                    $html .= '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border ' . $dateCss . '">';
-                                                                    $html .= '<i class="far fa-calendar mr-0.5 text-[9px] opacity-70"></i>' . htmlspecialchars($d) . '</span>';
-                                                                }
-                                                                if ($showMaster) {
-                                                                    $html .= '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border ' . $masterCss . '">';
-                                                                    $html .= '<i class="fas fa-database mr-0.5 text-[9px] text-slate-500"></i>MASTER</span>';
-                                                                }
-                                                                if ($showEng) {
-                                                                    $html .= '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border ' . $engCss . '">';
-                                                                    $html .= '<i class="fas fa-user-helmet-safety mr-0.5 text-[9px] opacity-80"></i>' . cleanInput($cleanEng) . '</span>';
-                                                                }
-                                                                $html .= '</div>';
-                                                            }
-                                                            $html .= '</div></li>';
-                                                        }
-                                                        $html .= '</ul></div>';
-                                                    }
-                                                    $html .= '</div>';
-                                                    return $html;
-                                                };
+                                                <?php if ($hasProg):
+                                                    $groupedProg = dashGroupByDate($rowsProg);
                                                 ?>
-
-                                                <?php if ($hasProg): ?>
-                                                    <?= $renderGrp($rowsProg, 'progress') ?>
+                                                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm">
+                                                        <div class="mb-2.5">
+                                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                                                                <i class="fas fa-circle-notch fa-spin text-[9px]" style="--fa-animation-duration:1.8s"></i>
+                                                                Sedang Berjalan <span class="opacity-90 font-bold">(<?= count($rowsProg) ?>)</span>
+                                                            </span>
+                                                        </div>
+                                                        <?php
+                                                        $firstDt = true;
+                                                        foreach ($groupedProg as $dtISO => $items):
+                                                            $isNoDate = ($dtISO === '_nodate');
+                                                            $labelDate = $isNoDate ? '' : (new DateTime($dtISO))->format('d M Y');
+                                                            if (!$firstDt):
+                                                        ?>
+                                                            <div class="border-t border-dotted border-slate-200 my-2.5 opacity-90"></div>
+                                                        <?php endif; $firstDt = false; ?>
+                                                        <div class="pl-2.5 mb-2 border-l-[3px] <?= $labelDate !== '' ? 'border-slate-300' : 'border-slate-200' ?>">
+                                                            <?php if ($labelDate !== ''): ?>
+                                                            <div class="flex items-center gap-2 mb-2">
+                                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-200/80 border border-slate-300 text-slate-800 text-[10.5px] font-black tracking-wide">
+                                                                    <i class="far fa-calendar-day text-slate-600 text-[9.5px]"></i>
+                                                                    <?= htmlspecialchars($labelDate) ?>
+                                                                    <span class="ml-1 bg-white px-1.5 py-0.5 rounded-full border border-slate-300 text-[9px] text-slate-700 font-black"><?= count($items) ?></span>
+                                                                </span>
+                                                            </div>
+                                                            <?php endif; ?>
+                                                            <ul class="space-y-0">
+                                                            <?php
+                                                            $itemIdx = 0;
+                                                            $itemTotal = count($items);
+                                                            foreach ($items as $ar):
+                                                                $itemIdx++;
+                                                                $d = $isNoDate ? ((strlen($ar['date'] ?? '') > 0) ? (new DateTime($ar['date']))->format('d M Y') : '') : '';
+                                                                list($isMaster, $cleanEng) = dashSplitMasterEng($ar['eng'] ?? '');
+                                                                $isLastItem = ($itemIdx === $itemTotal);
+                                                                $sep = $isLastItem ? '' : 'border-b border-dashed border-slate-100 pb-2 mb-2';
+                                                            ?>
+                                                                <li class="flex items-start gap-2.5 pl-0.5 <?= $sep ?>">
+                                                                    <i class="fas fa-circle text-[6px] text-slate-500 mt-1.5 shrink-0"></i>
+                                                                    <div class="flex-1 min-w-0">
+                                                                        <span class="font-semibold text-slate-900 leading-snug"><?= cleanInput($ar['title']) ?></span>
+                                                                        <?php
+                                                                        $showDate = ($d !== '');
+                                                                        $showMaster = $isMaster;
+                                                                        $showEng = ($cleanEng !== '');
+                                                                        if ($showDate || $showMaster || $showEng):
+                                                                        ?>
+                                                                        <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                                                            <?php if ($showDate): ?>
+                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-600 border-slate-200 bg-white">
+                                                                                <i class="far fa-calendar mr-0.5 text-[9px] opacity-70"></i><?= htmlspecialchars($d) ?></span>
+                                                                            <?php endif; ?>
+                                                                            <?php if ($showMaster): ?>
+                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-800 border-slate-200 bg-slate-100 font-black">
+                                                                                <i class="fas fa-database mr-0.5 text-[9px] text-slate-500"></i>MASTER</span>
+                                                                            <?php endif; ?>
+                                                                            <?php if ($showEng): ?>
+                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-700 border-slate-200 bg-slate-100">
+                                                                                <i class="fas fa-user-helmet-safety mr-0.5 text-[9px] opacity-80"></i><?= htmlspecialchars($cleanEng) ?></span>
+                                                                            <?php endif; ?>
+                                                                        </div>
+                                                                        <?php endif; ?>
+                                                                    </div>
+                                                                </li>
+                                                            <?php endforeach; ?>
+                                                            </ul>
+                                                        </div>
+                                                        <?php endforeach; ?>
+                                                    </div>
                                                 <?php endif; ?>
 
                                                 <?php if ($hasDone && $hasProg): ?>
                                                     <div class="border-t border-dashed border-slate-300 opacity-80"></div>
                                                 <?php endif; ?>
 
-                                                <?php if ($hasDone): ?>
-                                                    <?= $renderGrp($rowsDone, 'done') ?>
+                                                <?php if ($hasDone):
+                                                    $groupedDone = dashGroupByDate($rowsDone);
+                                                ?>
+                                                    <div class="rounded-lg border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm">
+                                                        <div class="mb-2.5">
+                                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-wider">
+                                                                <i class="fas fa-circle-check text-[9px]"></i>
+                                                                Selesai / Done <span class="opacity-90 font-bold">(<?= count($rowsDone) ?>)</span>
+                                                            </span>
+                                                        </div>
+                                                        <?php
+                                                        $firstDt = true;
+                                                        foreach ($groupedDone as $dtISO => $items):
+                                                            $isNoDate = ($dtISO === '_nodate');
+                                                            $labelDate = $isNoDate ? '' : (new DateTime($dtISO))->format('d M Y');
+                                                            if (!$firstDt):
+                                                        ?>
+                                                            <div class="border-t border-dotted border-slate-200 my-2.5 opacity-90"></div>
+                                                        <?php endif; $firstDt = false; ?>
+                                                        <div class="pl-2.5 mb-2 border-l-[3px] <?= $labelDate !== '' ? 'border-slate-300' : 'border-slate-200' ?>">
+                                                            <?php if ($labelDate !== ''): ?>
+                                                            <div class="flex items-center gap-2 mb-2">
+                                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-200/80 border border-slate-300 text-slate-800 text-[10.5px] font-black tracking-wide">
+                                                                    <i class="far fa-calendar-day text-slate-600 text-[9.5px]"></i>
+                                                                    <?= htmlspecialchars($labelDate) ?>
+                                                                    <span class="ml-1 bg-white px-1.5 py-0.5 rounded-full border border-slate-300 text-[9px] text-slate-700 font-black"><?= count($items) ?></span>
+                                                                </span>
+                                                            </div>
+                                                            <?php endif; ?>
+                                                            <ul class="space-y-0">
+                                                            <?php
+                                                            $itemIdx = 0;
+                                                            $itemTotal = count($items);
+                                                            foreach ($items as $ar):
+                                                                $itemIdx++;
+                                                                $d = $isNoDate ? ((strlen($ar['date'] ?? '') > 0) ? (new DateTime($ar['date']))->format('d M Y') : '') : '';
+                                                                list($isMaster, $cleanEng) = dashSplitMasterEng($ar['eng'] ?? '');
+                                                                $isLastItem = ($itemIdx === $itemTotal);
+                                                                $sep = $isLastItem ? '' : 'border-b border-dashed border-slate-100 pb-2 mb-2';
+                                                            ?>
+                                                                <li class="flex items-start gap-2.5 pl-0.5 opacity-[0.98] <?= $sep ?>">
+                                                                    <i class="fas fa-check text-[9px] text-slate-600 mt-1.5 shrink-0"></i>
+                                                                    <div class="flex-1 min-w-0">
+                                                                        <span class="font-semibold text-slate-500 leading-snug line-through decoration-slate-400 decoration-[1.2px] decoration-skip-ink-none"><?= cleanInput($ar['title']) ?></span>
+                                                                        <?php
+                                                                        $showDate = ($d !== '');
+                                                                        $showMaster = $isMaster;
+                                                                        $showEng = ($cleanEng !== '');
+                                                                        if ($showDate || $showMaster || $showEng):
+                                                                        ?>
+                                                                        <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                                                            <?php if ($showDate): ?>
+                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-600 border-slate-200 bg-white">
+                                                                                <i class="far fa-calendar mr-0.5 text-[9px] opacity-70"></i><?= htmlspecialchars($d) ?></span>
+                                                                            <?php endif; ?>
+                                                                            <?php if ($showMaster): ?>
+                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-800 border-slate-200 bg-slate-100 font-black">
+                                                                                <i class="fas fa-database mr-0.5 text-[9px] text-slate-500"></i>MASTER</span>
+                                                                            <?php endif; ?>
+                                                                            <?php if ($showEng): ?>
+                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-700 border-slate-200 bg-slate-100">
+                                                                                <i class="fas fa-user-helmet-safety mr-0.5 text-[9px] opacity-80"></i><?= htmlspecialchars($cleanEng) ?></span>
+                                                                            <?php endif; ?>
+                                                                        </div>
+                                                                        <?php endif; ?>
+                                                                    </div>
+                                                                </li>
+                                                            <?php endforeach; ?>
+                                                            </ul>
+                                                        </div>
+                                                        <?php endforeach; ?>
+                                                    </div>
                                                 <?php endif; ?>
                                             </div>
                                         <?php endif; ?>
