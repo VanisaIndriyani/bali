@@ -1694,28 +1694,28 @@ if (empty($printAllActs)) {
         const stSel2 = (String(existingStatus).toLowerCase() === 'complete') ? 'selected' : '';
 
         row.innerHTML = `
-            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                <div class="sm:col-span-1 flex items-center gap-2">
-                    <span class="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[12px] font-black text-slate-700 shrink-0 shadow-sm">` + curNum + `</span>
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-stretch">
+                <div class="sm:col-span-1 flex sm:items-center sm:justify-start gap-2 pt-1 sm:pt-0">
+                    <span class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[13px] font-black text-slate-700 shrink-0 shadow-sm">` + curNum + `</span>
                 </div>
-                <div class="sm:col-span-8 min-w-0 flex flex-col gap-1">
-                    <label class="text-[9px] font-black uppercase tracking-wider text-slate-500 pl-0.5">Nama Aktivitas</label>
+                <div class="sm:col-span-8 min-w-0 flex flex-col gap-1.5">
+                    <label class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-600 pl-1">Nama Aktivitas</label>
                     <input type="text" name="` + cfg.prefix + `_text[]" data-role="final-text" placeholder="Ketik nama aktivitas disini..." value="` + safeTitle + `"
-                        class="w-full px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-[13px] leading-snug font-semibold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400 transition placeholder:text-slate-400 placeholder:font-normal">
+                        class="w-full px-4 py-3.5 h-auto min-h-[46px] rounded-xl border-2 border-slate-200 bg-white text-[14px] leading-snug font-semibold text-slate-900 shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-100 focus:border-slate-500 transition-all duration-150 placeholder:text-slate-400 placeholder:font-normal">
                 </div>
-                <div class="sm:col-span-2 min-w-0 flex flex-col gap-1">
-                    <label class="text-[9px] font-black uppercase tracking-wider text-slate-500 pl-0.5">Status</label>
+                <div class="sm:col-span-2 min-w-0 flex flex-col gap-1.5">
+                    <label class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-600 pl-1">Status</label>
                     <select name="` + cfg.prefix + `_status[]" data-role="status-select"
-                        class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-[12px] leading-snug font-semibold text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400 transition appearance-none pr-8">
+                        class="w-full px-3.5 py-3 min-h-[46px] rounded-xl border-2 border-slate-200 bg-white text-[13px] leading-snug font-bold text-slate-900 shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-100 focus:border-slate-500 transition-all duration-150 appearance-none pr-9">
                         <option value="progress" ` + stSel1 + `>In Progress</option>
                         <option value="complete" ` + stSel2 + `>Complete</option>
                     </select>
                 </div>
-                <div class="sm:col-span-1 flex sm:justify-end">
+                <div class="sm:col-span-1 flex sm:items-end sm:justify-end pt-1 sm:pt-0">
                     <button type="button" onclick="removeActRow(this)"
-                        class="w-full sm:w-auto px-3 py-2 h-9 rounded-lg bg-slate-50 hover:bg-slate-700 text-slate-600 hover:text-white border border-slate-200 hover:border-slate-700 flex items-center justify-center gap-1.5 transition shadow-sm"
+                        class="w-full sm:w-auto px-3.5 py-3 min-h-[46px] rounded-xl bg-slate-50 hover:bg-slate-700 text-slate-500 hover:text-white border-2 border-slate-200 hover:border-slate-700 flex items-center justify-center gap-1.5 transition-all duration-150 shadow-sm"
                         aria-label="Hapus" title="Hapus baris">
-                        <i class="fas fa-trash-can text-[12px]"></i>
+                        <i class="fas fa-trash-can text-[14px]"></i>
                     </button>
                 </div>
             </div>
