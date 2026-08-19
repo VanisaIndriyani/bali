@@ -482,8 +482,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($electricity < 0 || $water < 0 || $gas < 0) {
         setFlash('error', T('form_error_negative', 'Nilai konsumsi tidak boleh negatif'));
-    } elseif (empty($activities)) {
-        setFlash('error', T('form_error_activities', 'Aktivitas pekerjaan harus diisi'));
     } else {
         $photoFile = null;
         if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
