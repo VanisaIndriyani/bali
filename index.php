@@ -1216,38 +1216,38 @@ require_once __DIR__ . '/includes/navbar.php';
             </button>
             <div id="engact_group" class="transition-all duration-200 overflow-hidden">
                 <div class="p-2 sm:p-2.5 lg:p-3">
-                    <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
-                        <table class="w-full text-[13px]">
+                    <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+                        <table class="w-full text-[13px] border-collapse">
                             <thead>
                                 <tr class="bg-slate-100 text-slate-800 text-[11px] uppercase tracking-[0.12em] font-black">
-                                    <th class="px-3 py-2 text-left font-black w-64">DEPARTMENT</th>
-                                    <th class="px-3 py-2 text-left font-black border-l border-slate-200">ACTIVITY DETAIL</th>
-                                    <th class="px-3 py-2 text-center font-black border-l border-slate-200 w-40">STATUS</th>
+                                    <th class="px-3.5 py-3 text-left font-black w-64 border-r border-slate-200">DEPARTMENT</th>
+                                    <th class="px-3.5 py-3 text-left font-black border-r border-slate-200">ACTIVITY DETAIL</th>
+                                    <th class="px-3.5 py-3 text-center font-black w-48">STATUS</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 align-top">
                                 <?php
                                 $deptDef = [
-                                    'operation'   => ['OPERATION',   'fas fa-gear',           'text-slate-700', 'bg-slate-50/50'],
-                                    'maintenance' => ['MAINTENANCE', 'fas fa-wrench',         'text-slate-700', 'bg-slate-50/50'],
-                                    'project'     => ['PROJECT',     'fas fa-clipboard-list', 'text-slate-700', 'bg-slate-50/50'],
-                                    'landscape'   => ['LANDSCAPE',   'fas fa-seedling',       'text-slate-700', 'bg-slate-50/50'],
+                                    'operation'   => ['OPERATION',   'fas fa-gear'],
+                                    'maintenance' => ['MAINTENANCE', 'fas fa-wrench'],
+                                    'project'     => ['PROJECT',     'fas fa-clipboard-list'],
+                                    'landscape'   => ['LANDSCAPE',   'fas fa-seedling'],
                                 ];
                                 foreach ($deptDef as $key => $dd):
-                                    [$deptLabel, $deptIcon, $deptCol, $deptBg] = $dd;
+                                    [$deptLabel, $deptIcon] = $dd;
                                     $rows = $actsGRP[$key] ?? [];
                                     $empty = (count($rows) === 0);
                                 ?>
-                                <tr class="hover:bg-slate-50 transition-colors <?= $deptBg ?>">
-                                    <td class="px-4 py-3.5 border-r border-slate-100">
+                                <tr class="hover:bg-slate-50/60 transition-colors bg-slate-50/30">
+                                    <td class="px-4 py-4 border-r border-slate-100">
                                         <div class="flex items-center gap-2.5">
-                                            <span class="w-9 h-9 rounded-lg bg-white shadow-sm border border-slate-200 flex items-center justify-center"><i class="<?= $deptIcon ?> text-base <?= $deptCol ?>"></i></span>
-                                            <span class="font-black text-gray-900 text-[15px] tracking-wide"><?= $deptLabel ?></span>
+                                            <span class="w-9 h-9 rounded-lg bg-slate-700 shadow-sm border border-slate-800 flex items-center justify-center text-white"><i class="<?= $deptIcon ?> text-base"></i></span>
+                                            <span class="font-black text-slate-900 text-[15px] tracking-wide"><?= $deptLabel ?></span>
                                         </div>
                                     </td>
-                                    <td class="px-4 py-3.5 border-l border-slate-100">
+                                    <td class="px-4 py-4 border-r border-slate-100">
                                         <?php if ($empty): ?>
-                                            <div class="flex items-center gap-2 text-gray-400 italic text-sm">
+                                            <div class="flex items-center gap-2 text-slate-400 italic text-sm py-2">
                                                 <i class="fas fa-inbox opacity-70"></i>
                                                 Belum ada aktivitas bulan ini.
                                             </div>
@@ -1262,45 +1262,61 @@ require_once __DIR__ . '/includes/navbar.php';
                                             $hasDone = (count($rowsDone) > 0);
                                             $hasProg = (count($rowsProg) > 0);
                                             ?>
-                                            <div class="space-y-3">
+                                            <div class="space-y-2.5">
                                                 <?php
                                                 $renderGrp = function($rows, $mode) {
                                                     $grouped = dashGroupByDate($rows);
                                                     $isProg = ($mode === 'progress');
+                                                    $groupTitle = $isProg
+                                                        ? ['Sedang Berjalan', 'fas fa-circle-notch fa-spin', ' style="--fa-animation-duration:1.8s"']
+                                                        : ['Selesai / Done', 'fas fa-circle-check', ''];
                                                     $bulletIcon = $isProg
-                                                        ? '<i class="fas fa-circle text-[7px] text-slate-500 mt-1.5 shrink-0"></i>'
-                                                        : '<i class="fas fa-check text-[10px] text-slate-600 mt-1 shrink-0"></i>';
+                                                        ? '<i class="fas fa-circle text-[6px] text-slate-500 mt-1.5 shrink-0"></i>'
+                                                        : '<i class="fas fa-check text-[9px] text-slate-600 mt-1.5 shrink-0"></i>';
                                                     $titleClass = $isProg
-                                                        ? 'font-semibold text-gray-800'
-                                                        : 'font-semibold text-gray-600 line-through decoration-slate-400/50 decoration-[1.5px] decoration-skip-ink-none';
-                                                    $engCss = $isProg
-                                                        ? 'text-slate-700 border-slate-200 bg-slate-100/80'
-                                                        : 'text-slate-700 border-slate-200 bg-slate-100/80';
-                                                    $masterCss = 'text-slate-700 border-slate-200 bg-slate-100/90 font-black';
-                                                    $dateCss = 'text-gray-500 border-slate-200 bg-white/80';
+                                                        ? 'font-semibold text-slate-900 leading-snug'
+                                                        : 'font-semibold text-slate-500 leading-snug line-through decoration-slate-400 decoration-[1.2px] decoration-skip-ink-none';
+                                                    $engCss = 'text-slate-700 border-slate-200 bg-slate-100';
+                                                    $masterCss = 'text-slate-800 border-slate-200 bg-slate-100 font-black';
+                                                    $dateCss = 'text-slate-600 border-slate-200 bg-white';
                                                     $html = '';
+                                                    $html .= '<div class="rounded-lg border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm">';
+                                                    $html .= '<div class="mb-2.5">';
+                                                    $html .= '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">';
+                                                    $html .= '<i class="' . $groupTitle[1] . ' text-[9px]"' . $groupTitle[2] . '></i>';
+                                                    $html .= $groupTitle[0] . ' <span class="opacity-90 font-bold">(' . count($rows) . ')</span>';
+                                                    $html .= '</span>';
+                                                    $html .= '</div>';
                                                     $firstDt = true;
                                                     foreach ($grouped as $dtISO => $items) {
                                                         $isNoDate = ($dtISO === '_nodate');
                                                         $labelDate = $isNoDate ? '' : (new DateTime($dtISO))->format('d M Y');
-                                                        if (!$firstDt) $html .= '<div class="border-t border-dotted border-slate-200 my-2 opacity-80"></div>';
+                                                        if (!$firstDt) $html .= '<div class="border-t border-dotted border-slate-200 my-2.5 opacity-90"></div>';
                                                         $firstDt = false;
-                                                        $html .= '<div class="mb-2">';
                                                         if ($labelDate !== '') {
-                                                            $html .= '<div class="flex items-center gap-2 mb-2.5 pl-0.5">';
-                                                            $html .= '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-[10.5px] font-black tracking-wide shadow-sm">';
-                                                            $html .= '<i class="far fa-calendar-day text-slate-500 text-[10px]"></i>';
+                                                            $html .= '<div class="pl-2.5 mb-2 border-l-[3px] border-slate-300">';
+                                                            $html .= '<div class="flex items-center gap-2 mb-2">';
+                                                            $html .= '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-200/80 border border-slate-300 text-slate-800 text-[10.5px] font-black tracking-wide">';
+                                                            $html .= '<i class="far fa-calendar-day text-slate-600 text-[9.5px]"></i>';
                                                             $html .= htmlspecialchars($labelDate);
-                                                            $html .= '<span class="ml-1 bg-white px-1.5 py-0.5 rounded-full border border-slate-200 text-[9px] text-slate-700 font-black">' . count($items) . '</span>';
-                                                            $html .= '</span></div>';
+                                                            $html .= '<span class="ml-1 bg-white px-1.5 py-0.5 rounded-full border border-slate-300 text-[9px] text-slate-700 font-black">' . count($items) . '</span>';
+                                                            $html .= '</span>';
+                                                            $html .= '</div>';
+                                                        } else {
+                                                            $html .= '<div class="pl-2.5 mb-2 border-l-[3px] border-slate-200">';
                                                         }
-                                                        $html .= '<ul class="space-y-2">';
+                                                        $html .= '<ul class="space-y-0">';
+                                                        $itemIdx = 0;
+                                                        $itemTotal = count($items);
                                                         foreach ($items as $ar) {
+                                                            $itemIdx++;
                                                             $d = $isNoDate ? ((strlen($ar['date'] ?? '') > 0) ? (new DateTime($ar['date']))->format('d M Y') : '') : '';
                                                             list($isMaster, $cleanEng) = dashSplitMasterEng($ar['eng'] ?? '');
-                                                            $html .= '<li class="flex items-start gap-2.5 pl-0.5 ' . ($isProg ? '' : 'opacity-[0.97]') . '">';
+                                                            $isLastItem = ($itemIdx === $itemTotal);
+                                                            $sep = $isLastItem ? '' : ' border-b border-dashed border-slate-100 pb-2 mb-2';
+                                                            $html .= '<li class="flex items-start gap-2.5 pl-0.5 ' . ($isProg ? '' : 'opacity-[0.98]') . $sep . '">';
                                                             $html .= $bulletIcon;
-                                                            $html .= '<div class="flex-1 leading-relaxed">';
+                                                            $html .= '<div class="flex-1 min-w-0">';
                                                             $html .= '<span class="' . $titleClass . '">' . cleanInput($ar['title']) . '</span>';
                                                             $showDate = ($d !== '');
                                                             $showMaster = $isMaster;
@@ -1313,7 +1329,7 @@ require_once __DIR__ . '/includes/navbar.php';
                                                                 }
                                                                 if ($showMaster) {
                                                                     $html .= '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border ' . $masterCss . '">';
-                                                                    $html .= '<i class="fas fa-database mr-0.5 text-[9px] text-slate-500"></i>MASTER TEMPLATE</span>';
+                                                                    $html .= '<i class="fas fa-database mr-0.5 text-[9px] text-slate-500"></i>MASTER</span>';
                                                                 }
                                                                 if ($showEng) {
                                                                     $html .= '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border ' . $engCss . '">';
@@ -1325,43 +1341,26 @@ require_once __DIR__ . '/includes/navbar.php';
                                                         }
                                                         $html .= '</ul></div>';
                                                     }
+                                                    $html .= '</div>';
                                                     return $html;
                                                 };
                                                 ?>
 
                                                 <?php if ($hasProg): ?>
-                                                    <div>
-                                                        <div class="flex items-center gap-2 mb-2">
-                                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100/80 border border-slate-300 text-slate-800 text-[10px] font-black uppercase tracking-wider">
-                                                                <i class="fas fa-circle-notch fa-spin" style="--fa-animation-duration:1.8s"></i>
-                                                                Sedang Berjalan
-                                                                <span class="ml-0.5">(<?= count($rowsProg) ?>)</span>
-                                                            </span>
-                                                        </div>
-                                                        <?= $renderGrp($rowsProg, 'progress') ?>
-                                                    </div>
+                                                    <?= $renderGrp($rowsProg, 'progress') ?>
                                                 <?php endif; ?>
 
                                                 <?php if ($hasDone && $hasProg): ?>
-                                                    <div class="border-t border-dashed border-slate-200 my-1"></div>
+                                                    <div class="border-t border-dashed border-slate-300 opacity-80"></div>
                                                 <?php endif; ?>
 
                                                 <?php if ($hasDone): ?>
-                                                    <div>
-                                                        <div class="flex items-center gap-2 mb-2">
-                                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100/80 border border-slate-300 text-slate-800 text-[10px] font-black uppercase tracking-wider">
-                                                                <i class="fas fa-circle-check"></i>
-                                                                Selesai / Done
-                                                                <span class="ml-0.5">(<?= count($rowsDone) ?>)</span>
-                                                            </span>
-                                                        </div>
-                                                        <?= $renderGrp($rowsDone, 'done') ?>
-                                                    </div>
+                                                    <?= $renderGrp($rowsDone, 'done') ?>
                                                 <?php endif; ?>
                                             </div>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="px-4 py-3.5 text-center border-l border-slate-100 align-middle">
+                                    <td class="px-4 py-4 text-center align-middle">
                                         <?php if ($empty): ?>
                                             <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-500">
                                                 &ndash; No Data &ndash;
@@ -1373,16 +1372,16 @@ require_once __DIR__ . '/includes/navbar.php';
                                             foreach ($rows as $rr) { if (($rr['status'] ?? '') === 'complete') $completeCount++; else $progCount++; }
                                             ?>
                                             <div class="space-y-2 w-full">
-                                                <?php if ($completeCount > 0): ?>
-                                                    <span class="inline-flex items-center gap-1.5 w-full justify-center px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-[11px] font-black tracking-wider">
-                                                        <i class="fas fa-circle-check"></i> Complete
-                                                        <span class="ml-0.5 text-xs">(<?= $completeCount ?>)</span>
+                                                <?php if ($progCount > 0): ?>
+                                                    <span class="inline-flex items-center gap-1.5 w-full justify-center px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-white text-[11px] font-black tracking-wider shadow-sm">
+                                                        <i class="fas fa-circle-notch fa-spin text-[10px]" style="--fa-animation-duration: 1.8s"></i> In Progress
+                                                        <span class="ml-0.5 text-xs font-bold bg-white/15 px-1.5 py-0.5 rounded-full border border-white/20">(<?= $progCount ?>)</span>
                                                     </span>
                                                 <?php endif; ?>
-                                                <?php if ($progCount > 0): ?>
+                                                <?php if ($completeCount > 0): ?>
                                                     <span class="inline-flex items-center gap-1.5 w-full justify-center px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-[11px] font-black tracking-wider">
-                                                        <i class="fas fa-circle-notch fa-spin" style="--fa-animation-duration: 1.8s"></i> In Progress
-                                                        <span class="ml-0.5 text-xs">(<?= $progCount ?>)</span>
+                                                        <i class="fas fa-circle-check text-slate-600"></i> Complete
+                                                        <span class="ml-0.5 text-xs font-bold text-slate-700 bg-white px-1.5 py-0.5 rounded-full border border-slate-200">(<?= $completeCount ?>)</span>
                                                     </span>
                                                 <?php endif; ?>
                                             </div>
@@ -1395,7 +1394,7 @@ require_once __DIR__ . '/includes/navbar.php';
                     </div>
 
                     <!-- Tanda tangan mini (Prepared / Reviewed / Approved) seperti kertas -->
-                    <div class="pt-5 mt-3 border-t border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 md:gap-8 items-start">
+                    <div class="pt-5 mt-3 border-t border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 md:gap-8 items-start">
                         <?php
                         $signs = [
                             ['Prepared By:',  $userRole === 'engineer' ? cleanInput($userName) : 'Engineering Staff'],
@@ -1404,9 +1403,9 @@ require_once __DIR__ . '/includes/navbar.php';
                         ];
                         foreach ($signs as [$lbl, $nameOrRole]): ?>
                         <div class="text-center w-full min-w-0">
-                            <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-500 mb-3"><?= $lbl ?></p>
-                            <div class="w-28 sm:w-32 h-12 mx-auto border-b border-dashed border-gray-300 mb-2 opacity-70"></div>
-                            <p class="font-bold text-gray-800 underline decoration-dotted decoration-gray-400 underline-offset-4 text-sm break-words"><?= $nameOrRole ?></p>
+                            <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 mb-3"><?= $lbl ?></p>
+                            <div class="w-28 sm:w-32 h-12 mx-auto border-b border-dashed border-slate-300 mb-2 opacity-80"></div>
+                            <p class="font-bold text-slate-800 underline decoration-dotted decoration-slate-400 underline-offset-4 text-sm break-words"><?= $nameOrRole ?></p>
                         </div>
                         <?php endforeach; ?>
                     </div>
