@@ -1282,7 +1282,7 @@ require_once __DIR__ . '/includes/navbar.php';
                                                         ?>
                                                             <div class="border-t border-dotted border-slate-200 my-2.5 opacity-90"></div>
                                                         <?php endif; $firstDt = false; ?>
-                                                        <div class="pl-2.5 mb-2 border-l-[3px] <?= $labelDate !== '' ? 'border-slate-300' : 'border-slate-200' ?>">
+                                                        <div class="mb-2">
                                                             <?php if ($labelDate !== ''): ?>
                                                             <div class="flex items-center gap-2 mb-2">
                                                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-200/80 border border-slate-300 text-slate-800 text-[10.5px] font-black tracking-wide">
@@ -1292,7 +1292,7 @@ require_once __DIR__ . '/includes/navbar.php';
                                                                 </span>
                                                             </div>
                                                             <?php endif; ?>
-                                                            <ul class="space-y-0">
+                                                            <ul class="space-y-0 pl-0.5">
                                                             <?php
                                                             $itemIdx = 0;
                                                             $itemTotal = count($items);
@@ -1303,31 +1303,24 @@ require_once __DIR__ . '/includes/navbar.php';
                                                                 $isLastItem = ($itemIdx === $itemTotal);
                                                                 $sep = $isLastItem ? '' : 'border-b border-dashed border-slate-100 pb-2 mb-2';
                                                             ?>
-                                                                <li class="flex items-start gap-2.5 pl-0.5 <?= $sep ?>">
+                                                                <li class="flex items-start gap-2.5 <?= $sep ?>">
                                                                     <i class="fas fa-circle text-[6px] text-slate-500 mt-1.5 shrink-0"></i>
                                                                     <div class="flex-1 min-w-0">
                                                                         <span class="font-semibold text-slate-900 leading-snug"><?= cleanInput($ar['title']) ?></span>
-                                                                        <?php
-                                                                        $showDate = ($d !== '');
-                                                                        $showMaster = $isMaster;
-                                                                        $showEng = ($cleanEng !== '');
-                                                                        if ($showDate || $showMaster || $showEng):
-                                                                        ?>
                                                                         <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                                                            <?php if ($showDate): ?>
-                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-600 border-slate-200 bg-white">
-                                                                                <i class="far fa-calendar mr-0.5 text-[9px] opacity-70"></i><?= htmlspecialchars($d) ?></span>
+                                                                            <?php if ($showEng = ($cleanEng !== '')): ?>
+                                                                            <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border text-slate-700 border-slate-200 bg-slate-100/70">
+                                                                                <i class="fas fa-user-helmet-safety mr-0.5 text-[9px] opacity-80"></i><?= htmlspecialchars($cleanEng) ?></span>
                                                                             <?php endif; ?>
-                                                                            <?php if ($showMaster): ?>
+                                                                            <?php if ($isMaster): ?>
                                                                             <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-800 border-slate-200 bg-slate-100 font-black">
                                                                                 <i class="fas fa-database mr-0.5 text-[9px] text-slate-500"></i>MASTER</span>
                                                                             <?php endif; ?>
-                                                                            <?php if ($showEng): ?>
-                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-700 border-slate-200 bg-slate-100">
-                                                                                <i class="fas fa-user-helmet-safety mr-0.5 text-[9px] opacity-80"></i><?= htmlspecialchars($cleanEng) ?></span>
+                                                                            <?php if ($d !== ''): ?>
+                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-600 border-slate-200 bg-white">
+                                                                                <i class="far fa-calendar mr-0.5 text-[9px] opacity-70"></i><?= htmlspecialchars($d) ?></span>
                                                                             <?php endif; ?>
                                                                         </div>
-                                                                        <?php endif; ?>
                                                                     </div>
                                                                 </li>
                                                             <?php endforeach; ?>
@@ -1360,7 +1353,7 @@ require_once __DIR__ . '/includes/navbar.php';
                                                         ?>
                                                             <div class="border-t border-dotted border-slate-200 my-2.5 opacity-90"></div>
                                                         <?php endif; $firstDt = false; ?>
-                                                        <div class="pl-2.5 mb-2 border-l-[3px] <?= $labelDate !== '' ? 'border-slate-300' : 'border-slate-200' ?>">
+                                                        <div class="mb-2">
                                                             <?php if ($labelDate !== ''): ?>
                                                             <div class="flex items-center gap-2 mb-2">
                                                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-200/80 border border-slate-300 text-slate-800 text-[10.5px] font-black tracking-wide">
@@ -1370,7 +1363,7 @@ require_once __DIR__ . '/includes/navbar.php';
                                                                 </span>
                                                             </div>
                                                             <?php endif; ?>
-                                                            <ul class="space-y-0">
+                                                            <ul class="space-y-0 pl-0.5">
                                                             <?php
                                                             $itemIdx = 0;
                                                             $itemTotal = count($items);
@@ -1381,31 +1374,24 @@ require_once __DIR__ . '/includes/navbar.php';
                                                                 $isLastItem = ($itemIdx === $itemTotal);
                                                                 $sep = $isLastItem ? '' : 'border-b border-dashed border-slate-100 pb-2 mb-2';
                                                             ?>
-                                                                <li class="flex items-start gap-2.5 pl-0.5 opacity-[0.98] <?= $sep ?>">
+                                                                <li class="flex items-start gap-2.5 opacity-[0.98] <?= $sep ?>">
                                                                     <i class="fas fa-check text-[9px] text-slate-600 mt-1.5 shrink-0"></i>
                                                                     <div class="flex-1 min-w-0">
                                                                         <span class="font-semibold text-slate-500 leading-snug line-through decoration-slate-400 decoration-[1.2px] decoration-skip-ink-none"><?= cleanInput($ar['title']) ?></span>
-                                                                        <?php
-                                                                        $showDate = ($d !== '');
-                                                                        $showMaster = $isMaster;
-                                                                        $showEng = ($cleanEng !== '');
-                                                                        if ($showDate || $showMaster || $showEng):
-                                                                        ?>
                                                                         <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                                                            <?php if ($showDate): ?>
-                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-600 border-slate-200 bg-white">
-                                                                                <i class="far fa-calendar mr-0.5 text-[9px] opacity-70"></i><?= htmlspecialchars($d) ?></span>
+                                                                            <?php if ($showEng = ($cleanEng !== '')): ?>
+                                                                            <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border text-slate-700 border-slate-200 bg-slate-100/70">
+                                                                                <i class="fas fa-user-helmet-safety mr-0.5 text-[9px] opacity-80"></i><?= htmlspecialchars($cleanEng) ?></span>
                                                                             <?php endif; ?>
-                                                                            <?php if ($showMaster): ?>
+                                                                            <?php if ($isMaster): ?>
                                                                             <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-800 border-slate-200 bg-slate-100 font-black">
                                                                                 <i class="fas fa-database mr-0.5 text-[9px] text-slate-500"></i>MASTER</span>
                                                                             <?php endif; ?>
-                                                                            <?php if ($showEng): ?>
-                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-700 border-slate-200 bg-slate-100">
-                                                                                <i class="fas fa-user-helmet-safety mr-0.5 text-[9px] opacity-80"></i><?= htmlspecialchars($cleanEng) ?></span>
+                                                                            <?php if ($d !== ''): ?>
+                                                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border text-slate-600 border-slate-200 bg-white">
+                                                                                <i class="far fa-calendar mr-0.5 text-[9px] opacity-70"></i><?= htmlspecialchars($d) ?></span>
                                                                             <?php endif; ?>
                                                                         </div>
-                                                                        <?php endif; ?>
                                                                     </div>
                                                                 </li>
                                                             <?php endforeach; ?>
