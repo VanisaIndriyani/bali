@@ -1,173 +1,146 @@
 <?php
 /**
- * 📋 REPORT PDF: ENGINEERING ACTIVITIES DASHBOARD (3 KOLOM - DATA 100% SAMA PERSIS DASHBOARD INDEX.PHP)
- * - BUKAN query dari activity_masters DOANG ( kayak lists_pdf.php )
- * - SUMBER DATA SAMA PERSIS index.php CARD #2 = (daily_log_activities INNER JOIN daily_logs) + MERGE master default progress
- * - Design = PUTIH BERSIH SLIM PREMIUM (no biru gradient)
+ * 📋 REPORT PDF: ENGINEERING ACTIVITIES (ONLY IN PROGRESS / ON-GOING)
+ * SUMBER DATA 100% MATCH DENGAN TABEL manager/activities.php
+ *   - daily_logs.activity_*_items (JSON di log approved)   → unpack 1 row 1 item
+ *   - activity_masters.status_default = 'progress'         → label BY ENG = "Master Activity"
+ * FILTER: HANYA status = progress (Complete TIDAK ditampilkan)
+ * FORMAT: FLAT TABLE 5 kolom → DEPARTMENT | ACTIVITY DETAIL (PALING LEBAR) | DATE | BY ENG | STATUS
+ * DESIGN: SEDERHANA NETRAL (PUTIH + BORDER SLATE) TANPA WARNA RAMAI
  */
 
 require_once __DIR__ . '/../config/config.php';
 requireLogin();
 
 $db = Database::getInstance();
-
-// ================= 1) SETUP VARIABLE SAMA PERSIS INDEX.PHP =================
+$user  = currentUser();
 $userRole = (string)($user['role']   ?? 'engineer');
 $userId   = (int)   ($user['id']     ?? 0);
 $userName = trim((string)($user['name'] ?? 'Engineering Staff'));
 
 $today      = date('Y-m-d');
 $monthStart = date('Y-m-01');
-$lastYear   = date('Y', strtotime('-1 year'));
-$statusWhere = $userRole === 'engineer' ? "AND engineer_id = $userId" : "";
-
-// Filter custom jika ada ?month=YYYY-MM (opsional)
 $monthRaw = $_GET['month'] ?? date('Y-m');
 if (preg_match('/^\d{4}-\d{2}$/', (string)$monthRaw)) {
     $monthStart = $monthRaw . '-01';
-    $today = date('Y-m-t', strtotime($monthStart)); // last day of that month
+    $today = date('Y-m-t', strtotime($monthStart));
 }
-$monthLabel = (new DateTime($monthStart))->format('M Y');
-
-// Allow custom date range via GET (opsional)
 if (isset($_GET['date_from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$_GET['date_from'])) $monthStart = $_GET['date_from'];
 if (isset($_GET['date_to'])   && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$_GET['date_to']))   $today      = $_GET['date_to'];
+$monthLabel = (new DateTime($monthStart))->format('M Y');
+$periodeLabel = date('d M Y', strtotime($monthStart)) . ' — ' . date('d M Y', strtotime($today));
 
-$filename = 'Engineering_Activities_' . substr($monthStart,0,7) . '.pdf';
+$filename = 'Engineering_Activities_InProgress_' . substr($monthStart,0,7) . '.pdf';
 header('Content-Type: text/html; charset=utf-8');
 header('Content-Disposition: inline; filename="' . $filename . '"');
 header('Cache-Control: max-age=0, must-revalidate');
 ob_start();
 echo "\xEF\xBB\xBF";
 
-// ================= 2) FUNCTIONS SAMA PERSIS INDEX.PHP =================
-function buildActivityListQuery($db, $userRole, $userId, $category, $dateFrom, $dateTo, $limit = 500) {
-    $baseWhere = "WHERE dla.category = ? AND dl.status = 'approved' AND dl.log_date BETWEEN ? AND ?";
-    $params = [$category, $dateFrom, $dateTo];
-    if ($userRole === 'engineer') {
-        $baseWhere .= " AND dl.engineer_id = ?";
-        $params[] = $userId;
-    }
-    $sql = "SELECT dla.id, dla.activity_title, DATE(dl.log_date) as log_date, u.name as engineer_name
-            FROM daily_log_activities dla
-            INNER JOIN daily_logs dl ON dl.id = dla.daily_log_id
-            LEFT JOIN users u ON u.id = dl.engineer_id
-            $baseWhere
-            ORDER BY dl.log_date DESC, dla.sort_order ASC, dla.id DESC
-            LIMIT $limit";
-    return $db->fetchAll($sql, $params);
-}
-function actGroupWithStatus(&$list) {
-    $out = [];
-    foreach ($list as $r) {
-        $t = trim((string)($r['activity_title'] ?? ''));
-        if (strlen($t) < 1) continue;
-        $tl = strtolower($t);
-        $isProg = (strpos($tl, 'progress') !== false) || (strpos($tl, 'install') !== false)
-               || (strpos($tl, 'perbaikan') !== false) || (strpos($tl, 'new ') !== false)
-               || (strpos($tl, 'buat') !== false) || (strpos($tl, 'meeting') !== false)
-               || (strpos($tl, 'pemindahan') !== false) || (strpos($tl, 'follow up') !== false)
-               || (strpos($tl, 'refinising') !== false) || (strpos($tl, 'rapikan') !== false)
-               || (strpos($tl, 'project ') !== false);
-        $out[] = ['title'=>$t, 'status'=>$isProg ? 'progress' : 'complete',
-                  'date'=>$r['log_date'] ?? '', 'eng'=>$r['engineer_name'] ?? ''];
-    }
-    return $out;
-}
-
-// ================= 3) QUERY DATA SAMA PERSIS INDEX.PHP =================
-$actListOp    = buildActivityListQuery($db, $userRole, $userId, 'operation',   $monthStart, $today);
-$actListMaint = buildActivityListQuery($db, $userRole, $userId, 'maintenance', $monthStart, $today);
-$actListProj  = buildActivityListQuery($db, $userRole, $userId, 'project',     $monthStart, $today);
-$actListLand  = buildActivityListQuery($db, $userRole, $userId, 'landscape',   $monthStart, $today);
-$actsGRP = [
-    'operation'   => actGroupWithStatus($actListOp),
-    'maintenance' => actGroupWithStatus($actListMaint),
-    'project'     => actGroupWithStatus($actListProj),
-    'landscape'   => actGroupWithStatus($actListLand),
-];
-
-// ================= 4) MERGE DATA MASTER DEFAULT PROGRESS KE actsGRP (Line index.php 447-470) =================
+// ================================================================
+// 📦 COLLECT DATA (SAMA PERSIS LOGIC DENGAN manager/activities.php)
+// ================================================================
+$engActRows = [];
 try {
-    $_tmpMastersAct = $db->fetchAll("SELECT division, activity_name, sort_order, created_at, status_default FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
-    $_existingTitleAct = [];
-    foreach (['operation','maintenance','project','landscape'] as $dv) {
-        if (!isset($actsGRP[$dv]) || !is_array($actsGRP[$dv])) $actsGRP[$dv] = [];
-        foreach ($actsGRP[$dv] as $_r) {
-            $t = mb_strtolower(trim((string)($_r['title'] ?? '')));
-            if ($t !== '') $_existingTitleAct[$dv][$t] = true;
+    // 🅰️ DARI DAILY LOGS: unpack 4 kolom JSON activity_*_items
+    $colMap = [
+        'operation'   => 'activity_operation_items',
+        'maintenance' => 'activity_maintenance_items',
+        'project'     => 'activity_project_items',
+        'landscape'   => 'activity_landscape_items',
+    ];
+    $sqlLogs = "SELECT dl.id, dl.log_date, dl.engineer_id, COALESCE(u.name,'-') as engineer_name,
+                       dl.activity_operation_items, dl.activity_maintenance_items,
+                       dl.activity_project_items, dl.activity_landscape_items
+                FROM daily_logs dl
+                LEFT JOIN users u ON u.id = dl.engineer_id
+                WHERE dl.status = 'approved'
+                  AND DATE(dl.log_date) BETWEEN ? AND ?
+                ORDER BY dl.log_date DESC, dl.id DESC";
+    $logRows = $db->fetchAll($sqlLogs, [$monthStart, $today]);
+    foreach ($logRows as $lr) {
+        foreach ($colMap as $div => $colName) {
+            $json = (string)($lr[$colName] ?? '');
+            if ($json === '') continue;
+            $arr = json_decode($json, true);
+            if (!is_array($arr) || count($arr) === 0) continue;
+            foreach ($arr as $it) {
+                if (!is_array($it) || empty($it['t'])) continue;
+                $st = (($it['s'] ?? 'progress') === 'complete') ? 'complete' : 'progress';
+                if ($st !== 'progress') continue;
+                $engActRows[] = [
+                    'division'       => $div,
+                    'activity_name'  => trim((string)$it['t']),
+                    'log_date'       => (string)$lr['log_date'],
+                    'engineer_name'  => (string)($lr['engineer_name'] ?? '-'),
+                    'status'         => 'progress',
+                    'is_master'      => false,
+                ];
+            }
         }
     }
-    foreach ($_tmpMastersAct as $_m) {
-        $dv = (string)($_m['division'] ?? 'operation');
-        if (!in_array($dv,['operation','maintenance','project','landscape'], true)) $dv = 'operation';
-        if (!isset($actsGRP[$dv]) || !is_array($actsGRP[$dv])) $actsGRP[$dv] = [];
-        $title = trim((string)($_m['activity_name'] ?? ''));
-        if ($title === '') continue;
-        $key = mb_strtolower($title);
-        if (isset($_existingTitleAct[$dv][$key])) continue;
-        $st = (string)($_m['status_default'] ?? 'progress');
-        $actsGRP[$dv][] = [
-            'title' => $title,
-            'status' => ($st === 'complete' ? 'complete' : 'progress'),
-            'date'  => substr((string)($_m['created_at'] ?? ''), 0, 10),
-            'eng'   => '- (Master Activity)'
+    unset($logRows, $lr, $it, $arr, $json);
+
+    // 🅱️ DARI ACTIVITY MASTERS (status_default = progress)
+    $mstRows = $db->fetchAll("SELECT id, division, activity_name, status_default, created_at
+                              FROM activity_masters
+                              WHERE status_default = 'progress'
+                              ORDER BY FIELD(division,'operation','maintenance','project','landscape'),
+                                       sort_order ASC, id ASC");
+    foreach ($mstRows as $mr) {
+        $createdDT = substr((string)($mr['created_at'] ?? 'now'), 0, 10);
+        if ($createdDT < $monthStart || $createdDT > $today) {
+            // master tetap ditampilkan (template template default progress) — abaikan filter tanggal
+        }
+        $engActRows[] = [
+            'division'       => (string)$mr['division'],
+            'activity_name'  => trim((string)$mr['activity_name']),
+            'log_date'       => $createdDT,
+            'engineer_name'  => 'Master Activity',
+            'status'         => 'progress',
+            'is_master'      => true,
         ];
     }
-    unset($_tmpMastersAct, $_existingTitleAct, $dv, $_m, $title, $key, $st);
-} catch (Throwable $e) {}
+    unset($mstRows, $mr);
 
-// ================= 5) SUMMARY TOTAL =================
-$totalActivities = 0;
-$totalProgress = 0;
-$totalComplete = 0;
-foreach ($actsGRP as $rows) {
-    foreach ($rows as $r) {
-        $totalActivities++;
-        if (($r['status'] ?? '') === 'complete') $totalComplete++;
-        else $totalProgress++;
-    }
+    // 📶 Sort: tanggal DESC → divisi → nama activity
+    usort($engActRows, function ($a, $b) {
+        if ($a['log_date'] !== $b['log_date']) {
+            return strcmp($b['log_date'], $a['log_date']);
+        }
+        $dvOrder = ['operation'=>0,'maintenance'=>1,'project'=>2,'landscape'=>3];
+        $ao = $dvOrder[$a['division']] ?? 9;
+        $bo = $dvOrder[$b['division']] ?? 9;
+        if ($ao !== $bo) return $ao - $bo;
+        return strcasecmp($a['activity_name'], $b['activity_name']);
+    });
+} catch (Throwable $e) {
+    error_log('dashboard_activities_pdf.php collect: ' . $e->getMessage());
+    $engActRows = [];
 }
 
-function fmtDt($d) {
-    if (strlen((string)$d) < 8) return '';
-    try { return (new DateTime($d))->format('d M Y'); } catch (Throwable $e) { return ''; }
-}
-/* ✨ Pisahkan tag Master Activity dari nama engineer (sama persis logic daily_summary) */
-function pdfSplitMasterEng($engRaw) {
-    $s = trim((string)$engRaw);
-    if ($s === '' || $s === '-') return [false, ''];
-    if (stripos($s, '(Master Activity)') !== false || stripos($s, '(MASTER ACTIVITY)') !== false || stripos($s, 'master activity') !== false) {
-        return [true, ''];
-    }
-    return [false, $s];
-}
-/* ✨ GROUP per TANGGAL sort ASC — sama persis daily_summary */
-function pdfGroupByDate(&$list) {
-    $grp = [];
-    foreach ($list as $it) {
-        $dt = trim((string)($it['date'] ?? ''));
-        if ($dt === '' || strlen($dt) < 8) $dt = '0000-00-00';
-        if (!isset($grp[$dt]) || !is_array($grp[$dt])) $grp[$dt] = [];
-        $grp[$dt][] = $it;
-    }
-    ksort($grp, SORT_STRING);
-    $ordered = [];
-    foreach ($grp as $k => $arr) {
-        if ($k === '0000-00-00') $ordered['_nodate'] = $arr;
-        else $ordered[$k] = $arr;
-    }
-    if (isset($ordered['_nodate'])) { $x = $ordered['_nodate']; unset($ordered['_nodate']); $ordered['_nodate'] = $x; }
-    return $ordered;
+$divLabelMap = [
+    'operation'   => 'OPERATION',
+    'maintenance' => 'MAINTENANCE',
+    'project'     => 'PROJECT',
+    'landscape'   => 'LANDSCAPE',
+];
+$totalRows = count($engActRows);
+
+// Count per divisi untuk summary
+$cntPerDept = ['operation'=>0,'maintenance'=>0,'project'=>0,'landscape'=>0];
+foreach ($engActRows as $r) {
+    $d = $r['division'] ?? 'operation';
+    if (isset($cntPerDept[$d])) $cntPerDept[$d]++;
 }
 ?>
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Engineering Activities - <?= htmlspecialchars($monthLabel) ?> | Engineering Report</title>
+<title>Engineering Activities (In Progress) - <?= htmlspecialchars($monthLabel) ?></title>
 <style>
-    @page { size: A4; margin: 12mm 12mm 16mm 12mm; }
+    @page { size: A4 landscape; margin: 10mm 10mm 14mm 10mm; }
     * { -webkit-box-sizing: border-box; box-sizing: border-box; }
     html, body {
         margin: 0; padding: 0;
@@ -176,201 +149,183 @@ function pdfGroupByDate(&$list) {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+        font-size: 11px;
     }
-    .wrap { width:100%; min-height:100vh; background:#ffffff !important; padding: 2px 0 18px 0; position:relative; }
+    .wrap { width:100%; min-height:100vh; background:#ffffff !important; padding:0 0 16px 0; position:relative; }
 
-    /* ===== META TOP ===== */
-    .meta-top {
-        display:flex; align-items:center; justify-content:space-between;
-        padding-bottom: 12px; margin-bottom: 18px;
-        border-bottom: 1px solid #e2e8f0;
-        color: #64748b; font-size: 10px; letter-spacing: 0.6px; font-weight: 700; text-transform: uppercase;
+    /* ===== HEADER SIMPLE ===== */
+    .header {
+        display:flex; align-items:flex-end; justify-content:space-between;
+        padding-bottom: 10px; margin-bottom: 14px;
+        border-bottom: 2px solid #0f172a;
     }
-    .meta-top .lft, .meta-top .rgt { display:flex; align-items:center; gap: 10px; }
-    .meta-top .dot { width:6px; height:6px; border-radius:50%; background:#94a3b8; display:inline-block;}
+    .header .left .eyebrow {
+        color:#475569; font-size:9.5px; font-weight:800; letter-spacing:2.2px; text-transform:uppercase;
+        margin-bottom: 6px;
+    }
+    .header .left h1 {
+        color:#0f172a; font-size:22px; font-weight:900; letter-spacing:-0.015em; line-height:1;
+        margin: 0 0 4px 0; padding:0;
+    }
+    .header .left .sub {
+        color:#64748b; font-size:10.5px; font-weight:600; margin:0; padding:0;
+    }
+    .header .right {
+        text-align:right; color:#475569;
+    }
+    .header .right .pill {
+        display:inline-block; padding:3px 10px; border:1px solid #cbd5e1; background:#f8fafc;
+        color:#334155; border-radius: 999px; font-size:10px; font-weight:800;
+        letter-spacing: 0.6px; text-transform:uppercase;
+    }
+    .header .right .meta {
+        margin-top:6px; font-size:9.5px; font-weight:700; color:#64748b;
+        text-transform:uppercase; letter-spacing: 0.4px;
+    }
 
-    /* ===== HEADER ===== */
-    .head-block { margin-bottom: 22px; }
-    .eyebrow {
-        display:inline-flex; align-items:center; gap: 10px;
-        color: #475569; font-size: 10px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase;
-        margin-bottom: 8px;
+    /* ===== SUMMARY CHIPS SIMPLE ===== */
+    .chips {
+        display:flex; flex-wrap:wrap; gap: 7px; margin: 0 0 13px 0;
     }
-    .eyebrow .pill { display:inline-block; padding: 2px 10px; border: 1px solid #cbd5e1; background: #f8fafc; color:#475569; border-radius: 999px; font-size: 9.5px; letter-spacing: 1px; font-weight: 700; }
-    .title-hero {
-        color:#0f172a; font-weight:900; letter-spacing:-0.02em; line-height:1.08;
-        font-size: 28px; margin: 0 0 8px 0;
-    }
-    .title-hero .accent {
-        background: linear-gradient(90deg, #0ea5e9, #6366f1);
-        -webkit-background-clip:text; background-clip:text; color: transparent;
-    }
-    .subtitle-hero {
-        color:#64748b; font-size: 12px; font-weight: 500; line-height: 1.5; margin: 0;
-    }
-    .summary-row { display:flex; gap: 9px; margin-top: 16px; flex-wrap: wrap; }
     .chip {
-        display:inline-flex; align-items:center; gap: 6px;
-        padding: 5px 11px; background:#ffffff; border: 1px solid #e2e8f0;
-        border-radius: 12px; color: #475569; font-size: 10.5px; font-weight: 700;
-        box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+        display:inline-flex; align-items:center; gap:6px;
+        padding:4px 10px; background:#ffffff; border:1px solid #e2e8f0; border-radius:10px;
+        color:#475569; font-size:10px; font-weight:700;
     }
-    .chip strong { color:#0f172a; font-weight: 800; }
-    .chip .dotmini { width:5px; height:5px; border-radius:50%; display:inline-block; }
+    .chip strong { color:#0f172a; font-weight:800; }
+    .chip .dot { width:5px; height:5px; border-radius:50%; background:#94a3b8; display:inline-block; }
+    .chip.on .dot { background:#f59e0b; }
+    .chip.only {
+        background:#f1f5f9; border-color:#cbd5e1; color:#0f172a;
+    }
 
-    /* ===== TABLE 3 KOLOM DEPT / DETAIL / STATUS ===== */
+    /* ===== MAIN TABLE FLAT 5 KOLOM ===== */
     .tbl {
         width: 100%; border-collapse: collapse;
-        border: 1px solid #e2e8f0;
-        border-radius: 14px; overflow: hidden;
-        background: #fff;
-        box-shadow: 0 1px 2px rgba(15,23,42,0.03);
-        page-break-inside: avoid;
+        border: 1px solid #cbd5e1; background: #fff;
+        page-break-inside: auto;
     }
     .tbl thead th {
-        background: linear-gradient(90deg, #f8fafc 0%, #f1f5f9 50%, #f8fafc 100%);
-        color: #334155; font-size: 11px; font-weight: 800; letter-spacing: 0.12em;
-        text-transform: uppercase; text-align: left; padding: 11px 14px;
-        border-bottom: 2px solid #cbd5e1;
-    }
-    .tbl thead th.stcol { text-align:center; width: 140px; }
-    .tbl thead th.depcol { width: 200px; border-right: 1px solid #e2e8f0; }
-
-    .dept {
-        background: #f8fafc;
+        background: #f1f5f9;
+        color: #0f172a;
+        font-size: 10px; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase;
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 2px solid #94a3b8;
         border-right: 1px solid #e2e8f0;
+        vertical-align: middle;
+    }
+    .tbl thead th:last-child,
+    .tbl tbody td:last-child { border-right: none; }
+
+    .tbl thead th.c-dept   { width: 14%; }
+    .tbl thead th.c-detail { width: 44%; }
+    .tbl thead th.c-date   { width: 11%; text-align:center; }
+    .tbl thead th.c-eng    { width: 20%; }
+    .tbl thead th.c-st     { width: 11%; text-align:center; }
+
+    .tbl tbody td {
+        padding: 9px 12px;
         border-top: 1px solid #e2e8f0;
+        border-right: 1px solid #f1f5f9;
         vertical-align: top;
-        padding: 16px 14px;
+        color:#0f172a;
+        font-size: 11px;
     }
-    .dept .box {
-        display:flex; align-items:center; gap: 10px;
-    }
-    .dept .ic {
-        width:34px; height:34px; border-radius: 10px;
-        background:#fff; border: 1px solid #e2e8f0;
-        display:flex; align-items:center; justify-content:center;
-        box-shadow: 0 1px 2px rgba(15,23,42,0.04);
-    }
-    .dept .lbl { font-weight: 900; color:#0f172a; font-size: 15px; letter-spacing: 0.5px; }
+    .tbl tbody tr:nth-child(even) td { background:#fafbfc; }
+    .tbl tbody tr:hover td { background:#f8fafc; }
 
-    .detail {
-        padding: 16px 16px;
+    /* Dept badge */
+    .dept-badge {
+        display:inline-block;
+        padding: 3px 9px;
+        border:1px solid #cbd5e1;
+        background:#f8fafc;
+        border-radius:6px;
+        font-size:9.5px;
+        font-weight:900;
+        letter-spacing:0.12em;
+        text-transform:uppercase;
+        color:#0f172a;
+        white-space:nowrap;
+    }
+
+    /* Activity detail */
+    .act-title {
+        font-weight: 600; color:#0f172a; font-size: 11.5px;
+        line-height: 1.45; word-break: break-word;
+    }
+    .act-master-tag {
+        display:inline-block; margin-top:5px;
+        padding:1.5px 7px;
+        background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe;
+        border-radius:5px;
+        font-size:8.5px; font-weight:900; letter-spacing:0.1em; text-transform:uppercase;
+    }
+
+    /* Date */
+    .date-val {
+        display:block; text-align:center;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 10.5px; font-weight: 800; color:#0f172a;
+        white-space: nowrap;
+    }
+
+    /* Engineer */
+    .eng-row { display:flex; align-items:center; gap: 7px; min-width:0; }
+    .eng-av {
+        width: 22px; height: 22px; flex-shrink:0;
+        border-radius: 6px;
+        background:#334155; color:#ffffff;
+        display:inline-flex; align-items:center; justify-content:center;
+        font-size:9.5px; font-weight:900;
+    }
+    .eng-av.master {
+        background:#2563eb;
+    }
+    .eng-name {
+        font-size:10.5px; font-weight:700; color:#0f172a;
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;
+    }
+    .eng-master-chip {
+        display:inline-block; margin-left: auto;
+        padding:1px 6px;
+        background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe;
+        border-radius:5px;
+        font-size:8.5px; font-weight:900; letter-spacing:0.06em;
+        white-space:nowrap;
+    }
+
+    /* Status */
+    .st-box {
+        display:flex; justify-content:center;
+    }
+    .st-inprog {
+        display:inline-flex; align-items:center; gap:5px; justify-content:center;
+        padding:4px 10px; border-radius:999px;
+        background:#f1f5f9; color:#0f172a;
+        border: 1px solid #cbd5e1;
+        font-size:9.5px; font-weight:900; letter-spacing:0.08em; text-transform:uppercase;
+        white-space:nowrap;
+    }
+    .st-inprog .c { width:6px; height:6px; border-radius:50%; background:#f59e0b; display:inline-block; }
+
+    /* Empty state */
+    .empty td {
+        padding: 32px 18px; text-align:center; color:#64748b;
+        font-size: 12px; font-weight: 600; background:#fff !important;
         border-top: 1px solid #e2e8f0;
-        border-left: 1px solid #e2e8f0;
-        background: #ffffff;
     }
-    .detail ul { margin: 0; padding: 0; list-style: none; }
-    .detail li {
-        display:flex; align-items:flex-start; gap: 9px;
-        padding: 4px 0;
-    }
-    .detail li + li { border-top: 1px dashed #f1f5f9; padding-top: 7px; margin-top: 3px; }
-    .detail .bulu { color:#64748b; width: 6px; height: 6px; border-radius: 50%; background:#94a3b8; display:inline-block; flex-shrink:0; margin-top: 8px; }
-    .detail .bulu.b-prog { background:#f59e0b; }
-    .detail .bulu.b-done { background:#10b981; width: 10px; height: 10px; border-radius: 50%; position: relative; margin-top: 6px; }
-    .detail .bulu.b-done::after { content:"✓"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size: 7px; font-weight: 900; line-height: 1; }
-    .detail .title { font-weight: 600; color:#0f172a; font-size: 13px; line-height: 1.45; }
-    .detail li.item-done .title { color:#475569; text-decoration: line-through; text-decoration-color:#10b981; text-decoration-thickness:1.5px; }
-    .detail .meta { margin-top: 3px; display:flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-    .detail .meta .tag {
-        display:inline-flex; align-items:center; gap: 4px;
-        padding: 1.5px 6.5px; border-radius: 5px;
-        border: 1px solid #e2e8f0; background: #fcfcfd;
-        font-size: 9.5px; font-weight: 700; color:#64748b;
-    }
-    /* ✨ Badges: Master Template (BIRU) vs Real Engineer (HIJAU) vs Tanggal (ABU) */
-    .detail .meta .tag.master-tag { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:900; letter-spacing: .03em;}
-    .detail .meta .tag.master-tag i { color:#2563eb;}
-    .detail .meta .tag.eng-tag { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;}
-    .detail .meta .tag.date-tag { background:#f8fafc; color:#334155; border:1px solid #cbd5e1;}
-    /* ===== GROUP PEMISAH STATUS (Done vs Prog TIDAK KECAMPUR) ===== */
-    .detail .grp-wrap { display:flex; flex-direction: column; gap: 10px; }
-    .detail .grp-head {
-        display:inline-flex; align-items:center; gap: 6px;
-        padding: 2.5px 9px; border-radius: 6px;
-        font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase;
-        margin: 0 0 5px 0;
-    }
-    .detail .grp-head.prog { background:#fff7ed; color:#9a3412; border: 1px solid #fed7aa; }
-    .detail .grp-head.done { background:#ecfdf5; color:#065f46; border: 1px solid #a7f3d0; }
-    .detail .grp-sep { border-top: 1px dashed #d1d5db; margin: 4px 0 6px 0; opacity: .8; }
-    .detail .grp-list { padding: 0; margin: 0; list-style: none; }
-    /* ===== ✨ GRUP PEMISAH PER-TANGGAL (biar tanggal 07 Aug & 18 Aug TIDAK NYAMPUR) ===== */
-    .detail .date-grp { margin: 0 0 8px 0; padding: 0 0 4px 0;}
-    .detail .date-grp-hdr {
-        display:inline-flex; align-items:center; gap:5px;
-        padding: 1.5px 8px 1.5px 7px; border-radius: 7px;
-        font-size: 9.5px; font-weight: 900; letter-spacing: .04em;
-        background: linear-gradient(90deg,#eef2ff,#e0e7ff); color:#3730a3;
-        border: 1px solid #c7d2fe; margin: 0 0 4px 2px;
-    }
-    .detail .date-grp-hdr .cntmini { background:#fff; padding: 0 6px; border-radius: 999px; border: 1px solid #c7d2fe; color:#4338ca; font-size: 8.5px; font-weight: 900;}
-    .detail .date-grp-sep { border-top: 1px dotted #e2e8f0; margin: 3px 0 5px 0; opacity: .9; }
-    .detail .date-grp:last-child { margin-bottom: 2px;}
+    .empty .ico { font-size: 36px; color:#cbd5e1; margin-bottom: 8px; }
 
-    .statuscol {
-        text-align: center; vertical-align: middle;
-        padding: 16px 12px;
-        border-top: 1px solid #e2e8f0;
-        border-left: 1px solid #e2e8f0;
-        background: #fcfcfd;
-    }
-    .statuscol .row + .row { margin-top: 8px; }
-    .stdone {
-        display:inline-flex; align-items:center; gap: 6px; justify-content:center;
-        padding: 5px 10px; border-radius: 999px;
-        background:#ecfdf5; color:#065f46; border: 1px solid #a7f3d0;
-        font-size: 10.5px; font-weight: 900; letter-spacing: 0.6px;
-        min-width: 120px;
-    }
-    .stdone .c { width:6px; height:6px; border-radius: 50%; background:#10b981; }
-    .stprog {
-        display:inline-flex; align-items:center; gap: 6px; justify-content:center;
-        padding: 5px 10px; border-radius: 999px;
-        background:#fffbeb; color:#92400e; border: 1px solid #fde68a;
-        font-size: 10.5px; font-weight: 900; letter-spacing: 0.6px;
-        min-width: 120px;
-    }
-    .stprog .c { width:6px; height:6px; border-radius: 50%; background:#f59e0b; }
-
-    .empty-row td { padding: 28px 18px; text-align:center; color:#64748b; font-size: 12.5px; font-weight: 600; background:#fff; }
-    .empty-row .big { font-size: 30px; color: #cbd5e1; margin-bottom: 8px; }
-
-    /* ====== DIVIDER DEPT COLOR TINT ====== */
-    .row-op .dept, .row-op .detail, .row-op .statuscol { background-color: #ffffff; }
-    .row-op .dept { background-color: #eff6ff; }
-    .row-maint .dept { background-color: #fffbeb; }
-    .row-proj .dept { background-color: #f5f3ff; }
-    .row-land .dept { background-color: #ecfdf5; }
-
-    .row-op .ic i { color:#1d4ed8; }
-    .row-maint .ic i { color:#b45309; }
-    .row-proj .ic i { color:#6d28d9; }
-    .row-land .ic i { color:#047857; }
-
-    /* ===== FOOTER SIGNATURE ===== */
-    .sign {
-        margin-top: 30px; padding-top: 16px;
+    /* ===== FOOTER SIMPLE ===== */
+    .foot {
+        margin-top: 18px; padding-top: 10px;
         border-top: 1px dashed #cbd5e1;
-        display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
-    }
-    .sign .col { text-align:center; }
-    .sign .col .lb {
-        font-size: 10px; font-weight: 800; letter-spacing: 1.5px;
-        color: #64748b; text-transform: uppercase; margin-bottom: 10px;
-    }
-    .sign .col .line { width: 130px; height: 44px; margin: 0 auto 4px auto; border-bottom: 1px dashed #94a3b8; }
-    .sign .col .nm { font-weight: 800; color:#0f172a; font-size: 12.5px; }
-
-    .foot-note {
-        margin-top: 22px; padding-top: 12px;
-        border-top: 1px dashed #e2e8f0;
-        color:#94a3b8; font-size: 9.5px; letter-spacing: 0.4px; font-weight: 500;
         display:flex; align-items:center; justify-content:space-between;
+        color:#94a3b8; font-size:9px; font-weight:600; letter-spacing: 0.3px;
     }
-    .foot-note .brand-mark { color:#334155; font-weight: 800; letter-spacing: 1.5px; font-size: 10px; text-transform: uppercase; }
-    .foot-note .brand-mark em { font-style: normal; background: linear-gradient(90deg,#0ea5e9,#6366f1); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .foot .brand { color:#475569; font-weight: 800; letter-spacing: 1.5px; text-transform:uppercase; font-size:9.5px;}
 
     @media print { body { background: #fff !important; } }
 </style>
@@ -378,208 +333,117 @@ function pdfGroupByDate(&$list) {
 <body>
 <div class="wrap">
 
-    <!-- META TOP -->
-    <div class="meta-top">
-        <div class="lft">
-            <span class="dot"></span>
-            <span>Engineering Report</span>
-            <span class="dot"></span>
-            <span>engineering activities</span>
-            <span class="dot"></span>
-            <span>data source: dashboard</span>
+    <!-- HEADER KOP -->
+    <div class="header">
+        <div class="left">
+            <div class="eyebrow">Engineering Department • Report</div>
+            <h1>Engineering Activities</h1>
+            <div class="sub">Daftar aktivitas on-going — status Complete otomatis disembunyikan.</div>
         </div>
-        <div class="rgt">
-            <span>print • <?= date('d M Y') ?></span>
+        <div class="right">
+            <div class="pill">Periode: <?= htmlspecialchars($periodeLabel) ?></div>
+            <div class="meta">Printed: <?= date('d M Y, H:i') ?> • By: <?= htmlspecialchars($userName) ?></div>
         </div>
     </div>
 
-    <!-- HEADER -->
-    <div class="head-block">
-        <div class="eyebrow">
-            <span>Engineering Department</span>
-            <span class="pill"><?= htmlspecialchars($monthLabel) ?></span>
+    <!-- SUMMARY CHIPS -->
+    <div class="chips">
+        <div class="chip only">
+            <i class="fas fa-filter" style="font-size:9px;color:#334155;"></i>
+            Filter: <strong>Only In Progress</strong>
         </div>
-        <h1 class="title-hero">Engineering <span class="accent">Activities</span></h1>
-        <p class="subtitle-hero">Rekap aktivitas harian tim engineering periode <?= htmlspecialchars($monthLabel) ?> — data 100% match dengan dashboard section engineering activities (mix daily log items + master default progress).</p>
-
-        <div class="summary-row">
-            <div class="chip"><i class="far fa-clipboard-list" style="color:#94a3b8;font-size:10px;"></i> total aktivitas <strong><?= number_format($totalActivities,0,',','.') ?></strong></div>
-            <div class="chip"><span class="dotmini" style="background:#f59e0b;"></span> in progress <strong><?= number_format($totalProgress,0,',','.') ?></strong></div>
-            <div class="chip"><span class="dotmini" style="background:#10b981;"></span> complete <strong><?= number_format($totalComplete,0,',','.') ?></strong></div>
-            <?php foreach (['operation','maintenance','project','landscape'] as $dv):
-                $cnt = count($actsGRP[$dv] ?? []);
-                if ($cnt <= 0) continue;
-                $cProg = 0; foreach ($actsGRP[$dv] as $_r) if (($_r['status'] ?? '') !== 'complete') $cProg++;
-            ?>
-            <div class="chip">
-                <i class="fas fa-layer-group" style="color:#94a3b8;font-size:10px;"></i>
-                <?= $dv ?> <strong><?= $cnt ?></strong>
-                <span style="color:#94a3b8; font-weight:600;">(<?= $cProg ?> prog)</span>
-            </div>
-            <?php endforeach; ?>
+        <div class="chip on">
+            <span class="dot"></span> Total On-Going <strong><?= number_format($totalRows,0,',','.') ?></strong>
         </div>
+        <?php foreach (['operation'=>'OPERATION','maintenance'=>'MAINTENANCE','project'=>'PROJECT','landscape'=>'LANDSCAPE'] as $k=>$lbl):
+            if (($cntPerDept[$k] ?? 0) <= 0) continue; ?>
+        <div class="chip">
+            <i class="fas fa-folder" style="font-size:9px;color:#64748b;"></i>
+            <?= $lbl ?> <strong><?= $cntPerDept[$k] ?></strong>
+        </div>
+        <?php endforeach; ?>
     </div>
 
-    <!-- TABLE 3 KOLOM -->
+    <!-- TABLE UTAMA 5 KOLOM -->
     <table class="tbl">
         <thead>
             <tr>
-                <th class="depcol">DEPARTMENT</th>
-                <th>ACTIVITY DETAIL</th>
-                <th class="stcol">STATUS</th>
+                <th class="c-dept">DEPARTMENT</th>
+                <th class="c-detail">ACTIVITY DETAIL</th>
+                <th class="c-date">DATE</th>
+                <th class="c-eng">BY ENG</th>
+                <th class="c-st">STATUS</th>
             </tr>
         </thead>
         <tbody>
-        <?php
-        $deptDef = [
-            'operation'   => ['OPERATION',   'fas fa-gear',           'row-op'],
-            'maintenance' => ['MAINTENANCE', 'fas fa-wrench',         'row-maint'],
-            'project'     => ['PROJECT',     'fas fa-diagram-project','row-proj'],
-            'landscape'   => ['LANDSCAPE',   'fas fa-leaf',           'row-land'],
-        ];
-        $adaIsi = false;
-        foreach ($deptDef as $key => $dd):
-            [$deptLabel, $deptIcon, $rowCls] = $dd;
-            $rows = $actsGRP[$key] ?? [];
-            if (count($rows) === 0) continue;
-            $adaIsi = true;
-            $done = 0; $prog = 0;
-            foreach ($rows as $_rr) if (($_rr['status'] ?? '') === 'complete') $done++; else $prog++;
-        ?>
-            <tr class="<?= $rowCls ?>">
-                <td class="dept">
-                    <div class="box">
-                        <div class="ic"><i class="<?= $deptIcon ?> text-base"></i></div>
-                        <div class="lbl"><?= $deptLabel ?></div>
-                    </div>
+            <?php if (empty($engActRows)): ?>
+            <tr class="empty">
+                <td colspan="5">
+                    <div class="ico"><i class="far fa-clipboard-list-check"></i></div>
+                    Belum ada aktivitas dengan status <strong>In Progress</strong> di periode ini.<br>
+                    Tambahkan activity progress melalui form manager atau daily log engineer.
                 </td>
-                <td class="detail">
-                    <?php
-                    // ✅ PISAHKAN DONE vs PROGRESS (TIDAK KECAMPUR) — 100% sama dashboard
-                    $rowsDone = []; $rowsProg = [];
-                    foreach ($rows as $_rr) {
-                        if (($_rr['status'] ?? '') === 'complete') $rowsDone[] = $_rr;
-                        else                                             $rowsProg[] = $_rr;
-                    }
-                    $hasP = count($rowsProg) > 0;
-                    $hasD = count($rowsDone) > 0;
-
-                    // ✨ Function helper inline: render list (Prog/Done) dengan GROUP PER TANGGAL
-                    $renderListByDate = function($items, $mode) {
-                        if (count($items) === 0) return '';
-                        $grouped = pdfGroupByDate($items);
-                        $isProg = ($mode === 'progress');
-                        $liClass = $isProg ? '' : 'item-done';
-                        $buluClass = $isProg ? 'b-prog' : 'b-done';
-                        $engTagColor = $isProg
-                            ? 'background:#fffbeb;border-color:#fde68a;color:#92400e;'
-                            : 'background:#ecfdf5;border-color:#a7f3d0;color:#065f46;';
-                        $engIconColor = $isProg ? '#92400e' : '#065f46';
-                        $html = '';
-                        $firstGrp = true;
-                        foreach ($grouped as $dtISO => $itemsInDate) {
-                            $isNoDate = ($dtISO === '_nodate');
-                            $hdr = $isNoDate ? '' : fmtDt($dtISO);
-                            if (!$firstGrp) $html .= '<div class="date-grp-sep" aria-hidden="true"></div>';
-                            $firstGrp = false;
-                            $html .= '<div class="date-grp">';
-                            if ($hdr !== '') {
-                                $html .= '<span class="date-grp-hdr"><i class="far fa-calendar-day" style="font-size:8.5px;"></i>';
-                                $html .= '📅 ' . htmlspecialchars($hdr);
-                                $html .= ' <span class="cntmini">' . count($itemsInDate) . '</span>';
-                                $html .= '</span>';
-                            }
-                            $html .= '<ul class="grp-list">';
-                            foreach ($itemsInDate as $ar) {
-                                $title = htmlspecialchars((string)($ar['title'] ?? ''));
-                                $d = $isNoDate ? fmtDt($ar['date'] ?? '') : '';
-                                list($isMaster, $cleanEng) = pdfSplitMasterEng($ar['eng'] ?? '');
-                                $html .= '<li class="' . $liClass . '">';
-                                $html .= '<span class="bulu ' . $buluClass . '" aria-hidden="true"></span>';
-                                $html .= '<div class="flex-1">';
-                                $html .= '<div class="title">' . $title . '</div>';
-                                // Meta tags: date, master, eng
-                                if ($d !== '' || $isMaster || $cleanEng !== '') {
-                                    $html .= '<div class="meta">';
-                                    if ($d !== '') {
-                                        $html .= '<span class="tag date-tag"><i class="far fa-calendar" style="color:#64748b;font-size:8.5px;"></i> ' . htmlspecialchars($d) . '</span>';
-                                    }
-                                    if ($isMaster) {
-                                        $html .= '<span class="tag master-tag"><i class="fas fa-database" style="font-size:8.5px;"></i> MASTER TEMPLATE</span>';
-                                    }
-                                    if ($cleanEng !== '') {
-                                        $html .= '<span class="tag eng-tag" style="' . $engTagColor . '"><i class="fas fa-user-helmet-safety" style="color:' . $engIconColor . ';font-size:8.5px;"></i> ' . htmlspecialchars($cleanEng) . '</span>';
-                                    }
-                                    $html .= '</div>';
-                                }
-                                $html .= '</div>';
-                                $html .= '</li>';
-                            }
-                            $html .= '</ul>';
-                            $html .= '</div>';
-                        }
-                        return $html;
-                    };
+            </tr>
+            <?php else:
+                $prevDept = '';
+                foreach ($engActRows as $row):
+                    $dept = (string)($row['division'] ?? 'operation');
+                    $deptLabel = $divLabelMap[$dept] ?? strtoupper($dept);
+                    $isMaster = !empty($row['is_master']);
+                    $dateStr = date('j-M-y', strtotime((string)$row['log_date']));
+                    $engRaw  = (string)($row['engineer_name'] ?? '-');
+                    $actName = trim((string)$row['activity_name'] ?? '');
+            ?>
+            <tr>
+                <!-- DEPARTMENT -->
+                <td>
+                    <span class="dept-badge"><?= $deptLabel ?></span>
+                </td>
+                <!-- ACTIVITY DETAIL -->
+                <td>
+                    <div class="act-title"><?= htmlspecialchars($actName) ?></div>
+                    <?php if ($isMaster): ?>
+                    <span class="act-master-tag"><i class="fas fa-database" style="font-size:8px;margin-right:3px;"></i> Master Template</span>
+                    <?php endif; ?>
+                </td>
+                <!-- DATE -->
+                <td>
+                    <span class="date-val"><?= $dateStr ?></span>
+                </td>
+                <!-- BY ENG -->
+                <td>
+                    <?php if ($isMaster): ?>
+                    <div class="eng-row">
+                        <div class="eng-av master"><i class="fas fa-database" style="font-size:9px;"></i></div>
+                        <span class="eng-name" style="color:#1e40af;">Master Activity</span>
+                    </div>
+                    <?php else:
+                        $init = strtoupper(mb_substr($engRaw, 0, 1) ?: '?');
                     ?>
-                    <div class="grp-wrap">
-                        <?php if ($hasP): ?>
-                            <div>
-                                <div class="grp-head prog">
-                                    <i class="fas fa-spinner" style="font-size:9px;"></i>
-                                    Sedang Berjalan <span style="opacity:.75;">(<?= count($rowsProg) ?>)</span>
-                                </div>
-                                <?= $renderListByDate($rowsProg, 'progress') ?>
-                            </div>
-                        <?php endif; ?>
-
-                        <?php if ($hasP && $hasD): ?>
-                            <div class="grp-sep" aria-hidden="true"></div>
-                        <?php endif; ?>
-
-                        <?php if ($hasD): ?>
-                            <div>
-                                <div class="grp-head done">
-                                    <i class="fas fa-circle-check" style="font-size:9px;"></i>
-                                    Selesai / Done <span style="opacity:.75;">(<?= count($rowsDone) ?>)</span>
-                                </div>
-                                <?= $renderListByDate($rowsDone, 'done') ?>
-                            </div>
-                        <?php endif; ?>
+                    <div class="eng-row">
+                        <div class="eng-av"><?= $init ?></div>
+                        <span class="eng-name" title="<?= htmlspecialchars($engRaw) ?>"><?= htmlspecialchars($engRaw) ?></span>
+                    </div>
+                    <?php endif; ?>
+                </td>
+                <!-- STATUS -->
+                <td>
+                    <div class="st-box">
+                        <span class="st-inprog">
+                            <span class="c"></span> In Progress
+                        </span>
                     </div>
                 </td>
-                <td class="statuscol">
-                    <?php if ($done > 0): ?>
-                    <div class="row"><div class="stdone"><span class="c"></span> Complete <span style="margin-left:3px;">(<?= $done ?>)</span></div></div>
-                    <?php endif; ?>
-                    <?php if ($prog > 0): ?>
-                    <div class="row"><div class="stprog"><span class="c"></span> In Progress <span style="margin-left:3px;">(<?= $prog ?>)</span></div></div>
-                    <?php endif; ?>
-                    <?php if ($done === 0 && $prog === 0): ?>
-                    <div class="row"><span style="color:#94a3b8;font-size:10.5px;font-weight:800;">No Data</span></div>
-                    <?php endif; ?>
-                </td>
             </tr>
-        <?php endforeach; ?>
-        <?php if (!$adaIsi): ?>
-            <tr class="empty-row">
-                <td colspan="3">
-                    <div class="big"><i class="far fa-folder-open"></i></div>
-                    Belum ada data aktivitas untuk periode <?= htmlspecialchars($monthLabel) ?>.<br>
-                    Silakan input daily log engineer terlebih dahulu atau tambah master activity progress.
-                </td>
-            </tr>
-        <?php endif; ?>
+            <?php endforeach; endif; ?>
         </tbody>
     </table>
 
     <!-- FOOT NOTE -->
-    <div class="foot-note">
-        <div style="display:flex; align-items:center; gap:8px;">
-            <span class="brand-mark">Engineering <em>Report</em></span>
-            <span>•</span>
-            <span>disediakan tanpa logo & branding hotel (format generic).</span>
-        </div>
-        <div>last updated: <?= date('Y-m-d H:i') ?></div>
+    <div class="foot">
+        <div class="brand">Engineering Report</div>
+        <div>• Filter hanya tampilkan status progress — Complete tidak dicetak •</div>
+        <div>Generated: <?= date('Y-m-d H:i') ?></div>
     </div>
 
 </div>
