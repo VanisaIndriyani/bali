@@ -214,29 +214,6 @@ $energyStats = [
     ['label' => 'Air Deep Well',    'unit' => 'm3',    'val' => fmtENum($airDeepTotal, 1),'sub' => $periodeLabel],
 ];
 
-// ───────────────────────────────────────────────────────────────
-// ── 2) 5 DATA TERAKHIR ENERGY LOGS (join users untuk PIC) ───────
-// ───────────────────────────────────────────────────────────────
-$recentWhere  = "el.log_date BETWEEN ? AND ?";
-$recentParams = [$dateFrom, $dateTo];
-if ($userRole === 'engineer') {
-    $cols = @$db->fetchAll("SHOW COLUMNS FROM energy_logs LIKE 'created_by'");
-    if (!empty($cols)) {
-        $recentWhere .= " AND el.created_by = ?";
-        $recentParams[] = $userId;
-    }
-}
-try {
-    $recentLogs = $db->fetchAll("SELECT el.*, u.name as pic_name
-        FROM energy_logs el
-        LEFT JOIN users u ON el.created_by = u.id
-        WHERE $recentWhere
-        ORDER BY el.log_date DESC, el.id DESC
-        LIMIT 5", $recentParams);
-} catch (\Throwable $ex) {
-    $recentLogs = [];
-}
-
 $pageTitle = 'Energy Dashboard';
 $pageSubtitle = 'Dashboard Ringkasan Konsumsi Energi Harian St. Regis Bali. Listrik, Solar, Gas, Air & Utility Lainnya.';
 
@@ -305,80 +282,7 @@ include __DIR__ . '/includes/sidebar.php';
         <?php endforeach; ?>
     </div>
 
-    <!-- CATATAN HARIAN PERIODE INI (REAL DB dari energy_logs JOIN users) -->
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-slide-up mb-6" style="animation-delay: 100ms">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 border-b border-slate-200">
-            <div>
-                <h3 class="font-display text-lg font-black text-primary">Catatan Harian Energy Terbaru</h3>
-                <p class="text-xs text-slate-500 mt-1">Preview 5 entri terakhir Log Sheet Energy (sesuai filter tanggal).</p>
-            </div>
-            <a href="<?= BASE_URL ?>energy_logsheet.php" class="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 px-3 py-2 rounded-lg transition shadow-sm inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
-                Lihat Semua <i class="fas fa-arrow-right text-[10px]"></i>
-            </a>
-        </div>
-        <div class="overflow-x-auto pb-3 pr-2">
-            <table class="w-full text-sm min-w-[720px] table-auto">
-                <thead class="bg-slate-50 border-b-2 border-slate-200">
-                    <tr class="text-left text-secondary text-xs">
-                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap">Tanggal</th>
-                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap w-[110px]">Shift</th>
-                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[130px]">Listrik (kWh)</th>
-                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[105px]">Solar (L)</th>
-                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[115px]">Gas (Kg)</th>
-                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap text-right w-[115px]">Air (m3)</th>
-                        <th class="px-3 sm:px-4 py-3 font-bold whitespace-nowrap w-[140px]">PIC</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                <?php if (empty($recentLogs)): ?>
-                    <tr>
-                        <td colspan="7" class="px-4 py-10 text-center text-xs font-semibold text-slate-400">
-                            <i class="fas fa-inbox text-3xl text-slate-200 mb-2 block"></i>
-                            Belum ada data energy log untuk periode ini. Silakan input di
-                            <a href="<?= BASE_URL ?>energy_logsheet.php" class="text-primary underline ml-1">Energy Logsheet</a>.
-                        </td>
-                    </tr>
-                <?php else:
-                    foreach ($recentLogs as $r):
-                        $plnT = (float)($r['pln_lwbp_kwh'] ?? 0) + (float)($r['pln_wbp_kwh'] ?? 0) + (float)($r['genset_kwh'] ?? 0);
-                        $gasT = (float)($r['gas_kg'] ?? 0) + (float)($r['gas_lng_kg'] ?? 0);
-                        $airT = (float)($r['air_m3'] ?? 0) + (float)($r['air_deep_well_m3'] ?? 0);
-                        $solar = (float)($r['solar_liter'] ?? 0);
-                        $shiftMap = ['pagi' => 'Pagi', 'siang' => 'Siang', 'malam' => 'Malam'];
-                        $shiftLabel = $shiftMap[strtolower($r['shift'] ?? '')] ?? htmlspecialchars($r['shift'] ?? '-');
-                        $picName = !empty($r['pic_name']) ? $r['pic_name'] : (!empty($r['created_by']) ? 'User #' . $r['created_by'] : '-');
-                        ?>
-                        <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="px-3 sm:px-4 py-3 font-semibold text-primary whitespace-nowrap">
-                                <?= date('d M Y', strtotime($r['log_date'])) ?>
-                            </td>
-                            <td class="px-3 sm:px-4 py-3">
-                                <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-semibold">
-                                    <?= htmlspecialchars($shiftLabel) ?>
-                                </span>
-                            </td>
-                            <td class="px-3 sm:px-4 py-3 text-right font-mono font-semibold text-slate-800 tabular-nums">
-                                <?= fmtENum($plnT, 2) ?>
-                            </td>
-                            <td class="px-3 sm:px-4 py-3 text-right font-mono font-semibold text-slate-800 tabular-nums">
-                                <?= fmtENum($solar, 2) ?>
-                            </td>
-                            <td class="px-3 sm:px-4 py-3 text-right font-mono font-semibold text-slate-800 tabular-nums">
-                                <?= fmtENum($gasT, 1) ?>
-                            </td>
-                            <td class="px-3 sm:px-4 py-3 text-right font-mono font-semibold text-slate-800 tabular-nums">
-                                <?= fmtENum($airT, 1) ?>
-                            </td>
-                            <td class="px-3 sm:px-4 py-3 text-xs text-slate-600 font-semibold whitespace-nowrap">
-                                <?= htmlspecialchars($picName) ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
+
 </div>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
