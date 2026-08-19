@@ -119,21 +119,10 @@ $total = count($engActRows);
 
     /* ============ HEADER — CLEAN & POLISHED ============ */
     .head {
-        display:flex; align-items:flex-end; justify-content:space-between;
+        display:flex; align-items:center; justify-content:space-between;
         padding: 0 2px 12px 2px; margin-bottom: 14px;
         border-bottom: 2px solid #0f172a;
     }
-    .head .title {
-        display:flex; align-items:center; gap: 12px;
-    }
-    .head .logo {
-        width: 34px; height: 34px; border-radius: 10px;
-        background:#0f172a; color:#ffffff;
-        display:inline-flex; align-items:center; justify-content:center;
-        box-shadow: 0 2px 6px rgba(15,23,42,0.12);
-        flex-shrink: 0;
-    }
-    .head .logo i { font-size: 14px; }
     .head .title-text h1 {
         margin: 0; padding: 0; line-height: 1.05;
         font-size: 20px; font-weight: 900; color:#0f172a; letter-spacing: -0.015em;
@@ -321,12 +310,9 @@ $total = count($engActRows);
 
     <!-- HEADER -->
     <div class="head">
-        <div class="title">
-            <div class="logo"><i class="far fa-clipboard-list-check"></i></div>
-            <div class="title-text">
-                <h1>Engineering Activities</h1>
-                <div class="sub">Engineering Department • Report</div>
-            </div>
+        <div class="title-text">
+            <h1>Engineering Activities</h1>
+            <div class="sub">Engineering Department • Report</div>
         </div>
         <div class="right">
             <div class="period">Periode <?= htmlspecialchars($periodeLabel) ?></div>
