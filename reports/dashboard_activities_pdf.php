@@ -19,8 +19,10 @@ $periodeLabel = date('d M Y', strtotime($monthStart)) . ' — ' . date('d M Y', 
 
 $filename = 'Engineering_Activities_' . substr($monthStart,0,7) . '.pdf';
 header('Content-Type: text/html; charset=utf-8');
-header('Content-Disposition: inline; filename="' . $filename . '"');
-header('Cache-Control: max-age=0, must-revalidate');
+header('Content-Disposition: attachment; filename="' . $filename . '"');
+header('Content-Transfer-Encoding: binary');
+header('Cache-Control: max-age=0, must-revalidate, no-store, no-cache');
+header('Pragma: public');
 ob_start();
 echo "\xEF\xBB\xBF";
 
@@ -105,110 +107,238 @@ $total = count($engActRows);
 <meta charset="UTF-8">
 <title>Engineering Activities - <?= htmlspecialchars($periodeLabel) ?></title>
 <style>
-    @page { size: A4 landscape; margin: 10mm 10mm 12mm 10mm; }
+    @page { size: A4 landscape; margin: 12mm 12mm 14mm 12mm; }
     * { -webkit-box-sizing: border-box; box-sizing: border-box; }
     html, body {
         margin: 0; padding: 0; background:#fff !important; color:#0f172a !important;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-        -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
         font-size: 10.5px;
+        line-height: 1.45;
     }
     .wrap { width:100%; min-height:100vh; background:#fff; }
 
-    /* HEADER SUPER MINI — 1 BARIS SAJA */
+    /* ============ HEADER — CLEAN & POLISHED ============ */
     .head {
-        display:flex; align-items:center; justify-content:space-between;
-        padding-bottom: 8px; margin-bottom: 10px;
-        border-bottom: 1.5px solid #0f172a;
+        display:flex; align-items:flex-end; justify-content:space-between;
+        padding: 0 2px 12px 2px; margin-bottom: 14px;
+        border-bottom: 2px solid #0f172a;
     }
-    .head .t { font-size:16px; font-weight:900; color:#0f172a; letter-spacing:-0.01em; }
-    .head .r { font-size:10px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.08em; }
-    .filter {
-        display:inline-block; margin-left:8px;
-        padding:2px 8px; border:1px solid #cbd5e1; background:#f8fafc;
-        font-size:9px; font-weight:800; color:#334155; border-radius:999px;
-        letter-spacing:0.08em; text-transform:uppercase; vertical-align: middle;
+    .head .title {
+        display:flex; align-items:center; gap: 12px;
     }
+    .head .logo {
+        width: 34px; height: 34px; border-radius: 10px;
+        background:#0f172a; color:#ffffff;
+        display:inline-flex; align-items:center; justify-content:center;
+        box-shadow: 0 2px 6px rgba(15,23,42,0.12);
+        flex-shrink: 0;
+    }
+    .head .logo i { font-size: 14px; }
+    .head .title-text h1 {
+        margin: 0; padding: 0; line-height: 1.05;
+        font-size: 20px; font-weight: 900; color:#0f172a; letter-spacing: -0.015em;
+    }
+    .head .title-text .sub {
+        margin-top: 4px; padding: 0;
+        font-size: 9.5px; font-weight: 700; color:#64748b;
+        text-transform: uppercase; letter-spacing: 0.15em;
+    }
+    .head .right {
+        display:flex; flex-direction:column; align-items:flex-end; gap: 6px;
+    }
+    .head .period {
+        display:inline-block; padding: 4px 12px;
+        border: 1px solid #e2e8f0; background:#f8fafc;
+        border-radius: 8px;
+        font-size: 10px; font-weight: 800; color:#0f172a;
+        letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .head .filter {
+        display:inline-flex; align-items:center; gap:5px;
+        padding: 3px 10px;
+        border: 1px solid #cbd5e1; background:#f1f5f9;
+        border-radius: 999px;
+        font-size: 9px; font-weight: 800; color:#334155;
+        letter-spacing: 0.1em; text-transform: uppercase;
+    }
+    .head .filter .dot {
+        width:5px; height:5px; border-radius:50%; background:#94a3b8; display:inline-block; }
 
-    /* TABLE — NETRAL FULL, TANPA WARNA */
-    table.t { width:100%; border-collapse:collapse; border:1px solid #e2e8f0; }
-    table.t th {
-        background:#f8fafc; color:#0f172a;
-        font-size:9.5px; font-weight:900; letter-spacing:0.14em; text-transform:uppercase;
-        text-align:left; padding:8px 10px;
+    /* ============ TABLE — POLISHED NETRAL ============ */
+    .tbl {
+        width:100%; border-collapse: separate; border-spacing: 0;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(15,23,42,0.05);
+    }
+    .tbl thead th {
+        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+        color:#0f172a;
+        font-size: 9.5px; font-weight: 900;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        text-align:left;
+        padding: 11px 14px;
         border-bottom: 1.5px solid #cbd5e1;
         border-right: 1px solid #e2e8f0;
+        position: sticky; top:0;
     }
-    table.t th:last-child { border-right:none; }
-    table.t th.d1 { width:13%; }
-    table.t th.d2 { width:46%; }
-    table.t th.d3 { width:11%; text-align:center; }
-    table.t th.d4 { width:19%; }
-    table.t th.d5 { width:11%; text-align:center; }
+    .tbl thead th:last-child { border-right:none; }
+    .tbl thead th.c1 { width:13%; }
+    .tbl thead th.c2 { width:46%; }
+    .tbl thead th.c3 { width:11%; text-align:center; }
+    .tbl thead th.c4 { width:19%; }
+    .tbl thead th.c5 { width:11%; text-align:center; }
 
-    table.t td {
-        padding:7px 10px; color:#0f172a; font-size:10.5px;
-        border-top:1px solid #f1f5f9; border-right:1px solid #f8fafc;
+    .tbl tbody td {
+        padding: 9px 14px;
+        color:#0f172a; font-size: 10.5px;
+        border-top: 1px solid #f1f5f9;
+        border-right: 1px solid #f8fafc;
         vertical-align: top;
     }
-    table.t td:last-child { border-right:none; }
-    table.t tr:nth-child(even) td { background:#fafbfc; }
+    .tbl tbody td:last-child { border-right:none; }
+    .tbl tbody tr:nth-child(even) td { background:#fafbfc; }
+    .tbl tbody tr:hover td { background:#f8fafc; }
+    .tbl tbody tr:last-child td { border-bottom: none; }
 
-    /* Cell content styling — SINGKAT, TANPA WARNA */
-    .dept { font-size:9.5px; font-weight:900; letter-spacing:0.12em; text-transform:uppercase; color:#334155; }
-    .act  { font-size:11px; font-weight:600; line-height:1.45; color:#0f172a; word-break:break-word; }
-    .dt   { display:block; text-align:center; font-family: ui-monospace, Menlo, monospace;
-            font-size:10px; font-weight:800; color:#0f172a; white-space:nowrap; }
-    .eng  { font-size:10.5px; font-weight:600; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .eng.master { color:#334155; }
-    .st   { display:flex; justify-content:center; }
-    .st-s {
-        display:inline-block; padding:3px 9px; border-radius:999px;
-        border:1px solid #cbd5e1; background:#f8fafc;
-        font-size:9px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase;
-        color:#334155; white-space:nowrap;
+    /* Cell content */
+    .dept {
+        display:inline-block;
+        padding: 3px 10px;
+        border: 1px solid #e2e8f0;
+        background:#ffffff;
+        border-radius: 6px;
+        font-size: 9.5px; font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color:#334155;
+        white-space: nowrap;
+        box-shadow: 0 1px 1px rgba(15,23,42,0.03);
+    }
+    .act {
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.5;
+        color:#0f172a;
+        word-break: break-word;
+    }
+    .dt {
+        display:block; text-align:center;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 10px; font-weight: 800; color:#0f172a;
+        white-space: nowrap;
+        padding: 2px 0;
+    }
+    .eng {
+        display:flex; align-items:center; gap: 8px;
+        min-width: 0;
+    }
+    .eng .av {
+        width: 20px; height: 20px; border-radius: 6px;
+        background:#334155; color:#ffffff;
+        display:inline-flex; align-items:center; justify-content:center;
+        font-size: 9px; font-weight: 900;
+        flex-shrink: 0;
+        letter-spacing: 0.02em;
+    }
+    .eng .av.master { background:#475569; }
+    .eng .nm {
+        font-size: 10.5px; font-weight: 700; color:#334155;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        min-width: 0; flex: 1 1 0%;
+    }
+    .st { display:flex; justify-content:center; align-items:center; }
+    .st .sb {
+        display:inline-flex; align-items:center; gap: 6px;
+        padding: 4px 11px;
+        border-radius: 999px;
+        border: 1px solid #e2e8f0;
+        background:#ffffff;
+        font-size: 9.5px; font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color:#334155;
+        white-space: nowrap;
+        box-shadow: 0 1px 1px rgba(15,23,42,0.03);
+    }
+    .st .sb .d {
+        width: 6px; height: 6px; border-radius: 50%;
+        background:#94a3b8; display:inline-block;
     }
 
-    /* Empty — HANYA TEKS SINGKAT */
+    /* Empty state */
     .empty td {
-        padding:26px 14px; text-align:center;
-        color:#64748b; font-size:11px; font-weight:600; background:#fff !important;
+        padding: 36px 18px !important;
+        text-align:center !important;
+        color:#64748b;
+        font-size: 12px; font-weight: 600;
+        background:#ffffff !important;
+    }
+    .empty .ico {
+        display: inline-block;
+        width: 44px; height: 44px; line-height: 44px;
+        border-radius: 12px;
+        background:#f8fafc; border:1px solid #e2e8f0;
+        color:#cbd5e1;
+        font-size: 18px;
+        margin-bottom: 10px;
     }
 
-    /* Foot mini — 1 baris */
+    /* ============ FOOTER — CLEAN ============ */
     .foot {
-        margin-top:10px; padding-top:6px; border-top:1px dashed #cbd5e1;
-        display:flex; justify-content:space-between;
-        color:#94a3b8; font-size:8.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em;
+        margin-top: 14px;
+        padding: 10px 2px 0 2px;
+        border-top: 1px dashed #cbd5e1;
+        display:flex; align-items:center; justify-content:space-between;
+        color:#94a3b8;
+        font-size: 8.5px; font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
     }
+    .foot .count { color:#334155; font-weight: 800; }
 </style>
 </head>
 <body>
 <div class="wrap">
 
+    <!-- HEADER -->
     <div class="head">
-        <div class="t">
-            Engineering Activities
-            <span class="filter">Only In Progress</span>
+        <div class="title">
+            <div class="logo"><i class="far fa-clipboard-list-check"></i></div>
+            <div class="title-text">
+                <h1>Engineering Activities</h1>
+                <div class="sub">Engineering Department • Report</div>
+            </div>
         </div>
-        <div class="r">
-            Periode <?= htmlspecialchars($periodeLabel) ?>
+        <div class="right">
+            <div class="period">Periode <?= htmlspecialchars($periodeLabel) ?></div>
+            <div class="filter"><span class="dot"></span> Only In Progress</div>
         </div>
     </div>
 
-    <table class="t">
+    <!-- MAIN TABLE -->
+    <table class="tbl">
         <thead>
             <tr>
-                <th class="d1">Department</th>
-                <th class="d2">Activity Detail</th>
-                <th class="d3">Date</th>
-                <th class="d4">By Eng</th>
-                <th class="d5">Status</th>
+                <th class="c1">Department</th>
+                <th class="c2">Activity Detail</th>
+                <th class="c3">Date</th>
+                <th class="c4">By Eng</th>
+                <th class="c5">Status</th>
             </tr>
         </thead>
         <tbody>
             <?php if (empty($engActRows)): ?>
-            <tr class="empty"><td colspan="5">Tidak ada data In Progress di periode ini.</td></tr>
+            <tr class="empty">
+                <td colspan="5">
+                    <div class="ico"><i class="far fa-clipboard-list-check"></i></div>
+                    Tidak ada aktivitas In Progress di periode ini.
+                </td>
+            </tr>
             <?php else:
                 foreach ($engActRows as $row):
                     $dept = (string)($row['division'] ?? 'operation');
@@ -217,24 +347,34 @@ $total = count($engActRows);
                     $dt = date('j-M-y', strtotime((string)$row['log_date']));
                     $eng = trim((string)($row['engineer_name'] ?? '-'));
                     $act = trim((string)($row['activity_name'] ?? ''));
+                    $init = strtoupper(mb_substr($eng, 0, 1) ?: '?');
             ?>
             <tr>
                 <td><span class="dept"><?= $deptLbl ?></span></td>
                 <td><div class="act"><?= htmlspecialchars($act) ?></div></td>
                 <td><span class="dt"><?= $dt ?></span></td>
-                <td><div class="eng<?= $isMst ? ' master':'' ?>"><?= htmlspecialchars($eng) ?></div></td>
-                <td><div class="st"><span class="st-s">In Progress</span></div></td>
+                <td>
+                    <div class="eng">
+                        <div class="av<?= $isMst ? ' master' : '' ?>"><?= $isMst ? '<i class="fas fa-database" style="font-size:8px;"></i>' : $init ?></div>
+                        <div class="nm"><?= htmlspecialchars($eng) ?></div>
+                    </div>
+                </td>
+                <td>
+                    <div class="st"><span class="sb"><span class="d"></span> In Progress</span></div>
+                </td>
             </tr>
             <?php endforeach; endif; ?>
         </tbody>
     </table>
 
+    <!-- FOOTER -->
     <div class="foot">
-        <div>Total: <?= $total ?> rows</div>
-        <div>Print: <?= date('d M Y') ?></div>
+        <div>Total Data: <span class="count"><?= $total ?></span></div>
+        <div>Generated: <?= date('d M Y') ?></div>
     </div>
 
 </div>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" media="all">
 </body>
 </html>
 <?php echo ob_get_clean(); exit; ?>
