@@ -952,147 +952,12 @@ if (empty($printAllActs)) {
         <!--     Format: DEPARTMENT | ACTIVITY DETAIL (LEBAR) | DATE | BY ENG | STATUS -->
         <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
         <div class="mt-6 sm:mt-7 mb-5 sm:mb-6">
-            <div class="mb-4 pb-2.5 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2.5 border-b border-slate-100">
-                <div>
-                    <p class="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 mb-1 pl-1">DAFTAR ON-GOING TASK</p>
-                    <h3 class="font-display text-lg lg:text-xl font-black text-slate-900 flex items-center gap-2">
-                        <span class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-white shadow-sm text-[12px]">
-                            <i class="fas fa-list-check"></i>
-                        </span>
-                        Engineering Activities
-                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-700 ml-1">
-                            <i class="fas fa-filter text-[8px]"></i> Only In Progress
-                        </span>
-                    </h3>
-                    <p class="text-[11px] text-slate-500 mt-1 pl-1">Total <span class="font-black text-slate-800"><?= count($engActRows) ?></span> aktivitas sedang berjalan (status Complete otomatis disembunyikan).</p>
-                </div>
-            </div>
+         
 
             <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-[13px] border-collapse">
-                        <thead>
-                            <tr class="bg-slate-50 border-b-2 border-slate-200">
-                                <th class="px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 w-32 whitespace-nowrap border-r border-slate-200">
-                                    DEPARTMENT
-                                </th>
-                                <th class="px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 min-w-[380px] w-[42%]">
-                                    ACTIVITY DETAIL
-                                </th>
-                                <th class="px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 w-32 whitespace-nowrap text-center border-l border-slate-200">
-                                    DATE
-                                </th>
-                                <th class="px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 w-52 whitespace-nowrap border-l border-slate-200">
-                                    BY ENG
-                                </th>
-                                <th class="px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 w-32 whitespace-nowrap text-center border-l border-slate-200">
-                                    STATUS
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            <?php if (empty($engActRows)): ?>
-                            <tr>
-                                <td colspan="5" class="px-4 py-14 text-center">
-                                    <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
-                                        <i class="far fa-clipboard-list-check text-2xl"></i>
-                                    </div>
-                                    <h5 class="font-black text-slate-700 mb-1 text-sm">Semua Aktivitas Sudah Selesai ðŸŽ‰</h5>
-                                    <p class="text-[11px] text-slate-500 max-w-sm mx-auto leading-relaxed">Tidak ada aktivitas dengan status <span class="font-bold text-slate-700">In Progress</span> saat ini. Tambahkan activity baru atau ubah status progress melalui form manager.</p>
-                                </td>
-                            </tr>
-                            <?php else:
-                                $prevDept = '';
-                                foreach ($engActRows as $row):
-                                    $dept = (string)($row['division'] ?? 'operation');
-                                    $deptLabel = strtoupper($divLabelMap[$dept] ?? $dept);
-                                    $isSameDept = ($prevDept === $dept);
-                                    $prevDept = $dept;
-                                    $isMaster = !empty($row['is_master']);
-                                    $dateFormatted = date('j-M-y', strtotime((string)$row['log_date']));
-                                    $engName = (string)($row['engineer_name'] ?? '-');
-                                    $actName = trim((string)$row['activity_name'] ?? '');
-                            ?>
-                            <tr class="hover:bg-slate-50/60 transition-colors <?php if ($isMaster) echo 'bg-slate-50/30'; ?>">
-                                <!-- DEPARTMENT -->
-                                <td class="px-4 py-3 align-top border-r border-slate-100">
-                                    <?php if (!$isSameDept): ?>
-                                    <div class="flex flex-col gap-1">
-                                        <?php
-                                            $deptBadgeColor = match($dept) {
-                                                'operation'   => 'border-slate-300 text-slate-800 bg-slate-100',
-                                                'maintenance' => 'border-slate-300 text-slate-800 bg-slate-100',
-                                                'project'     => 'border-slate-300 text-slate-800 bg-slate-100',
-                                                'landscape'   => 'border-slate-300 text-slate-800 bg-slate-100',
-                                                default       => 'border-slate-300 text-slate-800 bg-slate-100',
-                                            };
-                                        ?>
-                                        <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-md border text-[10px] font-black uppercase tracking-[0.15em] whitespace-nowrap <?= $deptBadgeColor ?>">
-                                            <?= $deptLabel ?>
-                                        </span>
-                                    </div>
-                                    <?php endif; ?>
-                                </td>
-                                <!-- ACTIVITY DETAIL (LEBAR) -->
-                                <td class="px-4 py-3 align-top">
-                                    <div class="text-[13px] font-semibold text-slate-800 leading-relaxed break-words pr-1">
-                                        <?= htmlspecialchars($actName) ?>
-                                    </div>
-                                    <?php if ($isMaster): ?>
-                                    <div class="mt-1.5 inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.18em] text-slate-700 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200">
-                                        <i class="fas fa-database text-[8px]"></i> Master
-                                    </div>
-                                    <?php endif; ?>
-                                </td>
-                                <!-- DATE -->
-                                <td class="px-4 py-3 align-top text-center border-l border-slate-100">
-                                    <span class="inline-block text-[11.5px] font-bold text-slate-800 font-mono whitespace-nowrap">
-                                        <?= $dateFormatted ?>
-                                    </span>
-                                </td>
-                                <!-- BY ENG -->
-                                <td class="px-4 py-3 align-top border-l border-slate-100">
-                                    <div class="flex items-center gap-2 min-w-0">
-                                        <?php if ($isMaster): ?>
-                                        <div class="w-7 h-7 rounded-lg bg-slate-700 text-white flex items-center justify-center font-black text-[10px] shadow-sm ring-1 ring-white shrink-0">
-                                            <i class="fas fa-database text-[10px]"></i>
-                                        </div>
-                                        <span class="inline-flex items-center gap-1 text-[11px] font-black text-slate-700 px-2 py-0.5 rounded bg-slate-100 border border-slate-200">
-                                            Master Activity
-                                        </span>
-                                        <?php else:
-                                            $init = strtoupper(mb_substr($engName, 0, 1) ?: '?');
-                                        ?>
-                                        <div class="w-7 h-7 rounded-lg bg-slate-700 text-white flex items-center justify-center font-black text-[10px] shadow-sm ring-1 ring-white shrink-0">
-                                            <?= $init ?>
-                                        </div>
-                                        <span class="text-[11.5px] font-semibold text-slate-800 truncate min-w-0">
-                                            <?= htmlspecialchars($engName) ?>
-                                        </span>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                                <!-- STATUS -->
-                                <td class="px-4 py-3 align-top text-center border-l border-slate-100">
-                                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-300 text-slate-800 text-[10.5px] font-black uppercase tracking-wider whitespace-nowrap">
-                                        <i class="far fa-clock text-[9px]"></i>
-                                        In Progress
-                                    </span>
-                                </td>
-                            </tr>
-                            <?php endforeach; endif; ?>
-                        </tbody>
-                    </table>
-                </div>
+              
                 <?php if (!empty($engActRows)): ?>
-                <div class="px-4 py-2.5 border-t border-slate-100 bg-slate-50/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                        <i class="fas fa-circle-info mr-1"></i> Menampilkan <?= count($engActRows) ?> dari total seluruh data progress (yang status Complete disembunyikan).
-                    </span>
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:text-right">
-                        Format: Department â€¢ Activity Detail â€¢ Date â€¢ By Eng â€¢ Status
-                    </span>
-                </div>
+               
                 <?php endif; ?>
             </div>
         </div>
@@ -1700,8 +1565,8 @@ if (empty($printAllActs)) {
                 </div>
                 <div class="sm:col-span-8 min-w-0 flex flex-col gap-1.5">
                     <label class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-600 pl-1">Nama Aktivitas</label>
-                    <input type="text" name="` + cfg.prefix + `_text[]" data-role="final-text" placeholder="Ketik nama aktivitas disini..." value="` + safeTitle + `"
-                        class="w-full px-4 py-3.5 h-auto min-h-[46px] rounded-xl border-2 border-slate-200 bg-white text-[14px] leading-snug font-semibold text-slate-900 shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-100 focus:border-slate-500 transition-all duration-150 placeholder:text-slate-400 placeholder:font-normal">
+                    <textarea name="` + cfg.prefix + `_text[]" data-role="final-text" rows="2" placeholder="Ketik nama aktivitas disini..."
+                        class="w-full px-4 py-3 h-auto min-h-[64px] rounded-xl border-2 border-slate-300 bg-white text-[14px] leading-snug font-semibold text-slate-900 shadow-sm focus:outline-none focus:ring-4 focus:ring-slate-100 focus:border-slate-500 transition-all duration-150 placeholder:text-slate-400 placeholder:font-normal resize-none">` + safeTitle + `</textarea>
                 </div>
                 <div class="sm:col-span-2 min-w-0 flex flex-col gap-1.5">
                     <label class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-600 pl-1">Status</label>

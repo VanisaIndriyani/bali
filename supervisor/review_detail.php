@@ -466,15 +466,7 @@ $_rvBadge = function($v, $type='text') {
             </div>
         </div>
         <div class="space-y-5">
-            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 120ms">
-                <div class="px-4 py-3 border-b border-slate-100">
-                    <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
-                        <span class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-list-check text-xs"></i></span>
-                        Aktivitas Pekerjaan
-                    </h3>
-                </div>
-                <div class="p-4 sm:p-5"><div class="text-slate-800 leading-relaxed whitespace-pre-wrap text-sm"><?= nl2br(cleanInput($log['work_activities'])) ?></div></div>
-            </div>
+            
             <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 140ms">
                 <div class="px-4 py-3 border-b border-slate-100">
                     <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">

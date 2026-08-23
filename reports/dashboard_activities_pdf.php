@@ -64,20 +64,24 @@ try {
     unset($logRows, $lr, $it, $arr, $json);
 
     $mstRows = $db->fetchAll(
-        "SELECT division, activity_name, created_at FROM activity_masters
-         WHERE status_default='progress'
-         ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC"
+        "SELECT am.division, am.activity_name, am.created_at, u.name as created_by_name
+         FROM activity_masters am
+         LEFT JOIN users u ON u.id = am.created_by
+         WHERE am.status_default='progress'
+         ORDER BY FIELD(am.division,'operation','maintenance','project','landscape'), am.sort_order ASC, am.id ASC"
     );
+    $_defEngName = !empty($user['name']) ? (string)$user['name'] : 'Master Activity';
     foreach ($mstRows as $mr) {
+        $_engName = !empty($mr['created_by_name']) ? (string)$mr['created_by_name'] : $_defEngName;
         $engActRows[] = [
             'division'      => (string)$mr['division'],
             'activity_name' => trim((string)$mr['activity_name']),
             'log_date'      => substr((string)($mr['created_at'] ?? 'now'), 0, 10),
-            'engineer_name' => 'Master Activity',
+            'engineer_name' => $_engName,
             'is_master'     => true,
         ];
     }
-    unset($mstRows, $mr);
+    unset($_engName, $_defEngName, $mstRows, $mr);
 
     usort($engActRows, function ($a, $b) {
         if ($a['log_date'] !== $b['log_date']) return strcmp($b['log_date'], $a['log_date']);

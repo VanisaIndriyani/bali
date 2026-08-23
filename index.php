@@ -98,33 +98,110 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
     $debug = (isset($_GET['_dbg']) && currentUser() && in_array((string)(currentUser()['role'] ?? ''), ['manager','admin','supervisor'], true));
 
     /* --- (A) daily_logs (primary legacy) --- */
+    /*   ✅ 2026-08-23 FIX DEDUP: user bisa mengisi logshet TANGGAL YANG SAMA berulang (multiple entries per day per engineer).
+            Sebelumnya query SUM(total_xx) menjumlahkan SEMUA row → hasilnya DOUBLE (misal 2x input 385+375=760 m3).
+            Solusi: DEDUP terlebih dahulu → HANYA AMBIL ROW TERAKHIR (created_at/id TERBESAR) per (DATE(log_date), engineer_id),
+            baru aggregate hasil dedup tersebut. */
     try {
+        $dedupWhere = "WHERE DATE(log_date) BETWEEN ? AND ? AND $approvedWhereDaily";
+        // Strategy dedup: Subquery cari MAX(id) per (tgl, engineer) karena id PK auto-inc selalu konsisten urutan waktu
         $sqlD = "SELECT
-            COALESCE($aggFn(CAST(total_electricity AS DECIMAL(18,4))),0) as elec,
-            COALESCE($aggFn(CAST(total_water AS DECIMAL(18,4))),0) as water,
-            COALESCE($aggFn(CAST(total_gas AS DECIMAL(18,4))),0) as gas,
-            COALESCE($aggFn(CAST(total_fuel AS DECIMAL(18,4))),0) as fuel,
-            COALESCE($cntFn(*),0) as cnt,
-            /* ✅ COST using PER-LOG TARIFF SNAPSHOT (jika ada), fallback global tariff (backward compat data lama) */
+            COALESCE($aggFn(CAST(dl.total_electricity AS DECIMAL(18,4))),0) as elec,
+            COALESCE($aggFn(CAST(dl.total_water       AS DECIMAL(18,4))),0) as water,
+            COALESCE($aggFn(CAST(dl.total_gas         AS DECIMAL(18,4))),0) as gas,
+            COALESCE($aggFn(CAST(dl.total_fuel        AS DECIMAL(18,4))),0) as fuel,
+            COALESCE($cntFn(dl.id),0) as cnt,
             COALESCE($aggFn(
-                CAST(COALESCE(total_electricity,0) AS DECIMAL(18,4))
-                * CAST(COALESCE(NULLIF(tariff_electricity_per_kwh,0), {$ftEL}) AS DECIMAL(18,4))
+                CAST(COALESCE(dl.total_electricity,0) AS DECIMAL(18,4))
+                * CAST(COALESCE(NULLIF(dl.tariff_electricity_per_kwh,0), {$ftEL}) AS DECIMAL(18,4))
             ),0) as cost_elec,
             COALESCE($aggFn(
-                CAST(COALESCE(total_water,0) AS DECIMAL(18,4))
-                * CAST(COALESCE(NULLIF(tariff_water_per_m3,0),       {$ftWA}) AS DECIMAL(18,4))
+                CAST(COALESCE(dl.total_water,0) AS DECIMAL(18,4))
+                * CAST(COALESCE(NULLIF(dl.tariff_water_per_m3,0),       {$ftWA}) AS DECIMAL(18,4))
             ),0) as cost_water,
             COALESCE($aggFn(
-                CAST(COALESCE(total_gas,0) AS DECIMAL(18,4))
-                * CAST(COALESCE(NULLIF(tariff_gas_per_kg,0),         {$ftGA}) AS DECIMAL(18,4))
+                CAST(COALESCE(dl.total_gas,0) AS DECIMAL(18,4))
+                * CAST(COALESCE(NULLIF(dl.tariff_gas_per_kg,0),         {$ftGA}) AS DECIMAL(18,4))
             ),0) as cost_gas,
             COALESCE($aggFn(
-                CAST(COALESCE(total_fuel,0) AS DECIMAL(18,4))
-                * CAST(COALESCE(NULLIF(tariff_fuel_per_liter,0),     {$ftFU}) AS DECIMAL(18,4))
+                CAST(COALESCE(dl.total_fuel,0) AS DECIMAL(18,4))
+                * CAST(COALESCE(NULLIF(dl.tariff_fuel_per_liter,0),     {$ftFU}) AS DECIMAL(18,4))
             ),0) as cost_fuel
-        FROM daily_logs
-        WHERE DATE(log_date) BETWEEN ? AND ? AND $approvedWhereDaily";
+        FROM daily_logs dl
+        INNER JOIN (
+            SELECT MAX(id) AS keep_id
+            FROM daily_logs
+            $dedupWhere
+            GROUP BY DATE(log_date), engineer_id
+        ) k ON k.keep_id = dl.id";
         $d = $db->fetchOne($sqlD, [$dateFrom, $dateTo]);
+
+        /* --- (A-FALLBACK) Jika total_electricity / total_water aggregate-nya 0 → hitung manual dari reading meter per tanggal!
+           Hanya aktif untuk SUM aggregate (harian / periode range single-date report).
+           ✅ 2026-08-22: Single-date LY mode → EXTEND 1 hari ke belakang untuk baseline kemarin.
+           ✅ 2026-08-23: FALLBACK juga DEDUP! Hanya pertahankan row TERAKHIR per (tgl, engineer) sebelum hitung selisih. */
+        if ($isSum && ((float)($d['elec'] ?? 0) < 0.00001 || (float)($d['water'] ?? 0) < 0.00001)) {
+            $needElec = ((float)($d['elec'] ?? 0) < 0.00001);
+            $needWater = ((float)($d['water'] ?? 0) < 0.00001);
+            if ($needElec || $needWater) {
+                $fbFrom = $dateFrom;
+                $fbTo   = $dateTo;
+                if ($fbFrom === $fbTo) {
+                    $fbFrom = date('Y-m-d', strtotime($fbFrom . ' -1 day'));
+                }
+                // ✅ Fallback juga DEDUP MAX(id) per (tgl, engineer), biar tidak dobel perhitungan jika user isi berkali-kali sehari
+                $rowsRead = $db->fetchAll("SELECT dl.id, DATE(dl.log_date) AS tgl, dl.engineer_id, dl.shift,
+                                                  COALESCE(dl.electricity_wbp,0) AS ew, COALESCE(dl.electricity_lwbp,0) AS el,
+                                                  COALESCE(dl.water_main_building,0) AS wmb,
+                                                  COALESCE(dl.tariff_electricity_per_kwh,0) AS tel, COALESCE(dl.tariff_water_per_m3,0) AS tw
+                                           FROM daily_logs dl
+                                           INNER JOIN (
+                                               SELECT MAX(id) AS keep_id
+                                               FROM daily_logs
+                                               WHERE DATE(log_date) BETWEEN ? AND ? AND $approvedWhereDaily
+                                               GROUP BY DATE(log_date), engineer_id
+                                           ) k ON k.keep_id = dl.id
+                                           ORDER BY dl.engineer_id ASC, dl.log_date ASC, dl.id ASC",
+                    [$fbFrom, $fbTo]
+                );
+                $manElec = 0.0; $manWater = 0.0; $manCostElec = 0.0; $manCostWater = 0.0;
+                $lastMbByEng = []; $lastWbpByEng = []; $lastLwbpByEng = [];
+                foreach ($rowsRead as $rr) {
+                    $eid = (int)($rr['engineer_id'] ?? 0);
+                    $tmb = (float)($rr['wmb'] ?? 0);
+                    $twbp = (float)($rr['ew'] ?? 0);
+                    $tlwbp = (float)($rr['el'] ?? 0);
+                    $tel = (float)($rr['tel'] ?? 0); if ($tel <= 0) $tel = (float)$ftEL;
+                    $tw =  (float)($rr['tw']  ?? 0); if ($tw  <= 0) $tw  = (float)$ftWA;
+                    if ($needWater && $tmb > 0) {
+                        $prevMb = $lastMbByEng[$eid] ?? null;
+                        if ($prevMb !== null && $tmb > $prevMb) {
+                            $c = max(0.0, $tmb - $prevMb);
+                            $manWater += $c;
+                            $manCostWater += $c * $tw;
+                        }
+                        $lastMbByEng[$eid] = $tmb;
+                    }
+                    if ($needElec && ($twbp > 0 || $tlwbp > 0)) {
+                        $prevWbp = $lastWbpByEng[$eid] ?? null;
+                        $prevLwbp = $lastLwbpByEng[$eid] ?? null;
+                        if ($prevWbp !== null && $prevLwbp !== null) {
+                            $cWbp = max(0.0, $twbp - $prevWbp);
+                            $cLwbp = max(0.0, $tlwbp - $prevLwbp);
+                            $c = ($cWbp + $cLwbp) * 8000.0;
+                            $manElec += $c;
+                            $manCostElec += $c * $tel;
+                        }
+                        if ($twbp > 0)  $lastWbpByEng[$eid]  = $twbp;
+                        if ($tlwbp > 0) $lastLwbpByEng[$eid] = $tlwbp;
+                    }
+                }
+                if ($needElec  && $manElec  > 0) { $d['elec'] = (float)($d['elec'] ?? 0) + $manElec;  $d['cost_elec']  = (float)($d['cost_elec']  ?? 0) + $manCostElec;  }
+                if ($needWater && $manWater > 0) { $d['water'] = (float)($d['water'] ?? 0) + $manWater; $d['cost_water'] = (float)($d['cost_water'] ?? 0) + $manCostWater; }
+                unset($rowsRead, $fbFrom, $fbTo, $manElec, $manWater, $manCostElec, $manCostWater, $lastMbByEng, $lastWbpByEng, $lastLwbpByEng, $rr, $eid, $tmb, $twbp, $tlwbp, $tel, $tw, $prevMb, $prevWbp, $prevLwbp, $c, $cWbp, $cLwbp, $dedupWhere);
+            }
+        }
+
         if ($debug) { echo "<div style='display:none' class='_dbg_merge'>DAILY: SQL=$sqlD | params=$dateFrom,$dateTo | result=".json_encode($d)."</div>\n"; }
     } catch (Throwable $e) {
         $d = ['elec'=>0,'water'=>0,'gas'=>0,'fuel'=>0,'cnt'=>0,'cost_elec'=>0,'cost_water'=>0,'cost_gas'=>0,'cost_fuel'=>0];
@@ -139,6 +216,7 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
     $d['cost_gas']=(float)($d['cost_gas']??0); $d['cost_fuel']=(float)($d['cost_fuel']??0);
 
     /* --- (B) energy_logs (energy_logsheet.php input user) - TIDAK ADA per-log tariff, pakai global fallback --- */
+    /*   ✅ 2026-08-23: SAMA DENGAN daily_logs → DEDUP MAX(id) per (DATE, created_by) untuk hindari double SUM jika user isi berkali-kali sehari */
     try {
         $wE = ["DATE(log_date) BETWEEN ? AND ?"];
         $pE = [$dateFrom, $dateTo];
@@ -146,30 +224,36 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
             $wE[] = "created_by = ?";
             $pE[] = $userId;
         }
-        $whereE = 'WHERE ' . implode(' AND ', $wE);
+        $dedupWhereE = 'WHERE ' . implode(' AND ', $wE);
         $sqlE = "SELECT
-            COALESCE($aggFn(CAST(pln_lwbp_kwh AS DECIMAL(18,4)) + CAST(pln_wbp_kwh AS DECIMAL(18,4)) + CAST(COALESCE(genset_kwh,0) AS DECIMAL(18,4))),0)  as elec,
-            COALESCE($aggFn(CAST(COALESCE(air_m3,0) AS DECIMAL(18,4)) + CAST(COALESCE(air_deep_well_m3,0) AS DECIMAL(18,4))),0)                as water,
-            COALESCE($aggFn(CAST(COALESCE(gas_kg,0) AS DECIMAL(18,4)) + CAST(COALESCE(gas_lng_kg,0) AS DECIMAL(18,4))),0)                      as gas,
-            COALESCE($aggFn(CAST(COALESCE(solar_liter,0) AS DECIMAL(18,4))),0)                               as fuel,
-            COALESCE($cntFn(*),0) as cnt,
+            COALESCE($aggFn(CAST(el.pln_lwbp_kwh AS DECIMAL(18,4)) + CAST(el.pln_wbp_kwh AS DECIMAL(18,4)) + CAST(COALESCE(el.genset_kwh,0) AS DECIMAL(18,4))),0)  as elec,
+            COALESCE($aggFn(CAST(COALESCE(el.air_m3,0) AS DECIMAL(18,4)) + CAST(COALESCE(el.air_deep_well_m3,0) AS DECIMAL(18,4))),0)                as water,
+            COALESCE($aggFn(CAST(COALESCE(el.gas_kg,0) AS DECIMAL(18,4)) + CAST(COALESCE(el.gas_lng_kg,0) AS DECIMAL(18,4))),0)                      as gas,
+            COALESCE($aggFn(CAST(COALESCE(el.solar_liter,0) AS DECIMAL(18,4))),0)                               as fuel,
+            COALESCE($cntFn(el.id),0) as cnt,
             COALESCE($aggFn(
-                (CAST(pln_lwbp_kwh AS DECIMAL(18,4)) + CAST(pln_wbp_kwh AS DECIMAL(18,4)) + CAST(COALESCE(genset_kwh,0) AS DECIMAL(18,4)))
+                (CAST(el.pln_lwbp_kwh AS DECIMAL(18,4)) + CAST(el.pln_wbp_kwh AS DECIMAL(18,4)) + CAST(COALESCE(el.genset_kwh,0) AS DECIMAL(18,4)))
                 * {$ftEL}
             ),0) as cost_elec,
             COALESCE($aggFn(
-                (CAST(COALESCE(air_m3,0) AS DECIMAL(18,4)) + CAST(COALESCE(air_deep_well_m3,0) AS DECIMAL(18,4)))
+                (CAST(COALESCE(el.air_m3,0) AS DECIMAL(18,4)) + CAST(COALESCE(el.air_deep_well_m3,0) AS DECIMAL(18,4)))
                 * {$ftWA}
             ),0) as cost_water,
             COALESCE($aggFn(
-                (CAST(COALESCE(gas_kg,0) AS DECIMAL(18,4)) + CAST(COALESCE(gas_lng_kg,0) AS DECIMAL(18,4)))
+                (CAST(COALESCE(el.gas_kg,0) AS DECIMAL(18,4)) + CAST(COALESCE(el.gas_lng_kg,0) AS DECIMAL(18,4)))
                 * {$ftGA}
             ),0) as cost_gas,
             COALESCE($aggFn(
-                CAST(COALESCE(solar_liter,0) AS DECIMAL(18,4))
+                CAST(COALESCE(el.solar_liter,0) AS DECIMAL(18,4))
                 * {$ftFU}
             ),0) as cost_fuel
-        FROM energy_logs $whereE";
+        FROM energy_logs el
+        INNER JOIN (
+            SELECT MAX(id) AS keep_id
+            FROM energy_logs
+            $dedupWhereE
+            GROUP BY DATE(log_date), created_by
+        ) kE ON kE.keep_id = el.id";
         $e = $db->fetchOne($sqlE, $pE);
         if ($debug) { echo "<div style='display:none' class='_dbg_merge'>ENERGY: SQL=$sqlE | params=".json_encode($pE)." | result=".json_encode($e)."</div>\n"; }
     } catch (Throwable $e) {
@@ -235,18 +319,57 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
     /* --- (D) VALIDASI ANTI READING METER BULANAN / DATA SEBELUM SISTEM JALAN --- */
     /*     RULE FIX LY 2026-08-18:
              JIKA cnt_d = 0 (TIDAK ADA RECORD daily_logs SAMA SEKALI di range tanggal tsb)
-             → KEMUNGKINAN BESAR: tanggal sebelum sistem beroperasi (misal tahun 2025 = sistem baru 2026)
-             → energy_logs pasti diisi angka METER READING BULANAN (bukan selisih konsumsi HARIAN)
-             → JANGAN DIPAKAI, SET NILAI UTILITY + COST = 0 SEMUA (hindari LY absurd 49.911 m3 lalu -99.2%) */
-    if (((int)($out['cnt_d'] ?? 0)) === 0) {
+             DAN tanggal range berada SEBELUM sistem daily_logs beroperasi (pre-2026)
+             → energy_logs kemungkinan berisi METER READING BULANAN (bukan konsumsi harian)
+             → JANGAN DIPAKAI (hindari LY absurd 49.911 m3 lalu -99.2%)
+             ✅ FIX 2026-08-20: JANGAN nol-kan untuk tanggal >= 2026 — data energy_logsheet valid harian! */
+    $_utilSysCutoff = '2026-01-01';
+    $_utilIsPreSystem = (strtotime((string)$dateTo) < strtotime($_utilSysCutoff));
+    if (((int)($out['cnt_d'] ?? 0)) === 0 && $_utilIsPreSystem) {
         $out['elec'] = 0; $out['water'] = 0; $out['gas'] = 0; $out['fuel'] = 0;
         $out['cost_elec'] = 0; $out['cost_water'] = 0; $out['cost_gas'] = 0; $out['cost_fuel'] = 0;
         $out['_skip_reason'] = 'cnt_d_zero_energy_logs_meter_reading_skipped';
     }
+    unset($_utilSysCutoff, $_utilIsPreSystem);
     /* Backward compat: output key 'log_count' = cnt (biar line 101-104 lyXxxAvg TIDAK PERLU DIUBAH) */
     $out['log_count'] = max(1, (int)($out['cnt'] ?? 1));
     if ($debug) { echo "<div style='display:none' class='_dbg_merge'>FINAL ($agg) ".json_encode($out)."</div>\n"; }
     return $out;
+}
+
+/** Cek apakah baris utility merge punya nilai konsumsi */
+function utilRowHasData(array $row): bool {
+    return ((float)($row['elec'] ?? 0) + (float)($row['water'] ?? 0) + (float)($row['gas'] ?? 0) + (float)($row['fuel'] ?? 0)) > 0.00001;
+}
+
+/** Cari tanggal terakhir (<= asOfDate) yang punya data utility — sinkron dengan energy.php detail logs */
+function utilFindLatestDateWithData($db, $asOfDate, $dailyWhere, $userId, $userRole, $lookbackDays = 21) {
+    $from = date('Y-m-d', strtotime($asOfDate . " -{$lookbackDays} days"));
+    $engE = ($userRole === 'engineer') ? (' AND el.created_by = ' . (int)$userId) : '';
+    try {
+        $row = $db->fetchOne("
+            SELECT MAX(tgl) AS latest FROM (
+                SELECT DATE(dl.log_date) AS tgl
+                FROM daily_logs dl
+                WHERE DATE(dl.log_date) BETWEEN ? AND ?
+                  AND (  COALESCE(dl.total_electricity,0) + COALESCE(dl.total_water,0)
+                       + COALESCE(dl.total_gas,0)       + COALESCE(dl.total_fuel,0)) > 0
+                  AND {$dailyWhere}
+                UNION ALL
+                SELECT DATE(el.log_date) AS tgl
+                FROM energy_logs el
+                WHERE DATE(el.log_date) BETWEEN ? AND ? {$engE}
+                  AND (  COALESCE(el.pln_lwbp_kwh,0) + COALESCE(el.pln_wbp_kwh,0) + COALESCE(el.genset_kwh,0)
+                       + COALESCE(el.air_m3,0)         + COALESCE(el.air_deep_well_m3,0)
+                       + COALESCE(el.gas_kg,0)         + COALESCE(el.gas_lng_kg,0)
+                       + COALESCE(el.solar_liter,0)) > 0
+            ) x
+        ", [$from, $asOfDate, $from, $asOfDate]);
+        $lat = !empty($row['latest']) ? (string)$row['latest'] : null;
+        return ($lat && $lat <= $asOfDate) ? $lat : null;
+    } catch (Throwable $e) {
+        return null;
+    }
 }
 
 // ============ INISIALISASI TARIF (dipindah ke ATAS agar semua utilFetchBoth_Db dapat fallback akurat) ============
@@ -260,7 +383,23 @@ $utilLY    = utilFetchBoth_Db($db, $approvedWhere, $userId, $userRole, $lyFrom, 
 $utilToday = utilFetchBoth_Db($db, $approvedWhere, $userId, $userRole, $tyFrom, $tyTo, 'SUM', $TARIF);
 
 /* todayElec/Water/Gas/Fuel per single date: MERGE kedua tabel */
-$todayBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $today, $today, 'SUM', $TARIF);
+/* Manager/Supervisor/Admin: tampilkan juga log pending (sering belum di-approve tapi sudah diisi engineer) */
+$_todayUtilWhere = "status='approved' $statusWhere";
+if (in_array($userRole, ['manager', 'supervisor', 'admin'], true)) {
+    $_todayUtilWhere = "status IN ('approved','pending') $statusWhere";
+}
+$todayBoth = utilFetchBoth_Db($db, $_todayUtilWhere, $userId, $userRole, $today, $today, 'SUM', $TARIF);
+/* Jika hari ini belum ada konsumsi (shift malam belum diisi), fallback ke tanggal terakhir yg punya data — sama seperti energy.php */
+$utilDisplayDate = $today;
+if (!utilRowHasData($todayBoth)) {
+    $_latUtil = utilFindLatestDateWithData($db, $today, $_todayUtilWhere, $userId, $userRole);
+    if ($_latUtil) {
+        $todayBoth = utilFetchBoth_Db($db, $_todayUtilWhere, $userId, $userRole, $_latUtil, $_latUtil, 'SUM', $TARIF);
+        $utilDisplayDate = $_latUtil;
+    }
+    unset($_latUtil);
+}
+unset($_todayUtilWhere);
 $todayElec  = (float)($todayBoth['elec']  ?? 0);
 $todayWater = (float)($todayBoth['water'] ?? 0);
 $todayGas   = (float)($todayBoth['gas']   ?? 0);
@@ -295,7 +434,8 @@ $thisYearDays = date('z') + 1;
 $lastYearDays = 365;
 
 // ✅ BARU: Utility Report LY • Avg/Day — ketemunya TANGGAL SAMA TAHUN LALU (bukan avg seluruh tahun lalu)
-//    Misal: Hari ini = 17/08/2026 → LY = data tanggal 17/08/2025 (single date, bukan rata-rata 1 tahun)
+//    Misal: utilDisplayDate = 19/08/2026 → LY = data tanggal 19/08/2025 (single date, bukan rata-rata 1 tahun)
+$sameDayLastYear = date('Y-m-d', strtotime($utilDisplayDate . ' -1 year'));
 $lySameDayBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $sameDayLastYear, $sameDayLastYear, 'SUM', $TARIF);
 $lyElecAvg  = (float)($lySameDayBoth['elec']  ?? 0);
 $lyWaterAvg = (float)($lySameDayBoth['water'] ?? 0);
@@ -715,30 +855,37 @@ $progressActivities = fetchProgressActivities($db, $userRole, $userId, $monthSta
 // Sesuai request user: Master Activity status_default = 'progress' (seperti foto "Pemindahan posisi new FCU FB office - In Progress")
 // yang BELUM dipakai di Daily Log juga harus MUNCUL di Dashboard Widget Progress!
 try {
-    $masterWhere = "WHERE status_default = 'progress'";
+    $masterWhere = "WHERE am.status_default = 'progress'";
     $masterParams = [];
     if ($userRole === 'engineer') {
         // Engineer tidak punya filter master, tapi show semua biar tau daftar progress
     }
-    $masterRows = $db->fetchAll("SELECT id as mid, division, activity_name, sort_order, created_at
-                                  FROM activity_masters $masterWhere
-                                  ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC", $masterParams);
+    $masterRows = $db->fetchAll("SELECT am.id as mid, am.division, am.activity_name, am.sort_order, am.created_at,
+                                        u.name as created_by_name
+                                  FROM activity_masters am
+                                  LEFT JOIN users u ON u.id = am.created_by
+                                  $masterWhere
+                                  ORDER BY FIELD(am.division,'operation','maintenance','project','landscape'), am.sort_order ASC, am.id ASC", $masterParams);
     $titleUsedDaily = [];
     foreach ($progressActivities as $pd) { if ($pd['source'] === 'daily_log') $titleUsedDaily[mb_strtolower(trim((string)($pd['activity'] ?? '')))] = true; }
     $idxDaily = count($progressActivities);
-    // ✅ Fallback nama engineer untuk progress widget master (belum ditugaskan): pakai nama user login
-    $userNameForProgMaster = !empty($user['name']) ? (string)$user['name'] : '- (Belum ditugaskan)';
+    // âœ… Fallback nama engineer untuk progress widget master (belum ditugaskan):
+    //    Prioritas 1: nama user pembuat master (created_by_name dari JOIN users)
+    //    Prioritas 2: nama user login (jika created_by null)
+    //    Prioritas 3: label default
     foreach ($masterRows as $m) {
         $title = trim((string)($m['activity_name'] ?? ''));
         if ($title === '') continue;
         $keyLower = mb_strtolower($title);
         if (isset($titleUsedDaily[$keyLower])) continue; // skip kalau sudah muncul di daily log (hindari dobel)
         $idxDaily++;
+        $_engName = !empty($m['created_by_name']) ? (string)$m['created_by_name']
+                  : (!empty($user['name']) ? (string)$user['name'] : '- (Belum ditugaskan)');
         $progressActivities[] = [
             'division'      => (string)($m['division'] ?? 'operation'),
             'activity'      => $title,
             'log_date'      => (string)($m['created_at'] ?? ''),
-            'engineer_name' => $userNameForProgMaster,
+            'engineer_name' => $_engName,
             'daily_log_id'  => 0,
             'source'        => 'master_template',
             'master_id'     => (int)($m['mid'] ?? 0),
@@ -766,11 +913,12 @@ $progressCount = count($progressActivities);
 // Tujuan: Section â‘¢ ENGINEERING ACTIVITIES (yang 3 kolom: Department / Detail / Status) TIDAK LAGI menampilkan "- No Data -"
 //         padahal user sudah menambahkan Master Activity status_default='progress' seperti foto "Pemindahan posisi new FCU FB office In Progress"
 try {
-    $_tmpMastersAct = $db->fetchAll("SELECT division, activity_name, sort_order, created_at, status_default FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+    $_tmpMastersAct = $db->fetchAll("SELECT am.division, am.activity_name, am.sort_order, am.created_at, am.status_default,
+                                            u.name as created_by_name
+                                     FROM activity_masters am
+                                     LEFT JOIN users u ON u.id = am.created_by
+                                     ORDER BY FIELD(am.division,'operation','maintenance','project','landscape'), am.sort_order ASC, am.id ASC");
     $_existingTitleAct = [];
-    // ✅ Fallback engineer label untuk master activity yang benar-benar belum dipakai di log manapun:
-    //    Pakai NAMA USER YANG SEDANG LOGIN (semua role, sesuai request: "siapa yg punya akun langsung jadi namanya dia yg mengetik")
-    $userNameForMaster = !empty($user['name']) ? (string)$user['name'] : '- (Master Activity)';
     foreach (['operation','maintenance','project','landscape'] as $dv) {
         if (!isset($actsGRP[$dv]) || !is_array($actsGRP[$dv])) $actsGRP[$dv] = [];
         foreach ($actsGRP[$dv] as $_r) { $_existingTitleAct[$dv][mb_strtolower(trim((string)($_r['title'] ?? '')))] = true; }
@@ -784,10 +932,13 @@ try {
         $key = mb_strtolower($title);
         if (isset($_existingTitleAct[$dv][$key])) continue; // hindari dobel dengan daily log title (counter / child table)
         $st = (string)($_m['status_default'] ?? 'progress');
-        $actsGRP[$dv][] = ['title' => $title, 'status' => ($st === 'complete' ? 'complete' : 'progress'), 'date' => (string)($_m['created_at'] ?? ''), 'eng' => $userNameForMaster];
+        // âœ… Prioritas label engineer: 1) nama pembuat master, 2) nama user login, 3) label default
+        $_engLabel = !empty($_m['created_by_name']) ? (string)$_m['created_by_name']
+                  : (!empty($user['name']) ? (string)$user['name'] : '- (Master Activity)');
+        $actsGRP[$dv][] = ['title' => $title, 'status' => ($st === 'complete' ? 'complete' : 'progress'), 'date' => (string)($_m['created_at'] ?? ''), 'eng' => $_engLabel];
         $_existingTitleAct[$dv][$key] = true;
     }
-    unset($_tmpMastersAct, $_existingTitleAct, $dv, $_m, $title, $key, $st, $userNameForMaster);
+    unset($_tmpMastersAct, $_existingTitleAct, $dv, $_m, $title, $key, $st, $_engLabel);
 } catch (Throwable $e) {}
 
 // --- Reusable: render TABLE DAFTAR AKTIVITAS PEKERJAAN (untuk ditempel di bawah chart modal) ---
@@ -987,6 +1138,11 @@ require_once __DIR__ . '/includes/navbar.php';
                     <h2 class="font-display text-[13px] lg:text-[14px] font-black text-gray-900 tracking-wide leading-tight truncate">
                         Utility <span class="text-slate-400 font-black">Report</span>
                     </h2>
+                    <?php if ($utilDisplayDate !== $defToday): ?>
+                    <span class="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full" title="Belum ada data hari ini — menampilkan log terakhir">
+                        <i class="fas fa-clock text-[8px]"></i> Data: <?= date('d/m/Y', strtotime($utilDisplayDate)) ?>
+                    </span>
+                    <?php endif; ?>
                     <span class="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full ml-1 hidden md:inline-flex items-center gap-0.5">
                         <i class="fas fa-hand-pointer text-[8px]"></i> Klik sembunyikan
                     </span>

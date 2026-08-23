@@ -88,7 +88,11 @@ $actsGRP = [
     'landscape'   => actGroupWithStatus($actListLand),
 ];
 try {
-    $_tmpMastersAct = $db->fetchAll("SELECT division, activity_name, sort_order, created_at, status_default FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+    $_tmpMastersAct = $db->fetchAll("SELECT am.division, am.activity_name, am.sort_order, am.created_at, am.status_default,
+                                            u.name as created_by_name
+                                     FROM activity_masters am
+                                     LEFT JOIN users u ON u.id = am.created_by
+                                     ORDER BY FIELD(am.division,'operation','maintenance','project','landscape'), am.sort_order ASC, am.id ASC");
     $_existingTitleAct = [];
     foreach (['operation','maintenance','project','landscape'] as $dv) {
         if (!isset($actsGRP[$dv]) || !is_array($actsGRP[$dv])) $actsGRP[$dv] = [];
@@ -97,6 +101,7 @@ try {
             if ($t !== '') $_existingTitleAct[$dv][$t] = true;
         }
     }
+    $_defEngExcel = !empty($user['name']) ? (string)$user['name'] : '- (Master Activity)';
     foreach ($_tmpMastersAct as $_m) {
         $dv = (string)($_m['division'] ?? 'operation');
         if (!in_array($dv,['operation','maintenance','project','landscape'], true)) $dv = 'operation';
@@ -106,9 +111,10 @@ try {
         $key = mb_strtolower($title);
         if (isset($_existingTitleAct[$dv][$key])) continue;
         $st = (string)($_m['status_default'] ?? 'progress');
-        $actsGRP[$dv][] = ['title'=>$title, 'status'=>($st==='complete'?'complete':'progress'), 'date'=>substr((string)($_m['created_at'] ?? ''),0,10), 'eng'=>'- (Master Activity)'];
+        $_engExcel = !empty($_m['created_by_name']) ? (string)$_m['created_by_name'] : $_defEngExcel;
+        $actsGRP[$dv][] = ['title'=>$title, 'status'=>($st==='complete'?'complete':'progress'), 'date'=>substr((string)($_m['created_at'] ?? ''),0,10), 'eng'=>$_engExcel];
     }
-    unset($_tmpMastersAct, $_existingTitleAct, $dv, $_m, $title, $key, $st);
+    unset($_tmpMastersAct, $_existingTitleAct, $dv, $_m, $title, $key, $st, $_engExcel, $_defEngExcel);
 } catch (Throwable $e) {}
 
 $totalActivities = 0; $totalProgress = 0; $totalComplete = 0;
