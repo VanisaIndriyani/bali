@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/config.php';
 requireLogin();
 @ini_set('memory_limit', '256M');
@@ -53,13 +53,22 @@ if ($viewType === 'monthly') {
     $orderBy = "ORDER BY DATE(dl.log_date) ASC";
 }
 
+$summaryWhereExtra = '';
+if (!empty($whereApproved)) $summaryWhereExtra .= " AND " . preg_replace('/^dl\./', 'dl_inner.', ltrim($whereApproved));
+if (!empty($whereUser))     $summaryWhereExtra .= " AND " . preg_replace('/^dl\./', 'dl_inner.', ltrim($whereUser));
+
+/* ✅ 2026-08-23 FIX DEDUP: inner subquery cari MAX(id) keep_id per DATE+engineer_id, baru outer JOIN untuk aggregate */
 $summaryQuery = "SELECT $groupSelect,
     SUM(dl.total_electricity) as sum_elec,
     SUM(dl.total_water) as sum_water,
     SUM(dl.total_gas) as sum_gas,
     COUNT(DISTINCT dl.id) as log_count
     FROM daily_logs dl
-    WHERE dl.log_date BETWEEN ? AND ? $whereApproved $whereUser
+    INNER JOIN (
+        SELECT MAX(id) AS keep_id FROM daily_logs dl_inner
+        WHERE dl_inner.log_date BETWEEN ? AND ? $summaryWhereExtra
+        GROUP BY DATE(dl_inner.log_date), dl_inner.engineer_id
+    ) k ON k.keep_id = dl.id
     $groupBy $orderBy";
 $summaryData = $db->fetchAll($summaryQuery, $params);
 
@@ -67,9 +76,20 @@ $detailParams = [$dateFrom, $dateTo];
 if ($userRole !== 'supervisor') {
     $detailParams[] = $userId;
 }
+
+$detailWhereExtra = '';
+if (!empty($whereApproved)) $detailWhereExtra .= " AND " . preg_replace('/^dl\./', 'dl_inner.', ltrim($whereApproved));
+if (!empty($whereUser))     $detailWhereExtra .= " AND " . preg_replace('/^dl\./', 'dl_inner.', ltrim($whereUser));
+
+/* ✅ 2026-08-23 FIX DEDUP detail query juga */
 $detailQuery = "SELECT dl.*, u.name as engineer_name, u.position as engineer_position, u.phone as engineer_phone
-    FROM daily_logs dl LEFT JOIN users u ON u.id = dl.engineer_id
-    WHERE dl.log_date BETWEEN ? AND ? $whereApproved $whereUser
+    FROM daily_logs dl
+    INNER JOIN (
+        SELECT MAX(id) AS keep_id FROM daily_logs dl_inner
+        WHERE dl_inner.log_date BETWEEN ? AND ? $detailWhereExtra
+        GROUP BY DATE(dl_inner.log_date), dl_inner.engineer_id
+    ) k ON k.keep_id = dl.id
+    LEFT JOIN users u ON u.id = dl.engineer_id
     ORDER BY dl.log_date DESC, dl.id DESC";
 $detailData = $db->fetchAll($detailQuery, $detailParams);
 

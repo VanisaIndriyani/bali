@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../config/config.php';
 requireLogin();
 
@@ -28,12 +28,18 @@ if ($status !== 'all') {
 }
 
 $whereClause = implode(' AND ', $where);
+/* ✅ 2026-08-23 FIX DEDUP MAX(id) per DATE+engineer_id: user isi logshet tanggal sama berkali-kali = hanya ambil entry TERAKHIR (id terbesar) setiap hari setiap engineer */
 $logs = $db->fetchAll(
     "SELECT dl.*, u.name as engineer_name, u.position as engineer_position, u.phone as engineer_phone, s.name as supervisor_name
      FROM daily_logs dl
+     INNER JOIN (
+         SELECT MAX(id) AS keep_id
+         FROM daily_logs dl_inner
+         WHERE " . str_replace('dl.', 'dl_inner.', $whereClause) . "
+         GROUP BY DATE(dl_inner.log_date), dl_inner.engineer_id
+     ) k ON k.keep_id = dl.id
      LEFT JOIN users u ON dl.engineer_id = u.id
      LEFT JOIN users s ON dl.supervisor_id = s.id
-     WHERE $whereClause
      ORDER BY dl.log_date ASC",
     $params
 );
