@@ -463,6 +463,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $shift = trim((string)($_POST['shift'] ?? ''));
     if (!in_array($shift, $allShifts, true)) $shift = $defaultShiftNow;
 
+    // ⭐ BACKFILL OVERRIDE YESTERDAY (jika user klik ✏️ Edit Yesterday di form):
+    // Hidden input _y_*_override = KOSONG  → pakai Yesterday otomatis dari auto-fetch DB (defaut normal hari ini)
+    // Hidden input _y_*_override = TERISI  → user sedang input data historis tahun lalu, timpa Yesterday pakai input manual
+    $_yOvWbp   = trim((string)($_POST['_y_elec_wbp_override']  ?? ''));
+    $_yOvLwbp  = trim((string)($_POST['_y_elec_lwbp_override'] ?? ''));
+    $_yOvWm    = trim((string)($_POST['_y_water_mb_override']   ?? ''));
+    if ($_yOvWbp  !== '') $elecYesterdayWbp  = (float)normalizeDecimalInput($_yOvWbp);
+    if ($_yOvLwbp !== '') $elecYesterdayLwbp = (float)normalizeDecimalInput($_yOvLwbp);
+    if ($_yOvWm   !== '') $mbYesterdayRead   = (float)normalizeDecimalInput($_yOvWm);
+    unset($_yOvWbp, $_yOvLwbp, $_yOvWm);
+
     // ① Electricity Subdetails — Phase 2c: use normalizeDecimalInput — SEMUA SHIFT AUTO HITUNG
     $eWbp   = (float)normalizeDecimalInput($_POST['electricity_wbp'] ?? 0);
     $eLwbp  = (float)normalizeDecimalInput($_POST['electricity_lwbp'] ?? 0);
@@ -1160,6 +1171,12 @@ unset($_tarNow);
         <?php if ($canChooseEngineer): ?>
             <input type="hidden" name="_target_engineer_id" value="<?= (int)$targetEngineerId ?>">
         <?php endif; ?>
+        <!-- Hidden: Override nilai Yesterday jika user klik ✏️ Edit (backfill data historis).
+             Kosong = pakai auto Yesterday dari DB (default workflow input hari normal).
+             Diisi = pakai nilai custom user (SAAT INI SAJA). -->
+        <input type="hidden" name="_y_elec_wbp_override" id="_yOverrideElecWbp" value="">
+        <input type="hidden" name="_y_elec_lwbp_override" id="_yOverrideElecLwbp" value="">
+        <input type="hidden" name="_y_water_mb_override"  id="_yOverrideWaterMb" value="">
 
         <!-- ============================================== -->
         <!-- ✅ Req 1: LIVE SUMMARY PANEL (STICKY)         -->
@@ -1451,10 +1468,10 @@ unset($_tarNow);
                             <div class="flex items-center justify-between gap-2 text-[10px] font-semibold">
                                 <div class="flex items-center gap-1 min-w-0 flex-1">
                                     <span class="text-slate-500 shrink-0">Yesterday ({$yDateLabelFmt})</span>
-                                    <button type="button" onclick="unlockYesterday(this)" class="shrink-0 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition" title="Edit nilai Yesterday (backfill data historis)">✏️</button>
+                                    <button type="button" onclick="unlockYesterday(this, 'elec_wbp')" class="shrink-0 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition" title="Edit nilai Yesterday (backfill data historis)">✏️</button>
                                 </div>
                                 <div class="flex items-center gap-1 shrink-0">
-                                    <input type="number" step="0.01" min="0" readonly value="{$_eWbpYFmt}" oninput="window.Y_ELEC_WBP = parseFloat(normDecStr(this.value))||0; calcTotals();"
+                                    <input type="number" step="0.01" min="0" readonly data-ykey="elec_wbp" value="{$_eWbpYFmt}" oninput="onYesterdayInput(this)"
                                            class="js-norm-dec _yesterdayInput w-[90px] text-right px-2 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 text-[10px] font-bold focus:outline-none focus:border-indigo-400 focus:bg-white">
                                     <span class="text-slate-700 shrink-0">kWh</span>
                                 </div>
@@ -1488,10 +1505,10 @@ HTML;
                             <div class="flex items-center justify-between gap-2 text-[10px] font-semibold">
                                 <div class="flex items-center gap-1 min-w-0 flex-1">
                                     <span class="text-slate-500 shrink-0">Yesterday ({$yDateLabelFmt})</span>
-                                    <button type="button" onclick="unlockYesterday(this)" class="shrink-0 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition" title="Edit nilai Yesterday (backfill data historis)">✏️</button>
+                                    <button type="button" onclick="unlockYesterday(this, 'elec_lwbp')" class="shrink-0 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition" title="Edit nilai Yesterday (backfill data historis)">✏️</button>
                                 </div>
                                 <div class="flex items-center gap-1 shrink-0">
-                                    <input type="number" step="0.01" min="0" readonly value="{$_eLwbpYFmt}" oninput="window.Y_ELEC_LWBP = parseFloat(normDecStr(this.value))||0; calcTotals();"
+                                    <input type="number" step="0.01" min="0" readonly data-ykey="elec_lwbp" value="{$_eLwbpYFmt}" oninput="onYesterdayInput(this)"
                                            class="js-norm-dec _yesterdayInput w-[90px] text-right px-2 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 text-[10px] font-bold focus:outline-none focus:border-indigo-400 focus:bg-white">
                                     <span class="text-slate-700 shrink-0">kWh</span>
                                 </div>
@@ -1569,10 +1586,10 @@ HTML;
                             <div class="flex items-center justify-between gap-2">
                                 <div class="flex items-center gap-1 min-w-0 flex-1">
                                     <span class="text-slate-500 shrink-0">Kemarin (<?= $yDateLabelFmt ?>):</span>
-                                    <button type="button" onclick="unlockYesterday(this)" class="shrink-0 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition" title="Edit nilai Yesterday (backfill data historis)">✏️</button>
+                                    <button type="button" onclick="unlockYesterday(this, 'water_mb')" class="shrink-0 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition" title="Edit nilai Yesterday (backfill data historis)">✏️</button>
                                 </div>
                                 <div class="flex items-center gap-1 shrink-0">
-                                    <input type="number" step="0.01" min="0" readonly value="<?= number_format($mbYesterday, 2) ?>" oninput="window.Y_WATER_MB = parseFloat(normDecStr(this.value))||0; calcTotals();"
+                                    <input type="number" step="0.01" min="0" readonly data-ykey="water_mb" value="<?= number_format($mbYesterday, 2) ?>" oninput="onYesterdayInput(this)"
                                            class="js-norm-dec _yesterdayInput w-[90px] text-right px-2 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 text-[10px] font-bold focus:outline-none focus:border-indigo-400 focus:bg-white">
                                     <span class="text-slate-700 shrink-0">m3</span>
                                 </div>
@@ -2865,8 +2882,30 @@ HTML;
         return (parseFloat(n) || 0).toFixed(2);
     };
 
-    // Helper: unlock Yesterday input (untuk backfill data historis / tahun lalu)
-    window.unlockYesterday = function (btn) {
+    // Helper: panggil setiap user edit Yesterday input (yang sudah di-unlock).
+    // 2 efek: (a) update window.Y_* global agar calcTotals hitung live.
+    //         (b) set input hidden PHP POST handler agar SAVE di DB pakai override kemarin user.
+    window.onYesterdayInput = function (inp) {
+        if (!inp) return;
+        const key = inp.getAttribute('data-ykey') || '';
+        const v   = parseFloat(window.normDecStr(inp.value || '0')) || 0;
+        if (key === 'elec_wbp') {
+            window.Y_ELEC_WBP = v;
+            const h = document.getElementById('_yOverrideElecWbp'); if (h) h.value = String(v);
+        } else if (key === 'elec_lwbp') {
+            window.Y_ELEC_LWBP = v;
+            const h = document.getElementById('_yOverrideElecLwbp'); if (h) h.value = String(v);
+        } else if (key === 'water_mb') {
+            window.Y_WATER_MB = v;
+            const h = document.getElementById('_yOverrideWaterMb'); if (h) h.value = String(v);
+        }
+        try { window.calcTotals(); } catch (e) {}
+    };
+
+    // Helper: unlock Yesterday input (untuk backfill data historis / tahun lalu).
+    //  args: btn = tombol yang diklik
+    //        key = 'elec_wbp' / 'elec_lwbp' / 'water_mb' (sama dengan atribut data-ykey input)
+    window.unlockYesterday = function (btn, key) {
         if (!btn) return;
         const wrap = btn.closest('.flex') || btn.parentElement;
         if (!wrap) return;
@@ -2877,6 +2916,7 @@ HTML;
             inp.removeAttribute('readonly');
             inp.classList.remove('bg-slate-100');
             inp.classList.add('bg-white', 'border-indigo-300', 'ring-2', 'ring-indigo-100');
+            if (key) inp.setAttribute('data-ykey', key);
             if (btn) {
                 btn.classList.remove('text-slate-500', 'border-slate-200');
                 btn.classList.add('text-indigo-600', 'border-indigo-400', 'bg-indigo-50');
@@ -2887,6 +2927,12 @@ HTML;
             inp.setAttribute('readonly', 'readonly');
             inp.classList.add('bg-slate-100');
             inp.classList.remove('bg-white', 'border-indigo-300', 'ring-2', 'ring-indigo-100');
+            // Jika di-lock KEMBALI → BERARTI user tidak ingin override lagi.
+            // Clear hidden override value agar PHP POST handler kembali pakai auto Yesterday dari DB (SAFE DEFAULT).
+            const k = inp.getAttribute('data-ykey') || key || '';
+            if (k === 'elec_wbp')      { const h = document.getElementById('_yOverrideElecWbp'); if (h) h.value = ''; }
+            else if (k === 'elec_lwbp'){ const h = document.getElementById('_yOverrideElecLwbp'); if (h) h.value = ''; }
+            else if (k === 'water_mb') { const h = document.getElementById('_yOverrideWaterMb'); if (h) h.value = ''; }
             if (btn) {
                 btn.classList.add('text-slate-500', 'border-slate-200');
                 btn.classList.remove('text-indigo-600', 'border-indigo-400', 'bg-indigo-50');
