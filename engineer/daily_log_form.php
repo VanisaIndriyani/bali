@@ -1448,9 +1448,16 @@ unset($_tarNow);
                             <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">Reading</span>
                         </div>
                         <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50/50 p-2 space-y-1.5">
-                            <div class="flex items-center justify-between text-[10px] font-semibold">
-                                <span class="text-slate-500">Yesterday ({$yDateLabelFmt})</span>
-                                <span class="text-slate-700">{$_eWbpYFmt} kWh</span>
+                            <div class="flex items-center justify-between gap-2 text-[10px] font-semibold">
+                                <div class="flex items-center gap-1 min-w-0 flex-1">
+                                    <span class="text-slate-500 shrink-0">Yesterday ({$yDateLabelFmt})</span>
+                                    <button type="button" onclick="unlockYesterday(this)" class="shrink-0 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition" title="Edit nilai Yesterday (backfill data historis)">✏️</button>
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <input type="number" step="0.01" min="0" readonly value="{$_eWbpYFmt}" oninput="window.Y_ELEC_WBP = parseFloat(normDecStr(this.value))||0; calcTotals();"
+                                           class="js-norm-dec _yesterdayInput w-[90px] text-right px-2 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 text-[10px] font-bold focus:outline-none focus:border-indigo-400 focus:bg-white">
+                                    <span class="text-slate-700 shrink-0">kWh</span>
+                                </div>
                             </div>
                             <div>
                                 <p class="text-[9.5px] font-semibold text-slate-600 mb-0.5">Today</p>
@@ -1478,9 +1485,16 @@ HTML;
                             <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">Reading</span>
                         </div>
                         <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50/50 p-2 space-y-1.5">
-                            <div class="flex items-center justify-between text-[10px] font-semibold">
-                                <span class="text-slate-500">Yesterday ({$yDateLabelFmt})</span>
-                                <span class="text-slate-700">{$_eLwbpYFmt} kWh</span>
+                            <div class="flex items-center justify-between gap-2 text-[10px] font-semibold">
+                                <div class="flex items-center gap-1 min-w-0 flex-1">
+                                    <span class="text-slate-500 shrink-0">Yesterday ({$yDateLabelFmt})</span>
+                                    <button type="button" onclick="unlockYesterday(this)" class="shrink-0 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition" title="Edit nilai Yesterday (backfill data historis)">✏️</button>
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <input type="number" step="0.01" min="0" readonly value="{$_eLwbpYFmt}" oninput="window.Y_ELEC_LWBP = parseFloat(normDecStr(this.value))||0; calcTotals();"
+                                           class="js-norm-dec _yesterdayInput w-[90px] text-right px-2 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 text-[10px] font-bold focus:outline-none focus:border-indigo-400 focus:bg-white">
+                                    <span class="text-slate-700 shrink-0">kWh</span>
+                                </div>
                             </div>
                             <div>
                                 <p class="text-[9.5px] font-semibold text-slate-600 mb-0.5">Today</p>
@@ -1551,13 +1565,23 @@ HTML;
                                 class="js-norm-dec w-full px-3 py-2.5 rounded-lg border-2 border-dashed border-slate-300 bg-white text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
                             <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[9.5px] font-bold text-slate-500">m3</span>
                         </div>
-                        <?php if ($isMalamNow): ?>
-                            <div class="mt-1.5 text-[10px] text-slate-500 flex items-center gap-2">
-                                <span>Kemarin: <b class="font-mono text-slate-700"><?= number_format($mbYesterday, 2) ?></b></span>
-                                <span class="text-slate-300">|</span>
-                                <span>Selisih: <b id="mbSelisih" class="font-mono text-indigo-600"><?= number_format($mbCons, 2) ?></b></span>
+                        <div class="mt-1.5 text-[10px] text-slate-600 space-y-1">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-1 min-w-0 flex-1">
+                                    <span class="text-slate-500 shrink-0">Kemarin (<?= $yDateLabelFmt ?>):</span>
+                                    <button type="button" onclick="unlockYesterday(this)" class="shrink-0 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition" title="Edit nilai Yesterday (backfill data historis)">✏️</button>
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <input type="number" step="0.01" min="0" readonly value="<?= number_format($mbYesterday, 2) ?>" oninput="window.Y_WATER_MB = parseFloat(normDecStr(this.value))||0; calcTotals();"
+                                           class="js-norm-dec _yesterdayInput w-[90px] text-right px-2 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 text-[10px] font-bold focus:outline-none focus:border-indigo-400 focus:bg-white">
+                                    <span class="text-slate-700 shrink-0">m3</span>
+                                </div>
                             </div>
-                        <?php endif; ?>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-500">Selisih:</span>
+                                <b id="mbSelisih" class="font-mono text-indigo-600"><?= number_format($mbCons, 2) ?> m3</b>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label class="block text-[11px] font-semibold text-slate-700 mb-1.5">Water PDAM</label>
@@ -2841,6 +2865,37 @@ HTML;
         return (parseFloat(n) || 0).toFixed(2);
     };
 
+    // Helper: unlock Yesterday input (untuk backfill data historis / tahun lalu)
+    window.unlockYesterday = function (btn) {
+        if (!btn) return;
+        const wrap = btn.closest('.flex') || btn.parentElement;
+        if (!wrap) return;
+        const inp = wrap.parentElement.querySelector('input._yesterdayInput');
+        if (!inp) return;
+        const wasLocked = inp.hasAttribute('readonly');
+        if (wasLocked) {
+            inp.removeAttribute('readonly');
+            inp.classList.remove('bg-slate-100');
+            inp.classList.add('bg-white', 'border-indigo-300', 'ring-2', 'ring-indigo-100');
+            if (btn) {
+                btn.classList.remove('text-slate-500', 'border-slate-200');
+                btn.classList.add('text-indigo-600', 'border-indigo-400', 'bg-indigo-50');
+                btn.innerHTML = '🔒 Lock';
+                btn.title = 'Kembali kunci (readonly) Yesterday';
+            }
+        } else {
+            inp.setAttribute('readonly', 'readonly');
+            inp.classList.add('bg-slate-100');
+            inp.classList.remove('bg-white', 'border-indigo-300', 'ring-2', 'ring-indigo-100');
+            if (btn) {
+                btn.classList.add('text-slate-500', 'border-slate-200');
+                btn.classList.remove('text-indigo-600', 'border-indigo-400', 'bg-indigo-50');
+                btn.innerHTML = '✏️';
+                btn.title = 'Edit nilai Yesterday (backfill data historis)';
+            }
+        }
+    };
+
     window.onShiftChange = function () {
         const sel = document.getElementById('shiftSelect');
         if (sel) {
@@ -2887,6 +2942,7 @@ HTML;
     }
 
     window.calcTotals = function () {
+        try {
         // --- Listrik --- (SEMUA SHIFT PAGI/SIANG/MALAM = AUTO HITUNG, TANPA GATING)
         const todayWbp  = readF('electricity_wbp');
         const todayLwbp = readF('electricity_lwbp');
@@ -2994,6 +3050,9 @@ HTML;
         if (mf)    mf.textContent    = numFmt2(window._lastTots.fuelL);
         if (mgrdA) mgrdA.textContent = 'Rp ' + rpFmtRaw(window._lastTots.grandRp);
         if (mgrdB) mgrdB.textContent = 'Rp ' + rpFmtRaw(window._lastTots.grandRp);
+        } catch (e) {
+            console.error('[calcTotals] ERROR:', e);
+        }
     };
 
     // =====================================
@@ -3066,6 +3125,10 @@ HTML;
         // --- Initial paint calc (pastikan SHIFT sync dulu baru hitung!) ---
         try { onShiftChange(); } catch (e) { /* noop */ }
         try { calcTotals(); } catch (e) { /* noop */ }
+        // Fallback race-condition mobile-browser: re-hitung 100ms & 300ms setelah load
+        //   (berguna untuk backfill data historical & Chrome Android/Safari iOS yg async paint)
+        setTimeout(function(){ try { onShiftChange(); calcTotals(); } catch(e){} }, 100);
+        setTimeout(function(){ try { onShiftChange(); calcTotals(); } catch(e){} }, 300);
 
         // --- Activity rows dynamic helper ---
         const CAT_OPTIONS_ORDER = ['project', 'operation', 'maintenance', 'landscape'];

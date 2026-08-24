@@ -1225,7 +1225,9 @@ require_once __DIR__ . '/includes/navbar.php';
                     <?php foreach ($utilRows as $idx => $ur):
                         [$label, $icon, $col, $iconBg, $lyVal, $nowVal, $unit, $costLY, $costNow, $cardBg, $cardBorder, $dividerBorder] = array_pad(array_slice($ur, 0, 13), 13, '');
                         if (!$cardBg) { $cardBg = 'bg-slate-50'; $cardBorder = 'border-slate-200'; $dividerBorder = 'border-slate-200/60'; }
-                        $_lyHasData = ($lySameDayCnt > 0);
+                        $_lyMinThresh = [1000, 50, 50, 20];
+                        $_lyThreshOk = ((float)$lyVal >= (float)($_lyMinThresh[$idx] ?? 0));
+                        $_lyHasData = ($lySameDayCnt > 0 && $_lyThreshOk);
                         $lyDisp = $_lyHasData ? uUsage($lyVal, $unit, 0) : '<span class="text-slate-400 italic font-normal text-[13px]">Belum ada data</span>';
                         $nowDisp = uUsage($nowVal, $unit, 0);
                         $delta = 0;
