@@ -145,9 +145,9 @@ $actsGRP_Xl = [
     'landscape'   => actGroupWithStatusXl(buildActivityListQueryXl($db, $userRole, $userId, 'landscape',   $dateFrom, $dateTo)),
 ];
 try {
-    $_tmpMX = $db->fetchAll("SELECT division, activity_name, sort_order, created_at, status_default FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+    $_tmpMX = $db->fetchAll("SELECT division, activity_name, sort_order, created_at, status_default FROM activity_masters ORDER BY FIELD(division,'project','operation','maintenance','landscape'), sort_order ASC, id ASC");
     $_existTX = [];
-    foreach (['operation','maintenance','project','landscape'] as $dv) {
+    foreach (['project','operation','maintenance','landscape'] as $dv) {
         if (!isset($actsGRP_Xl[$dv]) || !is_array($actsGRP_Xl[$dv])) $actsGRP_Xl[$dv] = [];
         foreach ($actsGRP_Xl[$dv] as $_r) {
             $t = mb_strtolower(trim((string)($_r['title'] ?? '')));
@@ -156,7 +156,7 @@ try {
     }
     foreach ($_tmpMX as $_m) {
         $dv = (string)($_m['division'] ?? 'operation');
-        if (!in_array($dv,['operation','maintenance','project','landscape'], true)) $dv = 'operation';
+        if (!in_array($dv,['project','operation','maintenance','landscape'], true)) $dv = 'operation';
         if (!isset($actsGRP_Xl[$dv]) || !is_array($actsGRP_Xl[$dv])) $actsGRP_Xl[$dv] = [];
         $title = trim((string)($_m['activity_name'] ?? ''));
         if ($title === '') continue;

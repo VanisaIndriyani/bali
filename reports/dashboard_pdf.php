@@ -146,9 +146,9 @@ $actsGRP_DP = [
     'landscape'   => actGroupWithStatusDp(buildActivityListQueryDp($db, $userRole, $userId, 'landscape',   $dateFrom, $dateTo)),
 ];
 try {
-    $_tmpM = $db->fetchAll("SELECT division, activity_name, sort_order, created_at, status_default FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+    $_tmpM = $db->fetchAll("SELECT division, activity_name, sort_order, created_at, status_default FROM activity_masters ORDER BY FIELD(division,'project','operation','maintenance','landscape'), sort_order ASC, id ASC");
     $_existT = [];
-    foreach (['operation','maintenance','project','landscape'] as $dv) {
+    foreach (['project','operation','maintenance','landscape'] as $dv) {
         if (!isset($actsGRP_DP[$dv]) || !is_array($actsGRP_DP[$dv])) $actsGRP_DP[$dv] = [];
         foreach ($actsGRP_DP[$dv] as $_r) {
             $t = mb_strtolower(trim((string)($_r['title'] ?? '')));
@@ -157,7 +157,7 @@ try {
     }
     foreach ($_tmpM as $_m) {
         $dv = (string)($_m['division'] ?? 'operation');
-        if (!in_array($dv,['operation','maintenance','project','landscape'], true)) $dv = 'operation';
+        if (!in_array($dv,['project','operation','maintenance','landscape'], true)) $dv = 'operation';
         if (!isset($actsGRP_DP[$dv]) || !is_array($actsGRP_DP[$dv])) $actsGRP_DP[$dv] = [];
         $title = trim((string)($_m['activity_name'] ?? ''));
         if ($title === '') continue;
@@ -417,7 +417,7 @@ $logoSrc = '';
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach (['operation','maintenance','project','landscape'] as $dv):
+                    <?php foreach (['project','operation','maintenance','landscape'] as $dv):
                         $info = $divInfo_DP[$dv] ?? ['label'=>strtoupper($dv),'bg'=>'#f9fafb','ico'=>'fa-list','accent'=>'#6b7280'];
                         $rows = $actsGRP_DP[$dv] ?? [];
                         $nProg = 0; $nDone = 0;

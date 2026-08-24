@@ -428,13 +428,24 @@ $elecTodayWbp   = $log && isset($log['electricity_wbp'])   ? (float)$log['electr
 $elecTodayLwbp  = $log && isset($log['electricity_lwbp'])  ? (float)$log['electricity_lwbp']  : 0.0;
 $elecTodayTotal = $elecTodayWbp + $elecTodayLwbp;
 
-$curLogShift = (!empty($log['shift']) && in_array($log['shift'], $allShifts, true)) ? (string)$log['shift'] : '';
-$existingIsMalam = ($curLogShift === 'malam');
-$mbConsumption = $existingIsMalam ? max(0.0, $mbTodayRead - $mbYesterdayRead) : (float)($log['total_water'] ?? 0);
-$eLwbpConsNow = $existingIsMalam ? (max(0.0, $elecTodayLwbp - $elecYesterdayLwbp) * 8000) : 0.0;
-$eWbpConsNow  = $existingIsMalam ? (max(0.0, $elecTodayWbp  - $elecYesterdayWbp)  * 8000) : 0.0;
-$elecConsumptionNow = $existingIsMalam ? ($eLwbpConsNow + $eWbpConsNow) : (float)($log['total_electricity'] ?? 0);
-unset($eLwbpConsNow, $eWbpConsNow, $existingIsMalam, $curLogShift, $yestRow);
+// Load DEFAULT — SEMUA SHIFT (Pagi/Siang/Malam) AUTO HITUNG sama formula JS
+$_mbTodayRaw = $mbTodayRead;
+$_mbYestRaw  = $mbYesterdayRead;
+$mbConsumptionBase = max(0.0, $_mbTodayRaw - $_mbYestRaw) * 10;
+$mbConsumption = $mbConsumptionBase
+    + (float)($log['water_pdam'] ?? 0)
+    + (float)($log['water_iki_gaban'] ?? 0)
+    + (float)($log['water_deepwell_1'] ?? 0)
+    + (float)($log['water_deepwell_2_brr'] ?? 0)
+    + (float)($log['water_deepwell_asean'] ?? 0)
+    + (float)($log['water_deepwell_lpb'] ?? 0)
+    + (float)($log['water_cooling_tower'] ?? 0)
+    + (float)($log['water_bottling'] ?? 0)
+    + (float)($log['water_irrigation'] ?? 0);
+$eLwbpConsNow = max(0.0, $elecTodayLwbp - $elecYesterdayLwbp) * 8000;
+$eWbpConsNow  = max(0.0, $elecTodayWbp  - $elecYesterdayWbp)  * 8000;
+$elecConsumptionNow = $eLwbpConsNow + $eWbpConsNow;
+unset($eLwbpConsNow, $eWbpConsNow, $yestRow, $_mbTodayRaw, $_mbYestRaw, $mbConsumptionBase);
 
 $yElecWbpJs   = (float)$elecYesterdayWbp;
 $yElecLwbpJs  = (float)$elecYesterdayLwbp;
@@ -452,21 +463,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $shift = trim((string)($_POST['shift'] ?? ''));
     if (!in_array($shift, $allShifts, true)) $shift = $defaultShiftNow;
 
-    // ① Electricity Subdetails — Phase 2c: use normalizeDecimalInput
+    // ① Electricity Subdetails — Phase 2c: use normalizeDecimalInput — SEMUA SHIFT AUTO HITUNG
     $eWbp   = (float)normalizeDecimalInput($_POST['electricity_wbp'] ?? 0);
     $eLwbp  = (float)normalizeDecimalInput($_POST['electricity_lwbp'] ?? 0);
     $eTodayTotal = $eWbp + $eLwbp;
     $isShiftMalam = ($shift === 'malam');
-    if ($isShiftMalam) {
-        $_eLWBP = max(0.0, $eLwbp - $elecYesterdayLwbp) * 8000;
-        $_eWBP  = max(0.0, $eWbp  - $elecYesterdayWbp)  * 8000;
-        $electricity = $_eLWBP + $_eWBP;
-        unset($_eLWBP, $_eWBP);
-    } else {
-        $electricity = 0.0;
-    }
+    $_eLWBP = max(0.0, $eLwbp - $elecYesterdayLwbp) * 8000;
+    $_eWBP  = max(0.0, $eWbp  - $elecYesterdayWbp)  * 8000;
+    $electricity = $_eLWBP + $_eWBP;
+    unset($_eLWBP, $_eWBP);
 
-    // ② Water 9+ sources — Phase 2c: use normalizeDecimalInput + ADD water_irrigation
+    // ② Water 9+ sources — Phase 2c: use normalizeDecimalInput + ADD water_irrigation — SEMUA SHIFT AUTO HITUNG (sama formula JS)
     $wPdam   = (float)normalizeDecimalInput($_POST['water_pdam'] ?? 0);
     $wIki    = (float)normalizeDecimalInput($_POST['water_iki_gaban'] ?? 0);
     $wDw1    = (float)normalizeDecimalInput($_POST['water_deepwell_1'] ?? 0);
@@ -474,19 +481,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $wDwAsean= (float)normalizeDecimalInput($_POST['water_deepwell_asean'] ?? 0);
     $wDwLpb  = (float)normalizeDecimalInput($_POST['water_deepwell_lpb'] ?? 0);
     $wMainBldgRead = (float)normalizeDecimalInput($_POST['water_main_building'] ?? 0);
-    if ($isShiftMalam) {
-        $wMainBldgConsRaw = max(0.0, $wMainBldgRead - $mbYesterdayRead);
-        $wMainBldgCons = $wMainBldgConsRaw * 10;
-        $water = $wMainBldgCons;
-    } else {
-        $wMainBldgCons = 0.0;
-        $water = 0.0;
-    }
+    $wMainBldgConsRaw = max(0.0, $wMainBldgRead - $mbYesterdayRead);
+    $wMainBldgCons = $wMainBldgConsRaw * 10;
     $wMainBldg = $wMainBldgRead;
     $wCooling  = (float)normalizeDecimalInput($_POST['water_cooling_tower'] ?? 0);
     $wBottling = (float)normalizeDecimalInput($_POST['water_bottling'] ?? 0);
     $wIrrigation = (float)normalizeDecimalInput($_POST['water_irrigation'] ?? 0);
-    unset($eTodayTotal);
+    $water = $wMainBldgCons + $wPdam + $wIki + $wDw1 + $wDw2 + $wDwAsean + $wDwLpb + $wCooling + $wBottling + $wIrrigation;
+    unset($eTodayTotal, $wMainBldgConsRaw);
 
     // ③ Gas 2 types
     $gLpg = (float)normalizeDecimalInput($_POST['gas_lpg'] ?? 0);
@@ -563,7 +565,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     unset($cleanTarFn, $_defTar);
 
     // ⑨ Activity Counters
-    $actCats = ['operation','maintenance','project','landscape'];
+    $actCats = ['project','operation','maintenance','landscape'];
     $actOp = $actMaint = $actProj = $actLand = 0;
     $activities = trim($_POST['work_activities'] ?? '');
     $actItems = $_POST['act'] ?? [];
@@ -709,7 +711,7 @@ $log = $db->fetchOne(
 
 $existingActivities = [];
 if ($log && !empty($log['id'])) {
-    $existingActivities = $db->fetchAll("SELECT id, category, activity_title FROM daily_log_activities WHERE daily_log_id = ? ORDER BY sort_order ASC, id ASC", [(int)$log['id']]);
+    $existingActivities = $db->fetchAll("SELECT id, category, activity_title FROM daily_log_activities WHERE daily_log_id = ? ORDER BY FIELD(category,'project','operation','maintenance','landscape'), sort_order ASC, id ASC", [(int)$log['id']]);
 }
 
 // =========================================================
@@ -1508,40 +1510,18 @@ HTML;
                         <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-white/85">kWh</span>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                    <?php
-                    $waterFields = [
-                        ['water_pdam', T('form_water_pdam', 'PDAM')],
-                        ['water_iki_gaban', T('form_water_iki', 'Iki Gaban')],
-                        ['water_deepwell_1', T('form_water_dw1', 'Deep Well 1')],
-                        ['water_deepwell_2_brr', T('form_water_dw2', 'DW 2 BRR')],
-                        ['water_deepwell_asean', T('form_water_dw_asean', 'DW ASEAN')],
-                        ['water_deepwell_lpb', T('form_water_dw_lpb', 'DW LPB')],
-                        ['water_cooling_tower', T('form_water_ct', 'Cooling Tower')],
-                        ['water_bottling', T('form_water_bot', 'Bottling')],
-                    ];
-                    foreach ($waterFields as $wf) {
-                        [$field, $label] = $wf;
-                        $val = $log[$field] ?? '0.00';
-                        echo <<<HTML
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-700 mb-1.5">{$label}</label>
-                        <div class="relative">
-                            <input type="number" step="0.01" min="0" name="{$field}" oninput="calcTotals()" value="{$val}"
-                                class="js-norm-dec w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
-                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[9.5px] font-bold text-slate-500">m3</span>
-                        </div>
-                    </div>
-HTML;
-                    }
-                    ?>
-                </div>
             </div>
         </div>
 
+        <!-- ════════════════════════════════════════════════════════════════ -->
+        <div class="my-6 flex items-center gap-3">
+            <div class="flex-1 h-px bg-dashed bg-slate-300"></div>
+            <span class="text-[10px] font-extrabold tracking-[0.2em] text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-3 py-1">UTILITY — AIR (PDAM, DEEPWELL, MB, IRIGASI, DLL)</span>
+            <div class="flex-1 h-px bg-dashed bg-slate-300"></div>
+        </div>
         <!-- ② KONSUMSI AIR -->
-        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div class="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100">
+        <div class="bg-white rounded-xl border-2 border-sky-200/80 overflow-hidden shadow-sm">
+            <div class="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100 bg-sky-50/70">
                 <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
                     <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-sky-50 text-sky-700 font-black text-[12px] mr-2">2</span><i class="fas fa-droplet mr-1.5 text-sky-600"></i>Konsumsi Air
                 </h3>
@@ -1580,14 +1560,42 @@ HTML;
                         <?php endif; ?>
                     </div>
                     <div>
-                        <label class="block text-[11px] font-semibold text-slate-700 mb-1.5">Water Irrigation</label>
+                        <label class="block text-[11px] font-semibold text-slate-700 mb-1.5">Water PDAM</label>
                         <div class="relative">
-                            <input type="number" step="0.01" min="0" name="water_irrigation" oninput="calcTotals()"
-                                value="<?= $log['water_irrigation'] ?? '0.00' ?>"
+                            <input type="number" step="0.01" min="0" name="water_pdam" oninput="calcTotals()"
+                                value="<?= $log['water_pdam'] ?? '0.00' ?>"
                                 class="js-norm-dec w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
                             <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[9.5px] font-bold text-slate-500">m3</span>
                         </div>
                     </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <?php
+                    $waterFields = [
+                        ['water_iki_gaban', 'Iki Gaban'],
+                        ['water_deepwell_1', 'Deep Well 1'],
+                        ['water_deepwell_2_brr', 'DW 2 BRR'],
+                        ['water_deepwell_asean', 'DW ASEAN'],
+                        ['water_deepwell_lpb', 'DW LPB'],
+                        ['water_cooling_tower', 'Cooling Tower'],
+                        ['water_bottling', 'Bottling'],
+                        ['water_irrigation', 'Water Irrigation'],
+                    ];
+                    foreach ($waterFields as $wf) {
+                        [$field, $label] = $wf;
+                        $val = $log[$field] ?? '0.00';
+                        echo <<<HTML
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-700 mb-1.5">{$label}</label>
+                        <div class="relative">
+                            <input type="number" step="0.01" min="0" name="{$field}" oninput="calcTotals()" value="{$val}"
+                                class="js-norm-dec w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[9.5px] font-bold text-slate-500">m3</span>
+                        </div>
+                    </div>
+HTML;
+                    }
+                    ?>
                 </div>
                 <div>
                     <label class="block text-[11px] font-semibold text-slate-700 mb-1.5">TOTAL AIR</label>
@@ -1601,9 +1609,15 @@ HTML;
             </div>
         </div>
 
+        <!-- ════════════════════════════════════════════════════════════════ -->
+        <div class="my-6 flex items-center gap-3">
+            <div class="flex-1 h-px bg-dashed bg-slate-300"></div>
+            <span class="text-[10px] font-extrabold tracking-[0.2em] text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-3 py-1">UTILITY — GAS LPG & LNG</span>
+            <div class="flex-1 h-px bg-dashed bg-slate-300"></div>
+        </div>
         <!-- ③ KONSUMSI GAS -->
-        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div class="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100">
+        <div class="bg-white rounded-xl border-2 border-orange-200/80 overflow-hidden shadow-sm">
+            <div class="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100 bg-orange-50/70">
                 <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
                     <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-orange-50 text-orange-700 font-black text-[12px] mr-2">3</span><i class="fas fa-fire mr-1.5 text-orange-600"></i>Konsumsi Gas
                 </h3>
@@ -1641,9 +1655,15 @@ HTML;
             </div>
         </div>
 
+        <!-- ════════════════════════════════════════════════════════════════ -->
+        <div class="my-6 flex items-center gap-3">
+            <div class="flex-1 h-px bg-dashed bg-slate-300"></div>
+            <span class="text-[10px] font-extrabold tracking-[0.2em] text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-3 py-1">DEDUCTION — TENANT / VENDOR (SWRO, 916, PT MAC, BIOSYSTEM)</span>
+            <div class="flex-1 h-px bg-dashed bg-slate-300"></div>
+        </div>
         <!-- ④ DEDUCTION -->
-        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div class="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100">
+        <div class="bg-white rounded-xl border-2 border-slate-300 overflow-hidden shadow-sm">
+            <div class="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100 bg-slate-100">
                 <h3 class="font-semibold text-sm text-slate-800 flex items-center gap-2">
                     <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 text-slate-700 font-black text-[12px] mr-2">4</span><i class="fas fa-scissors mr-1.5 text-slate-600"></i>Deduction (Tenant / Vendor)
                 </h3>
@@ -1979,19 +1999,16 @@ HTML;
                     $sb = $eq['steam_boiler']['units'][$i];
                     $opName = $i === 1 ? 'sb_unit_op' : 'sb_unit_op_2';
                     $pressName = $i === 1 ? 'steam_boiler_pressure' : 'steam_boiler_pressure_2';
+                    $_sbOpCur = (string)$sb['op'];
+                    if (!in_array($_sbOpCur, ['on','off'], true)) $_sbOpCur = ($_sbOpCur !== '' && $_sbOpCur !== 'off') ? 'on' : 'off';
                 ?>
                 <div class="p-3 rounded-lg border border-slate-200 bg-slate-50/50 space-y-2.5">
                     <div class="text-[11px] font-bold text-slate-700 border-b border-dashed border-slate-200 pb-1">Unit <?= $i ?></div>
                     <div>
                         <label class="block text-[10.5px] font-medium text-slate-600 mb-1">Op Status</label>
                         <select name="<?= $opName ?>" class="w-full px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
-                            <?php
-                            $opOptions = ['off' => 'Off', '1' => 'Unit 1', '2' => 'Unit 2'];
-                            foreach ($opOptions as $opK => $opLbl) {
-                                $sel = $sb['op'] === $opK ? 'selected' : '';
-                                echo "<option value=\"{$opK}\" {$sel}>{$opLbl}</option>";
-                            }
-                            ?>
+                            <option value="on"  <?= $_sbOpCur === 'on'  ? 'selected' : '' ?>>ON</option>
+                            <option value="off" <?= $_sbOpCur === 'off' ? 'selected' : '' ?>>OFF</option>
                         </select>
                     </div>
                     <div>
@@ -2018,19 +2035,16 @@ HTML;
                         $opName = $i === 1 ? 'hwb_unit_op' : 'hwb_unit_op_2';
                         $tempName = $i === 1 ? 'hwb_temp' : 'hwb_temp_2';
                         $pressName = $i === 1 ? 'hwb_press' : 'hwb_press_2';
+                        $_hwbOpCur = (string)$hwb['op'];
+                        if (!in_array($_hwbOpCur, ['on','off'], true)) $_hwbOpCur = ($_hwbOpCur !== '' && $_hwbOpCur !== 'off') ? 'on' : 'off';
                     ?>
                     <div class="p-3 rounded-lg border border-slate-200 bg-slate-50/50 space-y-2.5">
                         <div class="text-[11px] font-bold text-slate-700 border-b border-dashed border-slate-200 pb-1">Unit <?= $i ?></div>
                         <div>
                             <label class="block text-[10.5px] font-medium text-slate-600 mb-1">Op Status</label>
                             <select name="<?= $opName ?>" class="w-full px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
-                                <?php
-                                $opOptions = ['off' => 'Off', '1' => 'Unit 1', '2' => 'Unit 2'];
-                                foreach ($opOptions as $opK => $opLbl) {
-                                    $sel = $hwb['op'] === $opK ? 'selected' : '';
-                                    echo "<option value=\"{$opK}\" {$sel}>{$opLbl}</option>";
-                                }
-                                ?>
+                                <option value="on"  <?= $_hwbOpCur === 'on'  ? 'selected' : '' ?>>ON</option>
+                                <option value="off" <?= $_hwbOpCur === 'off' ? 'selected' : '' ?>>OFF</option>
                             </select>
                         </div>
                         <div>
@@ -2079,19 +2093,16 @@ HTML;
                     $tempName = "hp_temp_{$i}";
                     $pressName = "hp_press_{$i}";
                     if ($i === 1) { $opName = 'hp_unit_op'; $tempName = 'hp_temp'; $pressName = 'hp_press'; }
+                    $_hpOpCur = (string)$hp['op'];
+                    if (!in_array($_hpOpCur, ['on','off'], true)) $_hpOpCur = ($_hpOpCur !== '' && $_hpOpCur !== 'off') ? 'on' : 'off';
                 ?>
                 <div class="p-3 rounded-lg border border-slate-200 bg-slate-50/50 space-y-2.5">
                     <div class="text-[11px] font-bold text-slate-700 border-b border-dashed border-slate-200 pb-1">Unit <?= $i ?></div>
                     <div>
                         <label class="block text-[10.5px] font-medium text-slate-600 mb-1">Op Status</label>
                         <select name="<?= $opName ?>" class="w-full px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
-                            <?php
-                            $opOptions = ['off' => 'Off', '1' => 'Unit 1', '2' => 'Unit 2', '3' => 'Unit 3'];
-                            foreach ($opOptions as $opK => $opLbl) {
-                                $sel = $hp['op'] === $opK ? 'selected' : '';
-                                echo "<option value=\"{$opK}\" {$sel}>{$opLbl}</option>";
-                            }
-                            ?>
+                            <option value="on"  <?= $_hpOpCur === 'on'  ? 'selected' : '' ?>>ON</option>
+                            <option value="off" <?= $_hpOpCur === 'off' ? 'selected' : '' ?>>OFF</option>
                         </select>
                     </div>
                     <div>
@@ -2181,7 +2192,7 @@ HTML;
                                 <label class="block text-[10.5px] font-medium text-slate-600 mb-1">Status</label>
                                 <select name="pump_sfpump_status" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
                                     <?php
-                                    $statOpts = ['on' => 'On', 'off' => 'Off', 'standby' => 'Standby'];
+                                    $statOpts = ['on' => 'On', 'off' => 'Off'];
                                     $cur = $eq['pump']['sfpump_status'] ?? 'off';
                                     foreach ($statOpts as $k => $l) {
                                         $s = $cur === $k ? 'selected' : '';
@@ -2221,7 +2232,7 @@ HTML;
                                 <label class="block text-[10.5px] font-medium text-slate-600 mb-1">Status</label>
                                 <select name="pump_hydrant_status" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
                                     <?php
-                                    $statOpts = ['on' => 'On', 'off' => 'Off', 'standby' => 'Standby'];
+                                    $statOpts = ['on' => 'On', 'off' => 'Off'];
                                     $cur = $eq['pump']['hydrant_status'] ?? 'off';
                                     foreach ($statOpts as $k => $l) {
                                         $s = $cur === $k ? 'selected' : '';
@@ -2258,7 +2269,7 @@ HTML;
                                 <label class="block text-[10.5px] font-medium text-slate-600 mb-1">Status</label>
                                 <select name="pump_jockey_status" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
                                     <?php
-                                    $statOpts = ['on' => 'On', 'off' => 'Off', 'standby' => 'Standby'];
+                                    $statOpts = ['on' => 'On', 'off' => 'Off'];
                                     $cur = $eq['pump']['jockey_status'] ?? 'off';
                                     foreach ($statOpts as $k => $l) {
                                         $s = $cur === $k ? 'selected' : '';
@@ -2288,90 +2299,17 @@ HTML;
                         </div>
                     </div>
                 </div>
-                <!-- Irrigation Pump (bottom single) -->
-                <?php
-                $irigStatus = $eq['pump']['irigation_status'] ?? 'off';
-                $irigUnitOp = $eq['pump']['irigation_unit_op'] ?? '1';
-                $irigPressure = $eq['pump']['irigation_pressure'] ?? 0;
-                ?>
-                <div class="p-3 rounded-lg border border-slate-200 bg-slate-50/50">
-                    <div class="text-[11px] font-bold text-slate-700 border-b border-dashed border-slate-200 pb-1 mb-2.5">Irrigation Pump</div>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                        <div>
-                            <label class="block text-[10.5px] font-medium text-slate-600 mb-1">Status</label>
-                            <select name="pump_irigation_status" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
-                                <?php
-                                $statOpts = ['on' => 'On', 'off' => 'Off', 'standby' => 'Standby'];
-                                foreach ($statOpts as $k => $l) {
-                                    $s = $irigStatus === $k ? 'selected' : '';
-                                    echo "<option value=\"{$k}\" {$s}>{$l}</option>";
-                                }
-                                ?>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10.5px] font-medium text-slate-600 mb-1">Unit Op</label>
-                            <select name="pump_irigation_unit_op" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
-                                <?php
-                                $opOpts = ['1' => 'Unit 1', '2' => 'Unit 2', '3' => 'Unit 3', 'off' => 'Off'];
-                                foreach ($opOpts as $k => $l) {
-                                    $s = $irigUnitOp === $k ? 'selected' : '';
-                                    echo "<option value=\"{$k}\" {$s}>{$l}</option>";
-                                }
-                                ?>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10.5px] font-medium text-slate-600 mb-1">Pressure</label>
-                            <input type="number" step="0.01" min="0" name="pump_irigation_pressure" value="<?= $irigPressure ?>"
-                                class="js-norm-dec w-full px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-                            <div>
-                                <label class="block text-[10.5px] font-medium text-slate-600 mb-1">Unit Op</label>
-                                <select name="pump_jockey_unit_op" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
-                                    <?php
-                                    $opOpts = ['1' => 'Unit 1', '2' => 'Unit 2', '3' => 'Unit 3', 'off' => 'Off'];
-                                    $cur = $eq['pump']['jockey_unit_op'] ?? '1';
-                                    foreach ($opOpts as $k => $l) {
-                                        $s = $cur === $k ? 'selected' : '';
-                                        echo "<option value=\"{$k}\" {$s}>{$l}</option>";
-                                    }
-                                    ?>
-                                </select>
-                            </div>
-                            <div class="col-span-2">
-                                <label class="block text-[10.5px] font-medium text-slate-600 mb-1">Pressure</label>
-                                <input type="number" step="0.01" min="0" name="pump_jockey_pressure" value="<?= $eq['pump']['jockey_pressure'] ?? 0 ?>"
-                                    class="js-norm-dec w-full px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
-                            </div>
-                <!-- Irrigation Pump (bottom single card) -->
+                <!-- Irrigation Pump (bottom single card — ONLY 1 block, correct spelling "irrigation") -->
                 <div class="p-3 rounded-lg border border-slate-200 bg-slate-50/50 space-y-2.5">
                     <div class="text-[11px] font-bold text-slate-700 border-b border-dashed border-slate-200 pb-1">Irrigation Pump</div>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                         <div>
                             <label class="block text-[10.5px] font-medium text-slate-600 mb-1">Status</label>
                             <select name="pump_irrigation_status" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
                                 <?php
-                                $statOpts = ['on' => 'On', 'off' => 'Off', 'standby' => 'Standby'];
+                                $statOpts = ['on' => 'On', 'off' => 'Off'];
                                 $cur = $eq['pump']['irrigation_status'] ?? 'off';
                                 foreach ($statOpts as $k => $l) {
-                                    $s = $cur === $k ? 'selected' : '';
-                                    echo "<option value=\"{$k}\" {$s}>{$l}</option>";
-                                }
-                                ?>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10.5px] font-medium text-slate-600 mb-1">Unit Op</label>
-                            <select name="pump_irrigation_unit_op" class="w-full px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold text-slate-800 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-500/10 transition-all">
-                                <?php
-                                $opOpts = ['1' => 'Unit 1', '2' => 'Unit 2', '3' => 'Unit 3', 'off' => 'Off'];
-                                $cur = $eq['pump']['irrigation_unit_op'] ?? '1';
-                                foreach ($opOpts as $k => $l) {
                                     $s = $cur === $k ? 'selected' : '';
                                     echo "<option value=\"{$k}\" {$s}>{$l}</option>";
                                 }
@@ -2385,6 +2323,8 @@ HTML;
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
 
         <!-- 12 RO SYSTEM (Reverse Osmosis) -->
         <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -2960,12 +2900,25 @@ HTML;
         if (ewC) ewC.textContent = numFmt2(eWbpCons) + ' kWh';
         if (elC) elC.textContent = numFmt2(eLwbpCons) + ' kWh';
 
-        // --- Water Main Building --- (SEMUA SHIFT AUTO HITUNG)
+        // --- Water Main Building + PDAM + Sumber Lain --- (SEMUA SHIFT AUTO HITUNG)
         const wmb = document.getElementById('waterMainBuild');
         const wmbVal = wmb ? (parseFloat(normDecStr(wmb.value)) || 0) : 0;
-        const waterCons = Math.max(0, (wmbVal - window.Y_WATER_MB)) * 10;
+        const waterMbCons = Math.max(0, (wmbVal - window.Y_WATER_MB)) * 10;
+        // Tambah semua sumber air langsung: PDAM, Iki Gaban, DW, CT, Bottling, Irrigation
+        const wPdam      = readF('water_pdam');
+        const wIkiGaban  = readF('water_iki_gaban');
+        const wDw1      = readF('water_deepwell_1');
+        const wDw2Brr   = readF('water_deepwell_2_brr');
+        const wDwAsean  = readF('water_deepwell_asean');
+        const wDwLpb   = readF('water_deepwell_lpb');
+        const wCoolingT = readF('water_cooling_tower');
+        const wBottling = readF('water_bottling');
+        const wIrrigation = readF('water_irrigation');
+        const waterCons = waterMbCons + wPdam + wIkiGaban + wDw1 + wDw2Brr + wDwAsean + wDwLpb + wCoolingT + wBottling + wIrrigation;
         const tw = document.getElementById('totalWater');
         if (tw) tw.value = numFmt2(waterCons);
+        const mbSelisih = document.getElementById('mbSelisih');
+        if (mbSelisih) mbSelisih.textContent = numFmt2(waterMbCons);
         const wmc = document.getElementById('waterMainCons');
         if (wmc) wmc.textContent = numFmt2(waterCons) + ' m3';
 

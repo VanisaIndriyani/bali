@@ -113,6 +113,7 @@ $sbCountBadgeActive = '!bg-slate-200 !text-slate-700';
             $energySubCount = 1; // Dashboard = default 1
             if ($isEngineer || $isSupervisor || $isManager) $energySubCount++; // + Isi Daily Log (Manager Access All)
             if ($isSupervisor || $isManager) $energySubCount++; // + Review Daily Log (Manager Access All)
+            if (!$isDashboard) $energyDefaultOpen = 'false'; // Poin 3 Meeting: Default TUTUP sub-menu di luar dashboard utama
             ?>
             <button type="button" id="energyToggleBtn" data-default-open="<?= $energyDefaultOpen ?>"
                     onclick="toggleEnergyMenu(this)"

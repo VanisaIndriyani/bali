@@ -68,7 +68,7 @@ try {
          FROM activity_masters am
          LEFT JOIN users u ON u.id = am.created_by
          WHERE am.status_default='progress'
-         ORDER BY FIELD(am.division,'operation','maintenance','project','landscape'), am.sort_order ASC, am.id ASC"
+         ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC"
     );
     $_defEngName = !empty($user['name']) ? (string)$user['name'] : 'Master Activity';
     foreach ($mstRows as $mr) {

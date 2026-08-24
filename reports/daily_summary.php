@@ -627,8 +627,8 @@ try {
 } catch (Exception $e) { /* KPI tetap isi default - */ }
 
 /* ---------- 6. ENGINEERING ACTIVITIES PER DIVISI (COPY VERBATIM 100% DARI DASHBOARD_ACTIVITIES_PDF.PHP YANG SUDAH TERBUKTI WORKS) -------------- */
-$divisions = ['OPERATION', 'MAINTENANCE', 'PROJECT', 'LANDSCAPE'];
-$divUpperMap = ['operation'=>'OPERATION','maintenance'=>'MAINTENANCE','project'=>'PROJECT','landscape'=>'LANDSCAPE'];
+$divisions = ['PROJECT', 'OPERATION', 'MAINTENANCE', 'LANDSCAPE'];
+$divUpperMap = ['project'=>'PROJECT','operation'=>'OPERATION','maintenance'=>'MAINTENANCE','landscape'=>'LANDSCAPE'];
 $actByDiv = [];
 foreach ($divisions as $d) $actByDiv[$d] = [];
 
@@ -670,9 +670,9 @@ function actGroupWithStatus_Ds($list) {
 /* --- (B) QUERY 4 DIVISI VERBATIM --- */
 try {
     $_actsGRP_Ds = [
+        'project'     => actGroupWithStatus_Ds(buildActivityListQuery_Ds($db, $userRole, $userId, 'project',     $reportDateFrom, $reportDateTo)),
         'operation'   => actGroupWithStatus_Ds(buildActivityListQuery_Ds($db, $userRole, $userId, 'operation',   $reportDateFrom, $reportDateTo)),
         'maintenance' => actGroupWithStatus_Ds(buildActivityListQuery_Ds($db, $userRole, $userId, 'maintenance', $reportDateFrom, $reportDateTo)),
-        'project'     => actGroupWithStatus_Ds(buildActivityListQuery_Ds($db, $userRole, $userId, 'project',     $reportDateFrom, $reportDateTo)),
         'landscape'   => actGroupWithStatus_Ds(buildActivityListQuery_Ds($db, $userRole, $userId, 'landscape',   $reportDateFrom, $reportDateTo)),
     ];
 
@@ -686,9 +686,9 @@ try {
         $_actParamsDs[] = $userId;
     }
     $_actColMapDs = [
+        'project'     => 'activity_project_items',
         'operation'   => 'activity_operation_items',
         'maintenance' => 'activity_maintenance_items',
-        'project'     => 'activity_project_items',
         'landscape'   => 'activity_landscape_items',
     ];
     $_jsonTitleUsedDs = [];
@@ -747,9 +747,9 @@ try {
                                       u.name as created_by_name
                                FROM activity_masters am
                                LEFT JOIN users u ON u.id = am.created_by
-                               ORDER BY FIELD(am.division,'operation','maintenance','project','landscape'), am.sort_order ASC, am.id ASC");
+                               ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC");
     $_existT_Ds = [];
-    foreach (['operation','maintenance','project','landscape'] as $dv) {
+    foreach (['project','operation','maintenance','landscape'] as $dv) {
         if (!isset($_actsGRP_Ds[$dv]) || !is_array($_actsGRP_Ds[$dv])) $_actsGRP_Ds[$dv] = [];
         foreach ($_actsGRP_Ds[$dv] as $_r) {
             $t = mb_strtolower(trim((string)($_r['title'] ?? '')));
@@ -758,7 +758,7 @@ try {
     }
     foreach ($_tmpM_Ds as $_m) {
         $dv = (string)($_m['division'] ?? 'operation');
-        if (!in_array($dv,['operation','maintenance','project','landscape'], true)) $dv = 'operation';
+        if (!in_array($dv,['project','operation','maintenance','landscape'], true)) $dv = 'operation';
         if (!isset($_actsGRP_Ds[$dv]) || !is_array($_actsGRP_Ds[$dv])) $_actsGRP_Ds[$dv] = [];
         $title = trim((string)($_m['activity_name'] ?? ''));
         if ($title === '') continue;

@@ -441,6 +441,69 @@ $_rvBadge = function($v, $type='text') {
                 </div>
                 <p class="text-[10px] text-slate-500 mt-1.5 italic">Input langsung</p>
             </div>
+            <!-- IKI GABAN -->
+            <div class="rounded-lg border border-slate-200 bg-slate-50/50 p-3.5">
+                <p class="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-2">Iki Gaban</p>
+                <div class="flex items-end justify-between">
+                    <div class="text-xl font-bold text-slate-800"><?= formatNumber($log['water_iki_gaban'] ?? 0) ?> <span class="text-[11px] font-semibold text-slate-500">m3</span></div>
+                    <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"><i class="fas fa-faucet text-[11px]"></i></div>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1.5 italic">Input langsung</p>
+            </div>
+            <!-- DEEP WELL 1 -->
+            <div class="rounded-lg border border-slate-200 bg-slate-50/50 p-3.5">
+                <p class="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-2">Deep Well 1</p>
+                <div class="flex items-end justify-between">
+                    <div class="text-xl font-bold text-slate-800"><?= formatNumber($log['water_deepwell_1'] ?? 0) ?> <span class="text-[11px] font-semibold text-slate-500">m3</span></div>
+                    <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"><i class="fas fa-water text-[11px]"></i></div>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1.5 italic">Input langsung</p>
+            </div>
+            <!-- DW 2 BRR -->
+            <div class="rounded-lg border border-slate-200 bg-slate-50/50 p-3.5">
+                <p class="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-2">DW 2 BRR</p>
+                <div class="flex items-end justify-between">
+                    <div class="text-xl font-bold text-slate-800"><?= formatNumber($log['water_deepwell_2_brr'] ?? 0) ?> <span class="text-[11px] font-semibold text-slate-500">m3</span></div>
+                    <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"><i class="fas fa-water text-[11px]"></i></div>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1.5 italic">Input langsung</p>
+            </div>
+            <!-- DW ASEAN -->
+            <div class="rounded-lg border border-slate-200 bg-slate-50/50 p-3.5">
+                <p class="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-2">DW ASEAN</p>
+                <div class="flex items-end justify-between">
+                    <div class="text-xl font-bold text-slate-800"><?= formatNumber($log['water_deepwell_asean'] ?? 0) ?> <span class="text-[11px] font-semibold text-slate-500">m3</span></div>
+                    <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"><i class="fas fa-water text-[11px]"></i></div>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1.5 italic">Input langsung</p>
+            </div>
+            <!-- DW LPB -->
+            <div class="rounded-lg border border-slate-200 bg-slate-50/50 p-3.5">
+                <p class="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-2">DW LPB</p>
+                <div class="flex items-end justify-between">
+                    <div class="text-xl font-bold text-slate-800"><?= formatNumber($log['water_deepwell_lpb'] ?? 0) ?> <span class="text-[11px] font-semibold text-slate-500">m3</span></div>
+                    <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"><i class="fas fa-water text-[11px]"></i></div>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1.5 italic">Input langsung</p>
+            </div>
+            <!-- BOTTLING -->
+            <div class="rounded-lg border border-slate-200 bg-slate-50/50 p-3.5">
+                <p class="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-2">Bottling</p>
+                <div class="flex items-end justify-between">
+                    <div class="text-xl font-bold text-slate-800"><?= formatNumber($log['water_bottling'] ?? 0) ?> <span class="text-[11px] font-semibold text-slate-500">m3</span></div>
+                    <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"><i class="fas fa-bottle-water text-[11px]"></i></div>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1.5 italic">Input langsung</p>
+            </div>
+            <!-- WATER IRRIGATION -->
+            <div class="rounded-lg border border-slate-200 bg-slate-50/50 p-3.5">
+                <p class="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-2">Water Irrigation</p>
+                <div class="flex items-end justify-between">
+                    <div class="text-xl font-bold text-slate-800"><?= formatNumber($log['water_irrigation'] ?? 0) ?> <span class="text-[11px] font-semibold text-slate-500">m3</span></div>
+                    <div class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"><i class="fas fa-seedling text-[11px]"></i></div>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1.5 italic">Input langsung</p>
+            </div>
         </div>
     </div>
 

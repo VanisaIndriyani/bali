@@ -30,7 +30,7 @@ try {
     if (!$chkTbl) {
         $db->query("CREATE TABLE activity_masters (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            division ENUM('operation','maintenance','project','landscape') NOT NULL,
+            division ENUM('project','operation','maintenance','landscape') NOT NULL,
             activity_name VARCHAR(255) NOT NULL,
             status_default ENUM('complete','progress') DEFAULT 'progress',
             sort_order INT DEFAULT 0,
@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // SAVE MASTER (Create / Edit)
     if ($act === 'save_master_activity') {
         $masterId  = max(0, (int)($_POST['master_id'] ?? 0));
-        $div       = in_array(($_POST['division'] ?? ''), ['operation','maintenance','project','landscape']) ? (string)$_POST['division'] : '';
+        $div       = in_array(($_POST['division'] ?? ''), ['project','operation','maintenance','landscape']) ? (string)$_POST['division'] : '';
         $name      = trim((string)($_POST['activity_name'] ?? ''));
         $statusDef = in_array(($_POST['status_default'] ?? ''), ['complete','progress']) ? (string)$_POST['status_default'] : 'progress';
         $sortOrder = max(0, (int)($_POST['sort_order'] ?? 0));
@@ -102,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // FETCH SEMUA MASTER ACTIVITY PER DIVISI (untuk Modal CRUD & Dropdown Form Input)
-$allMasters = $db->fetchAll("SELECT * FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+$allMasters = $db->fetchAll("SELECT * FROM activity_masters ORDER BY FIELD(division,'project','operation','maintenance','landscape'), sort_order ASC, id ASC");
 $mastersByDiv = [
     'operation'   => [],
     'maintenance' => [],
@@ -363,10 +363,10 @@ $masterRowsPerDiv = ['operation'=>[], 'maintenance'=>[], 'project'=>[], 'landsca
 $masterPreviewPerDiv = ['operation'=>[], 'maintenance'=>[], 'project'=>[], 'landscape'=>[]];
 $masterCntPerDiv = ['operation'=>0, 'maintenance'=>0, 'project'=>0, 'landscape'=>0];
 try {
-    $_mastersAll = $db->fetchAll("SELECT id, division, activity_name, sort_order, status_default, created_at FROM activity_masters ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+    $_mastersAll = $db->fetchAll("SELECT id, division, activity_name, sort_order, status_default, created_at FROM activity_masters ORDER BY FIELD(division,'project','operation','maintenance','landscape'), sort_order ASC, id ASC");
     foreach ($_mastersAll as $_m) {
         $dv = (string)($_m['division'] ?? 'operation');
-        if (!in_array($dv, ['operation','maintenance','project','landscape'], true)) $dv = 'operation';
+        if (!in_array($dv, ['project','operation','maintenance','landscape'], true)) $dv = 'operation';
         $ttl = trim((string)($_m['activity_name'] ?? ''));
         if ($ttl === '') continue;
         $st = (strtolower((string)($_m['status_default'] ?? 'progress')) === 'complete') ? 'complete' : 'progress';
@@ -428,7 +428,7 @@ try {
     $mstRows = $db->fetchAll("SELECT id, division, activity_name, status_default, created_at
                               FROM activity_masters
                               WHERE status_default = 'progress'
-                              ORDER BY FIELD(division,'operation','maintenance','project','landscape'),
+                              ORDER BY FIELD(division,'project','operation','maintenance','landscape'),
                                        sort_order ASC, id ASC");
     foreach ($mstRows as $mr) {
         $engActRows[] = [
@@ -515,7 +515,7 @@ require_once __DIR__ . '/../includes/navbar.php';
 
 // âœ¨ PRINT SIMPLE LISTS STYLE DATA
 $printAllActs = [];
-foreach (['operation','maintenance','project','landscape'] as $dv) {
+foreach (['project','operation','maintenance','landscape'] as $dv) {
     foreach ($mastersByDiv[$dv] ?? [] as $mm) $printAllActs[] = $mm;
 }
 if (empty($printAllActs)) {

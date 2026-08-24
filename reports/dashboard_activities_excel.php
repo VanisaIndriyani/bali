@@ -92,9 +92,9 @@ try {
                                             u.name as created_by_name
                                      FROM activity_masters am
                                      LEFT JOIN users u ON u.id = am.created_by
-                                     ORDER BY FIELD(am.division,'operation','maintenance','project','landscape'), am.sort_order ASC, am.id ASC");
+                                     ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC");
     $_existingTitleAct = [];
-    foreach (['operation','maintenance','project','landscape'] as $dv) {
+    foreach (['project','operation','maintenance','landscape'] as $dv) {
         if (!isset($actsGRP[$dv]) || !is_array($actsGRP[$dv])) $actsGRP[$dv] = [];
         foreach ($actsGRP[$dv] as $_r) {
             $t = mb_strtolower(trim((string)($_r['title'] ?? '')));
@@ -104,7 +104,7 @@ try {
     $_defEngExcel = !empty($user['name']) ? (string)$user['name'] : '- (Master Activity)';
     foreach ($_tmpMastersAct as $_m) {
         $dv = (string)($_m['division'] ?? 'operation');
-        if (!in_array($dv,['operation','maintenance','project','landscape'], true)) $dv = 'operation';
+        if (!in_array($dv,['project','operation','maintenance','landscape'], true)) $dv = 'operation';
         if (!isset($actsGRP[$dv]) || !is_array($actsGRP[$dv])) $actsGRP[$dv] = [];
         $title = trim((string)($_m['activity_name'] ?? ''));
         if ($title === '') continue;
@@ -200,7 +200,7 @@ function fmtDtXls($d) { if (strlen((string)$d)<8) return '-'; try { return (new 
     <div class="chip">📋 total aktivitas <strong><?= number_format($totalActivities,0,',','.') ?></strong></div>
     <div class="chip">⏳ in progress <strong style="color:#92400e;"><?= number_format($totalProgress,0,',','.') ?></strong></div>
     <div class="chip">✅ complete <strong style="color:#15803d;"><?= number_format($totalComplete,0,',','.') ?></strong></div>
-    <?php foreach (['operation','maintenance','project','landscape'] as $dv):
+    <?php foreach (['project','operation','maintenance','landscape'] as $dv):
         $cnt = count($actsGRP[$dv] ?? []);
         if ($cnt <= 0) continue;
     ?>

@@ -94,7 +94,7 @@ try {
  * BUKAN FALLBACK IF KOSONG!
  * ============================================= */
 try {
-    $masterAllRows = $db->fetchAll("SELECT division, activity_name, status_default FROM activity_masters WHERE status = 'active' ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC");
+    $masterAllRows = $db->fetchAll("SELECT division, activity_name, status_default FROM activity_masters WHERE status = 'active' ORDER BY FIELD(division,'project','operation','maintenance','landscape'), sort_order ASC, id ASC");
     $existingTitles = [];
     foreach ($divisions as $d) {
         $dv = strtolower($d);

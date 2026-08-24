@@ -13,16 +13,16 @@ $monthLabel = (new DateTime($monthRaw . '-01'))->format('M Y');
 
 $divFilter = '';
 $params = [];
-if ($division !== 'all' && in_array($division, ['operation','maintenance','project','landscape'], true)) {
+if ($division !== 'all' && in_array($division, ['project','operation','maintenance','landscape'], true)) {
     $divFilter = " WHERE division = ? ";
     $params[] = $division;
 }
 $allMasters = $db->fetchAll(
-    "SELECT * FROM activity_masters $divFilter ORDER BY FIELD(division,'operation','maintenance','project','landscape'), sort_order ASC, id ASC",
+    "SELECT * FROM activity_masters $divFilter ORDER BY FIELD(division,'project','operation','maintenance','landscape'), sort_order ASC, id ASC",
     $params
 );
 
-$divisions = ['operation','maintenance','project','landscape'];
+$divisions = ['project','operation','maintenance','landscape'];
 $divLabelMap = ['operation'=>'operation','maintenance'=>'maintenance','project'=>'project','landscape'=>'landscape'];
 $divColorMap = ['operation'=>'#475569','maintenance'=>'#475569','project'=>'#475569','landscape'=>'#475569'];
 

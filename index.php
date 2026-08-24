@@ -437,6 +437,7 @@ $lastYearDays = 365;
 //    Misal: utilDisplayDate = 19/08/2026 → LY = data tanggal 19/08/2025 (single date, bukan rata-rata 1 tahun)
 $sameDayLastYear = date('Y-m-d', strtotime($utilDisplayDate . ' -1 year'));
 $lySameDayBoth = utilFetchBoth_Db($db, "status='approved' $statusWhere", $userId, $userRole, $sameDayLastYear, $sameDayLastYear, 'SUM', $TARIF);
+$lySameDayCnt  = (int)($lySameDayBoth['cnt'] ?? 0);
 $lyElecAvg  = (float)($lySameDayBoth['elec']  ?? 0);
 $lyWaterAvg = (float)($lySameDayBoth['water'] ?? 0);
 $lyGasAvg   = (float)($lySameDayBoth['gas']   ?? 0);
@@ -1224,10 +1225,11 @@ require_once __DIR__ . '/includes/navbar.php';
                     <?php foreach ($utilRows as $idx => $ur):
                         [$label, $icon, $col, $iconBg, $lyVal, $nowVal, $unit, $costLY, $costNow, $cardBg, $cardBorder, $dividerBorder] = array_pad(array_slice($ur, 0, 13), 13, '');
                         if (!$cardBg) { $cardBg = 'bg-slate-50'; $cardBorder = 'border-slate-200'; $dividerBorder = 'border-slate-200/60'; }
-                        $lyDisp = uUsage($lyVal, $unit, 0);
+                        $_lyHasData = ($lySameDayCnt > 0);
+                        $lyDisp = $_lyHasData ? uUsage($lyVal, $unit, 0) : '<span class="text-slate-400 italic font-normal text-[13px]">Belum ada data</span>';
                         $nowDisp = uUsage($nowVal, $unit, 0);
                         $delta = 0;
-                        if ((float)$lyVal > 0) $delta = round((((float)$nowVal - (float)$lyVal) / (float)$lyVal) * 100, 1);
+                        if ($_lyHasData && (float)$lyVal > 0) $delta = round((((float)$nowVal - (float)$lyVal) / (float)$lyVal) * 100, 1);
                         $deltaUp = $delta > 0;
                     ?>
                         <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:px-3.5 sm:py-3 shadow-sm transition-all duration-150">
@@ -1254,10 +1256,10 @@ require_once __DIR__ . '/includes/navbar.php';
                                 <div class="flex items-center justify-between items-baseline gap-2">
                                     <p class="font-mono font-black text-[15px] sm:text-lg text-slate-700 leading-none">
                                         <?= $lyDisp ?>
-                                        <span class="text-[10px] font-bold text-slate-500 ml-0.5"><?= $unit ?></span>
+                                        <?php if ($_lyHasData): ?><span class="text-[10px] font-bold text-slate-500 ml-0.5"><?= $unit ?></span><?php endif; ?>
                                     </p>
                                     <p class="font-mono font-bold text-[11px] sm:text-[12px] text-slate-600 leading-none whitespace-nowrap">
-                                        Rp <?= fmtRupiah($costLY) ?>
+                                        <?= $_lyHasData ? 'Rp ' . fmtRupiah($costLY) : '<span class="text-slate-400 italic font-normal">&mdash;</span>' ?>
                                     </p>
                                 </div>
                             </div>
@@ -1271,8 +1273,10 @@ require_once __DIR__ . '/includes/navbar.php';
                                     <p class="text-[9px] font-black uppercase tracking-[0.16em] text-slate-700">TODAY</p>
                                     <div class="flex items-center gap-1.5">
                                         <span class="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">Cost</span>
-                                        <span class="hidden sm:inline text-[8px] font-black px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700">
-                                            <?php if ((float)$lyVal > 0):
+                                        <span class="hidden sm:inline text-[8px] font-black px-1.5 py-0.5 rounded-full <?= $_lyHasData ? 'bg-slate-100 border border-slate-200 text-slate-700' : 'bg-amber-50 border border-amber-200 text-amber-700' ?>">
+                                            <?php if (!$_lyHasData):
+                                                echo 'Belum ada data LY';
+                                            elseif ((float)$lyVal > 0):
                                                 echo ($deltaUp ? '&#9650;+' : '&#9660;') . $delta . '%';
                                             else: echo '&ndash;'; endif; ?>
                                         </span>
