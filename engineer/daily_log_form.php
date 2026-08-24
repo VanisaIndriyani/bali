@@ -2906,25 +2906,23 @@ HTML;
         if (sel) {
             window.SHIFT_MALAM = (sel.value === 'malam');
         }
-        // Notice update
+        // Notice update — SEMUA SHIFT hitung otomatis (tanpa gating)
         const en = document.getElementById('elecNotice');
         if (en) {
+            en.className = 'mt-2 text-[10.5px] px-2.5 py-1.5 rounded-md border bg-slate-50 text-slate-700 border-slate-200';
             if (window.SHIFT_MALAM) {
-                en.className = 'mt-2 text-[10.5px] px-2.5 py-1.5 rounded-md border bg-slate-50 text-slate-700 border-slate-200';
-                en.innerHTML = '<i class="fas fa-moon mr-1 text-slate-500"></i><b>Malam</b> &mdash; LWBP/WBP = (Today&minus;Kemarin) &times; 8.000. Total masuk Cost.';
+                en.innerHTML = '<i class="fas fa-moon mr-1 text-slate-500"></i><b>Malam</b> &mdash; LWBP/WBP = (Today&minus;Kemarin) &times; 8.000. Auto-calc Live ✅';
             } else {
-                en.className = 'mt-2 text-[10.5px] px-2.5 py-1.5 rounded-md border bg-white text-slate-600 border-slate-200';
-                en.innerHTML = '<i class="fas fa-circle-check mr-1 text-slate-500"></i><b>Pagi/Siang</b> &mdash; Bisa isi, Total = 0.';
+                en.innerHTML = '<i class="fas fa-sun mr-1 text-amber-500"></i><b>Pagi/Siang</b> &mdash; LWBP/WBP = (Today&minus;Kemarin) &times; 8.000. Auto-calc Live ✅';
             }
         }
         const wn = document.getElementById('waterNotice');
         if (wn) {
+            wn.className = 'mt-2 text-[10.5px] px-2.5 py-1.5 rounded-md border bg-slate-50 text-slate-700 border-slate-200';
             if (window.SHIFT_MALAM) {
-                wn.className = 'mt-2 text-[10.5px] px-2.5 py-1.5 rounded-md border bg-slate-50 text-slate-700 border-slate-200';
-                wn.innerHTML = '<i class="fas fa-moon mr-1 text-slate-500"></i><b>Malam</b> &mdash; Main Building = (Today&minus;Kemarin) &times; 10.';
+                wn.innerHTML = '<i class="fas fa-moon mr-1 text-slate-500"></i><b>Malam</b> &mdash; Main Building = (Today&minus;Kemarin) &times; 10. Auto-calc Live ✅';
             } else {
-                wn.className = 'mt-2 text-[10.5px] px-2.5 py-1.5 rounded-md border bg-white text-slate-600 border-slate-200';
-                wn.innerHTML = '<i class="fas fa-circle-check mr-1 text-slate-500"></i><b>Pagi/Siang</b> &mdash; Bisa isi, Konsumsi MB = 0.';
+                wn.innerHTML = '<i class="fas fa-sun mr-1 text-amber-500"></i><b>Pagi/Siang</b> &mdash; Main Building = (Today&minus;Kemarin) &times; 10. Auto-calc Live ✅';
             }
         }
         calcTotals();
@@ -2949,15 +2947,12 @@ HTML;
     }
 
     window.calcTotals = function () {
-        // --- Listrik ---
+        // --- Listrik --- (SEMUA SHIFT PAGI/SIANG/MALAM = AUTO HITUNG, TANPA GATING)
         const todayWbp  = readF('electricity_wbp');
         const todayLwbp = readF('electricity_lwbp');
-        let eWbpCons = 0, eLwbpCons = 0, elecTotal = 0;
-        if (window.SHIFT_MALAM) {
-            eWbpCons  = Math.max(0, (todayWbp  - window.Y_ELEC_WBP))  * 8000;
-            eLwbpCons = Math.max(0, (todayLwbp - window.Y_ELEC_LWBP)) * 8000;
-            elecTotal = eWbpCons + eLwbpCons;
-        }
+        const eWbpCons  = Math.max(0, (todayWbp  - window.Y_ELEC_WBP))  * 8000;
+        const eLwbpCons = Math.max(0, (todayLwbp - window.Y_ELEC_LWBP)) * 8000;
+        const elecTotal = eWbpCons + eLwbpCons;
         const te = document.getElementById('totalElectricity');
         if (te) te.value = numFmt2(elecTotal);
         const ewC = document.getElementById('elecWbpCons');
@@ -2965,13 +2960,10 @@ HTML;
         if (ewC) ewC.textContent = numFmt2(eWbpCons) + ' kWh';
         if (elC) elC.textContent = numFmt2(eLwbpCons) + ' kWh';
 
-        // --- Water Main Building ---
-        let waterCons = 0;
+        // --- Water Main Building --- (SEMUA SHIFT AUTO HITUNG)
         const wmb = document.getElementById('waterMainBuild');
         const wmbVal = wmb ? (parseFloat(normDecStr(wmb.value)) || 0) : 0;
-        if (window.SHIFT_MALAM) {
-            waterCons = Math.max(0, (wmbVal - window.Y_WATER_MB)) * 10;
-        }
+        const waterCons = Math.max(0, (wmbVal - window.Y_WATER_MB)) * 10;
         const tw = document.getElementById('totalWater');
         if (tw) tw.value = numFmt2(waterCons);
         const wmc = document.getElementById('waterMainCons');
@@ -3102,20 +3094,24 @@ HTML;
     // (c)+(d) DOMContentLoaded: normDec attach + calcTotals initial + Activities dynamic rows
     // =====================================
     document.addEventListener('DOMContentLoaded', function () {
-        // --- Attach normalization listeners ---
+        // --- Attach normalization listeners --- (TAMBAH EVENT INPUT untuk HP realtime auto calc)
         function attachNormDec(root) {
             const scope = root || document;
             const nodes = scope.querySelectorAll('.js-norm-dec, input[type="number"][step][step!="1"]');
             nodes.forEach(function (n) {
                 if (n.__normDecAttached) return;
                 n.__normDecAttached = true;
+                // INPUT: realtime ketik di HP/Desktop langsung hitung (TIDAK perlu blur/keluar field)
+                n.addEventListener('input', function () { normDec(n); });
+                // BLUR/CHANGE: fallback pastikan hitung ketika pindah field / selesai paste
                 n.addEventListener('blur', function () { normDec(n); });
                 n.addEventListener('change', function () { normDec(n); });
             });
         }
         attachNormDec(document);
 
-        // --- Initial paint calc ---
+        // --- Initial paint calc (pastikan SHIFT sync dulu baru hitung!) ---
+        try { onShiftChange(); } catch (e) { /* noop */ }
         try { calcTotals(); } catch (e) { /* noop */ }
 
         // --- Activity rows dynamic helper ---

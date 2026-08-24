@@ -21,6 +21,7 @@ storage/logs/
 # Cache / session
 *.tmp
 *.cache
+storage/sessions/
 
 # IDE / OS
 .idea/
