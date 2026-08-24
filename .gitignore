@@ -1,0 +1,29 @@
+# Environment
+.env
+.env.*
+
+# Temporary debug / sandbox
+_debug*.php
+_test*.php
+_sandbox*.php
+
+# Uploaded user content (dynamic, di-ignore agar tidak overwrite uploadan staging/prod)
+assets/uploads/*
+!assets/uploads/.htaccess
+!assets/uploads/index.html
+!assets/uploads/.gitkeep
+
+# Logs
+*.log
+logs/
+storage/logs/
+
+# Cache / session
+*.tmp
+*.cache
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

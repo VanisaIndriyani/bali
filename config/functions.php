@@ -197,3 +197,31 @@ function addOrderApproval($db, $orderId, $userId, $role, $action, $notes = null)
         return false;
     }
 }
+
+function normalizeDecimalInput($raw) {
+    if ($raw === null || $raw === '') return null;
+    $s = trim((string)$raw);
+    if ($s === '') return 0;
+    $hasComma = (strpos($s, ',') !== false);
+    $hasDot   = (strpos($s, '.') !== false);
+    if ($hasComma && $hasDot) {
+        if (strrpos($s, ',') > strrpos($s, '.')) {
+            $s = str_replace('.', '', $s);
+            $s = str_replace(',', '.', $s);
+        } else {
+            $s = str_replace(',', '', $s);
+        }
+    } elseif ($hasComma && !$hasDot) {
+        $s = str_replace(',', '.', $s);
+    }
+    $s = preg_replace('/[^0-9.\-]/', '', $s);
+    if ($s === '' || $s === '-' || $s === '.') return 0;
+    $v = @floatval($s);
+    return is_finite($v) ? $v : 0;
+}
+
+function normalizeIntInput($raw) {
+    $v = normalizeDecimalInput($raw);
+    if ($v === null) return null;
+    return (int)round((float)$v);
+}

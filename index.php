@@ -488,6 +488,54 @@ $monthlySwro = $db->fetchOne("SELECT COALESCE(SUM(swro_watermeter),0) as total F
 $monthlyBottling = $db->fetchOne("SELECT COALESCE(SUM(bottling_watermeter),0) as total FROM daily_logs WHERE log_date >= ? AND status = 'approved' $statusWhere", [$monthStart])['total'];
 $monthlyChiller = $db->fetchOne("SELECT COALESCE(COUNT(*),0) as total FROM daily_logs WHERE log_date >= ? AND status = 'approved' AND (chiller_1_on = 1 OR chiller_2_on = 1 OR chiller_3_on = 1) $statusWhere", [$monthStart])['total'];
 
+// ============ DEDUCTION REPORT DATA (4 kartu: SWRO, 916, PT Mac, Biosystem) ============
+$_dedTWater = (int)($TARIF['water_per_m3'] ?? 9600);
+$_dedTElec  = (int)($TARIF['electricity_per_kwh'] ?? 1850);
+try {
+    $_dedDedupWhere = "WHERE DATE(log_date) BETWEEN ? AND ? AND status='approved' $statusWhere";
+    $_dedSql = "SELECT
+        COALESCE(SUM(CAST(dl.swro_watermeter AS DECIMAL(18,4))),0)          AS swro_water,
+        COALESCE(SUM(CAST(dl.swro_kwh AS DECIMAL(18,4))),0)                 AS swro_kwh,
+        COALESCE(SUM(CAST(COALESCE(dl.ded_916_water,0) AS DECIMAL(18,4))),0) AS d916_water,
+        COALESCE(SUM(CAST(COALESCE(dl.ded_916_kwh,0) AS DECIMAL(18,4))),0)   AS d916_kwh,
+        COALESCE(SUM(CAST(COALESCE(dl.ded_ptmac_kwh,0) AS DECIMAL(18,4))),0)  AS ptmac_kwh,
+        COALESCE(SUM(CAST(COALESCE(dl.ded_biosystem_water,0) AS DECIMAL(18,4))),0) AS bio_water,
+        COALESCE(SUM(CAST(COALESCE(dl.ded_biosystem_kwh,0) AS DECIMAL(18,4))),0)   AS bio_kwh
+    FROM daily_logs dl
+    INNER JOIN (
+        SELECT MAX(id) AS keep_id
+        FROM daily_logs
+        $_dedDedupWhere
+        GROUP BY DATE(log_date), engineer_id
+    ) k ON k.keep_id = dl.id";
+    $_dedRow = $db->fetchOne($_dedSql, [$monthStart, $today]);
+    if (!$_dedRow) $_dedRow = ['swro_water'=>0,'swro_kwh'=>0,'d916_water'=>0,'d916_kwh'=>0,'ptmac_kwh'=>0,'bio_water'=>0,'bio_kwh'=>0];
+} catch (Throwable $_dedE) {
+    $_dedRow = ['swro_water'=>0,'swro_kwh'=>0,'d916_water'=>0,'d916_kwh'=>0,'ptmac_kwh'=>0,'bio_water'=>0,'bio_kwh'=>0];
+}
+$_ded = [
+    'swro' => [
+        'water' => (float)($_dedRow['swro_water'] ?? 0),
+        'kwh'   => (float)($_dedRow['swro_kwh']   ?? 0),
+    ],
+    'd916' => [
+        'water' => (float)($_dedRow['d916_water'] ?? 0),
+        'kwh'   => (float)($_dedRow['d916_kwh']   ?? 0),
+    ],
+    'ptmac' => [
+        'kwh'   => (float)($_dedRow['ptmac_kwh']  ?? 0),
+    ],
+    'bio' => [
+        'water' => (float)($_dedRow['bio_water']   ?? 0),
+        'kwh'   => (float)($_dedRow['bio_kwh']     ?? 0),
+    ],
+];
+$_ded['swro']['cost']  = $_ded['swro']['water']  * $_dedTWater + $_ded['swro']['kwh']  * $_dedTElec;
+$_ded['d916']['cost']  = $_ded['d916']['water']  * $_dedTWater + $_ded['d916']['kwh']  * $_dedTElec;
+$_ded['ptmac']['cost'] = $_ded['ptmac']['kwh'] * $_dedTElec;
+$_ded['bio']['cost']   = $_ded['bio']['water']   * $_dedTWater + $_ded['bio']['kwh']   * $_dedTElec;
+unset($_dedDedupWhere, $_dedSql, $_dedRow, $_dedTWater, $_dedTElec);
+
 $whereClause = $userRole === 'engineer' ? "WHERE engineer_id = $userId" : "";
 $recentLogs = $db->fetchAll("SELECT dl.*, u.name as engineer_name FROM daily_logs dl LEFT JOIN users u ON dl.engineer_id = u.id $whereClause ORDER BY dl.log_date DESC LIMIT 5");
 
@@ -720,9 +768,9 @@ function dashGroupByDate(&$list) {
     return $ordered;
 }
 $actsGRP = [
+    'project'     => actGroupWithStatus($actListProj),
     'operation'   => actGroupWithStatus($actListOp),
     'maintenance' => actGroupWithStatus($actListMaint),
-    'project'     => actGroupWithStatus($actListProj),
     'landscape'   => actGroupWithStatus($actListLand),
 ];
 
@@ -739,9 +787,9 @@ try {
         $actParams[] = $userId;
     }
     $actColMap = [
+        'project'     => 'activity_project_items',
         'operation'   => 'activity_operation_items',
         'maintenance' => 'activity_maintenance_items',
-        'project'     => 'activity_project_items',
         'landscape'   => 'activity_landscape_items',
     ];
     $_jsonTitleUsed = [];
@@ -800,9 +848,9 @@ function fetchProgressActivities($db, $userRole, $userId, $dateFrom, $dateTo) {
         $params[] = $userId;
     }
     $colMap = [
+        'project'     => 'activity_project_items',
         'operation'   => 'activity_operation_items',
         'maintenance' => 'activity_maintenance_items',
-        'project'     => 'activity_project_items',
         'landscape'   => 'activity_landscape_items',
     ];
     $out = [];
@@ -844,9 +892,9 @@ function fetchProgressActivities($db, $userRole, $userId, $dateFrom, $dateTo) {
     return $out;
 }
 $divInfo = [
+    'project'     => ['label'=>'PROJECT',     'icon'=>'<i class="fas fa-diagram-project"></i>', 'col'=>'text-slate-700', 'bg'=>'bg-slate-50', 'chip'=>'bg-slate-100 border-slate-200 text-slate-700'],
     'operation'   => ['label'=>'OPERATION',   'icon'=>'<i class="fas fa-gear"></i>',            'col'=>'text-slate-700', 'bg'=>'bg-slate-50', 'chip'=>'bg-slate-100 border-slate-200 text-slate-700'],
     'maintenance' => ['label'=>'MAINTENANCE', 'icon'=>'<i class="fas fa-wrench"></i>',          'col'=>'text-slate-700', 'bg'=>'bg-slate-50', 'chip'=>'bg-slate-100 border-slate-200 text-slate-700'],
-    'project'     => ['label'=>'PROJECT',     'icon'=>'<i class="fas fa-diagram-project"></i>', 'col'=>'text-slate-700', 'bg'=>'bg-slate-50', 'chip'=>'bg-slate-100 border-slate-200 text-slate-700'],
     'landscape'   => ['label'=>'LANDSCAPE',   'icon'=>'<i class="fas fa-leaf"></i>',            'col'=>'text-slate-700', 'bg'=>'bg-slate-50', 'chip'=>'bg-slate-100 border-slate-200 text-slate-700'],
 ];
 $progressActivities = fetchProgressActivities($db, $userRole, $userId, $monthStart, $today);
@@ -865,7 +913,7 @@ try {
                                   FROM activity_masters am
                                   LEFT JOIN users u ON u.id = am.created_by
                                   $masterWhere
-                                  ORDER BY FIELD(am.division,'operation','maintenance','project','landscape'), am.sort_order ASC, am.id ASC", $masterParams);
+                                  ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC", $masterParams);
     $titleUsedDaily = [];
     foreach ($progressActivities as $pd) { if ($pd['source'] === 'daily_log') $titleUsedDaily[mb_strtolower(trim((string)($pd['activity'] ?? '')))] = true; }
     $idxDaily = count($progressActivities);
@@ -917,15 +965,15 @@ try {
                                             u.name as created_by_name
                                      FROM activity_masters am
                                      LEFT JOIN users u ON u.id = am.created_by
-                                     ORDER BY FIELD(am.division,'operation','maintenance','project','landscape'), am.sort_order ASC, am.id ASC");
+                                     ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC");
     $_existingTitleAct = [];
-    foreach (['operation','maintenance','project','landscape'] as $dv) {
+    foreach (['project','operation','maintenance','landscape'] as $dv) {
         if (!isset($actsGRP[$dv]) || !is_array($actsGRP[$dv])) $actsGRP[$dv] = [];
         foreach ($actsGRP[$dv] as $_r) { $_existingTitleAct[$dv][mb_strtolower(trim((string)($_r['title'] ?? '')))] = true; }
     }
     foreach ($_tmpMastersAct as $_m) {
         $dv = (string)($_m['division'] ?? 'operation');
-        if (!in_array($dv,['operation','maintenance','project','landscape'], true)) $dv = 'operation';
+        if (!in_array($dv,['project','operation','maintenance','landscape'], true)) $dv = 'operation';
         if (!isset($actsGRP[$dv]) || !is_array($actsGRP[$dv])) $actsGRP[$dv] = [];
         $title = trim((string)($_m['activity_name'] ?? ''));
         if ($title === '') continue;
@@ -1201,11 +1249,17 @@ require_once __DIR__ . '/includes/navbar.php';
                             <div class="mb-0.5">
                                 <div class="flex items-center justify-between mb-0.5">
                                     <p class="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">LY <span class="font-bold normal-case tracking-normal">&bull; Avg/Day</span></p>
+                                    <span class="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Cost LY</span>
                                 </div>
-                                <p class="font-mono font-black text-[15px] sm:text-lg text-slate-700 leading-none">
-                                    <?= $lyDisp ?>
-                                    <span class="text-[10px] font-bold text-slate-500 ml-0.5"><?= $unit ?></span>
-                                </p>
+                                <div class="flex items-center justify-between items-baseline gap-2">
+                                    <p class="font-mono font-black text-[15px] sm:text-lg text-slate-700 leading-none">
+                                        <?= $lyDisp ?>
+                                        <span class="text-[10px] font-bold text-slate-500 ml-0.5"><?= $unit ?></span>
+                                    </p>
+                                    <p class="font-mono font-bold text-[11px] sm:text-[12px] text-slate-600 leading-none whitespace-nowrap">
+                                        Rp <?= fmtRupiah($costLY) ?>
+                                    </p>
+                                </div>
                             </div>
 
                             <!-- DIVIDER DASHED -->
@@ -1215,16 +1269,24 @@ require_once __DIR__ . '/includes/navbar.php';
                             <div>
                                 <div class="flex items-center justify-between mb-0.5">
                                     <p class="text-[9px] font-black uppercase tracking-[0.16em] text-slate-700">TODAY</p>
-                                    <span class="hidden sm:inline text-[8px] font-black px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700">
-                                        <?php if ((float)$lyVal > 0):
-                                            echo ($deltaUp ? '&#9650;+' : '&#9660;') . $delta . '%';
-                                        else: echo '&ndash;'; endif; ?>
-                                    </span>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">Cost</span>
+                                        <span class="hidden sm:inline text-[8px] font-black px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700">
+                                            <?php if ((float)$lyVal > 0):
+                                                echo ($deltaUp ? '&#9650;+' : '&#9660;') . $delta . '%';
+                                            else: echo '&ndash;'; endif; ?>
+                                        </span>
+                                    </div>
                                 </div>
-                                <p class="font-mono font-black text-[17px] sm:text-[19px] leading-none text-slate-800 tracking-tight">
-                                    <?= $nowDisp ?>
-                                    <span class="text-[10px] font-bold opacity-80 ml-0.5"><?= $unit ?></span>
-                                </p>
+                                <div class="flex items-center justify-between items-baseline gap-2">
+                                    <p class="font-mono font-black text-[17px] sm:text-[19px] leading-none text-slate-800 tracking-tight">
+                                        <?= $nowDisp ?>
+                                        <span class="text-[10px] font-bold opacity-80 ml-0.5"><?= $unit ?></span>
+                                    </p>
+                                    <p class="font-mono font-black text-[12px] sm:text-[13px] text-slate-700 leading-none whitespace-nowrap">
+                                        Rp <?= fmtRupiah($costNow) ?>
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -1340,9 +1402,129 @@ require_once __DIR__ . '/includes/navbar.php';
         </section>
 
         <!-- ==========================================
+             CARD #X - DEDUCTION REPORT (BELOW UTILITY)
+             ========================================== -->
+        <section id="sec_deduction" class="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden self-start border-t-2 border-t-slate-500 mt-3 animate-slide-up">
+            <button type="button" onclick="toggleDashSection('deduction')"
+                    class="w-full text-left px-3 lg:px-4 py-2 bg-transparent hover:bg-slate-50/80 transition group flex items-center justify-between gap-2 border-b border-slate-200/80">
+                <div class="flex items-center flex-wrap gap-x-3 gap-y-1 min-w-0">
+                    <span class="w-6 h-6 rounded-md bg-slate-700 flex items-center justify-center text-white text-[11px] shadow-sm shrink-0 font-black leading-none">
+                        <i class="bi bi-scissors text-[10px]"></i>
+                    </span>
+                    <span class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 hidden sm:inline-flex items-center gap-1 pl-2.5 border-l border-slate-200 h-5"><i class="bi bi-scissors text-[9px]"></i> Eng. Dept.</span>
+                    <h2 class="font-display text-[13px] lg:text-[14px] font-black text-gray-900 tracking-wide leading-tight truncate">
+                        Deduction <span class="text-slate-400 font-black">Report</span>
+                    </h2>
+                    <span class="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full ml-1 hidden md:inline-flex items-center gap-0.5">
+                        <i class="fas fa-hand-pointer text-[8px]"></i> Klik sembunyikan
+                    </span>
+                </div>
+                <i id="deduction_chev" class="fas fa-chevron-down text-slate-400 transition-transform duration-200 shrink-0 text-[11px] group-hover:text-slate-600"></i>
+            </button>
+            <div id="deduction_group" class="transition-all duration-200 overflow-hidden">
+                <div class="p-2 sm:p-2.5 lg:p-3">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                        <?php
+                        $_dedCards = [
+                            [
+                                'title'   => 'SWRO',
+                                'icon'    => 'bi bi-droplet-half',
+                                'water'   => $_ded['swro']['water'],
+                                'kwh'     => $_ded['swro']['kwh'],
+                                'cost'    => $_ded['swro']['cost'],
+                                'show_water' => true,
+                                'show_kwh'   => true,
+                            ],
+                            [
+                                'title'   => '916',
+                                'icon'    => 'bi bi-building',
+                                'water'   => $_ded['d916']['water'],
+                                'kwh'     => $_ded['d916']['kwh'],
+                                'cost'    => $_ded['d916']['cost'],
+                                'show_water' => true,
+                                'show_kwh'   => true,
+                            ],
+                            [
+                                'title'   => 'PT Mac',
+                                'icon'    => 'bi bi-lightning-charge',
+                                'water'   => 0,
+                                'kwh'     => $_ded['ptmac']['kwh'],
+                                'cost'    => $_ded['ptmac']['cost'],
+                                'show_water' => false,
+                                'show_kwh'   => true,
+                            ],
+                            [
+                                'title'   => 'Biosystem',
+                                'icon'    => 'bi bi-tree',
+                                'water'   => $_ded['bio']['water'],
+                                'kwh'     => $_ded['bio']['kwh'],
+                                'cost'    => $_ded['bio']['cost'],
+                                'show_water' => true,
+                                'show_kwh'   => true,
+                            ],
+                        ];
+                        foreach ($_dedCards as $_dc):
+                            $_w = (float)$_dc['water'];
+                            $_k = (float)$_dc['kwh'];
+                            $_c = (float)$_dc['cost'];
+                            $_sw = (bool)$_dc['show_water'];
+                            $_sk = (bool)$_dc['show_kwh'];
+                        ?>
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:px-3.5 sm:py-3 shadow-sm transition-all duration-150">
+                            <div class="flex items-start justify-between gap-2 mb-2.5">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="w-8 h-8 shrink-0 rounded-xl bg-slate-700 text-white flex items-center justify-center text-[13px] shadow-sm">
+                                        <i class="<?= $_dc['icon'] ?>"></i>
+                                    </span>
+                                    <div class="min-w-0 flex-1">
+                                        <h3 class="font-black text-[13px] lg:text-[14px] text-gray-900 tracking-wide leading-tight uppercase"><?= $_dc['title'] ?></h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="space-y-1.5">
+                                <?php if ($_sw): ?>
+                                <div class="flex items-center justify-between items-baseline gap-2">
+                                    <div class="flex items-center gap-1 min-w-0">
+                                        <span class="w-4 h-4 rounded bg-slate-100 text-slate-600 inline-flex items-center justify-center shrink-0"><i class="bi bi-droplet text-[9px]"></i></span>
+                                        <span class="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500 shrink-0">Water</span>
+                                    </div>
+                                    <div class="flex items-baseline gap-1">
+                                        <span class="font-mono font-black text-[14px] sm:text-[15px] text-slate-800 leading-none"><?= $_w > 0 ? number_format($_w, 1, ',', '.') : '0' ?></span>
+                                        <span class="text-[9px] font-bold text-slate-500">m3</span>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
+                                <?php if ($_sk): ?>
+                                <div class="flex items-center justify-between items-baseline gap-2">
+                                    <div class="flex items-center gap-1 min-w-0">
+                                        <span class="w-4 h-4 rounded bg-slate-100 text-slate-600 inline-flex items-center justify-center shrink-0"><i class="bi bi-lightning text-[9px]"></i></span>
+                                        <span class="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500 shrink-0">Electric</span>
+                                    </div>
+                                    <div class="flex items-baseline gap-1">
+                                        <span class="font-mono font-black text-[14px] sm:text-[15px] text-slate-800 leading-none"><?= $_k > 0 ? number_format($_k, 1, ',', '.') : '0' ?></span>
+                                        <span class="text-[9px] font-bold text-slate-500">kWh</span>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                            <div class="border-t border-dashed border-slate-200/60 my-2"></div>
+                            <div class="flex items-center justify-between items-baseline gap-2">
+                                <span class="text-[9px] font-black uppercase tracking-[0.14em] text-slate-600">Total Cost</span>
+                                <span class="font-mono font-black text-[13px] sm:text-[14px] text-slate-700 leading-none whitespace-nowrap">Rp <?= fmtRupiah($_c) ?></span>
+                            </div>
+                        </div>
+                        <?php endforeach;
+                        unset($_dedCards, $_dc, $_w, $_k, $_c, $_sw, $_sk);
+                        ?>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
              CARD #2 - ENGINEERING ACTIVITIES (Daily #2) - FULL WIDTH
              ========================================== -->
-        <section id="sec_engact" class="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden self-start border-t-2 border-t-slate-500">
+        <section id="sec_engact" class="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden self-start border-t-2 border-t-slate-500" style="display:none">
             <button type="button" onclick="toggleDashSection('engact')"
                     class="w-full text-left px-3 lg:px-4 py-2 bg-transparent hover:bg-slate-50/80 transition group flex items-center justify-between gap-2 border-b border-slate-200/80">
                 <div class="flex items-center flex-wrap gap-x-3 gap-y-1 min-w-0">
@@ -1386,9 +1568,9 @@ require_once __DIR__ . '/includes/navbar.php';
                             <tbody class="divide-y divide-slate-100 align-top">
                                 <?php
                                 $deptDef = [
+                                    'project'     => ['PROJECT',     'fas fa-clipboard-list'],
                                     'operation'   => ['OPERATION',   'fas fa-gear'],
                                     'maintenance' => ['MAINTENANCE', 'fas fa-wrench'],
-                                    'project'     => ['PROJECT',     'fas fa-clipboard-list'],
                                     'landscape'   => ['LANDSCAPE',   'fas fa-seedling'],
                                 ];
                                 $totalRowsAll = 0;
@@ -1508,9 +1690,9 @@ require_once __DIR__ . '/includes/navbar.php';
         if (btnX) btnX.href = '<?=BASE_URL?>reports/daily_summary.php?date=' + encodeURIComponent(d) + '&format=excel';
     }
     (function(){
-        const SECTIONS = ['kpi','utility','chiller','engact','swro','engactcards','logistic'];
+        const SECTIONS = ['kpi','utility','chiller','engact','swro','engactcards','logistic','deduction'];
         // Default state: SEMUA TERBUKA default (chiller = coming soon TETAP TERTUTUP)
-        const DEFAULTS = { kpi: true, utility: true, chiller: false, engact: true, swro: true, engactcards: true, logistic: true };
+        const DEFAULTS = { kpi: true, utility: true, chiller: false, engact: true, swro: true, engactcards: true, logistic: true, deduction: true };
         function apply(key, open){
             const grp = document.getElementById(key + '_group');
             const chv = document.getElementById(key + '_chev');
@@ -1550,7 +1732,7 @@ require_once __DIR__ . '/includes/navbar.php';
     ?>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 items-start gap-2.5 md:gap-3 lg:gap-3.5 mb-6">
     <!-- ============ â‘  SWRO SYSTEM (WATER TREATMENT REVERSE OSMOSIS) ============ -->
-    <div id="sec_swro" class="self-start min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden animate-slide-up <?= $swSpan ?>" style="animation-delay: 60ms">
+    <div id="sec_swro" class="self-start min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden animate-slide-up <?= $swSpan ?>" style="display:none;animation-delay: 60ms">
         <button type="button" onclick="toggleDashSection('swro')"
                 class="w-full text-left px-3 lg:px-4 py-2 border-b border-slate-200 bg-slate-50 hover:bg-slate-100 transition group">
             <div class="flex items-center justify-between gap-3">
@@ -1607,7 +1789,7 @@ require_once __DIR__ . '/includes/navbar.php';
 
     <!-- ============ â‘¤ ENGINEERING ACTIVITIES - HANYA SUPERVISOR / MANAGER YANG DAPAT LIHAT ============ -->
     <?php if (in_array($userRole, ['supervisor','manager','admin'], true)): ?>
-    <div class="self-start min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="animation-delay: 120ms">
+    <div class="self-start min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden animate-slide-up" style="display:none;animation-delay: 120ms">
         <button type="button" onclick="toggleDashSection('engactcards')"
                 class="w-full text-left px-3 lg:px-4 py-2 border-b border-slate-200 bg-slate-50 hover:bg-slate-100 transition group">
             <div class="flex items-center justify-between gap-3">
@@ -1624,9 +1806,9 @@ require_once __DIR__ . '/includes/navbar.php';
         <div class="p-2 sm:p-2.5 lg:p-3 flex flex-col gap-2">
             <?php
             $actCards = [
+                ['project',     T('dash_act_project',     'Project'),    'fas fa-diagram-project',  (int)($todayAct['proj'] ?? 0),  (int)($activitySum['proj'] ?? 0)],
                 ['operation',   T('dash_act_operation',   'Operation'),   'fas fa-gears',            (int)($todayAct['op'] ?? 0),    (int)($activitySum['op'] ?? 0)],
                 ['maintenance', T('dash_act_maintenance', 'Maintenance'),'fas fa-wrench',           (int)($todayAct['maint'] ?? 0), (int)($activitySum['maint'] ?? 0)],
-                ['project',     T('dash_act_project',     'Project'),    'fas fa-diagram-project',  (int)($todayAct['proj'] ?? 0),  (int)($activitySum['proj'] ?? 0)],
                 ['landscape',   T('dash_act_landscape',   'Landscape'),  'fas fa-leaf',             (int)($todayAct['land'] ?? 0),  (int)($activitySum['land'] ?? 0)],
             ];
             foreach ($actCards as $ac) {
@@ -1666,7 +1848,7 @@ HTML;
     <?php endif; ?>
     <!-- ============ LOGISTIC - ORDER REQUEST & STATUS ============ -->
     <?php if (in_array($userRole, ['supervisor','manager','admin'])): ?>
-    <div id="section_logistic" class="self-start min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden animate-slide-up scroll-mt-[90px]" style="animation-delay: 180ms">
+    <div id="section_logistic" class="self-start min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden animate-slide-up scroll-mt-[90px]" style="display:none;animation-delay: 180ms">
         <button type="button" onclick="toggleDashSection('logistic')"
                 class="w-full text-left px-3 lg:px-4 py-2 border-b border-slate-200 bg-slate-50 hover:bg-slate-100 transition group">
             <div class="flex items-center justify-between gap-3">
@@ -1736,7 +1918,7 @@ HTML;
     $historyColSpan = $userRole === 'supervisor' ? 6 : 5;
     ?>
     <!-- ============ â‘£ RIWAYAT DAILY LOG (4 CARD SEJAJAR) ============ -->
-    <div class="self-start min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden animate-slide-up <?= $riwSpan ?>" style="animation-delay: 600ms">
+    <div class="self-start min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden animate-slide-up <?= $riwSpan ?>" style="display:none;animation-delay: 600ms">
         <div class="p-2.5 sm:p-3 lg:p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 sm:justify-between">
             <div>
                 <h2 class="font-bold text-[14px] text-slate-800"><i class="fas fa-clock-rotate-left mr-1.5 text-slate-600 text-[13px]"></i><?= $userRole === 'supervisor' ? T('recent_sup_title', 'Daily Log Terbaru (Semua Staff)') : T('recent_user_title', 'Riwayat Daily Log Saya') ?></h2>
@@ -1786,7 +1968,7 @@ HTML;
 
     <!-- ============ DAILY LOG HARI INI (PINDAH KE BAWAH 4 CARD) ============ -->
     <?php if ($todayData): ?>
-        <div class="mb-8 p-4 sm:p-5 lg:p-6 bg-white rounded-lg border border-slate-200 shadow-sm animate-slide-up">
+        <div class="mb-8 p-4 sm:p-5 lg:p-6 bg-white rounded-lg border border-slate-200 shadow-sm animate-slide-up" style="display:none">
             <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
                 <i class="fas fa-calendar-check text-slate-600 text-xl"></i>
                 <h2 class="font-bold text-lg text-slate-800"><?= T('today_title', 'Daily Log Hari Ini') ?></h2>
@@ -1815,7 +1997,7 @@ HTML;
     <!-- ============ SUPERVISOR 3 CHARTS (PINDAH KE BAWAH DAILY LOG) ============ -->
     <?php if ($userRole === 'supervisor'): ?>
 
-    <div class="mb-6 bg-white rounded-lg border border-slate-200 p-4 sm:p-5 shadow-sm animate-slide-up" style="animation-delay: 420ms">
+    <div class="mb-6 bg-white rounded-lg border border-slate-200 p-4 sm:p-5 shadow-sm animate-slide-up" style="display:none;animation-delay: 420ms">
         <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
                 <h2 class="font-bold text-lg text-slate-800 mb-1"><i class="fas fa-chart-line mr-2 text-slate-600"></i><?= T('sup_chart_title', 'Grafik Konsumsi Energi') ?></h2>
@@ -1832,7 +2014,7 @@ HTML;
         </div>
     </div>
 
-    <div class="flex flex-col gap-5 sm:gap-6 mb-8">
+    <div class="flex flex-col gap-5 sm:gap-6 mb-8" style="display:none">
 
         <div class="chart-card animate-slide-up overflow-hidden" style="animation-delay: 450ms">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">

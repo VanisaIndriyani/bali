@@ -315,11 +315,207 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
     return $out;
 }
 
+/* ============================================================
+ * 🔗 HELPER BARU: repUtilFetchDetail
+ *    Mengembalikan RINCIAN per sub-utility:
+ *      elec_wbp, elec_lwbp, elec_total, water_mb, water_total,
+ *      gas_lpg, gas_lng, gas_total, fuel
+ *    BESERTA cost masing-masing.
+ *    Pola 100% sama dengan repUtilFetchBoth: dedup, merge priority daily_logs > energy_logs,
+ *    fallback meter-reading diff untuk WBP/LWBP/MB, validasi pre-system cutoff.
+ * ============================================================ */
+function repUtilFetchDetail($db, $approvedWhereDaily, $userId, $userRole, $dateFrom, $dateTo, $agg = 'SUM', $fallbackTariffs = null) {
+    $isSum = ($agg !== 'AVG');
+    if (!is_array($fallbackTariffs)) $fallbackTariffs = ['electricity_per_kwh'=>1850,'water_per_m3'=>9600,'gas_per_kg'=>24500,'fuel_per_liter'=>17450];
+    $ftEL = (int)($fallbackTariffs['electricity_per_kwh'] ?? 1850);
+    $ftWA = (int)($fallbackTariffs['water_per_m3']       ?? 9600);
+    $ftGA = (int)($fallbackTariffs['gas_per_kg']         ?? 24500);
+    $ftFU = (int)($fallbackTariffs['fuel_per_liter']     ?? 17450);
+    $aggFn = $isSum ? 'SUM' : 'AVG';
+    $cntFn  = 'COUNT';
+
+    $d = ['ewbp_raw'=>0,'elwbp_raw'=>0,'wmb_raw'=>0,'glpg_raw'=>0,'glng_raw'=>0,'fuel_raw'=>0,
+          'ewbp_c'=>0,'elwbp_c'=>0,'wmb_c'=>0,'glpg_c'=>0,'glng_c'=>0,'fuel_c'=>0,'cnt_d'=>0];
+    try {
+        $dedupWhere = "WHERE DATE(log_date) BETWEEN ? AND ? AND $approvedWhereDaily";
+        $sqlD = "SELECT
+            COALESCE($aggFn(CAST(dl.electricity_wbp AS DECIMAL(18,4))),0) as ewbp_raw,
+            COALESCE($aggFn(CAST(dl.electricity_lwbp AS DECIMAL(18,4))),0) as elwbp_raw,
+            COALESCE($aggFn(CAST(dl.water_main_building AS DECIMAL(18,4))),0) as wmb_raw,
+            COALESCE($aggFn(CAST(COALESCE(dl.gas_lpg,0) AS DECIMAL(18,4))),0) as glpg_raw,
+            COALESCE($aggFn(CAST(COALESCE(dl.gas_lng,0) AS DECIMAL(18,4))),0) as glng_raw,
+            COALESCE($aggFn(CAST(COALESCE(dl.total_fuel,0) AS DECIMAL(18,4))),0) as fuel_raw,
+            COALESCE($cntFn(dl.id),0) as cnt
+        FROM daily_logs dl
+        INNER JOIN (
+            SELECT MAX(id) AS keep_id
+            FROM daily_logs
+            $dedupWhere
+            GROUP BY DATE(log_date), engineer_id
+        ) k ON k.keep_id = dl.id";
+        $rowD = $db->fetchOne($sqlD, [$dateFrom, $dateTo]);
+        $d['cnt_d'] = (int)($rowD['cnt'] ?? 0);
+        $d['glpg_c'] = (float)($rowD['glpg_raw'] ?? 0);
+        $d['glng_c'] = (float)($rowD['glng_raw'] ?? 0);
+        $d['fuel_c'] = (float)($rowD['fuel_raw'] ?? 0);
+
+        if ($isSum) {
+            $fbFrom = $dateFrom; $fbTo = $dateTo;
+            if ($fbFrom === $fbTo) { $fbFrom = date('Y-m-d', strtotime($fbFrom . ' -1 day')); }
+            $rowsRead = $db->fetchAll("SELECT dl.id, DATE(dl.log_date) AS tgl, dl.engineer_id, dl.shift,
+                                              COALESCE(dl.electricity_wbp,0) AS ew, COALESCE(dl.electricity_lwbp,0) AS el,
+                                              COALESCE(dl.water_main_building,0) AS wmb
+                                       FROM daily_logs dl
+                                       INNER JOIN (
+                                           SELECT MAX(id) AS keep_id
+                                           FROM daily_logs
+                                           WHERE DATE(log_date) BETWEEN ? AND ? AND $approvedWhereDaily
+                                           GROUP BY DATE(log_date), engineer_id
+                                       ) k ON k.keep_id = dl.id
+                                       ORDER BY dl.engineer_id ASC, dl.log_date ASC, dl.id ASC",
+                [$fbFrom, $fbTo]
+            );
+            $manEw = 0.0; $manEl = 0.0; $manWmb = 0.0;
+            $lastEw = []; $lastEl = []; $lastWmb = [];
+            foreach ($rowsRead as $rr) {
+                $eid = (int)($rr['engineer_id'] ?? 0);
+                $shift = (string)($rr['shift'] ?? 'malam');
+                $isMalam = ($shift === '' || $shift === 'malam');
+                $rew = (float)($rr['ew'] ?? 0);
+                $rel = (float)($rr['el'] ?? 0);
+                $rwmb = (float)($rr['wmb'] ?? 0);
+                $tgl = (string)($rr['tgl'] ?? '');
+                $inRange = ($tgl >= $dateFrom && $tgl <= $dateTo);
+                if ($rew > 0) {
+                    $prev = $lastEw[$eid] ?? null;
+                    if ($prev !== null && $rew > $prev && $inRange && $isMalam) { $manEw += max(0.0, ($rew - $prev) * 8000.0); }
+                    $lastEw[$eid] = $rew;
+                }
+                if ($rel > 0) {
+                    $prev = $lastEl[$eid] ?? null;
+                    if ($prev !== null && $rel > $prev && $inRange && $isMalam) { $manEl += max(0.0, ($rel - $prev) * 8000.0); }
+                    $lastEl[$eid] = $rel;
+                }
+                if ($rwmb > 0) {
+                    $prev = $lastWmb[$eid] ?? null;
+                    if ($prev !== null && $rwmb > $prev && $inRange && $isMalam) { $manWmb += max(0.0, $rwmb - $prev); }
+                    $lastWmb[$eid] = $rwmb;
+                }
+            }
+            $d['ewbp_c'] = $manEw;
+            $d['elwbp_c'] = $manEl;
+            $d['wmb_c'] = $manWmb;
+            unset($rowsRead, $fbFrom, $fbTo, $manEw, $manEl, $manWmb, $lastEw, $lastEl, $lastWmb, $rr, $eid, $rew, $rel, $rwmb, $prev);
+        }
+    } catch (Throwable $e) {
+        error_log('repUtilFetchDetail daily_logs ERROR: '.$e->getMessage());
+    }
+
+    $e = ['ewbp_c'=>0,'elwbp_c'=>0,'wmb_c'=>0,'glpg_c'=>0,'glng_c'=>0,'fuel_c'=>0,'cnt_e'=>0];
+    try {
+        $wE = ["DATE(log_date) BETWEEN ? AND ?"];
+        $pE = [$dateFrom, $dateTo];
+        if ($userRole === 'engineer') { $wE[] = "created_by = ?"; $pE[] = $userId; }
+        $dedupWhereE = 'WHERE ' . implode(' AND ', $wE);
+        $sqlE = "SELECT
+            COALESCE($aggFn(CAST(el.pln_wbp_kwh AS DECIMAL(18,4))),0) as ewbp_c,
+            COALESCE($aggFn(CAST(el.pln_lwbp_kwh AS DECIMAL(18,4))),0) as elwbp_c,
+            COALESCE($aggFn(CAST(COALESCE(el.air_m3,0) AS DECIMAL(18,4))),0) as wmb_c,
+            COALESCE($aggFn(CAST(COALESCE(el.gas_kg,0) AS DECIMAL(18,4))),0) as glpg_c,
+            COALESCE($aggFn(CAST(COALESCE(el.gas_lng_kg,0) AS DECIMAL(18,4))),0) as glng_c,
+            COALESCE($aggFn(CAST(COALESCE(el.solar_liter,0) AS DECIMAL(18,4))),0) as fuel_c,
+            COALESCE($cntFn(el.id),0) as cnt
+        FROM energy_logs el
+        INNER JOIN (
+            SELECT MAX(id) AS keep_id
+            FROM energy_logs
+            $dedupWhereE
+            GROUP BY DATE(log_date), created_by
+        ) kE ON kE.keep_id = el.id";
+        $rowE = $db->fetchOne($sqlE, $pE);
+        $e['cnt_e'] = (int)($rowE['cnt'] ?? 0);
+        $e['ewbp_c']  = (float)($rowE['ewbp_c'] ?? 0);
+        $e['elwbp_c'] = (float)($rowE['elwbp_c'] ?? 0);
+        $e['wmb_c']   = (float)($rowE['wmb_c'] ?? 0);
+        $e['glpg_c']  = (float)($rowE['glpg_c'] ?? 0);
+        $e['glng_c']  = (float)($rowE['glng_c'] ?? 0);
+        $e['fuel_c']  = (float)($rowE['fuel_c'] ?? 0);
+    } catch (Throwable $e) {
+        error_log('repUtilFetchDetail energy_logs ERROR: '.$e->getMessage());
+    }
+
+    $_utilSysCutoff = '2026-01-01';
+    $_utilIsPreSystem = (strtotime((string)$dateTo) < strtotime($_utilSysCutoff));
+    if ($isSum) {
+        $pickD_ewbp = ($d['ewbp_c'] > 0.00001);
+        $pickD_elwbp = ($d['elwbp_c'] > 0.00001);
+        $pickD_wmb = ($d['wmb_c'] > 0.00001);
+        $pickD_glpg = ($d['glpg_c'] > 0.00001);
+        $pickD_glng = ($d['glng_c'] > 0.00001);
+        $pickD_fuel = ($d['fuel_c'] > 0.00001);
+        if (((int)($d['cnt_d'] ?? 0)) === 0 && $_utilIsPreSystem) {
+            $pickD_ewbp = $pickD_elwbp = $pickD_wmb = $pickD_glpg = $pickD_glng = $pickD_fuel = false;
+            $d['ewbp_c']=$d['elwbp_c']=$d['wmb_c']=$d['glpg_c']=$d['glng_c']=$d['fuel_c']=0;
+        }
+        $ewbp  = $pickD_ewbp  ? (float)$d['ewbp_c']  : (float)($d['ewbp_c']  + $e['ewbp_c']);
+        $elwbp = $pickD_elwbp ? (float)$d['elwbp_c'] : (float)($d['elwbp_c'] + $e['elwbp_c']);
+        $wmb   = $pickD_wmb   ? (float)$d['wmb_c']   : (float)($d['wmb_c']   + $e['wmb_c']);
+        $glpg  = $pickD_glpg  ? (float)$d['glpg_c']  : (float)($d['glpg_c']  + $e['glpg_c']);
+        $glng  = $pickD_glng  ? (float)$d['glng_c']  : (float)($d['glng_c']  + $e['glng_c']);
+        $fuel  = $pickD_fuel  ? (float)$d['fuel_c']  : (float)($d['fuel_c']  + $e['fuel_c']);
+    } else {
+        $pickDaily = ($d['ewbp_c'] > 0 || $d['elwbp_c'] > 0 || $d['wmb_c'] > 0 || $d['glpg_c'] > 0 || $d['glng_c'] > 0 || $d['fuel_c'] > 0);
+        $s = $pickDaily ? $d : $e;
+        $ewbp = (float)$s['ewbp_c']; $elwbp = (float)$s['elwbp_c']; $wmb = (float)$s['wmb_c'];
+        $glpg = (float)$s['glpg_c']; $glng = (float)$s['glng_c']; $fuel = (float)$s['fuel_c'];
+    }
+    unset($_utilSysCutoff, $_utilIsPreSystem);
+
+    $elecTotal = $ewbp + $elwbp;
+    $gasTotal = $glpg + $glng;
+    $waterTotal = $wmb;
+    return [
+        'ewbp' => $ewbp, 'elwbp' => $elwbp, 'elec_total' => $elecTotal,
+        'wmb' => $wmb, 'water_total' => $waterTotal,
+        'glpg' => $glpg, 'glng' => $glng, 'gas_total' => $gasTotal,
+        'fuel' => $fuel,
+        'cost_ewbp' => $ewbp * $ftEL, 'cost_elwbp' => $elwbp * $ftEL, 'cost_elec_total' => $elecTotal * $ftEL,
+        'cost_wmb' => $wmb * $ftWA, 'cost_water_total' => $waterTotal * $ftWA,
+        'cost_glpg' => $glpg * $ftGA, 'cost_glng' => $glng * $ftGA, 'cost_gas_total' => $gasTotal * $ftGA,
+        'cost_fuel' => $fuel * $ftFU,
+    ];
+}
+
+function repRenderVarPct($todayVal, $lyVal, $unit = '', $dec = 0, $isCost = false) {
+    $tv = (float)$todayVal; $lv = (float)$lyVal;
+    $variance = $tv - $lv;
+    if ($lv > 0.00001) { $pct = ($variance / $lv) * 100; }
+    else { $pct = 0; }
+    $vAbs = abs($variance);
+    $arrow = ''; $varClass = 'text-slate-600'; $pctClass = 'text-slate-600';
+    if ($variance > 0.00001) { $arrow = '&uarr;'; $varClass = 'text-slate-700'; $pctClass = 'text-slate-700'; }
+    elseif ($variance < -0.00001) { $arrow = '&darr;'; $varClass = 'text-slate-500'; $pctClass = 'text-slate-500'; }
+    if ($isCost) {
+        $varStr = $arrow . ' Rp ' . repFmtRupiah($vAbs);
+    } else {
+        $varStr = $arrow . ' ' . repFmtIndo($vAbs, $dec) . ($unit !== '' ? ' '.$unit : '');
+    }
+    if ($variance < -0.00001) { $varStr = str_replace('&uarr; ', '', $varStr); $varStr = str_replace('&darr; ', '&darr; ', $varStr); }
+    $pctStr = ($lv <= 0.00001) ? '&mdash;' : repFmtIndo(abs($pct), 1).'%';
+    $out = '<td class="num util-num '.$varClass.' font-mono" style="text-align:right; vertical-align:middle;">'.$varStr.'</td>';
+    $out .= '<td class="num util-num '.$pctClass.' font-mono" style="text-align:right; vertical-align:middle;">'.$pctStr.'</td>';
+    return $out;
+}
+
 /* ---------- 4. DATA UTILITY (WRAP TRY/CATCH SUPAYA TABLE TIDAK ADA = TIDAK FATAL ERROR) — SUPPORT RANGE DATE ---------- */
 $elecToday = $waterToday = $gasToday = $fuelToday = 0;
 $elecLY = $waterLY = $gasLY = $fuelLY = 0;
 $costElecToday = $costWaterToday = $costGasToday = $costFuelToday = 0;
 $costElecLY = $costWaterLY = $costGasLY = $costFuelLY = 0;
+
+$detToday = ['ewbp'=>0,'elwbp'=>0,'elec_total'=>0,'wmb'=>0,'water_total'=>0,'glpg'=>0,'glng'=>0,'gas_total'=>0,'fuel'=>0,
+             'cost_ewbp'=>0,'cost_elwbp'=>0,'cost_elec_total'=>0,'cost_wmb'=>0,'cost_water_total'=>0,'cost_glpg'=>0,'cost_glng'=>0,'cost_gas_total'=>0,'cost_fuel'=>0];
+$detLY = $detToday;
 
 // ✅ ATURAN LY (Last Year): SESUAI REQUEST USER = "SAMA TANGGAL TAHUN LALU" (bukan range bulan lalu / tahun lalu)
 //    - Jika 1 TANGGAL (TODAY MODE):       LY = reportDate - 1 TAHUN  (misal 18/8/26 → LY = 18/8/25, 1 HARI SAJA)
@@ -364,6 +560,44 @@ try {
     $costWaterLY = (float)($sumLY['cost_water'] ?? 0);
     $costGasLY   = (float)($sumLY['cost_gas']   ?? 0);
     $costFuelLY  = (float)($sumLY['cost_fuel']  ?? 0);
+
+    $_dt = repUtilFetchDetail($db, $_todayWhere, $userId, $userRole, $reportDateFrom, $reportDateTo, 'SUM', $_tariffFb);
+    if (is_array($_dt)) {
+        foreach ($detToday as $k => $v) { if (isset($_dt[$k])) $detToday[$k] = (float)($_dt[$k]); }
+    }
+    $_dl = repUtilFetchDetail($db, $_approvedWhere, $userId, $userRole, $lyRangeFrom, $lyRangeTo, 'SUM', $_tariffFb);
+    if (is_array($_dl)) {
+        foreach ($detLY as $k => $v) { if (isset($_dl[$k])) $detLY[$k] = (float)($_dl[$k]); }
+    }
+    unset($_dt, $_dl);
+
+    if ($detToday['elec_total'] < 0.00001 && $elecToday > 0.00001) {
+        $detToday['elec_total'] = $elecToday;
+        $detToday['cost_elec_total'] = $costElecToday;
+    }
+    if ($detToday['water_total'] < 0.00001 && $waterToday > 0.00001) {
+        $detToday['wmb'] = $waterToday; $detToday['water_total'] = $waterToday;
+        $detToday['cost_wmb'] = $costWaterToday; $detToday['cost_water_total'] = $costWaterToday;
+    }
+    if ($detToday['gas_total'] < 0.00001 && $gasToday > 0.00001) {
+        $detToday['gas_total'] = $gasToday; $detToday['cost_gas_total'] = $costGasToday;
+    }
+    if ($detToday['fuel'] < 0.00001 && $fuelToday > 0.00001) {
+        $detToday['fuel'] = $fuelToday; $detToday['cost_fuel'] = $costFuelToday;
+    }
+    if ($detLY['elec_total'] < 0.00001 && $elecLY > 0.00001) {
+        $detLY['elec_total'] = $elecLY; $detLY['cost_elec_total'] = $costElecLY;
+    }
+    if ($detLY['water_total'] < 0.00001 && $waterLY > 0.00001) {
+        $detLY['wmb'] = $waterLY; $detLY['water_total'] = $waterLY;
+        $detLY['cost_wmb'] = $costWaterLY; $detLY['cost_water_total'] = $costWaterLY;
+    }
+    if ($detLY['gas_total'] < 0.00001 && $gasLY > 0.00001) {
+        $detLY['gas_total'] = $gasLY; $detLY['cost_gas_total'] = $costGasLY;
+    }
+    if ($detLY['fuel'] < 0.00001 && $fuelLY > 0.00001) {
+        $detLY['fuel'] = $fuelLY; $detLY['cost_fuel'] = $costFuelLY;
+    }
 } catch (Exception $e) {
     error_log('daily_summary utility MERGE ERROR: '.$e->getMessage());
     /* utility kosong - biarkan 0 */
@@ -823,6 +1057,44 @@ if ($format === 'excel') {
     .status-new  { background:#475569; color:#fff; border-color:#334155;}
     .empty-act { padding:10px 0; color:#64748b; font-style:italic; display:inline-flex; align-items:center; gap:6px;}
     .empty-act i { opacity:60%;}
+
+    /* ===== UTILITY USAGE SUMMARY TABLE (Req 2: Variance + % CHANGE) ===== */
+    table.util { border:1px solid #cbd5e1; border-radius:8px; overflow:hidden; border-collapse: separate; border-spacing: 0; }
+    table.util th {
+        background:#e2e8f0; color:#0f172a;
+        border: none; border-bottom:1px solid #cbd5e1; border-right:1px solid #cbd5e1;
+        padding:7px 10px; font-weight:800; text-align:center; font-size:11px;
+        letter-spacing:.04em;
+    }
+    table.util th:last-child { border-right:none; }
+    table.util thead tr:nth-child(2) th { background:#f1f5f9; font-size:10.5px; color:#334155; }
+    table.util td {
+        border: none; border-bottom:1px solid #e2e8f0; border-right:1px solid #e2e8f0;
+        padding:6px 10px; font-size:12px; vertical-align:middle; color:#0f172a;
+    }
+    table.util td:last-child { border-right:none; }
+    table.util tbody tr:last-child td { border-bottom:none; }
+    table.util tbody tr.subtotal td { background:#f8fafc; border-top:2px solid #cbd5e1; }
+    table.util tbody tr.section-spacer td { height:0; padding:0; border:0; background:transparent; }
+    table.util td.util-name { font-weight:700; color:#0f172a; padding-left:12px; }
+    table.util td.util-unit { text-align:center; font-size:10.5px; color:#64748b; font-weight:600; }
+    table.util td.util-num,
+    table.util td.num.util-num {
+        text-align:right;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+        font-variant-numeric: tabular-nums;
+        font-size: 12px;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+    table.util td.cost-rupiah { white-space: nowrap; }
+    .text-slate-700 { color: #334155; }
+    .text-slate-600 { color: #475569; }
+    .text-slate-500 { color: #64748b; }
+    .font-mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+        font-variant-numeric: tabular-nums;
+    }
 </style>
 </head>
 <body>
@@ -852,57 +1124,140 @@ if ($format === 'excel') {
         </tbody>
     </table>
 
-    <!-- ② UTILITY -->
+    <!-- ② UTILITY (Req 2: Variance & % CHANGE) -->
     <h2>2. UTILITY USAGE SUMMARY</h2>
-    <table>
-        <thead><tr><th>UTILITY</th><th>PERIOD</th><th>USAGE</th><th>COST (Rp.)</th></tr></thead>
+    <table class="util">
+        <thead>
+            <tr>
+                <th rowspan="2" style="width:22%;">UTILITY</th>
+                <th rowspan="2" style="width:7%;">UNIT</th>
+                <th colspan="4" style="background:#cbd5e1;">KONSUMSI HARIAN</th>
+                <th colspan="4" style="background:#cbd5e1;">BIAYA (Rp.)</th>
+            </tr>
+            <tr>
+                <th style="width:10%;">LY SAMA<br>HARI</th>
+                <th style="width:10%;">TODAY</th>
+                <th style="width:11%;">VARIANCE</th>
+                <th style="width:9%;">% CHANGE</th>
+                <th style="width:8%;">LY</th>
+                <th style="width:8%;">TODAY</th>
+                <th style="width:8%;">VAR</th>
+                <th style="width:7%;">%</th>
+            </tr>
+        </thead>
         <tbody>
-            <tr>
-                <td rowspan="2" class="bold cen mid">ELECTRICITY</td>
-                <td class="cen">(LY)</td>
-                <td class="num"><?=repFmtIndo($elecLY, 0)?> kWh</td>
-                <td class="num"><?=repFmtRupiah($costElecLY)?></td>
+            <?php
+            $utilRows = [
+                ['name'=>'Listrik WBP',     'unit'=>'kWh',   't_kq'=>$detToday['ewbp'],         'l_kq'=>$detLY['ewbp'],         't_rp'=>$detToday['cost_ewbp'],         'l_rp'=>$detLY['cost_ewbp'],         'isTotal'=>false],
+                ['name'=>'Listrik LWBP',    'unit'=>'kWh',   't_kq'=>$detToday['elwbp'],        'l_kq'=>$detLY['elwbp'],        't_rp'=>$detToday['cost_elwbp'],        'l_rp'=>$detLY['cost_elwbp'],        'isTotal'=>false],
+                ['name'=>'Listrik Total',   'unit'=>'kWh',   't_kq'=>$detToday['elec_total'],   'l_kq'=>$detLY['elec_total'],   't_rp'=>$detToday['cost_elec_total'],   'l_rp'=>$detLY['cost_elec_total'],   'isTotal'=>true],
+                ['name'=>'Air (Main Bldg)', 'unit'=>'m&sup3;','t_kq'=>$detToday['wmb'],          'l_kq'=>$detLY['wmb'],          't_rp'=>$detToday['cost_wmb'],          'l_rp'=>$detLY['cost_wmb'],          'isTotal'=>false],
+                ['name'=>'Gas LPG',         'unit'=>'kg',    't_kq'=>$detToday['glpg'],         'l_kq'=>$detLY['glpg'],         't_rp'=>$detToday['cost_glpg'],         'l_rp'=>$detLY['cost_glpg'],         'isTotal'=>false],
+                ['name'=>'Gas LNG',         'unit'=>'kg',    't_kq'=>$detToday['glng'],         'l_kq'=>$detLY['glng'],         't_rp'=>$detToday['cost_glng'],         'l_rp'=>$detLY['cost_glng'],         'isTotal'=>false],
+                ['name'=>'Gas Total',       'unit'=>'kg',    't_kq'=>$detToday['gas_total'],    'l_kq'=>$detLY['gas_total'],    't_rp'=>$detToday['cost_gas_total'],    'l_rp'=>$detLY['cost_gas_total'],    'isTotal'=>true],
+                ['name'=>'BBM / Fuel (Solar)','unit'=>'L',   't_kq'=>$detToday['fuel'],         'l_kq'=>$detLY['fuel'],         't_rp'=>$detToday['cost_fuel'],         'l_rp'=>$detLY['cost_fuel'],         'isTotal'=>false],
+            ];
+            foreach ($utilRows as $ur) {
+                $rowCls = $ur['isTotal'] ? ' subtotal' : '';
+                $nameBold = $ur['isTotal'] ? 'font-weight:900;' : '';
+            ?>
+            <tr class="<?=$rowCls?>">
+                <td class="util-name" style="<?=$nameBold?>"><i class="fa-solid fa-grip-lines-vertical" style="color:#cbd5e1; font-size:9px; margin-right:6px;"></i><?=htmlspecialchars($ur['name'])?></td>
+                <td class="util-unit"><?=$ur['unit']?></td>
+                <td class="util-num"><?=repFmtIndo($ur['l_kq'], 0)?></td>
+                <td class="util-num" style="font-weight:800;"><?=repFmtIndo($ur['t_kq'], 0)?></td>
+                <?php
+                    $tv = (float)$ur['t_kq']; $lv = (float)$ur['l_kq'];
+                    $var = $tv - $lv; $vAbs = abs($var);
+                    $pct = ($lv > 0.00001) ? (($var / $lv) * 100) : 0;
+                    $pctAbs = abs($pct);
+                    if ($var > 0.00001) { $arr = '&uarr;'; $vCls = 'text-slate-700 font-weight:700;'; $pCls = 'text-slate-700 font-weight:700;'; }
+                    elseif ($var < -0.00001) { $arr = '&darr;'; $vCls = 'text-slate-500 font-weight:700;'; $pCls = 'text-slate-500 font-weight:700;'; }
+                    else { $arr = ''; $vCls = 'color:#475569;'; $pCls = 'color:#475569;'; }
+                    $unitStr = ($ur['unit'] === 'm&sup3;') ? ' m3' : ' '.$ur['unit'];
+                    $varStr = ($arr !== '') ? $arr.' '.repFmtIndo($vAbs, 0).$unitStr : repFmtIndo($vAbs, 0).$unitStr;
+                    $pctStr = ($lv <= 0.00001) ? '&mdash;' : repFmtIndo($pctAbs, 1).'%';
+                ?>
+                <td class="util-num font-mono" style="text-align:right; <?=$vCls?>"><?=$varStr?></td>
+                <td class="util-num font-mono" style="text-align:right; <?=$pCls?>"><?=$pctStr?></td>
+                <td class="util-num cost-rupiah font-mono"><?=repFmtRupiah($ur['l_rp'])?></td>
+                <td class="util-num cost-rupiah font-mono" style="font-weight:800;"><?=repFmtRupiah($ur['t_rp'])?></td>
+                <?php
+                    $tr = (float)$ur['t_rp']; $lr = (float)$ur['l_rp'];
+                    $rVar = $tr - $lr; $rAbs = abs($rVar);
+                    $rPct = ($lr > 0.00001) ? (($rVar / $lr) * 100) : 0;
+                    $rPctAbs = abs($rPct);
+                    if ($rVar > 0.00001) { $rArr = '&uarr;'; $rvCls = 'text-slate-700 font-weight:700;'; $rpCls = 'text-slate-700 font-weight:700;'; }
+                    elseif ($rVar < -0.00001) { $rArr = '&darr;'; $rvCls = 'text-slate-500 font-weight:700;'; $rpCls = 'text-slate-500 font-weight:700;'; }
+                    else { $rArr = ''; $rvCls = 'color:#475569;'; $rpCls = 'color:#475569;'; }
+                    $rVarStr = ($rArr !== '') ? $rArr.' Rp '.repFmtRupiah($rAbs) : 'Rp '.repFmtRupiah($rAbs);
+                    $rPctStr = ($lr <= 0.00001) ? '&mdash;' : repFmtIndo($rPctAbs, 1).'%';
+                ?>
+                <td class="util-num cost-rupiah font-mono" style="text-align:right; <?=$rvCls?>"><?=$rVarStr?></td>
+                <td class="util-num font-mono" style="text-align:right; <?=$rpCls?>"><?=$rPctStr?></td>
             </tr>
-            <tr>
-                <td class="cen">(TODAY)</td>
-                <td class="num"><?=repFmtIndo($elecToday, 0)?> kWh</td>
-                <td class="num"><?=repFmtRupiah($costElecToday)?></td>
-            </tr>
-            <tr>
-                <td rowspan="2" class="bold cen mid">WATER</td>
-                <td class="cen">(LY)</td>
-                <td class="num"><?=repFmtIndo($waterLY, 0)?> m&sup3;</td>
-                <td class="num"><?=repFmtRupiah($costWaterLY)?></td>
-            </tr>
-            <tr>
-                <td class="cen">(TODAY)</td>
-                <td class="num"><?=repFmtIndo($waterToday, 0)?> m&sup3;</td>
-                <td class="num"><?=repFmtRupiah($costWaterToday)?></td>
-            </tr>
-            <tr>
-                <td rowspan="2" class="bold cen mid">GAS</td>
-                <td class="cen">(LY)</td>
-                <td class="num"><?=repFmtIndo($gasLY, 0)?> kg</td>
-                <td class="num"><?=repFmtRupiah($costGasLY)?></td>
-            </tr>
-            <tr>
-                <td class="cen">(TODAY)</td>
-                <td class="num"><?=repFmtIndo($gasToday, 0)?> kg</td>
-                <td class="num"><?=repFmtRupiah($costGasToday)?></td>
-            </tr>
-            <tr>
-                <td rowspan="2" class="bold cen mid">FUEL</td>
-                <td class="cen">(LY)</td>
-                <td class="num"><?=repFmtIndo($fuelLY, 0)?> Liter</td>
-                <td class="num"><?=repFmtRupiah($costFuelLY)?></td>
-            </tr>
-            <tr>
-                <td class="cen">(TODAY)</td>
-                <td class="num"><?=repFmtIndo($fuelToday, 0)?> Liter</td>
-                <td class="num"><?=repFmtRupiah($costFuelToday)?></td>
-            </tr>
+            <?php } ?>
         </tbody>
     </table>
+
+    <!-- Legacy aggregate 4-row table (KEPT INTACT per requirement "Keep all existing columns intact") -->
+    <div style="height:10px;"></div>
+    <details style="border:1px solid #cbd5e1; border-radius:8px; padding:6px 10px; background:#f8fafc;">
+        <summary style="cursor:pointer; font-size:11px; font-weight:700; color:#475569; letter-spacing:.05em;">
+            <i class="fa-solid fa-table-columns" style="margin-right:5px;"></i>Ringkasan Aggregat (4 Baris Legacy)
+        </summary>
+        <div style="padding-top:8px;">
+        <table class="util">
+            <thead><tr><th>UTILITY</th><th>PERIOD</th><th>USAGE</th><th>COST (Rp.)</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td rowspan="2" class="bold cen mid">ELECTRICITY</td>
+                    <td class="cen">(LY)</td>
+                    <td class="num"><?=repFmtIndo($elecLY, 0)?> kWh</td>
+                    <td class="num"><?=repFmtRupiah($costElecLY)?></td>
+                </tr>
+                <tr>
+                    <td class="cen">(TODAY)</td>
+                    <td class="num"><?=repFmtIndo($elecToday, 0)?> kWh</td>
+                    <td class="num"><?=repFmtRupiah($costElecToday)?></td>
+                </tr>
+                <tr>
+                    <td rowspan="2" class="bold cen mid">WATER</td>
+                    <td class="cen">(LY)</td>
+                    <td class="num"><?=repFmtIndo($waterLY, 0)?> m&sup3;</td>
+                    <td class="num"><?=repFmtRupiah($costWaterLY)?></td>
+                </tr>
+                <tr>
+                    <td class="cen">(TODAY)</td>
+                    <td class="num"><?=repFmtIndo($waterToday, 0)?> m&sup3;</td>
+                    <td class="num"><?=repFmtRupiah($costWaterToday)?></td>
+                </tr>
+                <tr>
+                    <td rowspan="2" class="bold cen mid">GAS</td>
+                    <td class="cen">(LY)</td>
+                    <td class="num"><?=repFmtIndo($gasLY, 0)?> kg</td>
+                    <td class="num"><?=repFmtRupiah($costGasLY)?></td>
+                </tr>
+                <tr>
+                    <td class="cen">(TODAY)</td>
+                    <td class="num"><?=repFmtIndo($gasToday, 0)?> kg</td>
+                    <td class="num"><?=repFmtRupiah($costGasToday)?></td>
+                </tr>
+                <tr>
+                    <td rowspan="2" class="bold cen mid">FUEL</td>
+                    <td class="cen">(LY)</td>
+                    <td class="num"><?=repFmtIndo($fuelLY, 0)?> Liter</td>
+                    <td class="num"><?=repFmtRupiah($costFuelLY)?></td>
+                </tr>
+                <tr>
+                    <td class="cen">(TODAY)</td>
+                    <td class="num"><?=repFmtIndo($fuelToday, 0)?> Liter</td>
+                    <td class="num"><?=repFmtRupiah($costFuelToday)?></td>
+                </tr>
+            </tbody>
+        </table>
+        </div>
+    </details>
 
     <!-- ③ ENGINEERING ACTIVITIES (TABEL 5 KOLOM SAMA PERSIS DASHBOARD INDEX.PHP) -->
     <h2>3. ENGINEERING ACTIVITIES</h2>

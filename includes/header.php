@@ -15,6 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
     <script>
         tailwind.config = {
@@ -50,6 +51,7 @@
                         'float': 'float 3.5s ease-in-out infinite',
                         'float-slow': 'float 6s ease-in-out infinite',
                         'shakeX': 'shakeX 0.5s ease-in-out both',
+                        'spin-slow': 'spin 3s linear infinite',
                     },
                     keyframes: {
                         pulseGlow: {
