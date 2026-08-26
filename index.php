@@ -317,20 +317,33 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
         ];
     }
     /* --- (D) VALIDASI ANTI READING METER BULANAN / DATA SEBELUM SISTEM JALAN --- */
-    /*     RULE FIX LY 2026-08-18:
-             JIKA cnt_d = 0 (TIDAK ADA RECORD daily_logs SAMA SEKALI di range tanggal tsb)
-             DAN tanggal range berada SEBELUM sistem daily_logs beroperasi (pre-2026)
-             → energy_logs kemungkinan berisi METER READING BULANAN (bukan konsumsi harian)
-             → JANGAN DIPAKAI (hindari LY absurd 49.911 m3 lalu -99.2%)
+    /*     RULE FIX LY 2026-08-26 (PERBAIKI BUG BACKFILL 2025 TIDAK MUNCUL DI LY):
+             - cnt_d > 0 = ADA ROW daily_logs (approved) di range tanggal → INI PASTI HASIL BACKFILL ENGINEER ASLI,
+               meskipun value elec/water-nya 0 (karena total_xx lupa kesimpan / masih kosong),
+               MAKA TIDAK BOLEH di-NOL-kan paksa (BUG KEMARIN: 26.240 / 26.960 hilang karena ini!).
+             - HANYA jika cnt_d === 0 (TIDAK ADA RECORD daily_logs SAMA SEKALI) DAN tanggal pre-2026,
+               MAKA energy_logs kemungkinan berisi METER READING BULANAN (bukan konsumsi harian)
+               → baru nol-kan PAKAI DATA ENERGY_LOGS SAJA (yg masuk ke merged_or_energy).
              ✅ FIX 2026-08-20: JANGAN nol-kan untuk tanggal >= 2026 — data energy_logsheet valid harian! */
     $_utilSysCutoff = '2026-01-01';
     $_utilIsPreSystem = (strtotime((string)$dateTo) < strtotime($_utilSysCutoff));
-    if (((int)($out['cnt_d'] ?? 0)) === 0 && $_utilIsPreSystem) {
-        $out['elec'] = 0; $out['water'] = 0; $out['gas'] = 0; $out['fuel'] = 0;
-        $out['cost_elec'] = 0; $out['cost_water'] = 0; $out['cost_gas'] = 0; $out['cost_fuel'] = 0;
-        $out['_skip_reason'] = 'cnt_d_zero_energy_logs_meter_reading_skipped';
+    $_cntD_now = (int)($out['cnt_d'] ?? 0);
+    if ($_cntD_now === 0 && $_utilIsPreSystem) {
+        /* Hanya nol-kan hasil merge yg BERASAL dari energy_logs (priority merged_or_energy).
+           Data daily_logs (cnt_d > 0) DILINDUNGI, backfill Engineer 2025 TETAP MASAK! */
+        if (!($pickD_elec ?? true)) { $out['elec'] = 0; $out['cost_elec'] = 0; }
+        if (!($pickD_water ?? true)) { $out['water'] = 0; $out['cost_water'] = 0; }
+        if (!($pickD_gas ?? true)) { $out['gas'] = 0; $out['cost_gas'] = 0; }
+        if (!($pickD_fuel ?? true)) { $out['fuel'] = 0; $out['cost_fuel'] = 0; }
+        /* Safety fallback: jika semua utility merged tapi cnt_d = 0 (tidak ada daily_logs sama sekali) */
+        $_allPickedFromE = (!($pickD_elec ?? true) && !($pickD_water ?? true) && !($pickD_gas ?? true) && !($pickD_fuel ?? true));
+        if ($_allPickedFromE || (!isset($pickD_elec) && !isset($pickD_water))) {
+            $out['elec'] = 0; $out['water'] = 0; $out['gas'] = 0; $out['fuel'] = 0;
+            $out['cost_elec'] = 0; $out['cost_water'] = 0; $out['cost_gas'] = 0; $out['cost_fuel'] = 0;
+        }
+        $out['_skip_reason'] = 'cnt_d_zero_energy_logs_meter_reading_skipped (per-utility selective)';
     }
-    unset($_utilSysCutoff, $_utilIsPreSystem);
+    unset($_utilSysCutoff, $_utilIsPreSystem, $_cntD_now, $_allPickedFromE);
     /* Backward compat: output key 'log_count' = cnt (biar line 101-104 lyXxxAvg TIDAK PERLU DIUBAH) */
     $out['log_count'] = max(1, (int)($out['cnt'] ?? 1));
     if ($debug) { echo "<div style='display:none' class='_dbg_merge'>FINAL ($agg) ".json_encode($out)."</div>\n"; }

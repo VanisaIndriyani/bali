@@ -303,14 +303,36 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
         ];
     }
     /* --- (D) VALIDASI ANTI READING METER BULANAN / DATA SEBELUM SISTEM JALAN --- */
+    /*     RULE FIX LY 2026-08-26 (SINKRON DENGAN INDEX.PHP — PERBAIKI BUG BACKFILL 2025 TIDAK MUNCUL):
+             - cnt_d > 0 = ADA ROW daily_logs approved → INI PASTI BACKFILL ENGINEER ASLI 2025, TIDAK BOLEH di-NOL-kan!
+             - cnt_d === 0 = TIDAK ADA daily_logs sama sekali → baru nol-kan HANYA energy_logs (merged_or_energy).
+             - untuk AVG mode: pickDaily=true → data dari daily_logs, jadi DILINDUNGI juga. */
     $_utilSysCutoff = '2026-01-01';
     $_utilIsPreSystem = (strtotime((string)$dateTo) < strtotime($_utilSysCutoff));
-    if (((int)($out['cnt_d'] ?? 0)) === 0 && $_utilIsPreSystem) {
-        $out['elec'] = 0; $out['water'] = 0; $out['gas'] = 0; $out['fuel'] = 0;
-        $out['cost_elec'] = 0; $out['cost_water'] = 0; $out['cost_gas'] = 0; $out['cost_fuel'] = 0;
-        $out['_skip_reason'] = 'cnt_d_zero_energy_logs_meter_reading_skipped';
+    $_cntD_now = (int)($out['cnt_d'] ?? 0);
+    if ($_cntD_now === 0 && $_utilIsPreSystem) {
+        /* SUM mode: nol-kan hasil merge per-utility JIKA source-nya bukan daily_logs (merged_or_energy = energy_logs). */
+        if ($isSum) {
+            if (!($pickD_elec ?? true)) { $out['elec'] = 0; $out['cost_elec'] = 0; }
+            if (!($pickD_water ?? true)) { $out['water'] = 0; $out['cost_water'] = 0; }
+            if (!($pickD_gas ?? true)) { $out['gas'] = 0; $out['cost_gas'] = 0; }
+            if (!($pickD_fuel ?? true)) { $out['fuel'] = 0; $out['cost_fuel'] = 0; }
+            $_allPickedFromE = (!($pickD_elec ?? true) && !($pickD_water ?? true) && !($pickD_gas ?? true) && !($pickD_fuel ?? true));
+            if ($_allPickedFromE) {
+                $out['elec'] = 0; $out['water'] = 0; $out['gas'] = 0; $out['fuel'] = 0;
+                $out['cost_elec'] = 0; $out['cost_water'] = 0; $out['cost_gas'] = 0; $out['cost_fuel'] = 0;
+            }
+            unset($_allPickedFromE);
+        } else {
+            /* AVG mode: pickDaily = false = pakai energy_logs → nol-kan. */
+            if (!($pickDaily ?? true)) {
+                $out['elec'] = 0; $out['water'] = 0; $out['gas'] = 0; $out['fuel'] = 0;
+                $out['cost_elec'] = 0; $out['cost_water'] = 0; $out['cost_gas'] = 0; $out['cost_fuel'] = 0;
+            }
+        }
+        $out['_skip_reason'] = 'cnt_d_zero_energy_logs_meter_reading_skipped (per-utility selective, sync with index.php)';
     }
-    unset($_utilSysCutoff, $_utilIsPreSystem);
+    unset($_utilSysCutoff, $_utilIsPreSystem, $_cntD_now);
     $out['log_count'] = max(1, (int)($out['cnt'] ?? 1));
     return $out;
 }
@@ -446,6 +468,7 @@ function repUtilFetchDetail($db, $approvedWhereDaily, $userId, $userRole, $dateF
 
     $_utilSysCutoff = '2026-01-01';
     $_utilIsPreSystem = (strtotime((string)$dateTo) < strtotime($_utilSysCutoff));
+    $_cntD_detail = (int)($d['cnt_d'] ?? 0);
     if ($isSum) {
         $pickD_ewbp = ($d['ewbp_c'] > 0.00001);
         $pickD_elwbp = ($d['elwbp_c'] > 0.00001);
@@ -453,9 +476,15 @@ function repUtilFetchDetail($db, $approvedWhereDaily, $userId, $userRole, $dateF
         $pickD_glpg = ($d['glpg_c'] > 0.00001);
         $pickD_glng = ($d['glng_c'] > 0.00001);
         $pickD_fuel = ($d['fuel_c'] > 0.00001);
-        if (((int)($d['cnt_d'] ?? 0)) === 0 && $_utilIsPreSystem) {
-            $pickD_ewbp = $pickD_elwbp = $pickD_wmb = $pickD_glpg = $pickD_glng = $pickD_fuel = false;
-            $d['ewbp_c']=$d['elwbp_c']=$d['wmb_c']=$d['glpg_c']=$d['glng_c']=$d['fuel_c']=0;
+        /* ✅ FIX 2026-08-26 SINKRON INDEX.PHP:
+           JIKA ADA daily_logs row (cnt_d > 0) → LINDUNGI data daily_logs, JANGAN pernah reset ke 0!
+           Reset HANYA jika cnt_d === 0 (benar-benar TIDAK ADA daily_logs) dan tanggal pre-2026
+           → dalam hal itu skip merge: paksa pakai nilai D (nol) SAJA dan jangan pakai energy_logs! */
+        if ($_cntD_detail === 0 && $_utilIsPreSystem) {
+            $pickD_ewbp = true; $pickD_elwbp = true; $pickD_wmb = true;
+            $pickD_glpg = true; $pickD_glng = true; $pickD_fuel = true;
+            /* Paksa nilai E (energy_logs) jadi 0 biar tidak ikut ter-merge D+E */
+            $e['ewbp_c']=$e['elwbp_c']=$e['wmb_c']=$e['glpg_c']=$e['glng_c']=$e['fuel_c']=0;
         }
         $ewbp  = $pickD_ewbp  ? (float)$d['ewbp_c']  : (float)($d['ewbp_c']  + $e['ewbp_c']);
         $elwbp = $pickD_elwbp ? (float)$d['elwbp_c'] : (float)($d['elwbp_c'] + $e['elwbp_c']);
@@ -897,24 +926,30 @@ if ($format === 'excel') {
     $out .= repCsvEscape('UTILITY') . $sep
           . repCsvEscape('PERIOD') . $sep
           . repCsvEscape('USAGE') . $sep
+          . repCsvEscape('SELISIH') . $sep
           . repCsvEscape('COST (Rp.)') . "\n";
 
     $utilCsvRows = [
-        ['ELECTRICITY', 'kWh',   $elecLY,   $elecToday,   $TARIF_LISTRIK],
-        ['WATER',       'm3',    $waterLY,  $waterToday,  $TARIF_AIR],
-        ['GAS',         'kg',    $gasLY,    $gasToday,    $TARIF_GAS],
-        ['FUEL',        'Liter', $fuelLY,   $fuelToday,   $TARIF_FUEL],
+        ['ELECTRICITY', 'kWh',   $elecLY,   $elecToday,   $costElecLY,   $costElecToday],
+        ['WATER',       'm3',    $waterLY,  $waterToday,  $costWaterLY,  $costWaterToday],
+        ['GAS',         'kg',    $gasLY,    $gasToday,    $costGasLY,    $costGasToday],
+        ['FUEL',        'Liter', $fuelLY,   $fuelToday,   $costFuelLY,   $costFuelToday],
     ];
     foreach ($utilCsvRows as $row) {
-        list($name, $unit, $ly, $today, $perUnit) = $row;
+        list($name, $unit, $ly, $today, $costLY, $costToday) = $row;
         $usageLY = repFmtIndo($ly, 0) . ' ' . $unit;
         $usageToday = repFmtIndo($today, 0) . ' ' . $unit;
-        $costLY = repFmtRupiah($ly * $perUnit);
-        $costToday = repFmtRupiah($today * $perUnit);
+        $diffUsage = (float)$today - (float)$ly;
+        $diffAbs = abs($diffUsage);
+        if ($diffUsage > 0.00001) { $diffStr = '+ ' . repFmtIndo($diffAbs, 0) . ' ' . $unit; }
+        elseif ($diffUsage < -0.00001) { $diffStr = '- ' . repFmtIndo($diffAbs, 0) . ' ' . $unit; }
+        else { $diffStr = '0 ' . $unit; }
         $out .= repCsvEscape($name) . $sep . repCsvEscape('(LY)') . $sep
-              . repCsvEscape($usageLY) . $sep . repCsvEscape($costLY) . "\n";
+              . repCsvEscape($usageLY) . $sep . repCsvEscape('(baseline)') . $sep
+              . repCsvEscape(repFmtRupiah($costLY)) . "\n";
         $out .= $sep . repCsvEscape('(TODAY)') . $sep
-              . repCsvEscape($usageToday) . $sep . repCsvEscape($costToday) . "\n";
+              . repCsvEscape($usageToday) . $sep . repCsvEscape($diffStr) . $sep
+              . repCsvEscape(repFmtRupiah($costToday)) . "\n";
     }
     $out .= "\n";
 
@@ -1124,140 +1159,57 @@ if ($format === 'excel') {
         </tbody>
     </table>
 
-    <!-- ② UTILITY (Req 2: Variance & % CHANGE) -->
+    <!-- ② UTILITY USAGE SUMMARY (Format Semula + Kolom SELISIH + COST) -->
     <h2>2. UTILITY USAGE SUMMARY</h2>
-    <table class="util">
+    <table>
         <thead>
             <tr>
-                <th rowspan="2" style="width:22%;">UTILITY</th>
-                <th rowspan="2" style="width:7%;">UNIT</th>
-                <th colspan="4" style="background:#cbd5e1;">KONSUMSI HARIAN</th>
-                <th colspan="4" style="background:#cbd5e1;">BIAYA (Rp.)</th>
-            </tr>
-            <tr>
-                <th style="width:10%;">LY SAMA<br>HARI</th>
-                <th style="width:10%;">TODAY</th>
-                <th style="width:11%;">VARIANCE</th>
-                <th style="width:9%;">% CHANGE</th>
-                <th style="width:8%;">LY</th>
-                <th style="width:8%;">TODAY</th>
-                <th style="width:8%;">VAR</th>
-                <th style="width:7%;">%</th>
+                <th style="width:22%;">UTILITY</th>
+                <th style="width:12%;">PERIOD</th>
+                <th style="width:20%;">USAGE</th>
+                <th style="width:20%;">SELISIH</th>
+                <th style="width:26%;">COST (Rp.)</th>
             </tr>
         </thead>
         <tbody>
             <?php
-            $utilRows = [
-                ['name'=>'Listrik WBP',     'unit'=>'kWh',   't_kq'=>$detToday['ewbp'],         'l_kq'=>$detLY['ewbp'],         't_rp'=>$detToday['cost_ewbp'],         'l_rp'=>$detLY['cost_ewbp'],         'isTotal'=>false],
-                ['name'=>'Listrik LWBP',    'unit'=>'kWh',   't_kq'=>$detToday['elwbp'],        'l_kq'=>$detLY['elwbp'],        't_rp'=>$detToday['cost_elwbp'],        'l_rp'=>$detLY['cost_elwbp'],        'isTotal'=>false],
-                ['name'=>'Listrik Total',   'unit'=>'kWh',   't_kq'=>$detToday['elec_total'],   'l_kq'=>$detLY['elec_total'],   't_rp'=>$detToday['cost_elec_total'],   'l_rp'=>$detLY['cost_elec_total'],   'isTotal'=>true],
-                ['name'=>'Air (Main Bldg)', 'unit'=>'m&sup3;','t_kq'=>$detToday['wmb'],          'l_kq'=>$detLY['wmb'],          't_rp'=>$detToday['cost_wmb'],          'l_rp'=>$detLY['cost_wmb'],          'isTotal'=>false],
-                ['name'=>'Gas LPG',         'unit'=>'kg',    't_kq'=>$detToday['glpg'],         'l_kq'=>$detLY['glpg'],         't_rp'=>$detToday['cost_glpg'],         'l_rp'=>$detLY['cost_glpg'],         'isTotal'=>false],
-                ['name'=>'Gas LNG',         'unit'=>'kg',    't_kq'=>$detToday['glng'],         'l_kq'=>$detLY['glng'],         't_rp'=>$detToday['cost_glng'],         'l_rp'=>$detLY['cost_glng'],         'isTotal'=>false],
-                ['name'=>'Gas Total',       'unit'=>'kg',    't_kq'=>$detToday['gas_total'],    'l_kq'=>$detLY['gas_total'],    't_rp'=>$detToday['cost_gas_total'],    'l_rp'=>$detLY['cost_gas_total'],    'isTotal'=>true],
-                ['name'=>'BBM / Fuel (Solar)','unit'=>'L',   't_kq'=>$detToday['fuel'],         'l_kq'=>$detLY['fuel'],         't_rp'=>$detToday['cost_fuel'],         'l_rp'=>$detLY['cost_fuel'],         'isTotal'=>false],
+            $utilPairs = [
+                ['name'=>'ELECTRICITY', 'unit'=>'kWh',   'ly_val'=>$elecLY,   'today_val'=>$elecToday,   'ly_cost'=>$costElecLY,   'today_cost'=>$costElecToday],
+                ['name'=>'WATER',       'unit'=>'m3',    'ly_val'=>$waterLY,  'today_val'=>$waterToday,  'ly_cost'=>$costWaterLY,  'today_cost'=>$costWaterToday],
+                ['name'=>'GAS',         'unit'=>'kg',    'ly_val'=>$gasLY,    'today_val'=>$gasToday,    'ly_cost'=>$costGasLY,    'today_cost'=>$costGasToday],
+                ['name'=>'FUEL',        'unit'=>'liter', 'ly_val'=>$fuelLY,   'today_val'=>$fuelToday,   'ly_cost'=>$costFuelLY,   'today_cost'=>$costFuelToday],
             ];
-            foreach ($utilRows as $ur) {
-                $rowCls = $ur['isTotal'] ? ' subtotal' : '';
-                $nameBold = $ur['isTotal'] ? 'font-weight:900;' : '';
+            foreach ($utilPairs as $up) {
+                $name = $up['name'];
+                $unit = $up['unit'];
+                $lyV = (float)$up['ly_val'];
+                $tdV = (float)$up['today_val'];
+                $lyC = (float)$up['ly_cost'];
+                $tdC = (float)$up['today_cost'];
+                $diffUsage = $tdV - $lyV;
+                $diffAbsU = abs($diffUsage);
+                if ($diffUsage > 0.00001) { $arrowU = '&uarr; +'; $clsU = 'color:#000;'; }
+                elseif ($diffUsage < -0.00001) { $arrowU = '&darr; '; $clsU = 'color:#000;'; }
+                else { $arrowU = ''; $clsU = 'color:#000;'; }
+                $unitLabel = $unit;
+                $diffStr = $arrowU . repFmtIndo($diffAbsU, 0) . ' ' . $unitLabel;
             ?>
-            <tr class="<?=$rowCls?>">
-                <td class="util-name" style="<?=$nameBold?>"><i class="fa-solid fa-grip-lines-vertical" style="color:#cbd5e1; font-size:9px; margin-right:6px;"></i><?=htmlspecialchars($ur['name'])?></td>
-                <td class="util-unit"><?=$ur['unit']?></td>
-                <td class="util-num"><?=repFmtIndo($ur['l_kq'], 0)?></td>
-                <td class="util-num" style="font-weight:800;"><?=repFmtIndo($ur['t_kq'], 0)?></td>
-                <?php
-                    $tv = (float)$ur['t_kq']; $lv = (float)$ur['l_kq'];
-                    $var = $tv - $lv; $vAbs = abs($var);
-                    $pct = ($lv > 0.00001) ? (($var / $lv) * 100) : 0;
-                    $pctAbs = abs($pct);
-                    if ($var > 0.00001) { $arr = '&uarr;'; $vCls = 'text-slate-700 font-weight:700;'; $pCls = 'text-slate-700 font-weight:700;'; }
-                    elseif ($var < -0.00001) { $arr = '&darr;'; $vCls = 'text-slate-500 font-weight:700;'; $pCls = 'text-slate-500 font-weight:700;'; }
-                    else { $arr = ''; $vCls = 'color:#475569;'; $pCls = 'color:#475569;'; }
-                    $unitStr = ($ur['unit'] === 'm&sup3;') ? ' m3' : ' '.$ur['unit'];
-                    $varStr = ($arr !== '') ? $arr.' '.repFmtIndo($vAbs, 0).$unitStr : repFmtIndo($vAbs, 0).$unitStr;
-                    $pctStr = ($lv <= 0.00001) ? '&mdash;' : repFmtIndo($pctAbs, 1).'%';
-                ?>
-                <td class="util-num font-mono" style="text-align:right; <?=$vCls?>"><?=$varStr?></td>
-                <td class="util-num font-mono" style="text-align:right; <?=$pCls?>"><?=$pctStr?></td>
-                <td class="util-num cost-rupiah font-mono"><?=repFmtRupiah($ur['l_rp'])?></td>
-                <td class="util-num cost-rupiah font-mono" style="font-weight:800;"><?=repFmtRupiah($ur['t_rp'])?></td>
-                <?php
-                    $tr = (float)$ur['t_rp']; $lr = (float)$ur['l_rp'];
-                    $rVar = $tr - $lr; $rAbs = abs($rVar);
-                    $rPct = ($lr > 0.00001) ? (($rVar / $lr) * 100) : 0;
-                    $rPctAbs = abs($rPct);
-                    if ($rVar > 0.00001) { $rArr = '&uarr;'; $rvCls = 'text-slate-700 font-weight:700;'; $rpCls = 'text-slate-700 font-weight:700;'; }
-                    elseif ($rVar < -0.00001) { $rArr = '&darr;'; $rvCls = 'text-slate-500 font-weight:700;'; $rpCls = 'text-slate-500 font-weight:700;'; }
-                    else { $rArr = ''; $rvCls = 'color:#475569;'; $rpCls = 'color:#475569;'; }
-                    $rVarStr = ($rArr !== '') ? $rArr.' Rp '.repFmtRupiah($rAbs) : 'Rp '.repFmtRupiah($rAbs);
-                    $rPctStr = ($lr <= 0.00001) ? '&mdash;' : repFmtIndo($rPctAbs, 1).'%';
-                ?>
-                <td class="util-num cost-rupiah font-mono" style="text-align:right; <?=$rvCls?>"><?=$rVarStr?></td>
-                <td class="util-num font-mono" style="text-align:right; <?=$rpCls?>"><?=$rPctStr?></td>
+            <tr>
+                <td rowspan="2" class="bold cen mid"><?=htmlspecialchars($name)?></td>
+                <td class="cen">(LY)</td>
+                <td class="num"><?=repFmtIndo($lyV, 0)?> <?=$unitLabel?></td>
+                <td class="cen num" style="color:#666; font-style:italic;">(baseline)</td>
+                <td class="num"><?=repFmtRupiah($lyC)?></td>
+            </tr>
+            <tr>
+                <td class="cen">(TODAY)</td>
+                <td class="num bold"><?=repFmtIndo($tdV, 0)?> <?=$unitLabel?></td>
+                <td class="num bold" style="<?=$clsU?>"><?=$diffStr?></td>
+                <td class="num bold"><?=repFmtRupiah($tdC)?></td>
             </tr>
             <?php } ?>
         </tbody>
     </table>
-
-    <!-- Legacy aggregate 4-row table (KEPT INTACT per requirement "Keep all existing columns intact") -->
-    <div style="height:10px;"></div>
-    <details style="border:1px solid #cbd5e1; border-radius:8px; padding:6px 10px; background:#f8fafc;">
-        <summary style="cursor:pointer; font-size:11px; font-weight:700; color:#475569; letter-spacing:.05em;">
-            <i class="fa-solid fa-table-columns" style="margin-right:5px;"></i>Ringkasan Aggregat (4 Baris Legacy)
-        </summary>
-        <div style="padding-top:8px;">
-        <table class="util">
-            <thead><tr><th>UTILITY</th><th>PERIOD</th><th>USAGE</th><th>COST (Rp.)</th></tr></thead>
-            <tbody>
-                <tr>
-                    <td rowspan="2" class="bold cen mid">ELECTRICITY</td>
-                    <td class="cen">(LY)</td>
-                    <td class="num"><?=repFmtIndo($elecLY, 0)?> kWh</td>
-                    <td class="num"><?=repFmtRupiah($costElecLY)?></td>
-                </tr>
-                <tr>
-                    <td class="cen">(TODAY)</td>
-                    <td class="num"><?=repFmtIndo($elecToday, 0)?> kWh</td>
-                    <td class="num"><?=repFmtRupiah($costElecToday)?></td>
-                </tr>
-                <tr>
-                    <td rowspan="2" class="bold cen mid">WATER</td>
-                    <td class="cen">(LY)</td>
-                    <td class="num"><?=repFmtIndo($waterLY, 0)?> m&sup3;</td>
-                    <td class="num"><?=repFmtRupiah($costWaterLY)?></td>
-                </tr>
-                <tr>
-                    <td class="cen">(TODAY)</td>
-                    <td class="num"><?=repFmtIndo($waterToday, 0)?> m&sup3;</td>
-                    <td class="num"><?=repFmtRupiah($costWaterToday)?></td>
-                </tr>
-                <tr>
-                    <td rowspan="2" class="bold cen mid">GAS</td>
-                    <td class="cen">(LY)</td>
-                    <td class="num"><?=repFmtIndo($gasLY, 0)?> kg</td>
-                    <td class="num"><?=repFmtRupiah($costGasLY)?></td>
-                </tr>
-                <tr>
-                    <td class="cen">(TODAY)</td>
-                    <td class="num"><?=repFmtIndo($gasToday, 0)?> kg</td>
-                    <td class="num"><?=repFmtRupiah($costGasToday)?></td>
-                </tr>
-                <tr>
-                    <td rowspan="2" class="bold cen mid">FUEL</td>
-                    <td class="cen">(LY)</td>
-                    <td class="num"><?=repFmtIndo($fuelLY, 0)?> Liter</td>
-                    <td class="num"><?=repFmtRupiah($costFuelLY)?></td>
-                </tr>
-                <tr>
-                    <td class="cen">(TODAY)</td>
-                    <td class="num"><?=repFmtIndo($fuelToday, 0)?> Liter</td>
-                    <td class="num"><?=repFmtRupiah($costFuelToday)?></td>
-                </tr>
-            </tbody>
-        </table>
-        </div>
-    </details>
 
     <!-- ③ ENGINEERING ACTIVITIES (TABEL 5 KOLOM SAMA PERSIS DASHBOARD INDEX.PHP) -->
     <h2>3. ENGINEERING ACTIVITIES</h2>
