@@ -466,13 +466,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // ⭐ BACKFILL OVERRIDE YESTERDAY (jika user klik ✏️ Edit Yesterday di form):
     // Hidden input _y_*_override = KOSONG  → pakai Yesterday otomatis dari auto-fetch DB (defaut normal hari ini)
     // Hidden input _y_*_override = TERISI  → user sedang input data historis tahun lalu, timpa Yesterday pakai input manual
-    $_yOvWbp   = trim((string)($_POST['_y_elec_wbp_override']  ?? ''));
-    $_yOvLwbp  = trim((string)($_POST['_y_elec_lwbp_override'] ?? ''));
-    $_yOvWm    = trim((string)($_POST['_y_water_mb_override']   ?? ''));
-    if ($_yOvWbp  !== '') $elecYesterdayWbp  = (float)normalizeDecimalInput($_yOvWbp);
-    if ($_yOvLwbp !== '') $elecYesterdayLwbp = (float)normalizeDecimalInput($_yOvLwbp);
-    if ($_yOvWm   !== '') $mbYesterdayRead   = (float)normalizeDecimalInput($_yOvWm);
-    unset($_yOvWbp, $_yOvLwbp, $_yOvWm);
+    $_yOvList = [
+      'wbp'  => trim((string)($_POST['_y_elec_wbp_override']  ?? '')),
+      'lwbp' => trim((string)($_POST['_y_elec_lwbp_override'] ?? '')),
+      'wm'   => trim((string)($_POST['_y_water_mb_override']  ?? '')),
+    ];
+    // 🔥 MODE BACKFILL DETECTION (Fix BULAN DEPAN TIDAK USAH INJECT SQL LAGI!
+    // Rule: JIKA SALAH SATU dari 3 field override TERISI = User unlock Yesterday = mode BACKFILL HISTORIS
+    // Maka: total_xx disimpan sebagai TODAY READING (nilai hari itu sendiri), BUKAN (Today-Yesterday selisih
+    $isBackfillMode = ($_yOvList['wbp'] !== '' || $_yOvList['lwbp'] !== '' || $_yOvList['wm'] !== '');
+    if ($_yOvList['wbp']  !== '') $elecYesterdayWbp  = (float)normalizeDecimalInput($_yOvList['wbp']);
+    if ($_yOvList['lwbp'] !== '') $elecYesterdayLwbp = (float)normalizeDecimalInput($_yOvList['lwbp']);
+    if ($_yOvList['wm']   !== '') $mbYesterdayRead   = (float)normalizeDecimalInput($_yOvList['wm']);
+    unset($_yOvList);
 
     // ① Electricity Subdetails — Phase 2c: use normalizeDecimalInput — SEMUA SHIFT AUTO HITUNG
     $eWbp   = (float)normalizeDecimalInput($_POST['electricity_wbp'] ?? 0);
@@ -481,8 +487,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $isShiftMalam = ($shift === 'malam');
     $_eLWBP = max(0.0, $eLwbp - $elecYesterdayLwbp) * 8000;
     $_eWBP  = max(0.0, $eWbp  - $elecYesterdayWbp)  * 8000;
-    $electricity = $_eLWBP + $_eWBP;
+    $electricityConsumptionCostBase = $_eLWBP + $_eWBP;
     unset($_eLWBP, $_eWBP);
+    // ✅ FIX 2026-08-26: TIDAK USAH INJECT DB MANUAL LAGI KAK BACKFILL!
+    if ($isBackfillMode) {
+        // MODE BACKFILL: total_electricity = NILAI TODAY READING (wbp+lwbp)
+        // (bukan selisih hari ini - kemarin. Ini yang membuat LY kemarin 26.240 kWh tersimpan 3.27 saja)
+        $electricity = $eTodayTotal;
+    } else {
+        // MODE NORMAL (HARI INI): pakai selisih (pemakaian hari ini kemarin) — tetap untuk log hari ini
+        $electricity = $electricityConsumptionCostBase;
+    }
+    unset($electricityConsumptionCostBase);
 
     // ② Water 9+ sources — Phase 2c: use normalizeDecimalInput + ADD water_irrigation — SEMUA SHIFT AUTO HITUNG (sama formula JS)
     $wPdam   = (float)normalizeDecimalInput($_POST['water_pdam'] ?? 0);
@@ -498,8 +514,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $wCooling  = (float)normalizeDecimalInput($_POST['water_cooling_tower'] ?? 0);
     $wBottling = (float)normalizeDecimalInput($_POST['water_bottling'] ?? 0);
     $wIrrigation = (float)normalizeDecimalInput($_POST['water_irrigation'] ?? 0);
-    $water = $wMainBldgCons + $wPdam + $wIki + $wDw1 + $wDw2 + $wDwAsean + $wDwLpb + $wCooling + $wBottling + $wIrrigation;
+    $waterOthersSum = $wPdam + $wIki + $wDw1 + $wDw2 + $wDwAsean + $wDwLpb + $wCooling + $wBottling + $wIrrigation;
+    $waterNormalMode = $wMainBldgCons + $waterOthersSum;
     unset($eTodayTotal, $wMainBldgConsRaw);
+    // ✅ FIX 2026-08-26 WATER: Backfill mode → total_water = wMainBldgRead (nilai reading hari ini) + sum others
+    if ($isBackfillMode) {
+        $water = $wMainBldgRead + $waterOthersSum;
+    } else {
+        $water = $waterNormalMode;
+    }
+    unset($waterOthersSum, $waterNormalMode);
 
     // ③ Gas 2 types
     $gLpg = (float)normalizeDecimalInput($_POST['gas_lpg'] ?? 0);
