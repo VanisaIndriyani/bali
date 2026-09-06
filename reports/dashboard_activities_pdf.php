@@ -51,28 +51,63 @@ try {
                 if (!is_array($it) || empty($it['t'])) continue;
                 $st = (($it['s'] ?? 'progress') === 'complete') ? 'complete' : 'progress';
                 if ($st !== 'progress') continue;
+                /* ✅ 2026-09-06 FIX BY ENG per-item JSON:
+                   1. it['un'] = nama user yang disimpan langsung di JSON
+                   2. it['u']  = user id, join ke users (dengan cache static)
+                   3. fallback ke lr.engineer_name (engineer parent log) jika data lama */
+                $_en = '';
+                if (!empty($it['un'])) {
+                    $_en = trim((string)$it['un']);
+                } elseif (!empty($it['u'])) {
+                    $_uid = (int)$it['u'];
+                    if ($_uid > 0) {
+                        static $_uc = [];
+                        if (!isset($_uc[$_uid])) {
+                            $_ur = $db->fetchOne("SELECT name FROM users WHERE id = ? LIMIT 1", [$_uid]);
+                            $_uc[$_uid] = !empty($_ur['name']) ? (string)$_ur['name'] : '';
+                        }
+                        $_en = $_uc[$_uid];
+                    }
+                }
+                if ($_en === '') {
+                    $_en = (string)($lr['engineer_name'] ?? '-');
+                }
                 $engActRows[] = [
                     'division'      => $div,
                     'activity_name' => trim((string)$it['t']),
                     'log_date'      => (string)$lr['log_date'],
-                    'engineer_name' => (string)($lr['engineer_name'] ?? '-'),
+                    'engineer_name' => $_en,
                     'is_master'     => false,
                 ];
             }
         }
     }
-    unset($logRows, $lr, $it, $arr, $json);
+    unset($logRows, $lr, $it, $arr, $json, $_en, $_uid, $_uc, $_ur);
 
-    $mstRows = $db->fetchAll(
-        "SELECT am.division, am.activity_name, am.created_at, u.name as created_by_name
-         FROM activity_masters am
-         LEFT JOIN users u ON u.id = am.created_by
-         WHERE am.status_default='progress'
-         ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC"
-    );
-    $_defEngName = !empty($user['name']) ? (string)$user['name'] : 'Master Activity';
+    /* ✅ 2026-09-06 FIX activity_masters:
+       - HANYA tampilkan yang created_at DALAM RANGE BULAN LAPORAN (hindari Agustus muncul di September)
+       - DILARANG fallback ke $user['name'] (nama user lagi login)!  */
+    try {
+        $mstRows = $db->fetchAll(
+            "SELECT am.division, am.activity_name, am.created_at, u.name as created_by_name
+             FROM activity_masters am
+             LEFT JOIN users u ON u.id = am.created_by
+             WHERE am.status_default='progress' AND DATE(am.created_at) BETWEEN ? AND ?
+             ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC",
+            [$monthStart, $today]
+        );
+    } catch (Throwable $_e) {
+        $mstRows = $db->fetchAll(
+            "SELECT am.division, am.activity_name, am.created_at, u.name as created_by_name
+             FROM activity_masters am
+             LEFT JOIN users u ON u.id = am.created_by
+             WHERE am.status_default='progress'
+             ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC"
+        );
+    }
     foreach ($mstRows as $mr) {
-        $_engName = !empty($mr['created_by_name']) ? (string)$mr['created_by_name'] : $_defEngName;
+        /* ✅ HANYA pakai created_by_name asli pembuat. JIKA kosong = tulis "- (Master Activity)" */
+        $_engName = !empty($mr['created_by_name']) ? (string)$mr['created_by_name'] : '- (Master Activity)';
         $engActRows[] = [
             'division'      => (string)$mr['division'],
             'activity_name' => trim((string)$mr['activity_name']),
@@ -81,7 +116,7 @@ try {
             'is_master'     => true,
         ];
     }
-    unset($_engName, $_defEngName, $mstRows, $mr);
+    unset($_engName, $mstRows, $mr, $_e);
 
     usort($engActRows, function ($a, $b) {
         if ($a['log_date'] !== $b['log_date']) return strcmp($b['log_date'], $a['log_date']);

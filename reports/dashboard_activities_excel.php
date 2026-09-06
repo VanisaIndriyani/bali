@@ -49,10 +49,13 @@ function buildActivityListQuery($db, $userRole, $userId, $category, $dateFrom, $
         $baseWhere .= " AND dl.engineer_id = ?";
         $params[] = $userId;
     }
-    $sql = "SELECT dla.id, dla.activity_title, DATE(dl.log_date) as log_date, u.name as engineer_name
+    /* ✅ 2026-09-06 FIX BY ENG: Prioritas dla.created_by → fallback dl.engineer_id */
+    $sql = "SELECT dla.id, dla.activity_title, DATE(dl.log_date) as log_date,
+                   COALESCE(NULLIF(uc.name,''), u.name) as engineer_name
             FROM daily_log_activities dla
             INNER JOIN daily_logs dl ON dl.id = dla.daily_log_id
             LEFT JOIN users u ON u.id = dl.engineer_id
+            LEFT JOIN users uc ON uc.id = dla.created_by
             $baseWhere
             ORDER BY dl.log_date DESC, dla.sort_order ASC, dla.id DESC
             LIMIT $limit";
@@ -87,12 +90,92 @@ $actsGRP = [
     'project'     => actGroupWithStatus($actListProj),
     'landscape'   => actGroupWithStatus($actListLand),
 ];
+
+/* ✅ 2026-09-06 BARU: MERGE activity_*_items JSON (sumber manager/activities.php)
+   — sebelumnya data JSON tidak muncul di EXCEL sama sekali! (mirip daily_summary.php) */
 try {
-    $_tmpMastersAct = $db->fetchAll("SELECT am.division, am.activity_name, am.sort_order, am.created_at, am.status_default,
-                                            u.name as created_by_name
-                                     FROM activity_masters am
-                                     LEFT JOIN users u ON u.id = am.created_by
-                                     ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC");
+    $_roleWhereExc = '';
+    $_actParamsExc = [];
+    if ($userRole === 'engineer') { $_roleWhereExc = ' AND dl.engineer_id = ?'; $_actParamsExc[] = $userId; }
+    $_actColMapExc = ['project'=>'activity_project_items','operation'=>'activity_operation_items','maintenance'=>'activity_maintenance_items','landscape'=>'activity_landscape_items'];
+    $_jsonTitleUsedExc = [];
+    foreach ($_actColMapExc as $_dvExc => $_colExc) {
+        if (!isset($actsGRP[$_dvExc]) || !is_array($actsGRP[$_dvExc])) $actsGRP[$_dvExc] = [];
+        foreach ($actsGRP[$_dvExc] as $_rExc) { $_kExc = mb_strtolower(trim((string)($_rExc['title'] ?? ''))); if ($_kExc !== '') $_jsonTitleUsedExc[$_dvExc][$_kExc] = true; }
+    }
+    foreach ($_actColMapExc as $_dvExc => $_colExc) {
+        $_sqlExc = "SELECT dl.id, dl.log_date, u.name as engineer_name, dl.$_colExc as json_col
+                    FROM daily_logs dl
+                    LEFT JOIN users u ON u.id = dl.engineer_id
+                    WHERE dl.status='approved' $_roleWhereExc
+                      AND dl.log_date BETWEEN ? AND ?
+                      AND dl.$_colExc IS NOT NULL AND dl.$_colExc <> ''
+                    ORDER BY dl.log_date DESC, dl.id DESC";
+        $_rowsExc = $db->fetchAll($_sqlExc, array_merge($_actParamsExc, [$monthStart, $today]));
+        foreach ($_rowsExc as $_raExc) {
+            $_rawExc = (string)($_raExc['json_col'] ?? '');
+            if ($_rawExc === '') continue;
+            $_arrExc = json_decode($_rawExc, true);
+            if (!is_array($_arrExc) || count($_arrExc) === 0) continue;
+            foreach ($_arrExc as $_iaExc) {
+                if (!is_array($_iaExc)) continue;
+                $_tExc = trim((string)($_iaExc['t'] ?? ''));
+                if ($_tExc === '') continue;
+                $_sExc = (string)($_iaExc['s'] ?? 'progress');
+                $_kExc = mb_strtolower($_tExc);
+                if (isset($_jsonTitleUsedExc[$_dvExc][$_kExc])) continue;
+                $_jsonTitleUsedExc[$_dvExc][$_kExc] = true;
+                $_tlExc = mb_strtolower($_tExc);
+                $_isProgExc = ($_sExc === 'progress')
+                    || (strpos($_tlExc,'progress')!==false) || (strpos($_tlExc,'install')!==false)
+                    || (strpos($_tlExc,'perbaikan')!==false) || (strpos($_tlExc,'new ')!==false)
+                    || (strpos($_tlExc,'buat')!==false) || (strpos($_tlExc,'meeting')!==false)
+                    || (strpos($_tlExc,'pemindahan')!==false) || (strpos($_tlExc,'follow up')!==false)
+                    || (strpos($_tlExc,'refinising')!==false) || (strpos($_tlExc,'rapikan')!==false)
+                    || (strpos($_tlExc,'project ')!==false);
+                /* Fix BY ENG per-item: un > u > engineer_name parent */
+                $_enExc = '';
+                if (!empty($_iaExc['un'])) { $_enExc = trim((string)$_iaExc['un']); }
+                elseif (!empty($_iaExc['u'])) {
+                    $_uidExc = (int)$_iaExc['u'];
+                    if ($_uidExc > 0) {
+                        static $_uCacheExc = [];
+                        if (!isset($_uCacheExc[$_uidExc])) { $_urExc = $db->fetchOne("SELECT name FROM users WHERE id = ? LIMIT 1", [$_uidExc]); $_uCacheExc[$_uidExc] = !empty($_urExc['name']) ? (string)$_urExc['name'] : ''; }
+                        $_enExc = $_uCacheExc[$_uidExc];
+                    }
+                }
+                if ($_enExc === '') $_enExc = (string)($_raExc['engineer_name'] ?? '-');
+                $actsGRP[$_dvExc][] = [
+                    'title'  => $_tExc,
+                    'status' => $_isProgExc ? 'progress' : 'complete',
+                    'date'   => (string)$_raExc['log_date'],
+                    'eng'    => $_enExc
+                ];
+            }
+        }
+    }
+    unset($_rowsExc, $_raExc, $_rawExc, $_arrExc, $_iaExc, $_tExc, $_sExc, $_kExc, $_enExc, $_uidExc, $_uCacheExc, $_urExc, $_dvExc, $_colExc, $_sqlExc, $_actColMapExc, $_jsonTitleUsedExc, $_rExc, $_roleWhereExc, $_actParamsExc);
+} catch (Throwable $e) {}
+
+try {
+    /* ✅ 2026-09-06 FIX activity_masters:
+       - FILTER DATE(created_at) BETWEEN range laporan (hindari data lama muncul)
+       - DILARANG fallback ke $user['name']!  */
+    try {
+        $_tmpMastersAct = $db->fetchAll("SELECT am.division, am.activity_name, am.sort_order, am.created_at, am.status_default,
+                                                u.name as created_by_name
+                                         FROM activity_masters am
+                                         LEFT JOIN users u ON u.id = am.created_by
+                                         WHERE DATE(am.created_at) BETWEEN ? AND ?
+                                         ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC",
+            [$monthStart, $today]);
+    } catch (Throwable $_e) {
+        $_tmpMastersAct = $db->fetchAll("SELECT am.division, am.activity_name, am.sort_order, am.created_at, am.status_default,
+                                                u.name as created_by_name
+                                         FROM activity_masters am
+                                         LEFT JOIN users u ON u.id = am.created_by
+                                         ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC");
+    }
     $_existingTitleAct = [];
     foreach (['project','operation','maintenance','landscape'] as $dv) {
         if (!isset($actsGRP[$dv]) || !is_array($actsGRP[$dv])) $actsGRP[$dv] = [];
@@ -101,7 +184,6 @@ try {
             if ($t !== '') $_existingTitleAct[$dv][$t] = true;
         }
     }
-    $_defEngExcel = !empty($user['name']) ? (string)$user['name'] : '- (Master Activity)';
     foreach ($_tmpMastersAct as $_m) {
         $dv = (string)($_m['division'] ?? 'operation');
         if (!in_array($dv,['project','operation','maintenance','landscape'], true)) $dv = 'operation';
@@ -111,10 +193,10 @@ try {
         $key = mb_strtolower($title);
         if (isset($_existingTitleAct[$dv][$key])) continue;
         $st = (string)($_m['status_default'] ?? 'progress');
-        $_engExcel = !empty($_m['created_by_name']) ? (string)$_m['created_by_name'] : $_defEngExcel;
+        $_engExcel = !empty($_m['created_by_name']) ? (string)$_m['created_by_name'] : '- (Master Activity)';
         $actsGRP[$dv][] = ['title'=>$title, 'status'=>($st==='complete'?'complete':'progress'), 'date'=>substr((string)($_m['created_at'] ?? ''),0,10), 'eng'=>$_engExcel];
     }
-    unset($_tmpMastersAct, $_existingTitleAct, $dv, $_m, $title, $key, $st, $_engExcel, $_defEngExcel);
+    unset($_tmpMastersAct, $_existingTitleAct, $dv, $_m, $title, $key, $st, $_engExcel, $_e);
 } catch (Throwable $e) {}
 
 $totalActivities = 0; $totalProgress = 0; $totalComplete = 0;

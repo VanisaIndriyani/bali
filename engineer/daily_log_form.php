@@ -5,6 +5,8 @@ requireRole(['engineer', 'supervisor', 'manager']);
 
 $db = Database::getInstance();
 $user = currentUser();
+$_actCurUserId = (int)($user['id'] ?? 0);
+$_actCurUserName = trim((string)($user['name'] ?? ''));
 $roleLower = strtolower((string)($user['role'] ?? ''));
 $isEngineerRole = $roleLower === 'engineer';
 $canChooseEngineer = in_array($roleLower, ['supervisor','manager','admin'], true);
@@ -98,7 +100,26 @@ if (empty($_dlMigFlag5)) {
         unset($addCol5);
     } catch (\Throwable $e) { /* Already exists, safe ignore */ }
 }
-unset($_dlMigFlag, $_dlMigFlag2, $_dlMigFlag3, $_dlMigFlag4, $_dlMigFlag5, $cols, $colsLC, $cols3, $cols4, $cols4LC, $cols5, $cols5LC);
+// --- BARU (2026-09-06): Kolom daily_log_activities.created_by + activity_*_items JSON (BY ENG per item) ---
+$_dlActMig = $db->fetchAll("SHOW COLUMNS FROM daily_log_activities LIKE 'created_by'");
+if (empty($_dlActMig)) {
+    try {
+        $pdoActMig = $db->getConnection();
+        $pdoActMig->exec("ALTER TABLE daily_log_activities ADD COLUMN created_by INT NULL DEFAULT NULL COMMENT 'User ID pembuat activity (bisa engineer/manager/supervisor)' AFTER sort_order");
+        $pdoActMig->exec("ALTER TABLE daily_log_activities ADD INDEX idx_created_by (created_by)");
+    } catch (\Throwable $e) { /* Already exists, safe ignore */ }
+}
+$_dlActItemMig = $db->fetchAll("SHOW COLUMNS FROM daily_logs LIKE 'activity_operation_items'");
+if (empty($_dlActItemMig)) {
+    try {
+        $pdoAIMig = $db->getConnection();
+        $pdoAIMig->exec("ALTER TABLE daily_logs ADD COLUMN activity_operation_items TEXT NULL AFTER activity_operation");
+        $pdoAIMig->exec("ALTER TABLE daily_logs ADD COLUMN activity_maintenance_items TEXT NULL AFTER activity_maintenance");
+        $pdoAIMig->exec("ALTER TABLE daily_logs ADD COLUMN activity_project_items TEXT NULL AFTER activity_project");
+        $pdoAIMig->exec("ALTER TABLE daily_logs ADD COLUMN activity_landscape_items TEXT NULL AFTER activity_landscape");
+    } catch (\Throwable $e) { /* Already exists, safe ignore */ }
+}
+unset($_dlMigFlag, $_dlMigFlag2, $_dlMigFlag3, $_dlMigFlag4, $_dlMigFlag5, $cols, $colsLC, $cols3, $cols4, $cols4LC, $cols5, $cols5LC, $_dlActMig, $_dlActItemMig);
 
 // ==============================================
 // 🔧 HELPER: Build Equipment Section Data (NEW STRUCTURE 2026-08-23)
@@ -431,7 +452,7 @@ $elecTodayTotal = $elecTodayWbp + $elecTodayLwbp;
 // Load DEFAULT — SEMUA SHIFT (Pagi/Siang/Malam) AUTO HITUNG sama formula JS
 $_mbTodayRaw = $mbTodayRead;
 $_mbYestRaw  = $mbYesterdayRead;
-$mbConsumptionBase = max(0.0, $_mbTodayRaw - $_mbYestRaw) * 10;
+$mbConsumptionBase = max(0.0, $_mbTodayRaw - $_mbYestRaw);
 $mbConsumption = $mbConsumptionBase
     + (float)($log['water_pdam'] ?? 0)
     + (float)($log['water_iki_gaban'] ?? 0)
@@ -442,8 +463,8 @@ $mbConsumption = $mbConsumptionBase
     + (float)($log['water_cooling_tower'] ?? 0)
     + (float)($log['water_bottling'] ?? 0)
     + (float)($log['water_irrigation'] ?? 0);
-$eLwbpConsNow = max(0.0, $elecTodayLwbp - $elecYesterdayLwbp) * 8000;
-$eWbpConsNow  = max(0.0, $elecTodayWbp  - $elecYesterdayWbp)  * 8000;
+$eLwbpConsNow = max(0.0, $elecTodayLwbp - $elecYesterdayLwbp);
+$eWbpConsNow  = max(0.0, $elecTodayWbp  - $elecYesterdayWbp);
 $elecConsumptionNow = $eLwbpConsNow + $eWbpConsNow;
 unset($eLwbpConsNow, $eWbpConsNow, $yestRow, $_mbTodayRaw, $_mbYestRaw, $mbConsumptionBase);
 
@@ -485,8 +506,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $eLwbp  = (float)normalizeDecimalInput($_POST['electricity_lwbp'] ?? 0);
     $eTodayTotal = $eWbp + $eLwbp;
     $isShiftMalam = ($shift === 'malam');
-    $_eLWBP = max(0.0, $eLwbp - $elecYesterdayLwbp) * 8000;
-    $_eWBP  = max(0.0, $eWbp  - $elecYesterdayWbp)  * 8000;
+    $_eLWBP = max(0.0, $eLwbp - $elecYesterdayLwbp);
+    $_eWBP  = max(0.0, $eWbp  - $elecYesterdayWbp);
     $electricityConsumptionCostBase = $_eLWBP + $_eWBP;
     unset($_eLWBP, $_eWBP);
     // ✅ FIX 2026-08-26: TIDAK USAH INJECT DB MANUAL LAGI KAK BACKFILL!
@@ -509,7 +530,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $wDwLpb  = (float)normalizeDecimalInput($_POST['water_deepwell_lpb'] ?? 0);
     $wMainBldgRead = (float)normalizeDecimalInput($_POST['water_main_building'] ?? 0);
     $wMainBldgConsRaw = max(0.0, $wMainBldgRead - $mbYesterdayRead);
-    $wMainBldgCons = $wMainBldgConsRaw * 10;
+    $wMainBldgCons = $wMainBldgConsRaw;
     $wMainBldg = $wMainBldgRead;
     $wCooling  = (float)normalizeDecimalInput($_POST['water_cooling_tower'] ?? 0);
     $wBottling = (float)normalizeDecimalInput($_POST['water_bottling'] ?? 0);
@@ -607,17 +628,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!is_array($actItems)) $actItems = [];
     $parsedActLines = [];
     $actRows = [];
+    $_actJsonByCat = ['project'=>[],'operation'=>[],'maintenance'=>[],'landscape'=>[]];
+    $_actSortByCat = ['project'=>0,'operation'=>0,'maintenance'=>0,'landscape'=>0];
+    $_actCurU = $_actCurUserId;
+    $_actCurUN = $_actCurUserName;
     foreach ($actItems as $idx => $row) {
         $cat = $actCats[array_search($row['cat'] ?? '', $actCats, true)] ?? 'operation';
         $title = trim((string)($row['t'] ?? ''));
         if (strlen($title) < 1) continue;
-        $actRows[] = ['cat' => $cat, 'title' => $title, 'sort' => (int)$idx];
+        $actRows[] = ['cat' => $cat, 'title' => $title, 'sort' => (int)$idx, 'u' => $_actCurU];
+        // Simpan juga ke JSON format dengan struktur {t, s, u, un} (mirip manager/activities.php)
+        $sRow = isset($row['s']) ? (string)$row['s'] : '';
+        $sSave = ($sRow === 'complete' || $sRow === 'completed') ? 'complete' : 'progress';
+        $entryJson = ['t'=>$title, 's'=>$sSave, 'u'=>(int)$_actCurU, 'un'=>(string)$_actCurUN];
+        if (!empty($row['mid'])) { $entryJson['mid'] = max(0, (int)$row['mid']); }
+        $_actJsonByCat[$cat][] = $entryJson;
+        $_actSortByCat[$cat]++;
         if ($cat === 'operation') $actOp++;
         elseif ($cat === 'maintenance') $actMaint++;
         elseif ($cat === 'project') $actProj++;
         elseif ($cat === 'landscape') $actLand++;
         $parsedActLines[] = "[".strtoupper($cat)."] ".$title;
     }
+    $fnActJsonEnc = function($arr) { return count($arr) > 0 ? json_encode($arr, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null; };
+    $_actOpJson = $fnActJsonEnc($_actJsonByCat['operation']);
+    $_actMtJson = $fnActJsonEnc($_actJsonByCat['maintenance']);
+    $_actPrJson = $fnActJsonEnc($_actJsonByCat['project']);
+    $_actLaJson = $fnActJsonEnc($_actJsonByCat['landscape']);
+    unset($_actJsonByCat, $fnActJsonEnc, $_actCurU, $_actCurUN);
     if (count($parsedActLines) > 0) {
         $activities = implode("\n", $parsedActLines);
     } elseif (strlen($activities) < 2) {
@@ -700,6 +738,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'activity_maintenance' => $actMaint,
             'activity_project' => $actProj,
             'activity_landscape' => $actLand,
+            'activity_operation_items' => $_actOpJson,
+            'activity_maintenance_items' => $_actMtJson,
+            'activity_project_items' => $_actPrJson,
+            'activity_landscape_items' => $_actLaJson,
             'work_activities' => $activities,
             'obstacles' => $obstacles,
             'solutions' => $solutions,
@@ -727,9 +769,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdoC = $db->getConnection();
             $pdoC->exec("DELETE FROM daily_log_activities WHERE daily_log_id = " . $logId);
             if (count($actRows) > 0) {
-                $stmt = $pdoC->prepare("INSERT INTO daily_log_activities (daily_log_id, category, activity_title, sort_order) VALUES (?,?,?,?)");
+                $stmt = $pdoC->prepare("INSERT INTO daily_log_activities (daily_log_id, category, activity_title, sort_order, created_by) VALUES (?,?,?,?,?)");
                 foreach ($actRows as $ar) {
-                    $stmt->execute([$logId, $ar['cat'], $ar['title'], $ar['sort']]);
+                    $stmt->execute([$logId, $ar['cat'], $ar['title'], $ar['sort'], (int)($ar['u'] ?? 0) ?: null]);
                 }
             }
         }
@@ -1469,7 +1511,7 @@ unset($_tarNow);
                 </h3>
                 <div id="elecNotice" class="mt-2 text-[10.5px] px-2.5 py-1.5 rounded-md border <?= $isMalamNow ? 'bg-slate-50 text-slate-700 border-slate-200' : 'bg-white text-slate-600 border-slate-200' ?>">
                     <?php if ($isMalamNow): ?>
-                        <i class="fas fa-moon mr-1 text-slate-500"></i><b>Malam</b> — LWBP/WBP = (Today−Kemarin) × 8.000. Total masuk Cost.
+                        <i class="fas fa-moon mr-1 text-slate-500"></i><b>Malam</b> — LWBP/WBP = (Today−Kemarin). Total masuk Cost.
                     <?php else: ?>
                         <i class="fas fa-circle-check mr-1 text-slate-500"></i><b>Pagi/Siang</b> — Bisa isi, Total = 0.
                     <?php endif; ?>
@@ -1481,7 +1523,7 @@ unset($_tarNow);
                     $_isLogMalamE = ($log && isset($log['shift']) && $log['shift'] === 'malam');
                     $_eWbpYFmt = number_format($elecYesterdayWbp, 2, '.', '');
                     $_eWbpTVal = $log['electricity_wbp'] ?? '0.00';
-                    $_eWbpCons = $_isLogMalamE ? number_format(max(0.0, (float)$_eWbpTVal - $elecYesterdayWbp) * 8000, 2, '.', '') : '0.00';
+                    $_eWbpCons = $_isLogMalamE ? number_format(max(0.0, (float)$_eWbpTVal - $elecYesterdayWbp), 2, '.', '') : '0.00';
                     echo <<<HTML
                     <div>
                         <div class="flex items-center justify-between mb-1.5">
@@ -1518,7 +1560,7 @@ unset($_tarNow);
 HTML;
                     $_eLwbpYFmt = number_format($elecYesterdayLwbp, 2, '.', '');
                     $_eLwbpTVal = $log['electricity_lwbp'] ?? '0.00';
-                    $_eLwbpCons = $_isLogMalamE ? number_format(max(0.0, (float)$_eLwbpTVal - $elecYesterdayLwbp) * 8000, 2, '.', '') : '0.00';
+                    $_eLwbpCons = $_isLogMalamE ? number_format(max(0.0, (float)$_eLwbpTVal - $elecYesterdayLwbp), 2, '.', '') : '0.00';
                     echo <<<HTML
                     <div>
                         <div class="flex items-center justify-between mb-1.5">
@@ -1547,7 +1589,7 @@ HTML;
                                 </div>
                             </div>
                             <div class="flex items-center justify-between text-[10px] font-semibold pt-1 border-t border-slate-200/60">
-                                <span class="text-slate-600">Selisih × 8000</span>
+                                <span class="text-slate-600">Selisih</span>
                                 <span class="text-slate-800" id="elecLwbpCons">{$_eLwbpCons} kWh</span>
                             </div>
                         </div>
@@ -3016,8 +3058,8 @@ HTML;
         // --- Listrik --- (SEMUA SHIFT PAGI/SIANG/MALAM = AUTO HITUNG, TANPA GATING)
         const todayWbp  = readF('electricity_wbp');
         const todayLwbp = readF('electricity_lwbp');
-        const eWbpCons  = Math.max(0, (todayWbp  - window.Y_ELEC_WBP))  * 8000;
-        const eLwbpCons = Math.max(0, (todayLwbp - window.Y_ELEC_LWBP)) * 8000;
+        const eWbpCons  = Math.max(0, (todayWbp  - window.Y_ELEC_WBP));
+        const eLwbpCons = Math.max(0, (todayLwbp - window.Y_ELEC_LWBP));
         const elecTotal = eWbpCons + eLwbpCons;
         const te = document.getElementById('totalElectricity');
         if (te) te.value = numFmt2(elecTotal);
@@ -3029,7 +3071,7 @@ HTML;
         // --- Water Main Building + PDAM + Sumber Lain --- (SEMUA SHIFT AUTO HITUNG)
         const wmb = document.getElementById('waterMainBuild');
         const wmbVal = wmb ? (parseFloat(normDecStr(wmb.value)) || 0) : 0;
-        const waterMbCons = Math.max(0, (wmbVal - window.Y_WATER_MB)) * 10;
+        const waterMbCons = Math.max(0, (wmbVal - window.Y_WATER_MB));
         // Tambah semua sumber air langsung: PDAM, Iki Gaban, DW, CT, Bottling, Irrigation
         const wPdam      = readF('water_pdam');
         const wIkiGaban  = readF('water_iki_gaban');
@@ -3044,7 +3086,7 @@ HTML;
         const tw = document.getElementById('totalWater');
         if (tw) tw.value = numFmt2(waterCons);
         const mbSelisih = document.getElementById('mbSelisih');
-        if (mbSelisih) mbSelisih.textContent = numFmt2(waterMbCons);
+        if (mbSelisih) mbSelisih.textContent = numFmt2(waterMbCons) + ' m3';
         const wmc = document.getElementById('waterMainCons');
         if (wmc) wmc.textContent = numFmt2(waterCons) + ' m3';
 

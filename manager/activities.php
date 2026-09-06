@@ -34,13 +34,17 @@ try {
             activity_name VARCHAR(255) NOT NULL,
             status_default ENUM('complete','progress') DEFAULT 'progress',
             sort_order INT DEFAULT 0,
+            created_by INT NULL DEFAULT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            INDEX idx_division (division)
+            INDEX idx_division (division),
+            INDEX idx_created_by (created_by)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     } else {
         $chkCol = $db->fetchOne("SHOW COLUMNS FROM activity_masters LIKE 'sort_order'");
         if (!$chkCol) $db->query("ALTER TABLE activity_masters ADD COLUMN sort_order INT DEFAULT 0 AFTER status_default");
+        $chkCol2 = $db->fetchOne("SHOW COLUMNS FROM activity_masters LIKE 'created_by'");
+        if (!$chkCol2) $db->query("ALTER TABLE activity_masters ADD COLUMN created_by INT NULL DEFAULT NULL AFTER sort_order");
     }
 } catch (Throwable $_) {}
 
@@ -74,6 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'activity_name' => $name,
                     'status_default' => $statusDef,
                     'sort_order' => $sortOrder,
+                    'created_by' => $userId,
                 ]);
                 setFlash('success', '[OK] Master Activity berhasil di-TAMBAH: '.$name);
             }
@@ -131,7 +136,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
 
     // âœ¨ HELPER: Parse Activity Items (Text + Status + MasterID) dari POST Array â†’ return JSON or NULL
     // Format value dropdown: "Nama Activity|masterId" (split by | LIMIT 2)
-    $fnParseItems = function ($keyText, $keyStatus) {
+    $_curUserIdFn = $userId;
+    $_curUserNameFn = $userName;
+    $fnParseItems = function ($keyText, $keyStatus) use ($_curUserIdFn, $_curUserNameFn) {
         $texts = $_POST[$keyText] ?? [];
         $statuses = $_POST[$keyStatus] ?? [];
         if (!is_array($texts) || count($texts) === 0) return null;
@@ -150,6 +157,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
             $s = in_array(($statuses[$i] ?? ''), ['complete', 'progress']) ? (string)$statuses[$i] : 'progress';
             $entry = ['t' => $realText, 's' => $s];
             if ($mid > 0) $entry['mid'] = $mid;
+            $entry['u']  = (int)$_curUserIdFn;
+            $entry['un'] = (string)$_curUserNameFn;
             $items[] = $entry;
         }
         return count($items) > 0 ? json_encode($items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;

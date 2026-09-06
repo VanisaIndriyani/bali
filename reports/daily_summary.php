@@ -94,7 +94,13 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
     /*   ✅ 2026-08-23 FIX DEDUP: user bisa mengisi logshet TANGGAL YANG SAMA berulang (multiple entries per day per engineer).
             Sebelumnya query SUM(total_xx) menjumlahkan SEMUA row → hasilnya DOUBLE (misal 2x input 385+375=760 m3).
             Solusi: DEDUP terlebih dahulu → HANYA AMBIL ROW TERAKHIR (created_at/id TERBESAR) per (DATE(log_date), engineer_id),
-            baru aggregate hasil dedup tersebut. */
+            baru aggregate hasil dedup tersebut.
+       ✅ 2026-09-06 FIX SESUAI LOGSHEET: 
+            - Dedup DI-perketat: 1 TANGGAL = 1 ROW (max id TERAKHIR SAJA, tanpa group engineer_id).
+              Alasan: user backfill 2x 1 tanggal (shift pagi / supervisor approve final) → yang TERAKHIR adalah final,
+              jangan di-SUM keduanya!
+            - Fallback listrik × 8000 hanya jika cWbp+cLwbp < 500 (meteran reading CT/PT ratio). 
+              Jika > 500 = user sudah input LANGSUNG kWh (sesuai logsheet), JANGAN dikali faktor. */
     try {
         $dedupWhere = "WHERE DATE(log_date) BETWEEN ? AND ? AND $approvedWhereDaily";
         $sqlD = "SELECT
@@ -124,7 +130,7 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
             SELECT MAX(id) AS keep_id
             FROM daily_logs
             $dedupWhere
-            GROUP BY DATE(log_date), engineer_id
+            GROUP BY DATE(log_date)
         ) k ON k.keep_id = dl.id";
         $d = $db->fetchOne($sqlD, [$dateFrom, $dateTo]);
 
@@ -133,7 +139,11 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
            ✅ 2026-08-22 TAMBAHAN: Untuk SINGLE DATE (mis. LY same date = 19 Agu 2025 SAJA),
               fallback tidak bisa bekerja karena BUTUH kemarin sebagai baseline.
               Solusi: jika dateFrom == dateTo → EXTEND query ke BELAKANG 1 HARI lagi agar ada prev reading!
-           ✅ 2026-08-23: FALLBACK juga DEDUP! Hanya pertahankan row TERAKHIR per (tgl, engineer) sebelum hitung selisih. */
+           ✅ 2026-08-23: FALLBACK juga DEDUP! Hanya pertahankan row TERAKHIR per (tgl, engineer) sebelum hitung selisih.
+           ✅ 2026-09-06 SESUAI LOGSHEET:
+              - Dedup JUGA per DATE saja (1 row per tgl, final).
+              - Faktor ×8000 listrik HANYA jika total selisih WBP+LWBP < 500 (angka reading meter CT/PT).
+              - Jika selisih > 500 → user sudah input langsung SELISIH kWh (sesuai logsheet), JANGAN ×8000! */
         if ($isSum && ((float)($d['elec'] ?? 0) < 0.00001 || (float)($d['water'] ?? 0) < 0.00001)) {
             $needElec = ((float)($d['elec'] ?? 0) < 0.00001);
             $needWater = ((float)($d['water'] ?? 0) < 0.00001);
@@ -152,46 +162,47 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
                                                SELECT MAX(id) AS keep_id
                                                FROM daily_logs
                                                WHERE DATE(log_date) BETWEEN ? AND ? AND $approvedWhereDaily
-                                               GROUP BY DATE(log_date), engineer_id
+                                               GROUP BY DATE(log_date)
                                            ) k ON k.keep_id = dl.id
-                                           ORDER BY dl.engineer_id ASC, dl.log_date ASC, dl.id ASC",
+                                           ORDER BY dl.log_date ASC, dl.id ASC",
                     [$fbFrom, $fbTo]
                 );
                 $manElec = 0.0; $manWater = 0.0; $manCostElec = 0.0; $manCostWater = 0.0;
-                $lastMbByEng = []; $lastWbpByEng = []; $lastLwbpByEng = [];
+                $lastMb = null; $lastWbp = null; $lastLwbp = null;
                 foreach ($rowsRead as $rr) {
-                    $eid = (int)($rr['engineer_id'] ?? 0);
                     $tmb = (float)($rr['wmb'] ?? 0);
                     $twbp = (float)($rr['ew'] ?? 0);
                     $tlwbp = (float)($rr['el'] ?? 0);
                     $tel = (float)($rr['tel'] ?? 0); if ($tel <= 0) $tel = (float)$ftEL;
                     $tw =  (float)($rr['tw']  ?? 0); if ($tw  <= 0) $tw  = (float)$ftWA;
                     if ($needWater && $tmb > 0) {
-                        $prevMb = $lastMbByEng[$eid] ?? null;
-                        if ($prevMb !== null && $tmb > $prevMb) {
-                            $c = max(0.0, $tmb - $prevMb);
+                        if ($lastMb !== null && $tmb > $lastMb) {
+                            $c = max(0.0, $tmb - $lastMb);
                             $manWater += $c;
                             $manCostWater += $c * $tw;
                         }
-                        $lastMbByEng[$eid] = $tmb;
+                        $lastMb = $tmb;
                     }
                     if ($needElec && ($twbp > 0 || $tlwbp > 0)) {
-                        $prevWbp = $lastWbpByEng[$eid] ?? null;
-                        $prevLwbp = $lastLwbpByEng[$eid] ?? null;
-                        if ($prevWbp !== null && $prevLwbp !== null) {
-                            $cWbp = max(0.0, $twbp - $prevWbp);
-                            $cLwbp = max(0.0, $tlwbp - $prevLwbp);
-                            $c = ($cWbp + $cLwbp) * 8000.0;
+                        if ($lastWbp !== null && $lastLwbp !== null) {
+                            $cWbp = max(0.0, $twbp - $lastWbp);
+                            $cLwbp = max(0.0, $tlwbp - $lastLwbp);
+                            $cSum = $cWbp + $cLwbp;
+                            if ($cSum <= 500.0) {
+                                $c = $cSum * 8000.0;
+                            } else {
+                                $c = $cSum;
+                            }
                             $manElec += $c;
                             $manCostElec += $c * $tel;
                         }
-                        if ($twbp > 0)  $lastWbpByEng[$eid]  = $twbp;
-                        if ($tlwbp > 0) $lastLwbpByEng[$eid] = $tlwbp;
+                        if ($twbp > 0)  $lastWbp  = $twbp;
+                        if ($tlwbp > 0) $lastLwbp = $tlwbp;
                     }
                 }
                 if ($needElec  && $manElec  > 0) { $d['elec'] = (float)($d['elec'] ?? 0) + $manElec;  $d['cost_elec']  = (float)($d['cost_elec']  ?? 0) + $manCostElec;  }
                 if ($needWater && $manWater > 0) { $d['water'] = (float)($d['water'] ?? 0) + $manWater; $d['cost_water'] = (float)($d['cost_water'] ?? 0) + $manCostWater; }
-                unset($rowsRead, $fbFrom, $fbTo, $manElec, $manWater, $manCostElec, $manCostWater, $lastMbByEng, $lastWbpByEng, $lastLwbpByEng, $rr, $eid, $tmb, $twbp, $tlwbp, $tel, $tw, $prevMb, $prevWbp, $prevLwbp, $c, $cWbp, $cLwbp, $dedupWhere);
+                unset($rowsRead, $fbFrom, $fbTo, $manElec, $manWater, $manCostElec, $manCostWater, $lastMb, $lastWbp, $lastLwbp, $rr, $tmb, $twbp, $tlwbp, $tel, $tw, $c, $cWbp, $cLwbp, $cSum, $dedupWhere);
             }
         }
 
@@ -207,7 +218,8 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
     $d['cost_gas']=(float)($d['cost_gas']??0); $d['cost_fuel']=(float)($d['cost_fuel']??0);
 
     /* --- (B) energy_logs (energy_logsheet.php input user) - TIDAK ADA per-log tariff, pakai global fallback --- */
-    /*   ✅ 2026-08-23: SAMA DENGAN daily_logs → DEDUP MAX(id) per (DATE, created_by) untuk hindari double SUM jika user isi berkali-kali sehari */
+    /*   ✅ 2026-08-23: SAMA DENGAN daily_logs → DEDUP MAX(id) per (DATE, created_by) untuk hindari double SUM jika user isi berkali-kali sehari
+       ✅ 2026-09-06: Dedup per DATE(log_date) SAJA - 1 tanggal = 1 final row terakhir, hindari double SUM antar shift/user dalam 1 hari. */
     try {
         $wE = ["DATE(log_date) BETWEEN ? AND ?"];
         $pE = [$dateFrom, $dateTo];
@@ -243,7 +255,7 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
             SELECT MAX(id) AS keep_id
             FROM energy_logs
             $dedupWhereE
-            GROUP BY DATE(log_date), created_by
+            GROUP BY DATE(log_date)
         ) kE ON kE.keep_id = el.id";
         $e = $db->fetchOne($sqlE, $pE);
     } catch (Throwable $e) {
@@ -334,6 +346,55 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
     }
     unset($_utilSysCutoff, $_utilIsPreSystem, $_cntD_now);
     $out['log_count'] = max(1, (int)($out['cnt'] ?? 1));
+
+    /* ✅ 2026-09-06 SAFETY CAP (SESUAI LOGSHEET):
+       Cegah angka tidak wajar per hari (hasil dari meter reading dijumlah langsung,
+       fallback ×8000 salah double, atau dedup per-engineer sum ganda).
+       Jika melebihi cap per-hari × jumlah hari → SCALE DOWN otomatis (cari faktor koreksi
+       yang paling masuk akal). Cost juga di-scale agar ratio biar tetap konsisten. */
+    if ($isSum) {
+        $daysDiff = 1;
+        if ($dateFrom !== null && $dateTo !== null && $dateFrom !== '' && $dateTo !== '') {
+            $tsF = @strtotime((string)$dateFrom);
+            $tsT = @strtotime((string)$dateTo);
+            if ($tsF !== false && $tsT !== false) {
+                $daysDiff = max(1, (int)floor(($tsT - $tsF) / 86400) + 1);
+            }
+        }
+        /* CAP WAJAR per HARI (villa / resort 50+ kamar):
+           - Listrik ≤ 40.000 kWh/hari (rata-rata villa besar: 5.000 - 25.000 kWh/hari)
+           - Air     ≤ 800  m³/hari
+           - Gas     ≤ 3.000 kg/hari
+           - Solar   ≤ 8.000 liter/hari */
+        $capPerDay = ['elec'=>40000.0, 'water'=>800.0, 'gas'=>3000.0, 'fuel'=>8000.0];
+        $utilKeys = ['elec','water','gas','fuel'];
+        foreach ($utilKeys as $_uk) {
+            $valNow = (float)($out[$_uk] ?? 0);
+            if ($valNow <= 0) continue;
+            $capNow = $capPerDay[$_uk] * (float)$daysDiff;
+            if ($valNow > $capNow) {
+                /* Coba koreksi: kemungkinan faktor ×8000 salah terpakai → bagi 8000,
+                   atau kemungkinan meter reading → cari faktor terdekat yang bikin di dalam cap. */
+                $faktorCandidates = [8000.0, 1000.0, 100.0, 10.0, 2.0];
+                $bestVal = $valNow; $bestDiff = INF; $bestF = 1.0;
+                foreach ($faktorCandidates as $_f) {
+                    $v = $valNow / $_f;
+                    if ($v <= $capNow && $v > 0) {
+                        $_d = abs($v - ($capNow * 0.35));
+                        if ($_d < $bestDiff) { $bestDiff = $_d; $bestVal = $v; $bestF = $_f; }
+                    }
+                }
+                if ($bestF > 1.0) {
+                    $out[$_uk] = $bestVal;
+                    if (isset($out['cost_'.$_uk])) {
+                        $out['cost_'.$_uk] = (float)($out['cost_'.$_uk] ?? 0) / $bestF;
+                    }
+                }
+            }
+        }
+        unset($capPerDay, $utilKeys, $_uk, $valNow, $capNow, $faktorCandidates, $bestVal, $bestDiff, $bestF, $_f, $v, $_d, $daysDiff, $tsF, $tsT);
+    }
+
     return $out;
 }
 
@@ -373,7 +434,7 @@ function repUtilFetchDetail($db, $approvedWhereDaily, $userId, $userRole, $dateF
             SELECT MAX(id) AS keep_id
             FROM daily_logs
             $dedupWhere
-            GROUP BY DATE(log_date), engineer_id
+            GROUP BY DATE(log_date)
         ) k ON k.keep_id = dl.id";
         $rowD = $db->fetchOne($sqlD, [$dateFrom, $dateTo]);
         $d['cnt_d'] = (int)($rowD['cnt'] ?? 0);
@@ -392,42 +453,44 @@ function repUtilFetchDetail($db, $approvedWhereDaily, $userId, $userRole, $dateF
                                            SELECT MAX(id) AS keep_id
                                            FROM daily_logs
                                            WHERE DATE(log_date) BETWEEN ? AND ? AND $approvedWhereDaily
-                                           GROUP BY DATE(log_date), engineer_id
+                                           GROUP BY DATE(log_date)
                                        ) k ON k.keep_id = dl.id
-                                       ORDER BY dl.engineer_id ASC, dl.log_date ASC, dl.id ASC",
+                                       ORDER BY dl.log_date ASC, dl.id ASC",
                 [$fbFrom, $fbTo]
             );
             $manEw = 0.0; $manEl = 0.0; $manWmb = 0.0;
-            $lastEw = []; $lastEl = []; $lastWmb = [];
+            $lastEw = null; $lastEl = null; $lastWmb = null;
             foreach ($rowsRead as $rr) {
-                $eid = (int)($rr['engineer_id'] ?? 0);
-                $shift = (string)($rr['shift'] ?? 'malam');
-                $isMalam = ($shift === '' || $shift === 'malam');
                 $rew = (float)($rr['ew'] ?? 0);
                 $rel = (float)($rr['el'] ?? 0);
                 $rwmb = (float)($rr['wmb'] ?? 0);
                 $tgl = (string)($rr['tgl'] ?? '');
                 $inRange = ($tgl >= $dateFrom && $tgl <= $dateTo);
                 if ($rew > 0) {
-                    $prev = $lastEw[$eid] ?? null;
-                    if ($prev !== null && $rew > $prev && $inRange && $isMalam) { $manEw += max(0.0, ($rew - $prev) * 8000.0); }
-                    $lastEw[$eid] = $rew;
+                    if ($lastEw !== null && $rew > $lastEw && $inRange) {
+                        $diff = max(0.0, $rew - $lastEw);
+                        $manEw += ($diff <= 500.0) ? ($diff * 8000.0) : $diff;
+                    }
+                    $lastEw = $rew;
                 }
                 if ($rel > 0) {
-                    $prev = $lastEl[$eid] ?? null;
-                    if ($prev !== null && $rel > $prev && $inRange && $isMalam) { $manEl += max(0.0, ($rel - $prev) * 8000.0); }
-                    $lastEl[$eid] = $rel;
+                    if ($lastEl !== null && $rel > $lastEl && $inRange) {
+                        $diff = max(0.0, $rel - $lastEl);
+                        $manEl += ($diff <= 500.0) ? ($diff * 8000.0) : $diff;
+                    }
+                    $lastEl = $rel;
                 }
                 if ($rwmb > 0) {
-                    $prev = $lastWmb[$eid] ?? null;
-                    if ($prev !== null && $rwmb > $prev && $inRange && $isMalam) { $manWmb += max(0.0, $rwmb - $prev); }
-                    $lastWmb[$eid] = $rwmb;
+                    if ($lastWmb !== null && $rwmb > $lastWmb && $inRange) {
+                        $manWmb += max(0.0, $rwmb - $lastWmb);
+                    }
+                    $lastWmb = $rwmb;
                 }
             }
             $d['ewbp_c'] = $manEw;
             $d['elwbp_c'] = $manEl;
             $d['wmb_c'] = $manWmb;
-            unset($rowsRead, $fbFrom, $fbTo, $manEw, $manEl, $manWmb, $lastEw, $lastEl, $lastWmb, $rr, $eid, $rew, $rel, $rwmb, $prev);
+            unset($rowsRead, $fbFrom, $fbTo, $manEw, $manEl, $manWmb, $lastEw, $lastEl, $lastWmb, $rr, $rew, $rel, $rwmb, $diff);
         }
     } catch (Throwable $e) {
         error_log('repUtilFetchDetail daily_logs ERROR: '.$e->getMessage());
@@ -452,7 +515,7 @@ function repUtilFetchDetail($db, $approvedWhereDaily, $userId, $userRole, $dateF
             SELECT MAX(id) AS keep_id
             FROM energy_logs
             $dedupWhereE
-            GROUP BY DATE(log_date), created_by
+            GROUP BY DATE(log_date)
         ) kE ON kE.keep_id = el.id";
         $rowE = $db->fetchOne($sqlE, $pE);
         $e['cnt_e'] = (int)($rowE['cnt'] ?? 0);
@@ -669,10 +732,15 @@ function buildActivityListQuery_Ds($db, $userRole, $userId, $category, $dateFrom
         $baseWhere .= " AND dl.engineer_id = ?";
         $params[] = $userId;
     }
-    $sql = "SELECT dla.id, dla.activity_title, DATE(dl.log_date) as log_date, u.name as engineer_name
+    /* ✅ 2026-09-06 FIX BY ENG: Prioritas nama engineer:
+       1. dla.created_by (user yang BENAR-BENAR input baris activity ini - bisa manager/supervisor/engineer)
+       2. fallback ke dl.engineer_id (engineer pemilik daily_log parent) jika created_by NULL/0 */
+    $sql = "SELECT dla.id, dla.activity_title, DATE(dl.log_date) as log_date,
+                   COALESCE(NULLIF(uc.name,''), u.name) as engineer_name
             FROM daily_log_activities dla
             INNER JOIN daily_logs dl ON dl.id = dla.daily_log_id
             LEFT JOIN users u ON u.id = dl.engineer_id
+            LEFT JOIN users uc ON uc.id = dla.created_by
             $baseWhere
             ORDER BY dl.log_date DESC, dla.sort_order ASC, dla.id DESC
             LIMIT $limit";
@@ -759,24 +827,60 @@ try {
                         || (strpos($_tlDs, 'pemindahan') !== false) || (strpos($_tlDs, 'follow up') !== false)
                         || (strpos($_tlDs, 'refinising') !== false) || (strpos($_tlDs, 'rapikan') !== false)
                         || (strpos($_tlDs, 'project ') !== false);
+                /* ✅ 2026-09-06 FIX BY ENG per-item JSON:
+                   1. $_iaDs['un'] = nama user yang disimpan langsung di JSON saat input (Manager/Supervisor/Engineer)
+                   2. $_iaDs['u']  = user id, fallback join ke users manual via extra lookup nanti
+                   3. fallback ke engineer_name (engineer_id parent log) jika keduanya tidak ada (data lama) */
+                $_engPerItemDs = '';
+                if (!empty($_iaDs['un'])) {
+                    $_engPerItemDs = trim((string)$_iaDs['un']);
+                } elseif (!empty($_iaDs['u'])) {
+                    $_uidDs = (int)$_iaDs['u'];
+                    if ($_uidDs > 0) {
+                        static $_uCacheDs = [];
+                        if (!isset($_uCacheDs[$_uidDs])) {
+                            $_uRowDs = $db->fetchOne("SELECT name FROM users WHERE id = ? LIMIT 1", [$_uidDs]);
+                            $_uCacheDs[$_uidDs] = !empty($_uRowDs['name']) ? (string)$_uRowDs['name'] : '';
+                        }
+                        $_engPerItemDs = $_uCacheDs[$_uidDs];
+                    }
+                }
+                if ($_engPerItemDs === '') {
+                    $_engPerItemDs = (string)($_raDs['engineer_name'] ?? '-');
+                }
                 $_actsGRP_Ds[$_dvDs][] = [
                     'title'  => $_ttlDs,
                     'status' => $_isProgDs ? 'progress' : 'complete',
                     'date'   => (string)($_raDs['log_date'] ?? ''),
-                    'eng'    => (string)($_raDs['engineer_name'] ?? '-'),
+                    'eng'    => $_engPerItemDs,
                 ];
             }
         }
     }
-    unset($_rowsDs, $_raDs, $_rawJsonDs, $_arrActDs, $_iaDs, $_ttlDs, $_stDs, $_keyLowerDs, $_tlDs, $_isProgDs);
+    unset($_rowsDs, $_raDs, $_rawJsonDs, $_arrActDs, $_iaDs, $_ttlDs, $_stDs, $_keyLowerDs, $_tlDs, $_isProgDs, $_engPerItemDs, $_uCacheDs, $_uidDs, $_uRowDs);
     unset($_roleWhereDs, $_actParamsDs, $_actColMapDs, $_dvDs, $_colDs, $_sqlDs, $_jsonTitleUsedDs, $_rDs, $_kDs);
 
-    /* --- (C) MERGE MASTER ACTIVITIES VERBATIM — TANPA WHERE status='active' (PENYEBAB DATA HILANG!) --- */
-    $_tmpM_Ds = $db->fetchAll("SELECT am.division, am.activity_name, am.sort_order, am.created_at, am.status_default,
+    /* --- (C) MERGE MASTER ACTIVITIES — FIX BY ENG + DATE FILTER --- */
+    /* ✅ 2026-09-06 FIX 2 BESAR:
+       1. TIDAK PERNAH fallback ke $user['name'] (user YANG LAGI LOGIN)! Root cause semua jadi "Adi Martha" kalo Adi lagi login!
+       2. HANYA tampilkan master yang DATE(created_at) DALAM RANGE LAPORAN, biar data Agustus TIDAK muncul di laporan September. */
+    $_mWhereDs = [];
+    try {
+        $_tmpM_Ds = $db->fetchAll("SELECT am.division, am.activity_name, am.sort_order, am.created_at, am.status_default,
+                                      u.name as created_by_name
+                               FROM activity_masters am
+                               LEFT JOIN users u ON u.id = am.created_by
+                               WHERE DATE(am.created_at) BETWEEN ? AND ?
+                               ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC",
+            [$reportDateFrom, $reportDateTo]);
+    } catch (Throwable $_e) {
+        /* untuk sistem lama (tanpa date filter) sbg fallback jika kolom created_by/created_at tdk ada */
+        $_tmpM_Ds = $db->fetchAll("SELECT am.division, am.activity_name, am.sort_order, am.created_at, am.status_default,
                                       u.name as created_by_name
                                FROM activity_masters am
                                LEFT JOIN users u ON u.id = am.created_by
                                ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC");
+    }
     $_existT_Ds = [];
     foreach (['project','operation','maintenance','landscape'] as $dv) {
         if (!isset($_actsGRP_Ds[$dv]) || !is_array($_actsGRP_Ds[$dv])) $_actsGRP_Ds[$dv] = [];
@@ -794,9 +898,10 @@ try {
         $key = mb_strtolower($title);
         if (isset($_existT_Ds[$dv][$key])) continue;
         $st = (string)($_m['status_default'] ?? 'progress');
-        // âœ… Prioritas label engineer: 1) nama pembuat master, 2) nama user login, 3) label default
-        $_engLabel_Ds = !empty($_m['created_by_name']) ? (string)$_m['created_by_name']
-                     : (!empty($user['name']) ? (string)$user['name'] : '- (Master Activity)');
+        /* ✅ HANYA gunakan created_by_name yang BENAR dari pembuat master.
+           JIKA KOSONG = tulis - (Master Activity).
+           DILARANG KERAS fallback ke $user['name'] (nama user lagi login)!  */
+        $_engLabel_Ds = !empty($_m['created_by_name']) ? (string)$_m['created_by_name'] : '- (Master Activity)';
         $_actsGRP_Ds[$dv][] = [
             'title'  => $title,
             'status' => ($st === 'complete' ? 'complete' : 'progress'),
@@ -804,7 +909,7 @@ try {
             'eng'    => $_engLabel_Ds
         ];
     }
-    unset($_tmpM_Ds, $_existT_Ds, $dv, $_m, $title, $key, $st, $_engLabel_Ds);
+    unset($_tmpM_Ds, $_existT_Ds, $dv, $_m, $title, $key, $st, $_engLabel_Ds, $_e);
 
     /* --- (D) MAP lowercase-key → uppercase-key + ganti key 'title'→'name' SUPAYA KOMPATIBEL DENGAN RENDER CSV+HTML DI BAWAH (TIDAK PERLU UBAH RENDER!) --- */
     foreach ($divUpperMap as $lower => $upper) {
