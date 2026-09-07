@@ -41,6 +41,135 @@ if ($isRange) {
 $lySameDay = date('Y-m-d', strtotime($reportDate . ' -1 year'));
 $qsRange = $isRange ? ('date_from='.urlencode($reportDateFrom).'&date_to='.urlencode($reportDateTo)) : ('date='.urlencode($reportDate));
 
+/* ============================================================
+ * 🔧 AUTO CORRECTION (Fix Data Lama Sebelum Formula ×8000 / ×10 DIFIX!)
+ * ROOT CAUSE: Customer terlanjur SAVE form 1-6 September PAGI INI (sebelum patch commit 41e772a)
+ *            → kolom total_electricity di-DB MASIH nyimpan SELISIH MENTAH (3.34 kWh),
+ *               PADAHAL seharusnya = (0.57+2.77) × 8000 = 26.720 kWh (sesuai logsheet × faktor CT/PT)
+ * SOLUSI: Sebelum report aggregate, SCAN SEMUA daily_logs di range tanggal.
+ *         JIKA total_electricity kecil (<=500) PADAHAL reading WBP/LWBP ADA → UPDATE OTOMATIS × faktor!
+ *         SAMA untuk AIR Main Building (total_water kecil tapi reading ada)
+ * ============================================================ */
+function repAutoFixUtilityFormulaLama(Database $db, $dateFrom, $dateTo, $TARIF_LISTRIK, $TARIF_AIR, $TARIF_GAS, $TARIF_FUEL) {
+    static $lastRunCache = null;
+    $cacheKey = $dateFrom.'__'.$dateTo;
+    if ($lastRunCache === $cacheKey) return;
+    $lastRunCache = $cacheKey;
+
+    try {
+        /* SCAN daily_logs KANDIDAT (total_electricity ≤ 500 PADAHAL reading meter WBP/LWBP ADA = pasti formula lama gak ×8000) */
+        $candidates = $db->fetchAll("SELECT id, log_date, engineer_id, shift,
+                COALESCE(electricity_wbp,0) ew, COALESCE(electricity_lwbp,0) el,
+                COALESCE(electricity_wbp_yesterday,0) ewy, COALESCE(electricity_lwbp_yesterday,0) ely,
+                COALESCE(water_main_building,0) wmb, COALESCE(water_main_building_yesterday,0) wmby,
+                COALESCE(total_electricity,0) te, COALESCE(total_water,0) tw,
+                COALESCE(NULLIF(tariff_electricity_per_kwh,0),0) tel, COALESCE(NULLIF(tariff_water_per_m3,0),0) twa,
+                COALESCE(NULLIF(tariff_gas_per_kg,0),0) tga, COALESCE(NULLIF(tariff_fuel_per_liter,0),0) tfu,
+                COALESCE(total_gas,0) tg, COALESCE(total_fuel,0) tf,
+                COALESCE(water_pdam,0)+COALESCE(water_iki_gaban,0)+COALESCE(water_deepwell_1,0)+COALESCE(water_deepwell_2_brr,0)+
+                COALESCE(water_deepwell_asean,0)+COALESCE(water_deepwell_lpb,0)+COALESCE(water_cooling_tower,0)+
+                COALESCE(water_bottling,0)+COALESCE(water_irrigation,0) as others_water
+             FROM daily_logs
+             WHERE DATE(log_date) BETWEEN ? AND ?
+               AND (
+                   ( (electricity_wbp > 0 OR electricity_lwbp > 0) AND COALESCE(total_electricity,0) <= 500 )
+                OR ( water_main_building > 0 AND COALESCE(total_water,0) <= 100 )
+               )
+             ORDER BY log_date ASC, id ASC",
+            [$dateFrom, $dateTo]
+        );
+        if (!$candidates || !is_array($candidates) || count($candidates) === 0) return;
+
+        foreach ($candidates as $c) {
+            $cid = (int)($c['id'] ?? 0);
+            if ($cid <= 0) continue;
+            $changed = false;
+
+            /* --- (A) FIX LISTRIK --- */
+            $te = (float)($c['te'] ?? 0);
+            $ew = (float)($c['ew'] ?? 0); $el = (float)($c['el'] ?? 0);
+            $ewy = (float)($c['ewy'] ?? 0); $ely = (float)($c['ely'] ?? 0);
+            $tel = (float)($c['tel'] ?? 0); if ($tel <= 0) $tel = (float)$TARIF_LISTRIK;
+
+            if (($ew > 0 || $el > 0) && $te <= 500.0) {
+                /* KETEMU KANDIDAT: reading ada, total_electricity kecil = ×8000 GAK KE-APPLY */
+                /* 1) Coba pakai kolom _yesterday (jika simpan kemarin via hidden input form) */
+                $pEw = $ewy; $pEl = $ely;
+                /* 2) KALO _yesterday 0 → cari ROW SEBELUMNYA manual (engineer sama, tgl < log_date, order by tgl desc) */
+                if ($pEw <= 0 && $pEl <= 0) {
+                    $prevR = $db->fetchOne("SELECT COALESCE(electricity_wbp,0) ew, COALESCE(electricity_lwbp,0) el
+                                FROM daily_logs
+                                WHERE engineer_id = ? AND DATE(log_date) < DATE(?)
+                                ORDER BY log_date DESC, id DESC LIMIT 1",
+                        [(int)($c['engineer_id'] ?? 0), (string)($c['log_date'] ?? date('Y-m-d'))]);
+                    if ($prevR) {
+                        if ($pEw <= 0) $pEw = (float)($prevR['ew'] ?? 0);
+                        if ($pEl <= 0) $pEl = (float)($prevR['el'] ?? 0);
+                    }
+                }
+                $dEw = ($ew > 0 && $pEw > 0 && $ew > $pEw) ? max(0.0, $ew - $pEw) : 0.0;
+                $dEl = ($el > 0 && $pEl > 0 && $el > $pEl) ? max(0.0, $el - $pEl) : 0.0;
+                $dSum = $dEw + $dEl;
+                $faktor = ($dSum > 0 && $dSum <= 500.0) ? 8000.0 : 1.0;
+                $teNew = $dSum * $faktor;
+                if ($teNew > $te * 1.5 && $teNew > 0.001) {
+                    $te = $teNew;
+                    $changed = true;
+                }
+            }
+
+            /* --- (B) FIX AIR MAIN BUILDING --- */
+            $tw = (float)($c['tw'] ?? 0);
+            $wmb = (float)($c['wmb'] ?? 0); $wmby = (float)($c['wmby'] ?? 0);
+            $othersW = (float)($c['others_water'] ?? 0);
+            $twa = (float)($c['twa'] ?? 0); if ($twa <= 0) $twa = (float)$TARIF_AIR;
+
+            if ($wmb > 0 && ($tw - $othersW) <= 100.0) {
+                $pWmb = $wmby;
+                if ($pWmb <= 0) {
+                    $prevR = $db->fetchOne("SELECT COALESCE(water_main_building,0) wmb
+                                FROM daily_logs
+                                WHERE engineer_id = ? AND DATE(log_date) < DATE(?)
+                                ORDER BY log_date DESC, id DESC LIMIT 1",
+                        [(int)($c['engineer_id'] ?? 0), (string)($c['log_date'] ?? date('Y-m-d'))]);
+                    if ($prevR) {
+                        if ($pWmb <= 0) $pWmb = (float)($prevR['wmb'] ?? 0);
+                    }
+                }
+                $dWmb = ($wmb > 0 && $pWmb > 0 && $wmb > $pWmb) ? max(0.0, $wmb - $pWmb) : 0.0;
+                $fWmb = ($dWmb > 0 && $dWmb <= 300.0) ? 10.0 : 1.0;
+                $wmbConsNew = $dWmb * $fWmb;
+                $twNew = $wmbConsNew + $othersW;
+                if ($twNew > $tw * 1.2 && $twNew > 0.001) {
+                    $tw = $twNew;
+                    $changed = true;
+                }
+            }
+
+            if ($changed) {
+                $tg = (float)($c['tg'] ?? 0);
+                $tf = (float)($c['tf'] ?? 0);
+                $tga = (float)($c['tga'] ?? 0); if ($tga <= 0) $tga = (float)$TARIF_GAS;
+                $tfu = (float)($c['tfu'] ?? 0); if ($tfu <= 0) $tfu = (float)$TARIF_FUEL;
+                $db->update('daily_logs', [
+                    'total_electricity'      => $te,
+                    'tariff_electricity_per_kwh' => $tel,
+                    'total_water'            => $tw,
+                    'tariff_water_per_m3'    => $twa,
+                    'total_gas'              => $tg,
+                    'total_fuel'             => $tf,
+                ], 'id = ?', [$cid]);
+            }
+        }
+    } catch (Throwable $e) {
+        /* Jangan ganggu render report kalo auto-fix gagal (misal DB lock) */
+        error_log('repAutoFixUtilityFormulaLama ERROR: '.$e->getMessage());
+    }
+}
+/* JALANKAN AUTO CORRECTION SEKARANG (hanya untuk mode SUM / report biasa, bukan mode debug) */
+repAutoFixUtilityFormulaLama($db, $reportDateFrom, $reportDateTo, $TARIF_LISTRIK, $TARIF_AIR, $TARIF_GAS, $TARIF_FUEL);
+/* ====================================================================== */
+
 /* ---------- 2. HELPER ---------- */
 function repFmtIndo($v, $dec = 2) { $v=(float)$v; return number_format($v, $dec, ',', '.'); }
 function repFmtRupiah($v) { $v=(float)$v; if ($v==0) return '0'; return number_format($v, 0, ',', '.'); }
