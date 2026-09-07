@@ -508,15 +508,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $isShiftMalam = ($shift === 'malam');
     $_eLWBP = max(0.0, $eLwbp - $elecYesterdayLwbp);
     $_eWBP  = max(0.0, $eWbp  - $elecYesterdayWbp);
-    $electricityConsumptionCostBase = $_eLWBP + $_eWBP;
-    unset($_eLWBP, $_eWBP);
+    $_elecFactor = 8000.0;
+    if ($_eWBP > 500.0 || $_eLWBP > 500.0) {
+        /* SELISIH > 500 = user sudah input SELISIH LANGSUNG (bukan reading meter CT/PT).
+           Jangan apply faktor 8000! (sesuai logsheet engineer mode Usage/Direct) */
+        $_elecFactor = 1.0;
+    }
+    $electricityConsumptionCostBase = ($_eLWBP + $_eWBP) * $_elecFactor;
+    unset($_eLWBP, $_eWBP, $_elecFactor);
     // ✅ FIX 2026-08-26: TIDAK USAH INJECT DB MANUAL LAGI KAK BACKFILL!
     if ($isBackfillMode) {
         // MODE BACKFILL: total_electricity = NILAI TODAY READING (wbp+lwbp)
         // (bukan selisih hari ini - kemarin. Ini yang membuat LY kemarin 26.240 kWh tersimpan 3.27 saja)
         $electricity = $eTodayTotal;
     } else {
-        // MODE NORMAL (HARI INI): pakai selisih (pemakaian hari ini kemarin) — tetap untuk log hari ini
+        // MODE NORMAL (HARI INI): pakai selisih × faktor CT/PT — tetap untuk log hari ini
         $electricity = $electricityConsumptionCostBase;
     }
     unset($electricityConsumptionCostBase);
@@ -530,14 +536,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $wDwLpb  = (float)normalizeDecimalInput($_POST['water_deepwell_lpb'] ?? 0);
     $wMainBldgRead = (float)normalizeDecimalInput($_POST['water_main_building'] ?? 0);
     $wMainBldgConsRaw = max(0.0, $wMainBldgRead - $mbYesterdayRead);
-    $wMainBldgCons = $wMainBldgConsRaw;
+    $_waterMbFactor = 10.0;
+    if ($wMainBldgConsRaw > 300.0) {
+        /* Selisih MB > 300 = user input SELISIH LANGSUNG (bukan meteran digit kecil ratio ×10). */
+        $_waterMbFactor = 1.0;
+    }
+    $wMainBldgCons = $wMainBldgConsRaw * $_waterMbFactor;
     $wMainBldg = $wMainBldgRead;
     $wCooling  = (float)normalizeDecimalInput($_POST['water_cooling_tower'] ?? 0);
     $wBottling = (float)normalizeDecimalInput($_POST['water_bottling'] ?? 0);
     $wIrrigation = (float)normalizeDecimalInput($_POST['water_irrigation'] ?? 0);
     $waterOthersSum = $wPdam + $wIki + $wDw1 + $wDw2 + $wDwAsean + $wDwLpb + $wCooling + $wBottling + $wIrrigation;
     $waterNormalMode = $wMainBldgCons + $waterOthersSum;
-    unset($eTodayTotal, $wMainBldgConsRaw);
+    unset($eTodayTotal, $wMainBldgConsRaw, $_waterMbFactor);
     // ✅ FIX 2026-08-26 WATER: Backfill mode → total_water = wMainBldgRead (nilai reading hari ini) + sum others
     if ($isBackfillMode) {
         $water = $wMainBldgRead + $waterOthersSum;
@@ -2947,6 +2958,10 @@ HTML;
     const numFmt2 = function (n) {
         return (parseFloat(n) || 0).toFixed(2);
     };
+    const numFmt0 = function (n) {
+        const v = Math.round(parseFloat(n) || 0);
+        return v.toLocaleString('id-ID');
+    };
 
     // Helper: panggil setiap user edit Yesterday input (yang sudah di-unlock).
     // 2 efek: (a) update window.Y_* global agar calcTotals hitung live.
@@ -3056,22 +3071,42 @@ HTML;
     window.calcTotals = function () {
         try {
         // --- Listrik --- (SEMUA SHIFT PAGI/SIANG/MALAM = AUTO HITUNG, TANPA GATING)
+        // ✅ 2026-09-06 FIX FAKTOR CT/PT × 8000 (label udah bener dari dulu, cuma rumus gak di-apply 😂)
+        // Rule: Jika SELISIH kecil (<= 500) = MODE READING (angka di layar meteran CT/PT), KALI × 8000
+        //       Jika SELISIH besar (> 500) = MODE USAGE/DIRECT (user input SELISIH LANGSUNG sesuai logsheet), KALI × 1
         const todayWbp  = readF('electricity_wbp');
         const todayLwbp = readF('electricity_lwbp');
-        const eWbpCons  = Math.max(0, (todayWbp  - window.Y_ELEC_WBP));
-        const eLwbpCons = Math.max(0, (todayLwbp - window.Y_ELEC_LWBP));
+        const eWbpDiff  = Math.max(0, (todayWbp  - window.Y_ELEC_WBP));
+        const eLwbpDiff = Math.max(0, (todayLwbp - window.Y_ELEC_LWBP));
+        const _fElecWbp  = (eWbpDiff  <= 500.0) ? 8000.0 : 1.0;
+        const _fElecLwbp = (eLwbpDiff <= 500.0) ? 8000.0 : 1.0;
+        const eWbpCons  = eWbpDiff  * _fElecWbp;
+        const eLwbpCons = eLwbpDiff * _fElecLwbp;
         const elecTotal = eWbpCons + eLwbpCons;
         const te = document.getElementById('totalElectricity');
         if (te) te.value = numFmt2(elecTotal);
         const ewC = document.getElementById('elecWbpCons');
         const elC = document.getElementById('elecLwbpCons');
-        if (ewC) ewC.textContent = numFmt2(eWbpCons) + ' kWh';
-        if (elC) elC.textContent = numFmt2(eLwbpCons) + ' kWh';
+        // Label line under input: "Selisih × 8000" = show diff dulu, baru final cons dibawah label besar
+        // Tapi biar user tidak bingung, tampilkan FINAL kWh (sudah × faktor) disini
+        if (ewC) {
+            ewC.textContent = (eWbpDiff > 0 && _fElecWbp > 1.0)
+                ? numFmt2(eWbpDiff) + ' × ' + numFmt0(_fElecWbp) + ' = ' + numFmt2(eWbpCons) + ' kWh'
+                : numFmt2(eWbpCons) + ' kWh';
+        }
+        if (elC) {
+            elC.textContent = (eLwbpDiff > 0 && _fElecLwbp > 1.0)
+                ? numFmt2(eLwbpDiff) + ' × ' + numFmt0(_fElecLwbp) + ' = ' + numFmt2(eLwbpCons) + ' kWh'
+                : numFmt2(eLwbpCons) + ' kWh';
+        }
 
         // --- Water Main Building + PDAM + Sumber Lain --- (SEMUA SHIFT AUTO HITUNG)
+        // ✅ 2026-09-06 FIX FAKTOR WATER METER × 10 (label juga sudah bener dari dulu!)
         const wmb = document.getElementById('waterMainBuild');
         const wmbVal = wmb ? (parseFloat(normDecStr(wmb.value)) || 0) : 0;
-        const waterMbCons = Math.max(0, (wmbVal - window.Y_WATER_MB));
+        const waterMbDiff = Math.max(0, (wmbVal - window.Y_WATER_MB));
+        const _fWmb = (waterMbDiff <= 300.0) ? 10.0 : 1.0;
+        const waterMbCons = waterMbDiff * _fWmb;
         // Tambah semua sumber air langsung: PDAM, Iki Gaban, DW, CT, Bottling, Irrigation
         const wPdam      = readF('water_pdam');
         const wIkiGaban  = readF('water_iki_gaban');
@@ -3086,7 +3121,11 @@ HTML;
         const tw = document.getElementById('totalWater');
         if (tw) tw.value = numFmt2(waterCons);
         const mbSelisih = document.getElementById('mbSelisih');
-        if (mbSelisih) mbSelisih.textContent = numFmt2(waterMbCons) + ' m3';
+        if (mbSelisih) {
+            mbSelisih.textContent = (waterMbDiff > 0 && _fWmb > 1.0)
+                ? numFmt2(waterMbDiff) + ' × ' + numFmt0(_fWmb) + ' = ' + numFmt2(waterMbCons) + ' m3'
+                : numFmt2(waterMbCons) + ' m3';
+        }
         const wmc = document.getElementById('waterMainCons');
         if (wmc) wmc.textContent = numFmt2(waterCons) + ' m3';
 
@@ -3104,7 +3143,7 @@ HTML;
         const tfHidden = document.querySelector('input[name="total_fuel"]');
         if (tfHidden) tfHidden.value = numFmt2(fuelLiter);
 
-        // --- Cost breakdown ---
+        // --- Cost breakdown --- (pakai nilai consumption yang SUDAH DIKALI FAKTOR)
         const cost_elec = (eWbpCons * window.TARIF.elec_wbp) + (eLwbpCons * window.TARIF.elec_lwbp);
         const cost_water = waterCons * window.TARIF.water;
         const cost_gas = gasTotal * window.TARIF.gas;
