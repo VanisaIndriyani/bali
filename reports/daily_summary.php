@@ -1,6 +1,10 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 requireLogin();
+/* ✅ 2026-09-10 CACHE BUSTER PAKSA (report & auto correction utility formula DB) */
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0');
+header('Pragma: no-cache');
+header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
 
 $db = Database::getInstance();
 $user = currentUser();

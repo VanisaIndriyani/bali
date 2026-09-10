@@ -2,6 +2,12 @@
 require_once __DIR__ . '/../config/config.php';
 $pageTitle = T('form_title', 'Isi Daily Log Engineering');
 requireRole(['engineer', 'supervisor', 'manager']);
+/* ✅ 2026-09-10 CACHE BUSTER PAKSA: mencegah browser simpan JS/CSS/HTML LAMA
+   (yang bikin rumus ×8000 customer gak kelihatan karena ke-cache JS error!) */
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0');
+header('Pragma: no-cache');
+header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
+header('X-Robots-Tag: noindex');
 
 $db = Database::getInstance();
 $user = currentUser();
@@ -452,7 +458,9 @@ $elecTodayTotal = $elecTodayWbp + $elecTodayLwbp;
 // Load DEFAULT — SEMUA SHIFT (Pagi/Siang/Malam) AUTO HITUNG sama formula JS
 $_mbTodayRaw = $mbTodayRead;
 $_mbYestRaw  = $mbYesterdayRead;
-$mbConsumptionBase = max(0.0, $_mbTodayRaw - $_mbYestRaw);
+$mbConsumptionBaseRaw = max(0.0, $_mbTodayRaw - $_mbYestRaw);
+$_fWmbPhp = ($mbConsumptionBaseRaw <= 300.0) ? 10.0 : 1.0;
+$mbConsumptionBase = $mbConsumptionBaseRaw * $_fWmbPhp;
 $mbConsumption = $mbConsumptionBase
     + (float)($log['water_pdam'] ?? 0)
     + (float)($log['water_iki_gaban'] ?? 0)
@@ -463,10 +471,13 @@ $mbConsumption = $mbConsumptionBase
     + (float)($log['water_cooling_tower'] ?? 0)
     + (float)($log['water_bottling'] ?? 0)
     + (float)($log['water_irrigation'] ?? 0);
-$eLwbpConsNow = max(0.0, $elecTodayLwbp - $elecYesterdayLwbp);
-$eWbpConsNow  = max(0.0, $elecTodayWbp  - $elecYesterdayWbp);
+$eLwbpConsBase = max(0.0, $elecTodayLwbp - $elecYesterdayLwbp);
+$eWbpConsBase  = max(0.0, $elecTodayWbp  - $elecYesterdayWbp);
+$_fElecPhp = (($eLwbpConsBase + $eWbpConsBase) <= 500.0) ? 8000.0 : 1.0;
+$eLwbpConsNow = $eLwbpConsBase * $_fElecPhp;
+$eWbpConsNow  = $eWbpConsBase  * $_fElecPhp;
 $elecConsumptionNow = $eLwbpConsNow + $eWbpConsNow;
-unset($eLwbpConsNow, $eWbpConsNow, $yestRow, $_mbTodayRaw, $_mbYestRaw, $mbConsumptionBase);
+unset($eLwbpConsNow, $eWbpConsNow, $eLwbpConsBase, $eWbpConsBase, $_fElecPhp, $_fWmbPhp, $yestRow, $_mbTodayRaw, $_mbYestRaw, $mbConsumptionBase, $mbConsumptionBaseRaw);
 
 $yElecWbpJs   = (float)$elecYesterdayWbp;
 $yElecLwbpJs  = (float)$elecYesterdayLwbp;
@@ -1571,7 +1582,9 @@ unset($_tarNow);
 HTML;
                     $_eLwbpYFmt = number_format($elecYesterdayLwbp, 2, '.', '');
                     $_eLwbpTVal = $log['electricity_lwbp'] ?? '0.00';
-                    $_eLwbpCons = $_isLogMalamE ? number_format(max(0.0, (float)$_eLwbpTVal - $elecYesterdayLwbp), 2, '.', '') : '0.00';
+                    $_eLwbpDiffRaw = max(0.0, (float)$_eLwbpTVal - $elecYesterdayLwbp);
+                    $_fElecLwbpPhp = (($_eLwbpDiffRaw + max(0.0,(float)($_eWbpTVal ?? 0) - $elecYesterdayWbp)) <= 500.0) ? 8000.0 : 1.0;
+                    $_eLwbpCons = number_format($_eLwbpDiffRaw * $_fElecLwbpPhp, 2, '.', '');
                     echo <<<HTML
                     <div>
                         <div class="flex items-center justify-between mb-1.5">
@@ -1600,7 +1613,7 @@ HTML;
                                 </div>
                             </div>
                             <div class="flex items-center justify-between text-[10px] font-semibold pt-1 border-t border-slate-200/60">
-                                <span class="text-slate-600">Selisih</span>
+                                <span class="text-slate-600">Selisih × 8000</span>
                                 <span class="text-slate-800" id="elecLwbpCons">{$_eLwbpCons} kWh</span>
                             </div>
                         </div>
@@ -3067,13 +3080,12 @@ HTML;
         const el = document.querySelector('input[name="' + name + '"]');
         return el ? (parseFloat(normDecStr(el.value)) || 0) : 0;
     }
+    function __fmt0(n) { try { return Math.round(parseFloat(n)||0).toLocaleString('id-ID'); } catch(e){ return String(Math.round(parseFloat(n)||0)); } }
 
     window.calcTotals = function () {
         try {
         // --- Listrik --- (SEMUA SHIFT PAGI/SIANG/MALAM = AUTO HITUNG, TANPA GATING)
-        // ✅ 2026-09-06 FIX FAKTOR CT/PT × 8000 (label udah bener dari dulu, cuma rumus gak di-apply 😂)
-        // Rule: Jika SELISIH kecil (<= 500) = MODE READING (angka di layar meteran CT/PT), KALI × 8000
-        //       Jika SELISIH besar (> 500) = MODE USAGE/DIRECT (user input SELISIH LANGSUNG sesuai logsheet), KALI × 1
+        // ✅ 2026-09-10 FIX: numFmt0 TIDAK ADA → ERROR! Ganti pake helper __fmt0 inline
         const todayWbp  = readF('electricity_wbp');
         const todayLwbp = readF('electricity_lwbp');
         const eWbpDiff  = Math.max(0, (todayWbp  - window.Y_ELEC_WBP));
@@ -3087,16 +3099,14 @@ HTML;
         if (te) te.value = numFmt2(elecTotal);
         const ewC = document.getElementById('elecWbpCons');
         const elC = document.getElementById('elecLwbpCons');
-        // Label line under input: "Selisih × 8000" = show diff dulu, baru final cons dibawah label besar
-        // Tapi biar user tidak bingung, tampilkan FINAL kWh (sudah × faktor) disini
         if (ewC) {
             ewC.textContent = (eWbpDiff > 0 && _fElecWbp > 1.0)
-                ? numFmt2(eWbpDiff) + ' × ' + numFmt0(_fElecWbp) + ' = ' + numFmt2(eWbpCons) + ' kWh'
+                ? numFmt2(eWbpDiff) + ' × ' + __fmt0(_fElecWbp) + ' = ' + numFmt2(eWbpCons) + ' kWh'
                 : numFmt2(eWbpCons) + ' kWh';
         }
         if (elC) {
             elC.textContent = (eLwbpDiff > 0 && _fElecLwbp > 1.0)
-                ? numFmt2(eLwbpDiff) + ' × ' + numFmt0(_fElecLwbp) + ' = ' + numFmt2(eLwbpCons) + ' kWh'
+                ? numFmt2(eLwbpDiff) + ' × ' + __fmt0(_fElecLwbp) + ' = ' + numFmt2(eLwbpCons) + ' kWh'
                 : numFmt2(eLwbpCons) + ' kWh';
         }
 
@@ -3123,7 +3133,7 @@ HTML;
         const mbSelisih = document.getElementById('mbSelisih');
         if (mbSelisih) {
             mbSelisih.textContent = (waterMbDiff > 0 && _fWmb > 1.0)
-                ? numFmt2(waterMbDiff) + ' × ' + numFmt0(_fWmb) + ' = ' + numFmt2(waterMbCons) + ' m3'
+                ? numFmt2(waterMbDiff) + ' × ' + __fmt0(_fWmb) + ' = ' + numFmt2(waterMbCons) + ' m3'
                 : numFmt2(waterMbCons) + ' m3';
         }
         const wmc = document.getElementById('waterMainCons');
