@@ -43,8 +43,12 @@ echo "\xEF\xBB\xBF"; // UTF-8 BOM (WAJIB untuk hindari warning CSV)
 
 // ================= 2) FUNCTIONS =================
 function buildActivityListQuery($db, $userRole, $userId, $category, $dateFrom, $dateTo, $limit = 500) {
+    /* ✅ 2026-09-10 RULE BARU: berlakunya PER BULAN penuh (dari $dateFrom ambil bulan penuh) */
+    $_actKeyExc = date('Y-m', strtotime($dateTo));
+    $_actStartExc = $_actKeyExc . '-01';
+    $_actEndExc = date('Y-m-t', strtotime($_actStartExc));
     $baseWhere = "WHERE dla.category = ? AND dl.status = 'approved' AND dl.log_date BETWEEN ? AND ?";
-    $params = [$category, $dateFrom, $dateTo];
+    $params = [$category, $_actStartExc, $_actEndExc];
     if ($userRole === 'engineer') {
         $baseWhere .= " AND dl.engineer_id = ?";
         $params[] = $userId;
@@ -78,7 +82,17 @@ function actGroupWithStatus(&$list) {
     }
     return $out;
 }
-
+function __actExcFilterProgress(&$list) {
+    if (!is_array($list) || count($list) === 0) return [];
+    $out = [];
+    foreach ($list as $r) {
+        if (!is_array($r)) continue;
+        $s = mb_strtolower(trim((string)($r['status'] ?? 'progress')));
+        if ($s === 'complete' || $s === 'completed') continue;
+        $out[] = $r;
+    }
+    return $out;
+}
 // ================= 3) QUERY DATA SAMA PERSIS INDEX.PHP =================
 $actListOp    = buildActivityListQuery($db, $userRole, $userId, 'operation',   $monthStart, $today);
 $actListMaint = buildActivityListQuery($db, $userRole, $userId, 'maintenance', $monthStart, $today);
@@ -90,6 +104,10 @@ $actsGRP = [
     'project'     => actGroupWithStatus($actListProj),
     'landscape'   => actGroupWithStatus($actListLand),
 ];
+
+/* ✅ 2026-09-10: FILTER HANYA IN PROGRESS SAJA (SEBELUM merge JSON & master) */
+foreach ($actsGRP as $_kE => &$_vE) $_vE = __actExcFilterProgress($_vE);
+unset($_kE, $_vE);
 
 /* ✅ 2026-09-06 BARU: MERGE activity_*_items JSON (sumber manager/activities.php)
    — sebelumnya data JSON tidak muncul di EXCEL sama sekali! (mirip daily_summary.php) */
@@ -145,9 +163,11 @@ try {
                     }
                 }
                 if ($_enExc === '') $_enExc = (string)($_raExc['engineer_name'] ?? '-');
+                /* ✅ 2026-09-10: HANYA IN PROGRESS SAJA YANG MASUK (filter progress only rule baru) */
+                if (!$_isProgExc) continue;
                 $actsGRP[$_dvExc][] = [
                     'title'  => $_tExc,
-                    'status' => $_isProgExc ? 'progress' : 'complete',
+                    'status' => 'progress',
                     'date'   => (string)$_raExc['log_date'],
                     'eng'    => $_enExc
                 ];
@@ -158,17 +178,17 @@ try {
 } catch (Throwable $e) {}
 
 try {
-    /* ✅ 2026-09-06 FIX activity_masters:
-       - FILTER DATE(created_at) BETWEEN range laporan (hindari data lama muncul)
+    /* ✅ 2026-09-10 RULE BARU activity_masters:
+       - HANYA YANG STATUS IN PROGRESS / BELUM DI-COMPLETE (bukan status_default = complete)
+       - MASTER TIDAK ADA BATAS TANGGAL! (jika masih in progress meskipun dibuat Agustus, tetap muncul September)
        - DILARANG fallback ke $user['name']!  */
     try {
         $_tmpMastersAct = $db->fetchAll("SELECT am.division, am.activity_name, am.sort_order, am.created_at, am.status_default,
                                                 u.name as created_by_name
                                          FROM activity_masters am
                                          LEFT JOIN users u ON u.id = am.created_by
-                                         WHERE DATE(am.created_at) BETWEEN ? AND ?
-                                         ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC",
-            [$monthStart, $today]);
+                                         WHERE (am.status_default IS NULL OR LOWER(COALESCE(am.status_default,'progress')) NOT IN ('complete','completed'))
+                                         ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC");
     } catch (Throwable $_e) {
         $_tmpMastersAct = $db->fetchAll("SELECT am.division, am.activity_name, am.sort_order, am.created_at, am.status_default,
                                                 u.name as created_by_name
@@ -192,12 +212,18 @@ try {
         if ($title === '') continue;
         $key = mb_strtolower($title);
         if (isset($_existingTitleAct[$dv][$key])) continue;
-        $st = (string)($_m['status_default'] ?? 'progress');
+        $st = mb_strtolower(trim((string)($_m['status_default'] ?? 'progress')));
+        /* ✅ 2026-09-10: FILTER DOUBLE, status_default complete = dibuang! */
+        if ($st === 'complete' || $st === 'completed') continue;
         $_engExcel = !empty($_m['created_by_name']) ? (string)$_m['created_by_name'] : '- (Master Activity)';
-        $actsGRP[$dv][] = ['title'=>$title, 'status'=>($st==='complete'?'complete':'progress'), 'date'=>substr((string)($_m['created_at'] ?? ''),0,10), 'eng'=>$_engExcel];
+        $actsGRP[$dv][] = ['title'=>$title, 'status'=>'progress', 'date'=>substr((string)($_m['created_at'] ?? ''),0,10), 'eng'=>$_engExcel];
     }
     unset($_tmpMastersAct, $_existingTitleAct, $dv, $_m, $title, $key, $st, $_engExcel, $_e);
 } catch (Throwable $e) {}
+
+/* ✅ 2026-09-10 FINAL FILTER: PASTIKAN TIDAK ADA status complete yang lolos */
+foreach ($actsGRP as $_kL => &$_vL) $_vL = __actExcFilterProgress($_vL);
+unset($_kL, $_vL);
 
 $totalActivities = 0; $totalProgress = 0; $totalComplete = 0;
 foreach ($actsGRP as $rows) foreach ($rows as $r) { $totalActivities++; if (($r['status'] ?? '') === 'complete') $totalComplete++; else $totalProgress++; }

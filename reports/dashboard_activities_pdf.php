@@ -84,24 +84,23 @@ try {
     }
     unset($logRows, $lr, $it, $arr, $json, $_en, $_uid, $_uc, $_ur);
 
-    /* ✅ 2026-09-06 FIX activity_masters:
-       - HANYA tampilkan yang created_at DALAM RANGE BULAN LAPORAN (hindari Agustus muncul di September)
+    /* ✅ 2026-09-10 RULE BARU activity_masters:
+       - HANYA YANG STATUS IN PROGRESS / BELUM DI-COMPLETE (bukan status_default = 'complete')
+       - MASTER TIDAK ADA BATAS TANGGAL! (jika masih in progress meskipun dibuat Agustus, tetap muncul September)
        - DILARANG fallback ke $user['name'] (nama user lagi login)!  */
     try {
         $mstRows = $db->fetchAll(
             "SELECT am.division, am.activity_name, am.created_at, u.name as created_by_name
              FROM activity_masters am
              LEFT JOIN users u ON u.id = am.created_by
-             WHERE am.status_default='progress' AND DATE(am.created_at) BETWEEN ? AND ?
-             ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC",
-            [$monthStart, $today]
+             WHERE (am.status_default IS NULL OR LOWER(COALESCE(am.status_default,'progress')) NOT IN ('complete','completed'))
+             ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC"
         );
     } catch (Throwable $_e) {
         $mstRows = $db->fetchAll(
             "SELECT am.division, am.activity_name, am.created_at, u.name as created_by_name
              FROM activity_masters am
              LEFT JOIN users u ON u.id = am.created_by
-             WHERE am.status_default='progress'
              ORDER BY FIELD(am.division,'project','operation','maintenance','landscape'), am.sort_order ASC, am.id ASC"
         );
     }
@@ -195,6 +194,7 @@ $total = count($engActRows);
     /* ============ TABLE — POLISHED NETRAL ============ */
     .tbl {
         width:100%; border-collapse: separate; border-spacing: 0;
+        table-layout: fixed;
         border: 1px solid #e2e8f0;
         border-radius: 12px;
         overflow: hidden;
@@ -213,11 +213,11 @@ $total = count($engActRows);
         position: sticky; top:0;
     }
     .tbl thead th:last-child { border-right:none; }
-    .tbl thead th.c1 { width:13%; }
-    .tbl thead th.c2 { width:46%; }
-    .tbl thead th.c3 { width:11%; text-align:center; }
-    .tbl thead th.c4 { width:19%; }
-    .tbl thead th.c5 { width:11%; text-align:center; }
+    .tbl thead th.c1 { width:11%; }
+    .tbl thead th.c2 { width:54%; }
+    .tbl thead th.c3 { width:10%; text-align:center; }
+    .tbl thead th.c4 { width:15%; }
+    .tbl thead th.c5 { width:10%; text-align:center; }
 
     .tbl tbody td {
         padding: 9px 14px;
@@ -244,6 +244,9 @@ $total = count($engActRows);
         color:#334155;
         white-space: nowrap;
         box-shadow: 0 1px 1px rgba(15,23,42,0.03);
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .act {
         font-size: 11px;
@@ -251,6 +254,7 @@ $total = count($engActRows);
         line-height: 1.5;
         color:#0f172a;
         word-break: break-word;
+        hyphens: auto;
     }
     .dt {
         display:block; text-align:center;
@@ -333,6 +337,28 @@ $total = count($engActRows);
     .btn-danger { background:#64748b; color:#fff; }
     .btn-danger:hover { background:#475569; }
     @media screen { .toolbar { display:flex; } }
+    @media screen and (max-width: 900px) {
+        .tbl thead th.c1 { width:14%; }
+        .tbl thead th.c2 { width:48%; }
+        .tbl thead th.c3 { width:10%; text-align:center; }
+        .tbl thead th.c4 { width:16%; }
+        .tbl thead th.c5 { width:12%; text-align:center; }
+        .eng .nm { font-size: 10px; white-space: normal; line-height: 1.35; }
+        .eng { gap: 6px; }
+        .act { font-size: 10.5px; line-height: 1.5; }
+    }
+    @media screen and (max-width: 640px) {
+        body { font-size: 10px; }
+        .head { flex-direction: column; align-items: flex-start; gap: 10px; }
+        .head .right { align-items: flex-start; width: 100%; }
+        .head .period, .head .filter { width: auto; font-size: 9px; }
+        .tbl thead th { padding: 9px 8px; font-size: 8.5px; letter-spacing: 0.1em; }
+        .tbl tbody td { padding: 8px 8px; font-size: 10px; }
+        .dept { padding: 2px 7px; font-size: 8.5px; letter-spacing: 0.1em; }
+        .act { font-size: 10.5px; line-height: 1.5; }
+        .st .sb { padding: 3px 8px; font-size: 8.5px; letter-spacing: 0.08em; }
+        .dt { font-size: 9px; }
+    }
     @media print {
         body { background:#fff; }
         .wrap { margin:0; box-shadow:none; border-radius:0; }
