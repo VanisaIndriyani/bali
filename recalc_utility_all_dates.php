@@ -163,6 +163,60 @@ $lastElecByEng = []; /* [engineer_id] = [wbp, lwbp, date_logged] */
 $lastWaterMbByEng = []; /* [engineer_id] = [water_mb_value, date_logged] */
 $lastGasByEng = []; /* [engineer_id] = [lpg, lng, date_logged] */
 
+/* ================================================================================
+ * 2.5) QUERY BASELINE SEBELUM START-DATE (isi last*ByEng dengan data TANGGAL TERAKHIR
+ *      < 2026-01-01 per engineer_id). Fix: engineer pertama muncul di 01/08 TIDAK
+ *      dianggap "baru" (0 diff), tapi pakai kemarin data akhir Juli.
+ *      Order BY: Revisi 3 (Grup water>0 ASC → log_date DESC → water DESC)
+ * ================================================================================ */
+$prevBaselines = $db->fetchAll("
+    SELECT engineer_id,
+           electricity_wbp, electricity_lwbp,
+           water_main_building,
+           gas_lpg, gas_lng,
+           DATE(log_date) log_date
+    FROM (
+        SELECT engineer_id, electricity_wbp, electricity_lwbp, water_main_building, gas_lpg, gas_lng, log_date,
+               (CASE WHEN COALESCE(water_main_building,0) > 0 THEN 0 ELSE 1 END) AS grp_water
+        FROM daily_logs
+        WHERE DATE(log_date) < ?
+          AND (  COALESCE(electricity_wbp,0) + COALESCE(electricity_lwbp,0) > 0
+              OR COALESCE(water_main_building,0) > 0
+              OR COALESCE(gas_lpg,0) + COALESCE(gas_lng,0) > 0 )
+    ) dl
+    ORDER BY engineer_id ASC, grp_water ASC, log_date DESC, COALESCE(water_main_building,0) DESC
+", [$startDate]);
+if (is_array($prevBaselines) && count($prevBaselines) > 0) {
+    foreach ($prevBaselines as $pb) {
+        $eid = (int)($pb['engineer_id'] ?? 0);
+        if ($eid <= 0) $eid = 99;
+        $wbp = (float)($pb['electricity_wbp'] ?? 0);
+        $lwbp = (float)($pb['electricity_lwbp'] ?? 0);
+        $mb = (float)($pb['water_main_building'] ?? 0);
+        $lpg = (float)($pb['gas_lpg'] ?? 0);
+        $lng = (float)($pb['gas_lng'] ?? 0);
+        $dt = $pb['log_date'] ?? '';
+        if (($wbp + $lwbp) > 0 && !isset($lastElecByEng[$eid]))  $lastElecByEng[$eid]     = ['wbp'=>$wbp, 'lwbp'=>$lwbp, 'date'=>$dt];
+        if ($mb > 0              && !isset($lastWaterMbByEng[$eid])) $lastWaterMbByEng[$eid]  = ['val'=>$mb, 'date'=>$dt];
+        if (($lpg + $lng) > 0    && !isset($lastGasByEng[$eid]))  $lastGasByEng[$eid]      = ['lpg'=>$lpg, 'lng'=>$lng, 'date'=>$dt];
+    }
+    echo "============================================================================\n";
+    echo "📌 BASELINE SEBELUM $startDate (isi terakhir sebelum Jan 2026):\n";
+    echo "============================================================================\n";
+    echo "  Listrik  : " . count($lastElecByEng) . " engineer\n";
+    foreach ($lastElecByEng as $eid => $v) echo "     → eng#$eid = " . number_format($v['wbp'] + $v['lwbp'], 2, ',', '.') . " ({$v['date']})\n";
+    echo "  Water MB : " . count($lastWaterMbByEng) . " engineer\n";
+    foreach ($lastWaterMbByEng as $eid => $v) echo "     → eng#$eid = " . number_format($v['val'], 2, ',', '.') . " m3 ({$v['date']})\n";
+    echo "  Gas      : " . count($lastGasByEng) . " engineer\n";
+    foreach ($lastGasByEng as $eid => $v) echo "     → eng#$eid = " . number_format($v['lpg'] + $v['lng'], 2, ',', '.') . " kg ({$v['date']})\n";
+    echo "\n";
+} else {
+    echo "============================================================================\n";
+    echo "ℹ️  Tidak ada baseline data SEBELUM $startDate → mulai dari 0 (pertama kali submit).\n";
+    echo "   (tanggal pertama engineer muncul selisih = 0, disimpan baseline dulu)\n";
+    echo "============================================================================\n\n";
+}
+
 foreach ($allDates as $dateRow) {
     $tgl = $dateRow['tgl'];
     if (!$tgl) continue;
@@ -297,32 +351,37 @@ foreach ($allDates as $dateRow) {
     }
     $oldFuel = $sumFuel; /* sudah dihitung di atas */
 
-    /* Jika sum baseline 0 tapi DB total ada, pakai yang DB (tapi dikoreksi threshold) */
-    if ($sumElectricity <= 0.1 && $oldElec > 1) $sumElectricity = $oldElec;
-    if ($sumWaterMb + $sumWaterPdam <= 0.1 && $oldWater > 1) {
+    /* Jika sum baseline 0 tapi DB total ada, pakai yang DB (TAPI APPLY THRESHOLD FAKTOR JUGA!) */
+    if ($sumElectricity <= 0.1 && $oldElec > 0.01) {
+        $sumElectricity = $oldElec;
+        if ($sumElectricity <= 500.0) $sumElectricity = $sumElectricity * 8000.0; /* user simpan kecil (selisih), × CT/PT ratio 8000 */
+    }
+    if ($sumWaterMb + $sumWaterPdam <= 0.1 && $oldWater > 0.01) {
         $sumWaterMb = $oldWater - $sumWaterPdam; if ($sumWaterMb < 0) $sumWaterMb = 0;
     }
-    if ($sumGas <= 0.05 && $oldGas > 0.1) $sumGas = $oldGas;
+    if ($sumGas <= 0.05 && $oldGas > 0.01) {
+        $sumGas = $oldGas;
+        if ($sumGas <= 30.0) $sumGas = $sumGas * 100.0; /* user simpan kecil (selisih) → × ratio 100 */
+    }
 
-    /* ---------- KOREKSI THRESHOLD (jika baseline gagal, data DB bisa > cap → koreksi ulang) ---------- */
-    if ($sumElectricity > 45000) {
-        $ratio = $sumElectricity / 8000.0;
-        if ($ratio <= 500) $sumElectricity = $ratio; /* dulu disimpan × 8000 2x → ÷ 8000 sekali */
-    }
-    if ($sumGas > 3500) {
-        $ratio = $sumGas / 100.0;
-        if ($ratio <= 40) $sumGas = $ratio; /* disimpan ×100 2x → ÷100 */
-    }
+    /* ============================================================================
+     * 🔥 HAPUS KOREKSI TERBALIK (old SALAH ×8000 2x / ×100 2x) → DIVIDE!
+     *    Sudah tidak perlu karena user sekarang APPLY ×8000 / ×100 / ×10 DAHULU.
+     *    Kalau memang > cap, safety cap nanti auto-scale down pilih divider terbaik.
+     * ============================================================================ */
 
     /* ---------- KALKULASI AIR TOTAL = MB (selisih×faktor) + WATER PDAM SAJA ---------- */
     $totalWaterBeforeCap = $sumWaterMb + $sumWaterPdam;
 
     /* ---------- APPLY SAFETY CAP per utility ---------- */
+    /* SAFETY CAP per hari (DITAIKAN sesuai ukuran hotel user, JANGAN TERLALU KECIL!):
+       Listrik ≤ 40.000 kWh (OK), AIR ≤ 200.000 m³ (DINAIIKAN DR 800! user memang konsumsi air
+       besar MB×10 + PDAM = ratusan m3-hribuan m3), Gas ≤ 3.000 kg (OK), Fuel ≤ 8.000 L (OK) */
     $elecCostRaw = $sumElectricity * $TARIF_LISTRIK_PER_KWH;
     $resElec = applySafetyCap($sumElectricity, 40000.0, $elecCostRaw);
 
     $waterCostRaw = $totalWaterBeforeCap * $TARIF_WATER_PER_M3;
-    $resWater = applySafetyCap($totalWaterBeforeCap, 800.0, $waterCostRaw);
+    $resWater = applySafetyCap($totalWaterBeforeCap, 200000.0, $waterCostRaw); /* CAP AIR DINAIIKAN 200RB! */
 
     $gasCostRaw = $sumGas * $TARIF_GAS_PER_KG;
     $resGas = applySafetyCap($sumGas, 3000.0, $gasCostRaw);
