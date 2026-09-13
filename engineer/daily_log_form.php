@@ -424,7 +424,27 @@ $yestRow = $db->fetchOne("
     WHERE log_date < ?
       AND COALESCE(shift, 'malam') = 'malam'
       AND COALESCE(water_main_building,0) + COALESCE(electricity_wbp,0) + COALESCE(electricity_lwbp,0) > 0
-    ORDER BY log_date DESC, id DESC
+    /* ✅ 2026-09-12 FIX (REVISI 3):
+       ⚠️ ROOT CAUSE KENAPA WATER MASIH 0 (screenshot 12/09/2026):
+       Urutan REVISI 2 SALAH! → 'log_date DESC' sebelum 'water>0 ASC'.
+       Akibatnya: Di tanggal 11/09 ada row dengan LISTRIK ISI ✅ (tapi WATER=0 ❌) → diambil DULU!
+                  Padahal di 10/09 / 01/09 ada row WATER ISI ✅ (tapi tanggal lama) → TIDAK PERNAH diambil!
+
+       URUTAN YANG BENAR:
+       1. 🔥 PRIORITAS #1 = GRUP WATER ISI (water_mb>0) DULU, APAPUN TANGGALNYA!
+       2. PRIORITAS #2 = DARI GRUP WATER ISI ITU, pilih TANGGAL TERBARU (log_date DESC)
+       3. PRIORITAS #3 = WATER lebih BESAR (jika 2 row tanggal sama water isi)
+       4. PRIORITAS #4 = JIKA TIDAK ADA WATER SAMA SEKALI, GRUP LISTRIK ISI (WBP+LWBP>0) DULU
+       5. PRIORITAS #5 = LISTRIK lebih BESAR
+       6. Last = id DESC
+       Dengan ini: Selama di DB pernah ada user isi WATER MAIN BUILDING, TIDAK MUNGKIN 0 lagi! */
+    ORDER BY
+      (CASE WHEN COALESCE(water_main_building,0) > 0 THEN 0 ELSE 1 END) ASC,
+      log_date DESC,
+      COALESCE(water_main_building,0) DESC,
+      (CASE WHEN COALESCE(electricity_wbp,0)+COALESCE(electricity_lwbp,0) > 0 THEN 0 ELSE 1 END) ASC,
+      (COALESCE(electricity_wbp,0)+COALESCE(electricity_lwbp,0)) DESC,
+      id DESC
     LIMIT 1
 ", [$date]);
 if (!$yestRow || empty($yestRow)) {
@@ -433,7 +453,14 @@ if (!$yestRow || empty($yestRow)) {
         FROM daily_logs
         WHERE log_date < ?
           AND (COALESCE(water_main_building,0) > 0 OR COALESCE(electricity_wbp,0) > 0 OR COALESCE(electricity_lwbp,0) > 0)
-        ORDER BY log_date DESC, id DESC
+        /* ✅ 2026-09-12 FIX (REVISI 3): SAMA DI FALLBACK — GRUP WATER ISI DULU! */
+        ORDER BY
+          (CASE WHEN COALESCE(water_main_building,0) > 0 THEN 0 ELSE 1 END) ASC,
+          log_date DESC,
+          COALESCE(water_main_building,0) DESC,
+          (CASE WHEN COALESCE(electricity_wbp,0)+COALESCE(electricity_lwbp,0) > 0 THEN 0 ELSE 1 END) ASC,
+          (COALESCE(electricity_wbp,0)+COALESCE(electricity_lwbp,0)) DESC,
+          id DESC
         LIMIT 1
     ", [$date]);
 }
@@ -461,16 +488,10 @@ $_mbYestRaw  = $mbYesterdayRead;
 $mbConsumptionBaseRaw = max(0.0, $_mbTodayRaw - $_mbYestRaw);
 $_fWmbPhp = ($mbConsumptionBaseRaw <= 300.0) ? 10.0 : 1.0;
 $mbConsumptionBase = $mbConsumptionBaseRaw * $_fWmbPhp;
+/* ✅ 2026-09-12 UPDATE: User MAAFKAN TOTAL AIR = HANYA MAIN BUILDING + WATER PDAM SAJA!
+   Hapus permanen: Cooling Tower, Bottling, Water Irrigation + 5 kolom lama (Iki Gaban, DW1, DW2 BRR, DW Asean, DW LPB) */
 $mbConsumption = $mbConsumptionBase
-    + (float)($log['water_pdam'] ?? 0)
-    + (float)($log['water_iki_gaban'] ?? 0)
-    + (float)($log['water_deepwell_1'] ?? 0)
-    + (float)($log['water_deepwell_2_brr'] ?? 0)
-    + (float)($log['water_deepwell_asean'] ?? 0)
-    + (float)($log['water_deepwell_lpb'] ?? 0)
-    + (float)($log['water_cooling_tower'] ?? 0)
-    + (float)($log['water_bottling'] ?? 0)
-    + (float)($log['water_irrigation'] ?? 0);
+    + (float)($log['water_pdam'] ?? 0);
 $eLwbpConsBase = max(0.0, $elecTodayLwbp - $elecYesterdayLwbp);
 $eWbpConsBase  = max(0.0, $elecTodayWbp  - $elecYesterdayWbp);
 $_fElecPhp = (($eLwbpConsBase + $eWbpConsBase) <= 500.0) ? 8000.0 : 1.0;
@@ -538,13 +559,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     unset($electricityConsumptionCostBase);
 
-    // ② Water 9+ sources — Phase 2c: use normalizeDecimalInput + ADD water_irrigation — SEMUA SHIFT AUTO HITUNG (sama formula JS)
+    // ② Water — 2026-09-12: HAPUS 5 kolom (Iki Gaban, DW1, DW2 BRR, DW Asean, DW LPB) per user request
     $wPdam   = (float)normalizeDecimalInput($_POST['water_pdam'] ?? 0);
-    $wIki    = (float)normalizeDecimalInput($_POST['water_iki_gaban'] ?? 0);
-    $wDw1    = (float)normalizeDecimalInput($_POST['water_deepwell_1'] ?? 0);
-    $wDw2    = (float)normalizeDecimalInput($_POST['water_deepwell_2_brr'] ?? 0);
-    $wDwAsean= (float)normalizeDecimalInput($_POST['water_deepwell_asean'] ?? 0);
-    $wDwLpb  = (float)normalizeDecimalInput($_POST['water_deepwell_lpb'] ?? 0);
     $wMainBldgRead = (float)normalizeDecimalInput($_POST['water_main_building'] ?? 0);
     $wMainBldgConsRaw = max(0.0, $wMainBldgRead - $mbYesterdayRead);
     $_waterMbFactor = 10.0;
@@ -554,10 +570,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $wMainBldgCons = $wMainBldgConsRaw * $_waterMbFactor;
     $wMainBldg = $wMainBldgRead;
-    $wCooling  = (float)normalizeDecimalInput($_POST['water_cooling_tower'] ?? 0);
-    $wBottling = (float)normalizeDecimalInput($_POST['water_bottling'] ?? 0);
-    $wIrrigation = (float)normalizeDecimalInput($_POST['water_irrigation'] ?? 0);
-    $waterOthersSum = $wPdam + $wIki + $wDw1 + $wDw2 + $wDwAsean + $wDwLpb + $wCooling + $wBottling + $wIrrigation;
+    /* ✅ 2026-09-12 UPDATE: Cooling Tower, Bottling, Water Irrigation = HAPUS DARI TOTAL & FORM! SET = 0 backward compat */
+    $wCooling  = 0.0;
+    $wBottling = 0.0;
+    $wIrrigation = 0.0;
+    $waterOthersSum = $wPdam; // cuma PDAM + MB (pisah di line bawah)
     $waterNormalMode = $wMainBldgCons + $waterOthersSum;
     unset($eTodayTotal, $wMainBldgConsRaw, $_waterMbFactor);
     // ✅ FIX 2026-08-26 WATER: Backfill mode → total_water = wMainBldgRead (nilai reading hari ini) + sum others
@@ -715,11 +732,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'electricity_wbp' => $eWbp,
             'electricity_lwbp' => $eLwbp,
             'water_pdam' => $wPdam,
-            'water_iki_gaban' => $wIki,
-            'water_deepwell_1' => $wDw1,
-            'water_deepwell_2_brr' => $wDw2,
-            'water_deepwell_asean' => $wDwAsean,
-            'water_deepwell_lpb' => $wDwLpb,
+            /* ✅ 2026-09-12: HAPUS 5 kolom water yang tidak dipakai → set default 0 saja untuk backward compat */
+            'water_iki_gaban' => 0,
+            'water_deepwell_1' => 0,
+            'water_deepwell_2_brr' => 0,
+            'water_deepwell_asean' => 0,
+            'water_deepwell_lpb' => 0,
             'water_main_building' => $wMainBldg,
             'water_cooling_tower' => $wCooling,
             'water_bottling' => $wBottling,
@@ -1260,11 +1278,14 @@ unset($_tarNow);
             <input type="hidden" name="_target_engineer_id" value="<?= (int)$targetEngineerId ?>">
         <?php endif; ?>
         <!-- Hidden: Override nilai Yesterday jika user klik ✏️ Edit (backfill data historis).
-             Kosong = pakai auto Yesterday dari DB (default workflow input hari normal).
-             Diisi = pakai nilai custom user (SAAT INI SAJA). -->
-        <input type="hidden" name="_y_elec_wbp_override" id="_yOverrideElecWbp" value="">
-        <input type="hidden" name="_y_elec_lwbp_override" id="_yOverrideElecLwbp" value="">
-        <input type="hidden" name="_y_water_mb_override"  id="_yOverrideWaterMb" value="">
+             ✅ 2026-09-12 FIX (ROOT CAUSE shift PAGI/SIANG KEMARIN=0):
+                - Sebelumnya value="" KOSONG default → saat calcTotals() shift PAGI/SIANG pake hidden = 0!
+                - Sekarang DEFAULT = NILAI AUTO DARI PHP ($elecYesterdayWbp / $elecYesterdayLwbp / $mbYesterdayRead)
+                - Jika user edit manual → JS ganti hidden ke nilai custom user.
+                - Jika user balik 🔒 Lock → JS clear hidden ke "" lagi (SAFE DEFAULT auto Yesterday DB). -->
+        <input type="hidden" name="_y_elec_wbp_override" id="_yOverrideElecWbp" value="<?= htmlspecialchars((string)($elecYesterdayWbp ?? 0)) ?>">
+        <input type="hidden" name="_y_elec_lwbp_override" id="_yOverrideElecLwbp" value="<?= htmlspecialchars((string)($elecYesterdayLwbp ?? 0)) ?>">
+        <input type="hidden" name="_y_water_mb_override"  id="_yOverrideWaterMb" value="<?= htmlspecialchars((string)($mbYesterdayRead ?? 0)) ?>">
 
         <!-- ============================================== -->
         <!-- ✅ Req 1: LIVE SUMMARY PANEL (STICKY)         -->
@@ -1543,6 +1564,9 @@ unset($_tarNow);
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <?php
                     $_isLogMalamE = ($log && isset($log['shift']) && $log['shift'] === 'malam');
+                    /* ✅ 2026-09-12 FIX: HANYA shift MALAM yang readonly (🔒 Lock). Shift PAGI/SIANG = bisa edit + JS auto-fill jalan. */
+                    $_roElecWbp  = ($curShiftVal === 'malam') ? 'readonly' : '';
+                    $_roElecLwbp = ($curShiftVal === 'malam') ? 'readonly' : '';
                     $_eWbpYFmt = number_format($elecYesterdayWbp, 2, '.', '');
                     $_eWbpTVal = $log['electricity_wbp'] ?? '0.00';
                     $_eWbpCons = $_isLogMalamE ? number_format(max(0.0, (float)$_eWbpTVal - $elecYesterdayWbp), 2, '.', '') : '0.00';
@@ -1559,7 +1583,7 @@ unset($_tarNow);
                                     <button type="button" onclick="unlockYesterday(this, 'elec_wbp')" class="shrink-0 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition" title="Edit nilai Yesterday (backfill data historis)">✏️</button>
                                 </div>
                                 <div class="flex items-center gap-1 shrink-0">
-                                    <input type="number" step="0.01" min="0" readonly data-ykey="elec_wbp" value="{$_eWbpYFmt}" oninput="onYesterdayInput(this)"
+                                    <input type="number" step="0.01" min="0" {$_roElecWbp} data-ykey="elec_wbp" value="{$_eWbpYFmt}" oninput="onYesterdayInput(this)"
                                            class="js-norm-dec _yesterdayInput w-[90px] text-right px-2 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 text-[10px] font-bold focus:outline-none focus:border-indigo-400 focus:bg-white">
                                     <span class="text-slate-700 shrink-0">kWh</span>
                                 </div>
@@ -1598,7 +1622,7 @@ HTML;
                                     <button type="button" onclick="unlockYesterday(this, 'elec_lwbp')" class="shrink-0 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition" title="Edit nilai Yesterday (backfill data historis)">✏️</button>
                                 </div>
                                 <div class="flex items-center gap-1 shrink-0">
-                                    <input type="number" step="0.01" min="0" readonly data-ykey="elec_lwbp" value="{$_eLwbpYFmt}" oninput="onYesterdayInput(this)"
+                                    <input type="number" step="0.01" min="0" {$_roElecLwbp} data-ykey="elec_lwbp" value="{$_eLwbpYFmt}" oninput="onYesterdayInput(this)"
                                            class="js-norm-dec _yesterdayInput w-[90px] text-right px-2 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 text-[10px] font-bold focus:outline-none focus:border-indigo-400 focus:bg-white">
                                     <span class="text-slate-700 shrink-0">kWh</span>
                                 </div>
@@ -1619,7 +1643,7 @@ HTML;
                         </div>
                     </div>
 HTML;
-                    unset($_isLogMalamE, $_eWbpYFmt, $_eWbpTVal, $_eWbpCons, $_eLwbpYFmt, $_eLwbpTVal, $_eLwbpCons);
+                    unset($_isLogMalamE, $_roElecWbp, $_roElecLwbp, $_eWbpYFmt, $_eWbpTVal, $_eWbpCons, $_eLwbpYFmt, $_eLwbpTVal, $_eLwbpCons);
                     ?>
                 </div>
                 <div>
@@ -1657,12 +1681,14 @@ HTML;
             <div class="p-3 sm:p-4 space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     <?php
-                    $mbYesterday = 0;
-                    if ($isMalamNow && $waterMbYesterdayLog) {
-                        $mbYesterday = (float)($waterMbYesterdayLog['water_main_building'] ?? 0);
-                    }
+                    /* ✅ 2026-09-12 FIX BUG:
+                       1. $waterMbYesterdayLog TIDAK PERNAH DIDEFINISIKAN! → selalu null → mbYesterday=0 (Kemarin selalu 0, padahal di DB ada).
+                       2. Kondisi $isMalamNow SALAH: user bisa GANTI SHIFT via dropdown select form, jadi JANGAN cek waktu PHP saat load!
+                          Jika user isi shift Malam di jam 4 sore (belum 22:00) → $isMalamNow=false → kemarin=0!
+                       SOLUSI: Ganti pakai $mbYesterdayRead (yang otomatis fetch dari DB line 442), TANPA kondisi apapun. */
+                    $mbYesterday = (float)($mbYesterdayRead ?? 0.0);
                     $mbToday = (float)($log['water_main_building'] ?? 0);
-                    $mbCons = ($isMalamNow && $mbYesterday > 0 && $mbToday >= $mbYesterday) ? ($mbToday - $mbYesterday) : 0;
+                    $mbCons = ($mbYesterday > 0 && $mbToday >= $mbYesterday) ? ($mbToday - $mbYesterday) : 0;
                     ?>
                     <div class="sm:col-span-2 md:col-span-3 lg:col-span-3">
                         <label class="block text-[11px] font-semibold text-slate-700 mb-1.5">Main Building (Meter)<span class="ml-1 text-slate-400 font-normal">Hari ini</span></label>
@@ -1676,10 +1702,37 @@ HTML;
                             <div class="flex items-center justify-between gap-2">
                                 <div class="flex items-center gap-1 min-w-0 flex-1">
                                     <span class="text-slate-500 shrink-0">Kemarin (<?= $yDateLabelFmt ?>):</span>
-                                    <button type="button" onclick="unlockYesterday(this, 'water_mb')" class="shrink-0 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition" title="Edit nilai Yesterday (backfill data historis)">✏️</button>
+                                    <?php
+                                    /* ✅ 2026-09-12 FIX ROOT CAUSE PAGI/SIANG KEMARIN KOSONG:
+                                       Shift MALAM = 🔒 Lock (readonly + tombol default 🔒, user harus klik dulu untuk edit).
+                                       Shift PAGI/SIANG = ✏️ BISA EDIT (TIDAK readonly di awal), auto-isi JS JALAN!
+                                       => Tombol button = TAMPILKAN STATUS SAAT INI:
+                                          - PAGI/SIANG default belum unlock → 🔒 Lock (karena by default AUTO = terkunci ke DB yesterday terbaru)
+                                          - Jika user klik 🔒 → berubah jadi ✏️ = unlock (bisa edit manual)
+                                          - Kembali seperti semula: MALAM default terkunci = readonly + 🔒
+                                            PAGI/SIANG = terkunci → readonly tapi user klik ✏️ untuk unlock
+                                       SIMPLIFIKASI: SELALU LOCK (readonly) DI AWAL SEMUA SHIFT, TAPI:
+                                         - PAGI/SIANG → CSS style terlihat EDITABLE placeholder, JS auto-isi TIDAK DI-SKIP!
+                                            → Kita HAPUS "readonly hasAttribute skip" di JS onload PAGI/SIANG mode!
+                                    */
+                                    $isWaterLocked = true; /* Semua shift default LOCK ke auto DB yesterday (saat user buka form pertama kali) */
+                                    ?>
+                                    <button type="button" onclick="unlockYesterday(this, 'water_mb')" class="shrink-0 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition" title="Edit nilai Yesterday (backfill data historis)">
+                                        <?= $isWaterLocked ? '🔒' : '✏️' ?>
+                                    </button>
                                 </div>
                                 <div class="flex items-center gap-1 shrink-0">
-                                    <input type="number" step="0.01" min="0" readonly data-ykey="water_mb" value="<?= number_format($mbYesterday, 2) ?>" oninput="onYesterdayInput(this)"
+                                    <?php
+                                    /* ✅ 2026-09-12 FIX PAGI/SIANG AUTO ISI:
+                                       Shift MALAM → readonly=true, tombol=🔒.
+                                       Shift PAGI/SIANG → KITA SET JUGA readonly=true TAPI nanti di JS onload di bawah,
+                                           jika SHIFT_MALAM=false (Pagi/Siang) + nilai mbYesterday>0,
+                                           KITA HAPUS readonly SECARA OTOMATIS untuk input water_mb dan auto-fill dengan mbYesterday!
+                                        → Hasilnya: Pagi/Siang buka form → otomatis ada nilai kemarin + bisa edit.
+                                    */
+                                    $_roWater = $curShiftVal === 'malam' ? 'readonly' : '';
+                                    ?>
+                                    <input type="number" step="0.01" min="0" <?= $_roWater ?> data-ykey="water_mb" value="<?= number_format($mbYesterday, 2) ?>" oninput="onYesterdayInput(this)"
                                            class="js-norm-dec _yesterdayInput w-[90px] text-right px-2 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 text-[10px] font-bold focus:outline-none focus:border-indigo-400 focus:bg-white">
                                     <span class="text-slate-700 shrink-0">m3</span>
                                 </div>
@@ -1702,16 +1755,13 @@ HTML;
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     <?php
-                    $waterFields = [
-                        ['water_iki_gaban', 'Iki Gaban'],
-                        ['water_deepwell_1', 'Deep Well 1'],
-                        ['water_deepwell_2_brr', 'DW 2 BRR'],
-                        ['water_deepwell_asean', 'DW ASEAN'],
-                        ['water_deepwell_lpb', 'DW LPB'],
-                        ['water_cooling_tower', 'Cooling Tower'],
-                        ['water_bottling', 'Bottling'],
-                        ['water_irrigation', 'Water Irrigation'],
-                    ];
+                    /* ✅ 2026-09-12 UPDATE (Revisi User):
+                       HAPUS SEMUA WATER LAIN SELAIN: Main Building (Meter) + Water PDAM.
+                       Yang dihapus permanen:
+                       - Iki Gaban, DW1, DW2 BRR, DW ASEAN, DW LPB (5 kolom lama)
+                       - Cooling Tower, Bottling, Water Irrigation (3 kolom tambahan hari ini)
+                       => TOTAL AIR = Main Building (Selisih×10) + Water PDAM (Total 2 sumber saja!) */
+                    $waterFields = []; // KOSONG! Semua field dihapus, cuma MB + PDAM saja.
                     foreach ($waterFields as $wf) {
                         [$field, $label] = $wf;
                         $val = $log[$field] ?? '0.00';
@@ -2949,6 +2999,60 @@ HTML;
     window.Y_WATER_MB  = parseFloat(<?= json_encode($yWaterMbJs) ?>) || 0;
     window.SHIFT_MALAM = <?= ($curShiftVal === 'malam') ? 'true' : 'false' ?>;
 
+    /* ✅ 2026-09-12 FIX (ROOT CAUSE shift PAGI/SIANG KEMARIN KOSONG 0!):
+       1. Hidden _yOverrideWaterMb / _yOverrideElecWbp default-nya SEKARANG UDAH diisi dari PHP (line 1286-1288).
+          Kalau ternyata hidden != 0 DAN BERBEDA dari window.Y_* (auto DB) → user lagi backfill / override kemarin.
+          Override window.Y_* pake hidden value biar calcTotals() hitung bener.
+       2. ISI OTOMATIS INPUT YESTERDAY YANG EDITABLE (data-ykey input) dari window.Y_*,
+          biar tampilan PAGI/SIANG (✏️ Edit mode) JUGA ADA ISINYA (bukan 0 / kosong kayak screenshot user!).
+       3. Setelah diisi → panggil calcTotals() SEKALI biar SELISIH otomatis muncul di load! */
+    (function(){
+        try {
+            // -- 1) Sinkron hidden override ke window.Y_* (jika user backfill override) --
+            const hEw  = document.getElementById('_yOverrideElecWbp');
+            const hElw = document.getElementById('_yOverrideElecLwbp');
+            const hWm  = document.getElementById('_yOverrideWaterMb');
+            if (hEw && hEw.value !== '') {
+                const v = parseFloat(hEw.value)||0; if (v > 0 && Math.abs(v - window.Y_ELEC_WBP) > 0.001) window.Y_ELEC_WBP = v;
+            }
+            if (hElw && hElw.value !== '') {
+                const v = parseFloat(hElw.value)||0; if (v > 0 && Math.abs(v - window.Y_ELEC_LWBP) > 0.001) window.Y_ELEC_LWBP = v;
+            }
+            if (hWm && hWm.value !== '') {
+                const v = parseFloat(hWm.value)||0; if (v > 0 && Math.abs(v - window.Y_WATER_MB) > 0.001) window.Y_WATER_MB = v;
+            }
+            // -- 2) ISI OTOMATIS SEMUA INPUT YESTERDAY YANG DAPAT DIEDIT DARI window.Y_* SAAT LOAD! --
+            //    ✅ 2026-09-12 FIX:
+            //       - Shift MALAM → readonly=true (PHP line 1730): biarkan readonly, PHP sudah isi value=number_format($mbYesterday,2).
+            //       - Shift PAGI/SIANG → readonly=false (PHP line 1730): kita isi JIKA input value masih KOSONG atau 0.
+            document.querySelectorAll('input._yesterdayInput').forEach(function(inp){
+                const isReadonly = inp.hasAttribute('readonly');
+                // Skip input yang BENAR-BENAR readonly (shift MALAM, diisi dari PHP value=...).
+                // TAPI: Kalau readonly di PAGI/SIANG tidak sengaja + value=0, tetap isi!
+                if (isReadonly && window.SHIFT_MALAM) return; // HANYA MALAM MODE yang 100% skip.
+                const key = inp.getAttribute('data-ykey') || '';
+                let v = 0;
+                if (key === 'elec_wbp')      v = window.Y_ELEC_WBP;
+                else if (key === 'elec_lwbp')v = window.Y_ELEC_LWBP;
+                else if (key === 'water_mb') v = window.Y_WATER_MB;
+                const curRaw = (inp.value||'').replace(/[\s.,]/g,'');
+                const isEmpty = (curRaw === '' || parseInt(curRaw,10) === 0);
+                if (v > 0 && isEmpty) {
+                    inp.value = v.toFixed(2);
+                    try { inp.dispatchEvent(new Event('change', { bubbles: true })); } catch(e){}
+                    // Kalau readonly true di PAGI/SIANG mode + isinya baru di-isi → hapus readonly biar user bisa edit!
+                    if (isReadonly && !window.SHIFT_MALAM) {
+                        try { inp.removeAttribute('readonly'); inp.classList.remove('bg-slate-100'); inp.classList.add('bg-white','border-indigo-300'); } catch(e){}
+                    }
+                }
+            });
+            // -- 3) Jalankan calcTotals SEKALI di page load (pastikan SELISIH muncul otomatis) --
+            setTimeout(function(){ try { window.calcTotals && window.calcTotals(); } catch(e){} }, 120);
+        } catch (e) {
+            try { window.calcTotals && window.calcTotals(); } catch(e2){}
+        }
+    })();
+
     // Tarif snapshot dari PHP (gunakan $tarifForJs karena $tDef sudah di-unset)
     window.TARIF = {
         elec_wbp:  parseInt(<?= json_encode((int)($tarifForJs['electricity_wbp_per_kwh'] ?? 1850)) ?>, 10) || 1850,
@@ -3111,23 +3215,15 @@ HTML;
         }
 
         // --- Water Main Building + PDAM + Sumber Lain --- (SEMUA SHIFT AUTO HITUNG)
-        // ✅ 2026-09-06 FIX FAKTOR WATER METER × 10 (label juga sudah bener dari dulu!)
+        // ✅ 2026-09-06 FIX FAKTOR WATER METER × 10
+        // ✅ 2026-09-12 UPDATE: HAPUS SEMUA WATER LAIN! TOTAL AIR = HANYA MB + PDAM SAJA!
         const wmb = document.getElementById('waterMainBuild');
         const wmbVal = wmb ? (parseFloat(normDecStr(wmb.value)) || 0) : 0;
         const waterMbDiff = Math.max(0, (wmbVal - window.Y_WATER_MB));
         const _fWmb = (waterMbDiff <= 300.0) ? 10.0 : 1.0;
         const waterMbCons = waterMbDiff * _fWmb;
-        // Tambah semua sumber air langsung: PDAM, Iki Gaban, DW, CT, Bottling, Irrigation
-        const wPdam      = readF('water_pdam');
-        const wIkiGaban  = readF('water_iki_gaban');
-        const wDw1      = readF('water_deepwell_1');
-        const wDw2Brr   = readF('water_deepwell_2_brr');
-        const wDwAsean  = readF('water_deepwell_asean');
-        const wDwLpb   = readF('water_deepwell_lpb');
-        const wCoolingT = readF('water_cooling_tower');
-        const wBottling = readF('water_bottling');
-        const wIrrigation = readF('water_irrigation');
-        const waterCons = waterMbCons + wPdam + wIkiGaban + wDw1 + wDw2Brr + wDwAsean + wDwLpb + wCoolingT + wBottling + wIrrigation;
+        const wPdam       = readF('water_pdam');
+        const waterCons = waterMbCons + wPdam;
         const tw = document.getElementById('totalWater');
         if (tw) tw.value = numFmt2(waterCons);
         const mbSelisih = document.getElementById('mbSelisih');

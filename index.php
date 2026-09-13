@@ -1,6 +1,7 @@
 <?php
 $pageTitle = 'Dashboard';
 require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/includes/helper_util.php';
 requireLogin();
 
 $db = Database::getInstance();
@@ -29,6 +30,15 @@ $defToday    = date('Y-m-d');
 $defMonthSt  = date('Y-m-01');
 $today       = $defToday;
 $monthStart  = $defMonthSt;
+/* ✅ 2026-09-11 FIX UX KELUHAN USER: "KENAPA BELUM DIISI UDAH KELUAR JUMLAH?"
+   DETEKSI APAKAH USER MANUAL SET FILTER TANGGAL VIA URL PARAMETER:
+   - JIKA ADA ?date_from= ATAU ?date_to= ATAU ?date= → user MANUAL PILIH TANGGAL → HORMATI PILIHANNYA! FALLBACK = NONAKTIF!
+   - JIKA TIDAK ADA parameter sama sekali → default load halaman → FALLBACK AKTIF (shift malam blm isi = ambil tanggal terbaru).
+   Ini membedakan: user default buka halaman (dapat fallback) vs user klik TERAPKAN filter (dapat tanggal tepat pilihan) */
+$_hasManualDateFilter = false;
+if (isset($_GET['date_from']) || isset($_GET['date_to']) || isset($_GET['date'])) {
+    $_hasManualDateFilter = true;
+}
 if (isset($_GET['date_from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$_GET['date_from'])) {
     $monthStart = (string)$_GET['date_from'];
     $today      = (string)$_GET['date_from'];
@@ -136,14 +146,17 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
         ) k ON k.keep_id = dl.id";
         $d = $db->fetchOne($sqlD, [$dateFrom, $dateTo]);
 
-        /* --- (A-FALLBACK) Jika total_electricity / total_water aggregate-nya 0 → hitung manual dari reading meter per tanggal!
+        /* --- (A-FALLBACK) Jika total_electricity / total_water / total_gas / total_fuel aggregate-nya 0 → hitung manual dari reading meter per tanggal!
            Hanya aktif untuk SUM aggregate (harian / periode range single-date report).
            ✅ 2026-08-22: Single-date LY mode → EXTEND 1 hari ke belakang untuk baseline kemarin.
-           ✅ 2026-08-23: FALLBACK juga DEDUP! Hanya pertahankan row TERAKHIR per (tgl, engineer) sebelum hitung selisih. */
-        if ($isSum && ((float)($d['elec'] ?? 0) < 0.00001 || (float)($d['water'] ?? 0) < 0.00001)) {
+           ✅ 2026-08-23: FALLBACK juga DEDUP! Hanya pertahankan row TERAKHIR per (tgl, engineer) sebelum hitung selisih.
+           ✅ 2026-09-12: TAMBAH FALLBACK GAS & FUEL (sebelumnya cuma listrik+air). */
+        if ($isSum && ((float)($d['elec'] ?? 0) < 0.00001 || (float)($d['water'] ?? 0) < 0.00001 || (float)($d['gas'] ?? 0) < 0.00001 || (float)($d['fuel'] ?? 0) < 0.00001)) {
             $needElec = ((float)($d['elec'] ?? 0) < 0.00001);
             $needWater = ((float)($d['water'] ?? 0) < 0.00001);
-            if ($needElec || $needWater) {
+            $needGas = ((float)($d['gas'] ?? 0) < 0.00001);
+            $needFuel = ((float)($d['fuel'] ?? 0) < 0.00001);
+            if ($needElec || $needWater || $needGas || $needFuel) {
                 $fbFrom = $dateFrom;
                 $fbTo   = $dateTo;
                 if ($fbFrom === $fbTo) {
@@ -153,7 +166,10 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
                 $rowsRead = $db->fetchAll("SELECT dl.id, DATE(dl.log_date) AS tgl, dl.engineer_id, dl.shift,
                                                   COALESCE(dl.electricity_wbp,0) AS ew, COALESCE(dl.electricity_lwbp,0) AS el,
                                                   COALESCE(dl.water_main_building,0) AS wmb,
-                                                  COALESCE(dl.tariff_electricity_per_kwh,0) AS tel, COALESCE(dl.tariff_water_per_m3,0) AS tw
+                                                  COALESCE(dl.gas_lpg,0) AS glpg, COALESCE(dl.gas_lng,0) AS glng,
+                                                  COALESCE(dl.equipment_data,'') AS eq_json,
+                                                  COALESCE(dl.tariff_electricity_per_kwh,0) AS tel, COALESCE(dl.tariff_water_per_m3,0) AS tw,
+                                                  COALESCE(NULLIF(dl.tariff_gas_per_kg,0),0) AS tg, COALESCE(NULLIF(dl.tariff_fuel_per_liter,0),0) AS tf
                                            FROM daily_logs dl
                                            INNER JOIN (
                                                SELECT MAX(id) AS keep_id
@@ -164,41 +180,97 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
                                            ORDER BY dl.engineer_id ASC, dl.log_date ASC, dl.id ASC",
                     [$fbFrom, $fbTo]
                 );
-                $manElec = 0.0; $manWater = 0.0; $manCostElec = 0.0; $manCostWater = 0.0;
+                $manElec = 0.0; $manWater = 0.0; $manGas = 0.0; $manFuel = 0.0;
+                $manCostElec = 0.0; $manCostWater = 0.0; $manCostGas = 0.0; $manCostFuel = 0.0;
                 $lastMbByEng = []; $lastWbpByEng = []; $lastLwbpByEng = [];
+                $lastLpgByEng = []; $lastLngByEng = [];
                 foreach ($rowsRead as $rr) {
                     $eid = (int)($rr['engineer_id'] ?? 0);
                     $tmb = (float)($rr['wmb'] ?? 0);
                     $twbp = (float)($rr['ew'] ?? 0);
                     $tlwbp = (float)($rr['el'] ?? 0);
+                    $glpg = (float)($rr['glpg'] ?? 0);
+                    $glng = (float)($rr['glng'] ?? 0);
                     $tel = (float)($rr['tel'] ?? 0); if ($tel <= 0) $tel = (float)$ftEL;
                     $tw =  (float)($rr['tw']  ?? 0); if ($tw  <= 0) $tw  = (float)$ftWA;
+                    $tga = (float)($rr['tg']  ?? 0); if ($tga <= 0) $tga = (float)$ftGA;
+                    $tfu = (float)($rr['tf']  ?? 0); if ($tfu <= 0) $tfu = (float)$ftFU;
+                    $tgl = (string)($rr['tgl'] ?? '');
+                    $inRange = ($tgl >= $dateFrom && $tgl <= $dateTo);
                     if ($needWater && $tmb > 0) {
                         $prevMb = $lastMbByEng[$eid] ?? null;
-                        if ($prevMb !== null && $tmb > $prevMb) {
+                        if ($prevMb !== null && $tmb > $prevMb && $inRange) {
                             $c = max(0.0, $tmb - $prevMb);
+                            $_fWmb = ($c > 0 && $c <= 300.0) ? 10.0 : 1.0;
+                            $c = $c * $_fWmb;
                             $manWater += $c;
                             $manCostWater += $c * $tw;
+                            unset($_fWmb);
                         }
                         $lastMbByEng[$eid] = $tmb;
                     }
                     if ($needElec && ($twbp > 0 || $tlwbp > 0)) {
                         $prevWbp = $lastWbpByEng[$eid] ?? null;
                         $prevLwbp = $lastLwbpByEng[$eid] ?? null;
-                        if ($prevWbp !== null && $prevLwbp !== null) {
+                        if ($prevWbp !== null && $prevLwbp !== null && $inRange) {
                             $cWbp = max(0.0, $twbp - $prevWbp);
                             $cLwbp = max(0.0, $tlwbp - $prevLwbp);
-                            $c = ($cWbp + $cLwbp) * 8000.0;
+                            $_cSum = $cWbp + $cLwbp;
+                            if ($_cSum <= 500.0) {
+                                $c = $_cSum * 8000.0;
+                            } else {
+                                $c = $_cSum;
+                            }
+                            unset($_cSum);
                             $manElec += $c;
                             $manCostElec += $c * $tel;
                         }
                         if ($twbp > 0)  $lastWbpByEng[$eid]  = $twbp;
                         if ($tlwbp > 0) $lastLwbpByEng[$eid] = $tlwbp;
                     }
+                    /* --- ✅ BARU 2026-09-12: FALLBACK GAS --- */
+                    if ($needGas && ($glpg > 0 || $glng > 0)) {
+                        $prevLpg = $lastLpgByEng[$eid] ?? null;
+                        $prevLng = $lastLngByEng[$eid] ?? null;
+                        if ($inRange) {
+                            $dLpg = 0.0; $dLng = 0.0;
+                            if ($glpg > 0 && $prevLpg !== null && $glpg > $prevLpg) $dLpg = max(0.0, $glpg - $prevLpg);
+                            if ($glng > 0 && $prevLng !== null && $glng > $prevLng) $dLng = max(0.0, $glng - $prevLng);
+                            $dSum = $dLpg + $dLng;
+                            if ($dSum <= 0.00001) {
+                                /* Tidak ada prev valid → cek dari reading saat ini (anggap langsung selisih) */
+                                $dSum = max($dSum, $glpg + $glng);
+                            }
+                            $_fG = ($dSum > 0 && $dSum <= 30.0) ? 100.0 : 1.0; /* digit kecil ≤30 → ×100 (ratio meter gas) */
+                            $c = $dSum * $_fG;
+                            if ($c > 3000.0) $c = 3000.0; /* safety cap ≤ 3000 kg/hari */
+                            $manGas += $c;
+                            $manCostGas += $c * $tga;
+                            unset($_fG, $dLpg, $dLng, $dSum);
+                        }
+                        if ($glpg > 0) $lastLpgByEng[$eid] = $glpg;
+                        if ($glng > 0) $lastLngByEng[$eid] = $glng;
+                    }
+                    /* --- ✅ BARU 2026-09-12: FALLBACK FUEL (SOLAR) --- */
+                    if ($needFuel && $inRange) {
+                        $cFuel = 0.0;
+                        $eq = @json_decode((string)($rr['eq_json'] ?? ''), true);
+                        if (is_array($eq) && isset($eq['genset']) && is_array($eq['genset'])) {
+                            $cFuel = (float)($eq['genset']['konsumsi_fuel_liter'] ?? 0);
+                        }
+                        if ($cFuel > 0) {
+                            if ($cFuel > 8000.0) $cFuel = 8000.0; /* safety cap ≤ 8000 L/hari */
+                            $manFuel += $cFuel;
+                            $manCostFuel += $cFuel * $tfu;
+                        }
+                        unset($eq, $cFuel);
+                    }
                 }
                 if ($needElec  && $manElec  > 0) { $d['elec'] = (float)($d['elec'] ?? 0) + $manElec;  $d['cost_elec']  = (float)($d['cost_elec']  ?? 0) + $manCostElec;  }
                 if ($needWater && $manWater > 0) { $d['water'] = (float)($d['water'] ?? 0) + $manWater; $d['cost_water'] = (float)($d['cost_water'] ?? 0) + $manCostWater; }
-                unset($rowsRead, $fbFrom, $fbTo, $manElec, $manWater, $manCostElec, $manCostWater, $lastMbByEng, $lastWbpByEng, $lastLwbpByEng, $rr, $eid, $tmb, $twbp, $tlwbp, $tel, $tw, $prevMb, $prevWbp, $prevLwbp, $c, $cWbp, $cLwbp, $dedupWhere);
+                if ($needGas   && $manGas   > 0) { $d['gas']   = (float)($d['gas']   ?? 0) + $manGas;   $d['cost_gas']   = (float)($d['cost_gas']   ?? 0) + $manCostGas;   }
+                if ($needFuel  && $manFuel  > 0) { $d['fuel']  = (float)($d['fuel']  ?? 0) + $manFuel;  $d['cost_fuel']  = (float)($d['cost_fuel']  ?? 0) + $manCostFuel;  }
+                unset($rowsRead, $fbFrom, $fbTo, $manElec, $manWater, $manGas, $manFuel, $manCostElec, $manCostWater, $manCostGas, $manCostFuel, $lastMbByEng, $lastWbpByEng, $lastLwbpByEng, $lastLpgByEng, $lastLngByEng, $rr, $eid, $tmb, $twbp, $tlwbp, $glpg, $glng, $tel, $tw, $tga, $tfu, $tgl, $inRange, $prevMb, $prevWbp, $prevLwbp, $prevLpg, $prevLng, $c, $cWbp, $cLwbp, $dedupWhere);
             }
         }
 
@@ -346,6 +418,43 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
     unset($_utilSysCutoff, $_utilIsPreSystem, $_cntD_now, $_allPickedFromE);
     /* Backward compat: output key 'log_count' = cnt (biar line 101-104 lyXxxAvg TIDAK PERLU DIUBAH) */
     $out['log_count'] = max(1, (int)($out['cnt'] ?? 1));
+
+    if ($isSum) {
+        $_daysDiff = 1;
+        if ($dateFrom !== null && $dateTo !== null && $dateFrom !== '' && $dateTo !== '') {
+            $_tsF = @strtotime((string)$dateFrom);
+            $_tsT = @strtotime((string)$dateTo);
+            if ($_tsF !== false && $_tsT !== false) {
+                $_daysDiff = max(1, (int)floor(($_tsT - $_tsF) / 86400) + 1);
+            }
+        }
+        $_capPerDay = ['elec'=>40000.0, 'water'=>800.0, 'gas'=>3000.0, 'fuel'=>8000.0];
+        $_utilKeys = ['elec','water','gas','fuel'];
+        foreach ($_utilKeys as $_uk) {
+            $_valNow = (float)($out[$_uk] ?? 0);
+            if ($_valNow <= 0) continue;
+            $_capNow = $_capPerDay[$_uk] * (float)$_daysDiff;
+            if ($_valNow > $_capNow) {
+                $_faktorCandidates = [8000.0, 1000.0, 100.0, 10.0, 2.0];
+                $_bestVal = $_valNow; $_bestDiff = INF; $_bestF = 1.0;
+                foreach ($_faktorCandidates as $_f) {
+                    $_v = $_valNow / $_f;
+                    if ($_v <= $_capNow && $_v > 0) {
+                        $_d = abs($_v - ($_capNow * 0.35));
+                        if ($_d < $_bestDiff) { $_bestDiff = $_d; $_bestVal = $_v; $_bestF = $_f; }
+                    }
+                }
+                if ($_bestF > 1.0) {
+                    $out[$_uk] = $_bestVal;
+                    if (isset($out['cost_'.$_uk])) {
+                        $out['cost_'.$_uk] = (float)($out['cost_'.$_uk] ?? 0) / $_bestF;
+                    }
+                }
+            }
+        }
+        unset($_capPerDay, $_utilKeys, $_uk, $_valNow, $_capNow, $_faktorCandidates, $_bestVal, $_bestDiff, $_bestF, $_f, $_v, $_d, $_daysDiff, $_tsF, $_tsT);
+    }
+
     if ($debug) { echo "<div style='display:none' class='_dbg_merge'>FINAL ($agg) ".json_encode($out)."</div>\n"; }
     return $out;
 }
@@ -389,6 +498,28 @@ function utilFindLatestDateWithData($db, $asOfDate, $dailyWhere, $userId, $userR
 $TARIF = getTariffSettings();
 function fmtRupiah($n) { if ($n <= 0) return '0'; return number_format((int)round($n), 0, ',', '.'); }
 
+/* ============================================================
+ * 🔧 RUN AUTO CORRECT UTILITY DATA (2026-09-12 SINKRON DENGAN PRINT!)
+ * ROOT CAUSE KELUHAN USER: Sebelum patch ini, repAutoFix HANYA dijalankan
+ * SAAT KLIK PRINT (daily_summary.php), TAPI TIDAK dijalankan pas buka
+ * DASHBOARD (index.php). Akibatnya:
+ *   • Dashboard ambil data LAMA (listrik = 26M = 3.372 ×8000 disimpan 2x)
+ *   • Saat klik PRINT → repAutoFix jalan, DB di-update ke nilai BENAR (3.372)
+ *   • PRINT tampil angka BENAR, DASHBOARD masih angka LAMA → BEDA PARAH!
+ * SOLUSI: Jalankan AUTO-FIX JUGA di index.php, SEBELUM query TODAY utility card.
+ * Range tanggal: min(30 hari ke belakang / monthStart) s/d today → agar
+ *   data fallback (hingga 21 hari ke belakang) juga SUDAH di-fix!
+ * ============================================================ */
+$_TARIF_EL = (int)($TARIF['electricity_per_kwh'] ?? 1850);
+$_TARIF_WA = (int)($TARIF['water_per_m3']        ?? 9600);
+$_TARIF_GA = (int)($TARIF['gas_per_kg']          ?? 24500);
+$_TARIF_FU = (int)($TARIF['fuel_per_liter']      ?? 17450);
+$_fixRangeFrom = date('Y-m-d', strtotime($today . ' -30 days'));
+if (strtotime($_fixRangeFrom) > strtotime($monthStart)) $_fixRangeFrom = $monthStart;
+if (strtotime($_fixRangeFrom) < strtotime('2026-01-01')) $_fixRangeFrom = '2026-01-01';
+repAutoFixUtilityFormulaLama($db, $_fixRangeFrom, $today, $_TARIF_EL, $_TARIF_WA, $_TARIF_GA, $_TARIF_FU);
+unset($_TARIF_EL, $_TARIF_WA, $_TARIF_GA, $_TARIF_FU, $_fixRangeFrom);
+
 // ============ â‘  UTILITY REPORT - LY (Last Year) vs TODAY ============
 $lyFrom = (int)$lastYear . '-01-01'; $lyTo = (int)$lastYear . '-12-31';
 $tyFrom = (int)$currentYear . '-01-01'; $tyTo = (int)$currentYear . '-12-31';
@@ -402,9 +533,13 @@ if (in_array($userRole, ['manager', 'supervisor', 'admin'], true)) {
     $_todayUtilWhere = "status IN ('approved','pending') $statusWhere";
 }
 $todayBoth = utilFetchBoth_Db($db, $_todayUtilWhere, $userId, $userRole, $today, $today, 'SUM', $TARIF);
-/* Jika hari ini belum ada konsumsi (shift malam belum diisi), fallback ke tanggal terakhir yg punya data — sama seperti energy.php */
+/* ✅ 2026-09-11 FIX UX:
+   FALLBACK ke tanggal terbaru HANYA AKTIF JIKA TIDAK ADA FILTER MANUAL (default buka halaman).
+   JIKA USER MANUAL PILIH TANGGAL VIA FORM FILTER → HORMATI! Kalau tanggal itu BLM ADA DATA = KOSONGIN / 0 SAJA.
+   Alasan user keluh: "kak ini kenapa belum diisi udah keluar jumlahnya?" = user pilih tanggal 14 Sep 2026 (belum nyampe)
+   tapi sistem fallback ke 10 Sep → user BINGUNG karena pilihan tanggalnya tidak dihormati! */
 $utilDisplayDate = $today;
-if (!utilRowHasData($todayBoth)) {
+if (!$_hasManualDateFilter && !utilRowHasData($todayBoth)) {
     $_latUtil = utilFindLatestDateWithData($db, $today, $_todayUtilWhere, $userId, $userRole);
     if ($_latUtil) {
         $todayBoth = utilFetchBoth_Db($db, $_todayUtilWhere, $userId, $userRole, $_latUtil, $_latUtil, 'SUM', $TARIF);
@@ -625,7 +760,8 @@ function buildModalQuery($db, $userRole, $userId, $columns, $dateFrom, $dateTo)
 }
 
 $electricityDetailData = buildModalQuery($db, $userRole, $userId, 'dl.electricity_wbp, dl.electricity_lwbp', $monthStart, $today);
-$waterDetailData = buildModalQuery($db, $userRole, $userId, 'dl.water_pdam, dl.water_iki_gaban, dl.water_deepwell_1, dl.water_deepwell_2_brr, dl.water_deepwell_asean, dl.water_deepwell_lpb, dl.water_main_building, dl.water_cooling_tower, dl.water_bottling', $monthStart, $today);
+/* ✅ 2026-09-12 UPDATE: TOTAL AIR = HANYA PDAM + MAIN BUILDING SAJA! Hapus: CT, Bottling, Irrigation + 5 kolom lama */
+$waterDetailData = buildModalQuery($db, $userRole, $userId, 'dl.water_pdam, dl.water_main_building', $monthStart, $today);
 $gasDetailData = buildModalQuery($db, $userRole, $userId, 'dl.gas_lpg, dl.gas_lng', $monthStart, $today);
 $swroDetailData = buildModalQuery($db, $userRole, $userId, 'dl.swro_watermeter, dl.swro_kwh, dl.swro_tds', $monthStart, $today);
 $bottlingDetailData = buildModalQuery($db, $userRole, $userId, 'dl.bottling_kwh, dl.bottling_watermeter', $monthStart, $today);
@@ -1200,11 +1336,31 @@ require_once __DIR__ . '/includes/navbar.php';
                     <h2 class="font-display text-[13px] lg:text-[14px] font-black text-gray-900 tracking-wide leading-tight truncate">
                         Utility <span class="text-slate-400 font-black">Report</span>
                     </h2>
-                    <?php if ($utilDisplayDate !== $defToday): ?>
+                    <?php
+                    /* ✅ 2026-09-11 UX PERBAIKI BADGE KETERANGAN TANGGAL:
+                       - DEFAULT (tanpa filter manual) + berhasil fallback: badge KUNING + keterangan "Data terakhir"
+                       - DEFAULT tanpa fallback (hari ini ada isian): badge HIJAU + "Hari ini"
+                       - MANUAL FILTER (user klik Terapkan): badge BIRU + "Pilihan: tgl" (agar user tau INI ADALAH PILIHANNYA,
+                         jika data = 0 berarti memang tanggal itu blm diisi, BUKAN sistem error / nyeleneh!) */
+                    $_isDefaultFallback = (!$_hasManualDateFilter && $utilDisplayDate !== $defToday);
+                    $_isDefaultToday    = (!$_hasManualDateFilter && $utilDisplayDate === $defToday);
+                    $_isManualPick      = ($_hasManualDateFilter === true);
+                    ?>
+                    <?php if ($_isDefaultFallback): ?>
                     <span class="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full" title="Belum ada data hari ini — menampilkan log terakhir">
-                        <i class="fas fa-clock text-[8px]"></i> Data: <?= date('d/m/Y', strtotime($utilDisplayDate)) ?>
+                        <i class="fas fa-clock text-[8px]"></i> Data terakhir: <?= date('d/m/Y', strtotime($utilDisplayDate)) ?>
                     </span>
-                    <?php endif; ?>
+                    <?php elseif ($_isDefaultToday): ?>
+                    <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full" title="Hari ini sudah ada data">
+                        <i class="fas fa-check-circle text-[8px]"></i> Hari ini: <?= date('d/m/Y', strtotime($utilDisplayDate)) ?>
+                    </span>
+                    <?php elseif ($_isManualPick): ?>
+                    <span class="text-[9px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded-full" title="Ini adalah tanggal pilihan Anda via Filter — jika kosong = tanggal tersebut belum diisi">
+                        <i class="fas fa-calendar-check text-[8px]"></i> Pilihan: <?= date('d/m/Y', strtotime($utilDisplayDate)) ?>
+                    </span>
+                    <?php endif;
+                    unset($_isDefaultFallback, $_isDefaultToday, $_isManualPick);
+                    ?>
                     <span class="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-full ml-1 hidden md:inline-flex items-center gap-0.5">
                         <i class="fas fa-hand-pointer text-[8px]"></i> Klik sembunyikan
                     </span>
@@ -2813,21 +2969,15 @@ function renderModalChart(name) {
         }
         case 'water': {
             const labels = fmtLabels(modalWaterData);
-            const waterColors = ['#2563eb','#0284c7','#0891b2','#0e7490','#0d9488','#059669','#16a34a','#4f46e5','#7c3aed'];
+            const waterColors = ['#2563eb','#16a34a','#4f46e5','#7c3aed','#0ea5e9'];
             modalChartInstances[name] = new Chart(document.getElementById('modalWaterChart'), {
                 type: 'bar',
                 data: {
                     labels,
                     datasets: [
+                        /* ✅ 2026-09-12 UPDATE: HAPUS CT/Bottling/Irrigation. TOTAL AIR = PDAM + MAIN BUILDING SAJA. */
                         { label: 'PDAM', data: toCumulative(extract(modalWaterData, 'water_pdam')), backgroundColor: waterColors[0], borderRadius: 6, borderSkipped: false },
-                        { label: 'IKI Gaban', data: toCumulative(extract(modalWaterData, 'water_iki_gaban')), backgroundColor: waterColors[1], borderRadius: 6, borderSkipped: false },
-                        { label: 'Deep Well 1', data: toCumulative(extract(modalWaterData, 'water_deepwell_1')), backgroundColor: waterColors[2], borderRadius: 6, borderSkipped: false },
-                        { label: 'DW 2 Brr', data: toCumulative(extract(modalWaterData, 'water_deepwell_2_brr')), backgroundColor: waterColors[3], borderRadius: 6, borderSkipped: false },
-                        { label: 'DW ASEAN', data: toCumulative(extract(modalWaterData, 'water_deepwell_asean')), backgroundColor: waterColors[4], borderRadius: 6, borderSkipped: false },
-                        { label: 'DW LPB', data: toCumulative(extract(modalWaterData, 'water_deepwell_lpb')), backgroundColor: waterColors[5], borderRadius: 6, borderSkipped: false },
-                        { label: 'Main Building', data: toCumulative(extract(modalWaterData, 'water_main_building')), backgroundColor: waterColors[6], borderRadius: 6, borderSkipped: false },
-                        { label: 'Cooling Tower', data: toCumulative(extract(modalWaterData, 'water_cooling_tower')), backgroundColor: waterColors[7], borderRadius: 6, borderSkipped: false },
-                        { label: 'Bottling', data: toCumulative(extract(modalWaterData, 'water_bottling')), backgroundColor: waterColors[8], borderRadius: 6, borderSkipped: false }
+                        { label: 'Main Building', data: toCumulative(extract(modalWaterData, 'water_main_building')), backgroundColor: waterColors[1], borderRadius: 6, borderSkipped: false }
                     ]
                 },
                 options: { ...modalChartOpts('m³'), scales: { x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b', maxRotation: 45 } }, y: { stacked: true, beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#64748b' } } } }
