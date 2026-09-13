@@ -143,21 +143,61 @@ if (function_exists('getTariffSettings')) {
 echo "\n";
 
 /* ----------------------------------------------------------------
- * CHECK #4: helper_util.php ADA isinya auto-fix v2?
+ * CHECK #4: helper_util.php ADA isinya auto-fix v2 + CAP WATER 200.000?
  * ---------------------------------------------------------------- */
-echo "--- CHECK #4: includes/helper_util.php SUDAH ada SHARED HELPER?\n";
+echo "--- CHECK #4: includes/helper_util.php SUDAH ada SHARED HELPER (versi CAP 200.000)?\n";
+echo "    (versi LAMA cap water=800 → akan memotong 12.666,60 → 800 saja!)\n";
 $hp = __DIR__ . '/includes/helper_util.php';
 if (!file_exists($hp)) {
     echo "  🔴 GAGAL! includes/helper_util.php TIDAK ADA di hosting!\n";
     echo "     → Upload includes/helper_util.php VERSI BARU! (tanpa ini index.php & daily_summary.php ERROR include missing)\n";
 } else {
     $hc = @file_get_contents($hp);
-    if (strpos($hc, 'repAutoFixUtilityFormulaLama') !== false
-        && strpos($hc, 'HAPUS 5 water columns') !== false
-        && strpos($hc, 'COALESCE(water_pdam,0) as others_water') !== false) {
-        echo "  🟢 BERHASIL! helper_util.php = VERSI BARU (total air = MB + PDAM saja).\n";
+    $hasFixFunc = (strpos($hc, 'repAutoFixUtilityFormulaLama') !== false);
+    $hasWaterOnly = (strpos($hc, 'COALESCE(water_pdam,0) as others_water') !== false);
+    $hasCap200k  = (strpos($hc, '200000.0') !== false || strpos($hc, '200000') !== false || strpos($hc, 'cap air ≤200.000') !== false);
+    if ($hasFixFunc && $hasWaterOnly && $hasCap200k) {
+        echo "  🟢 BERHASIL! helper_util.php = VERSI BARU (total air = MB + PDAM + CAP AIR 200.000).\n";
     } else {
-        echo "  ⚠️ helper_util.php VERSI LAMA / TIDAK LENGKAP!\n";
+        if (!$hasCap200k) {
+            echo "  🔴 GAGAL! helper_util.php VERSI LAMA (CAP AIR MASIH 800! → nanti water 12.666,60 dipotong jd 800)\n";
+            echo "     → Upload includes/helper_util.php VERSI TERBARU (cap water 200000)!\n";
+        } else {
+            echo "  ⚠️ helper_util.php TIDAK LENGKAP (fungsi auto-fix / water only MB+PDAM tidak ada).\n";
+        }
+    }
+}
+echo "\n";
+
+/* ----------------------------------------------------------------
+ * CHECK #5 (BARU): index.php + daily_summary.php CAP WATER = 200.000 BUKAN 800?
+ *   (BUG BESAR kemarin: Recalc simpan 12.666,60 → Dashboard/print cap 800 → Scale down /100 = 126,67)
+ * ---------------------------------------------------------------- */
+echo "--- CHECK #5: index.php & daily_summary.php SAFETY CAP WATER BUKAN 800? (harus 200.000)\n";
+echo "    (CAP 800 = WATER 12.666,60 → /100 = 126,67 ❌ SALAH! CAP 200.000 = BENAR ✅)\n";
+$filesToCheck = [
+    [__DIR__ . '/index.php',                 'index.php (DASHBOARD)'],
+    [__DIR__ . '/reports/daily_summary.php', 'reports/daily_summary.php (PRINT)'],
+];
+$allCapOK = true;
+foreach ($filesToCheck as $fc) {
+    list($fp, $label) = $fc;
+    if (!file_exists($fp)) {
+        echo "  ❌ FILE TIDAK DITEMUKAN: $label → check path!\n";
+        $allCapOK = false; continue;
+    }
+    $fc = @file_get_contents($fp);
+    if ($fc === false) { echo "  ❌ GAGAL BACA $label\n"; $allCapOK = false; continue; }
+    $oldCap800  = preg_match("/'water'\s*=>\s*800\.0/", $fc);
+    $hasCap200k = preg_match("/'water'\s*=>\s*200000\.?0*/", $fc);
+    if ($hasCap200k && !$oldCap800) {
+        echo "  🟢 $label → CAP WATER = 200.000 m3 ✅\n";
+    } elseif ($oldCap800) {
+        echo "  🔴 $label → CAP WATER MASIH 800! (SALAH! Water 12.666,60 → /100 = 126,67)\n";
+        echo "     → Upload ulang $label VERSI TERBARU (cap dinaikkan 800 → 200.000)!\n";
+        $allCapOK = false;
+    } else {
+        echo "  ⚠️ $label → pola CAP TIDAK KETEMU (cek manual).\n";
     }
 }
 echo "\n";
@@ -169,8 +209,13 @@ echo "================================================================\n";
 echo "📋 RINGKASAN LANGKAH PERBAIKI YANG PERLU DILAKUKAN:\n";
 echo "================================================================\n";
 echo "  Jika ada tanda 🔴 MERAH di atas → lakukan PETUNJUK SETIAP 🔴 MERAH itu.\n\n";
-echo "  1. 🔴 (jika CHECK1 merah) → Upload 'engineer/daily_log_form.php PATCH TERBARU!\n";
-echo "  2. 🔴 (jika CHECK2 merah) → Upload 'recalc_utility_all_dates.php' → BUKA URLnya, TUNGGU sampai tulisan SELESAI.\n";
-echo "  3. Upload file lain jika belum: 'includes/helper_util.php', 'index.php', 'reports/daily_summary.php'\n";
-echo "  4. Setelah semua 🟢 → Buka dashboard tanggal 01/09 → REFRESH (Ctrl+Shift+R) → COBA PRINT → bandingkan Utility Report card ↔ PDF.\n\n";
+echo "  1. 🔴 (CHECK1 merah) → Upload 'engineer/daily_log_form.php PATCH TERBARU!\n";
+echo "  2. 🔴 (CHECK2 merah) → Upload 'recalc_utility_all_dates.php' → BUKA URLnya, TUNGGU sampai tulisan SELESAI.\n";
+echo "  3. 🔴 (CHECK4 merah) → Upload includes/helper_util.php CAP 200.000 VERSI BARU!\n";
+echo "  4. 🔴 (CHECK5 merah) → Upload index.php & reports/daily_summary.php CAP WATER 200.000!\n";
+echo "  5. Setelah SEMUA 🟢 → Buka dashboard tanggal 01/09 → REFRESH (Ctrl+Shift+R) → COBA PRINT → bandingkan Utility Report card ↔ PDF.\n\n";
+echo "     🎯 HASIL YANG DIHARAPKAN 01/09/2026:\n";
+echo "        • ⚡ Listrik = 26.720 kWh\n";
+echo "        • 💧 Air     = 12.666,60 m3 (MB 377×10 + PDAM 12.289,60)\n";
+echo "        • 🔥 Gas     = 60,74 kg (atau sesuai user set)\n\n";
 echo "  🔒 PENTING: Setelah semua selesai → HAPUS super_cek_hosting.php + recalc_utility_all_dates.php + cek_kemarin_auto.php dari hosting!\n";
