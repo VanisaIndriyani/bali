@@ -428,7 +428,12 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
                 $_daysDiff = max(1, (int)floor(($_tsT - $_tsF) / 86400) + 1);
             }
         }
-        $_capPerDay = ['elec'=>40000.0, 'water'=>800.0, 'gas'=>3000.0, 'fuel'=>8000.0];
+        /* CAP WAJAR per HARI (DITAIKAN SESUAI DATA USER! Water 01/09 = 12.666 m3, jadi CAP JANGAN 800!):
+           - Listrik ≤ 40.000 kWh/hari
+           - Air     ≤ 200.000 m³/hari (CAP DINAIIKAN KARENA user pakai rumus MB ×10 + PDAM = ribuan m3/hari)
+           - Gas     ≤ 3.000 kg/hari
+           - Solar   ≤ 8.000 liter/hari */
+        $_capPerDay = ['elec'=>40000.0, 'water'=>200000.0, 'gas'=>3000.0, 'fuel'=>8000.0];
         $_utilKeys = ['elec','water','gas','fuel'];
         foreach ($_utilKeys as $_uk) {
             $_valNow = (float)($out[$_uk] ?? 0);

@@ -410,12 +410,12 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
                 $daysDiff = max(1, (int)floor(($tsT - $tsF) / 86400) + 1);
             }
         }
-        /* CAP WAJAR per HARI (villa / resort 50+ kamar):
+        /* CAP WAJAR per HARI (DITAIKAN SESUAI DATA USER! Water 01/09 = 12.666 m3, JANGAN 800!):
            - Listrik ≤ 40.000 kWh/hari (rata-rata villa besar: 5.000 - 25.000 kWh/hari)
-           - Air     ≤ 800  m³/hari
+           - Air     ≤ 200.000  m³/hari (USER MB×10 + PDAM = ribuan m3, CAP dinaikkan dr 800!)
            - Gas     ≤ 3.000 kg/hari
            - Solar   ≤ 8.000 liter/hari */
-        $capPerDay = ['elec'=>40000.0, 'water'=>800.0, 'gas'=>3000.0, 'fuel'=>8000.0];
+        $capPerDay = ['elec'=>40000.0, 'water'=>200000.0, 'gas'=>3000.0, 'fuel'=>8000.0];
         $utilKeys = ['elec','water','gas','fuel'];
         foreach ($utilKeys as $_uk) {
             $valNow = (float)($out[$_uk] ?? 0);

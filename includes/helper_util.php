@@ -150,7 +150,7 @@ function repAutoFixUtilityFormulaLama($db, $dateFrom, $dateTo, $TARIF_LISTRIK, $
                         $rev = $mbPart / 10.0;
                         if (abs($rev - $wmbConsNew) < ($wmbConsNew * 0.3)) $wmbConsNew = $rev;
                     }
-                    if ($wmbConsNew > 800.0) $wmbConsNew = 800.0; /* cap air ≤800 m3/hari */
+                    if ($wmbConsNew > 200000.0) $wmbConsNew = 200000.0; /* cap air ≤200.000 m3/hari (dinaikkan dr 800! user memang besar MB×10) */
                     $twNew = $wmbConsNew + $othersW;
                     if (abs($twNew - $tw) > ($tw * 0.1) || abs($mbPart - $wmbConsNew) > ($wmbConsNew * 0.1)) {
                         $tw = $twNew;
