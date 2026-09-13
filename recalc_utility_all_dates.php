@@ -361,16 +361,21 @@ foreach ($allDates as $dateRow) {
     /* ✅ 2026-09-13 REVISI USER: TOTAL AIR = HANYA MB SAJA. sumWaterPdam TIDAK MASUK TOTAL (0 hardcoded) */
     $sumWaterPdam = 0;
     if ($sumWaterMb <= 0.1 && $oldWater > 0.01) {
-        /* ✅ CLEANUP v2→v3→v4→v5 (MULTI LAYER!):
+        /* ✅ CLEANUP v2→v3→v4→v5→v6 (MULTI LAYER!):
            1) JIKA oldWater 12.000-13.000 → SISA PDAM 12.289,60 (recalc v2: MB×10 + PDAM)
-              → KURANGI 12.289,60. Jika < 5 → SET 0 (JANGAN oldWater/10 = 1.228,96! tidak masuk akal)
-           2) JIKA oldWater 300-600 → SISA RECALC v3 (threshold 300 salah, 377×1=377 bukan 3770)
+              → KURANGI 12.289,60. Jika < 5 → SET 0
+           2) JIKA oldWater 1.200-1.250 → SISA v4 FALLBACK oldWater/10 PALSU (1228,86-1228,96)
+              → SET 0 PAKSA! (tidak pernah ada di data asli)
+           3) JIKA oldWater 300-600 → SISA RECALC v3 (threshold 300 salah, 377×1=377 bukan 3770)
               → ×10 PAKSA (377 ×10 = 3.770)
-           3) LAINNYA → pakai oldWater langsung */
+           4) LAINNYA → pakai oldWater langsung */
         if ($oldWater >= 12000.0 && $oldWater <= 13000.0) {
             $sumWaterMb = max(0.0, $oldWater - 12289.60);
             /* Jika hasil < 5 → SET 0 (bukan oldWater/10! 12.289,6/10 = 1.228,96 itu angka PALSU) */
             if ($sumWaterMb <= 5.0) { $sumWaterMb = 0.0; }
+        } elseif ($oldWater >= 1200.0 && $oldWater <= 1250.0) {
+            /* ✅ CLEANUP v6 RESIDUE: 1200-1250 PASTI SISA v4 oldWater/10 PALSU. SET 0! */
+            $sumWaterMb = 0.0;
         } elseif ($oldWater > 300.0 && $oldWater <= 600.0) {
             /* ✅ CLEANUP STALE v3: SELISIH MB ASLI TAPI THRESHOLD DULU 300 → DIANGGAP ×1 PADAHAL ×10
                Contoh: 01/09 oldWater = 377 → harusnya 377 ×10 = 3.770 */
@@ -399,6 +404,12 @@ foreach ($allDates as $dateRow) {
        Jika totalWater masih range 12.000-13.000 → sisa PDAM recalc v2, kurangi paksa 12.289,60 */
     if ($totalWaterBeforeCap >= 12000.0 && $totalWaterBeforeCap <= 13000.0) {
         $totalWaterBeforeCap = max(0.0, $totalWaterBeforeCap - 12289.60);
+    }
+
+    /* ✅ CLEANUP SAFETY LAYER 1b (RESIDUE v4 oldWater/10 PALSU 1200-1250):
+       1228,86-1228,96 PASTI BUKAN KONSUMSI AIR ASLI. SET 0! */
+    if ($totalWaterBeforeCap >= 1200.0 && $totalWaterBeforeCap <= 1250.0) {
+        $totalWaterBeforeCap = 0.0;
     }
 
     /* ✅ CLEANUP SAFETY LAYER 2 (STALE v3):

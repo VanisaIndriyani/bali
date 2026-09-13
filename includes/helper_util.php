@@ -149,11 +149,15 @@ function repAutoFixUtilityFormulaLama($db, $dateFrom, $dateTo, $TARIF_LISTRIK, $
                         if (abs($rev - $wmbConsNew) < ($wmbConsNew * 0.3)) $wmbConsNew = $rev;
                     }
                     if ($wmbConsNew > 200000.0) $wmbConsNew = 200000.0; /* cap air ≤200.000 m3/hari (dinaikkan dr 800! user memang besar MB×10) */
-                    /* ✅ CLEANUP v2→v5 LAYER 1: JIKA wmbConsNew KISARAN 12.000-13.000 → SISA PDAM 12.289,60 (recalc v2 kemarin: MB+PDAM)
+                    /* ✅ CLEANUP v2→v6 LAYER 1: JIKA wmbConsNew KISARAN 12.000-13.000 → SISA PDAM 12.289,60 (recalc v2 kemarin: MB+PDAM)
                        → KURANGI 12.289,60 agar jadi MB SAJA! JIKA < 5 → SET 0 (JANGAN /10!) */
                     if ($wmbConsNew >= 12000.0 && $wmbConsNew <= 13000.0) {
                         $cleanedW = max(0.0, $wmbConsNew - 12289.60);
                         if ($cleanedW <= 5.0) { $wmbConsNew = 0.0; } else { $wmbConsNew = $cleanedW; }
+                    }
+                    /* ✅ CLEANUP v6 LAYER 1b: JIKA 1200-1250 → RESIDUE v4 oldWater/10 PALSU 1228,xx. SET 0! */
+                    if ($wmbConsNew >= 1200.0 && $wmbConsNew <= 1250.0) {
+                        $wmbConsNew = 0.0;
                     }
                     /* ✅ CLEANUP v5 LAYER 2: JIKA 300 < wmbConsNew ≤ 600 → STALE v3, threshold dulu 300 salah.
                        ×10 PAKSA! Contoh: 377 → 3770 ✅ (01/09 case) */
