@@ -361,13 +361,20 @@ foreach ($allDates as $dateRow) {
     /* ✅ 2026-09-13 REVISI USER: TOTAL AIR = HANYA MB SAJA. sumWaterPdam TIDAK MASUK TOTAL (0 hardcoded) */
     $sumWaterPdam = 0;
     if ($sumWaterMb <= 0.1 && $oldWater > 0.01) {
-        /* ✅ CLEANUP v2→v3 (KRITIS!): JIKA oldWater KISARAN 12.000-13.000 → PASTI ADA SISA PDAM 12.289,60
-           (hasil recalc v2 kemarin: MB 377×10 + PDAM 12.289,60 = 12.666,60)
-           → KURANGI 12.289,60 agar jadi MB SAJA. */
+        /* ✅ CLEANUP v2→v3→v4→v5 (MULTI LAYER!):
+           1) JIKA oldWater 12.000-13.000 → SISA PDAM 12.289,60 (recalc v2: MB×10 + PDAM)
+              → KURANGI 12.289,60. Jika < 5 → SET 0 (JANGAN oldWater/10 = 1.228,96! tidak masuk akal)
+           2) JIKA oldWater 300-600 → SISA RECALC v3 (threshold 300 salah, 377×1=377 bukan 3770)
+              → ×10 PAKSA (377 ×10 = 3.770)
+           3) LAINNYA → pakai oldWater langsung */
         if ($oldWater >= 12000.0 && $oldWater <= 13000.0) {
             $sumWaterMb = max(0.0, $oldWater - 12289.60);
-            /* Jika hasil < 5 (tidak masuk akal), fallback oldWater / 10.0 (asumsi user input selisih MB kecil) */
-            if ($sumWaterMb <= 5.0) { $sumWaterMb = max(0.0, $oldWater / 10.0); }
+            /* Jika hasil < 5 → SET 0 (bukan oldWater/10! 12.289,6/10 = 1.228,96 itu angka PALSU) */
+            if ($sumWaterMb <= 5.0) { $sumWaterMb = 0.0; }
+        } elseif ($oldWater > 300.0 && $oldWater <= 600.0) {
+            /* ✅ CLEANUP STALE v3: SELISIH MB ASLI TAPI THRESHOLD DULU 300 → DIANGGAP ×1 PADAHAL ×10
+               Contoh: 01/09 oldWater = 377 → harusnya 377 ×10 = 3.770 */
+            $sumWaterMb = $oldWater * 10.0;
         } else {
             $sumWaterMb = $oldWater;
         }
@@ -388,10 +395,17 @@ foreach ($allDates as $dateRow) {
        (hanya dicatat sebagai notes di form). Jadi TOTAL AIR = MB (selisih × faktor). */
     $totalWaterBeforeCap = $sumWaterMb;
 
-    /* ✅ CLEANUP SAFETY (JIKA SUM DI ATAS MASIH LOLOS 12RB-13RB):
+    /* ✅ CLEANUP SAFETY LAYER 1 (JIKA SUM DI ATAS MASIH LOLOS 12RB-13RB):
        Jika totalWater masih range 12.000-13.000 → sisa PDAM recalc v2, kurangi paksa 12.289,60 */
     if ($totalWaterBeforeCap >= 12000.0 && $totalWaterBeforeCap <= 13000.0) {
         $totalWaterBeforeCap = max(0.0, $totalWaterBeforeCap - 12289.60);
+    }
+
+    /* ✅ CLEANUP SAFETY LAYER 2 (STALE v3):
+       Jika totalWater = 301-600 → pasti SELISIH MB KECIL YANG TIDAK KE ×10 (karena threshold v3=300 salah).
+       → ×10 PAKSA! Contoh: 01/09 total=377 → 377×10=3770 ✅ */
+    if ($totalWaterBeforeCap > 300.0 && $totalWaterBeforeCap <= 600.0) {
+        $totalWaterBeforeCap = $totalWaterBeforeCap * 10.0;
     }
 
     /* ---------- APPLY SAFETY CAP per utility ---------- */
