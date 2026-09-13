@@ -56,16 +56,15 @@ function repAutoFixUtilityFormulaLama($db, $dateFrom, $dateTo, $TARIF_LISTRIK, $
                 COALESCE(NULLIF(tariff_gas_per_kg,0),0) tga, COALESCE(NULLIF(tariff_fuel_per_liter,0),0) tfu,
                 COALESCE(total_gas,0) tg, COALESCE(total_fuel,0) tf,
                 COALESCE(equipment_data, '') AS eq_json,
-                /* ✅ 2026-09-12 UPDATE: TOTAL AIR = HANYA WATER PDAM! MB dihitung terpisah via Selisih×10
-                   Hapus: CT, Bottling, Irrigation + 5 kolom lama (Iki Gaban, DW1, DW2 BRR, DW Asean, DW LPB) */
-                COALESCE(water_pdam,0) as others_water
+                /* ✅ 2026-09-13 UPDATE (REVISI USER LAGI!): TOTAL AIR = HANYA MAIN BUILDING SAJA!
+                   WATER PDAM TIDAK MASUK TOTAL (hanya dicatat / notes), others_water = 0
+                   Hapus permanen: CT, Bottling, Irrigation + 5 kolom lama */
+                0 as others_water
              FROM daily_logs
              WHERE DATE(log_date) BETWEEN ? AND ?
                AND (
                    ((electricity_wbp > 0 OR electricity_lwbp > 0) AND (COALESCE(total_electricity,0) <= 500 OR COALESCE(total_electricity,0) > 50000))
-                OR (water_main_building > 0 AND (COALESCE(total_water,0) - (
-                        COALESCE(water_pdam,0)
-                    )) <= 100)
+                OR (water_main_building > 0 AND COALESCE(total_water,0) <= 100)
                 OR ((gas_lpg > 0 OR gas_lng > 0) AND (COALESCE(total_gas,0) <= 50 OR COALESCE(total_gas,0) > 4000))
                 OR (COALESCE(total_fuel,0) <= 0.01 AND COALESCE(equipment_data, '') != '')
                )
@@ -125,11 +124,11 @@ function repAutoFixUtilityFormulaLama($db, $dateFrom, $dateTo, $TARIF_LISTRIK, $
             /* --- (B) FIX AIR MAIN BUILDING --- */
             $tw = (float)($c['tw'] ?? 0);
             $wmb = (float)($c['wmb'] ?? 0); $wmby = (float)($c['wmby'] ?? 0);
-            $othersW = (float)($c['others_water'] ?? 0);
+            $othersW = 0; /* ✅ 2026-09-13: WATER PDAM TIDAK MASUK TOTAL LAGI! Hardcode 0 */
             $twa = (float)($c['twa'] ?? 0); if ($twa <= 0) $twa = (float)$TARIF_AIR;
 
             if ($wmb > 0) {
-                $mbPart = $tw - $othersW;
+                $mbPart = $tw; /* ✅ 2026-09-13: TOTAL = MB SAJA, jadi bagian MB = seluruh total_water (TIDAK KURANG othersW) */
                 $fixWater = ($mbPart <= 100.0) || ($mbPart > 900.0);
                 if ($fixWater) {
                     $pWmb = $wmby;
@@ -145,13 +144,12 @@ function repAutoFixUtilityFormulaLama($db, $dateFrom, $dateTo, $TARIF_LISTRIK, $
                     if ($dWmb <= 0.00001) $dWmb = max(0.0, $mbPart);
                     $fWmb = ($dWmb > 0 && $dWmb <= 300.0) ? 10.0 : 1.0;
                     $wmbConsNew = $dWmb * $fWmb;
-                    /* Safety reverse: jika mbPart SANGAT BESAR (>900) → ×10 disimpan 2x */
                     if ($mbPart > 900.0) {
                         $rev = $mbPart / 10.0;
                         if (abs($rev - $wmbConsNew) < ($wmbConsNew * 0.3)) $wmbConsNew = $rev;
                     }
                     if ($wmbConsNew > 200000.0) $wmbConsNew = 200000.0; /* cap air ≤200.000 m3/hari (dinaikkan dr 800! user memang besar MB×10) */
-                    $twNew = $wmbConsNew + $othersW;
+                    $twNew = $wmbConsNew; /* ✅ 2026-09-13: TOTAL = MB SAJA (TIDAK + othersW / + PDAM) */
                     if (abs($twNew - $tw) > ($tw * 0.1) || abs($mbPart - $wmbConsNew) > ($wmbConsNew * 0.1)) {
                         $tw = $twNew;
                         $changed = true;

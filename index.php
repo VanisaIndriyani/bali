@@ -765,8 +765,10 @@ function buildModalQuery($db, $userRole, $userId, $columns, $dateFrom, $dateTo)
 }
 
 $electricityDetailData = buildModalQuery($db, $userRole, $userId, 'dl.electricity_wbp, dl.electricity_lwbp', $monthStart, $today);
-/* ✅ 2026-09-12 UPDATE: TOTAL AIR = HANYA PDAM + MAIN BUILDING SAJA! Hapus: CT, Bottling, Irrigation + 5 kolom lama */
-$waterDetailData = buildModalQuery($db, $userRole, $userId, 'dl.water_pdam, dl.water_main_building', $monthStart, $today);
+$waterDetailData = buildModalQuery($db, $userRole, $userId, "dl.water_main_building, 0 as water_pdam,
+    /* ✅ 2026-09-13 UPDATE: TOTAL AIR = MB SAJA! Tambah alias water_mb_cons = selisih yesterday dikali threshold factor, tapi untuk chart simple pakai total_water existing (bukan meteran).
+       Chart nanti pakai kolom ini agar tidak 75rb meteran tapi jumlah konsumsi. */
+    COALESCE(dl.total_water,0) as water_mb_cons", $monthStart, $today);
 $gasDetailData = buildModalQuery($db, $userRole, $userId, 'dl.gas_lpg, dl.gas_lng', $monthStart, $today);
 $swroDetailData = buildModalQuery($db, $userRole, $userId, 'dl.swro_watermeter, dl.swro_kwh, dl.swro_tds', $monthStart, $today);
 $bottlingDetailData = buildModalQuery($db, $userRole, $userId, 'dl.bottling_kwh, dl.bottling_watermeter', $monthStart, $today);
@@ -2974,18 +2976,19 @@ function renderModalChart(name) {
         }
         case 'water': {
             const labels = fmtLabels(modalWaterData);
-            const waterColors = ['#2563eb','#16a34a','#4f46e5','#7c3aed','#0ea5e9'];
+            const waterColors = ['#16a34a','#2563eb'];
             modalChartInstances[name] = new Chart(document.getElementById('modalWaterChart'), {
                 type: 'bar',
                 data: {
                     labels,
                     datasets: [
-                        /* ✅ 2026-09-12 UPDATE: HAPUS CT/Bottling/Irrigation. TOTAL AIR = PDAM + MAIN BUILDING SAJA. */
-                        { label: 'PDAM', data: toCumulative(extract(modalWaterData, 'water_pdam')), backgroundColor: waterColors[0], borderRadius: 6, borderSkipped: false },
-                        { label: 'Main Building', data: toCumulative(extract(modalWaterData, 'water_main_building')), backgroundColor: waterColors[1], borderRadius: 6, borderSkipped: false }
+                        /* ✅ 2026-09-13 UPDATE (REVISI USER LAGI): TOTAL AIR = HANYA MAIN BUILDING SAJA!
+                           Water PDAM TIDAK MASUK TOTAL / CHART (hanya dicatat di form sebagai notes).
+                           Jadi chart CUMAN 1 dataset: Main Building Consumption (bukan meteran reading). */
+                        { label: 'Main Building Consumption', data: toCumulative(extract(modalWaterData, 'water_mb_cons')), backgroundColor: waterColors[0], borderRadius: 6, borderSkipped: false }
                     ]
                 },
-                options: { ...modalChartOpts('m³'), scales: { x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b', maxRotation: 45 } }, y: { stacked: true, beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#64748b' } } } }
+                options: { ...modalChartOpts('m³'), scales: { x: { stacked: false, grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b', maxRotation: 45 } }, y: { stacked: false, beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#64748b' } } } }
             });
             break;
         }

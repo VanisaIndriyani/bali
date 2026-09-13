@@ -488,10 +488,11 @@ $_mbYestRaw  = $mbYesterdayRead;
 $mbConsumptionBaseRaw = max(0.0, $_mbTodayRaw - $_mbYestRaw);
 $_fWmbPhp = ($mbConsumptionBaseRaw <= 300.0) ? 10.0 : 1.0;
 $mbConsumptionBase = $mbConsumptionBaseRaw * $_fWmbPhp;
-/* ✅ 2026-09-12 UPDATE: User MAAFKAN TOTAL AIR = HANYA MAIN BUILDING + WATER PDAM SAJA!
+/* ✅ 2026-09-13 UPDATE (REVISI USER LAGI): TOTAL AIR = HANYA MAIN BUILDING SAJA! (SELISIH × FAKTOR)
+   WATER PDAM TIDAK MASUK TOTAL LAGI! HANYA DICATAT SEBAGAI NOTES / REFERENSI.
    Hapus permanen: Cooling Tower, Bottling, Water Irrigation + 5 kolom lama (Iki Gaban, DW1, DW2 BRR, DW Asean, DW LPB) */
-$mbConsumption = $mbConsumptionBase
-    + (float)($log['water_pdam'] ?? 0);
+$mbConsumption = $mbConsumptionBase;
+/* JANGAN + (float)($log['water_pdam'] ?? 0) → USER MAU TOTAL HANYA MB SAJA */
 $eLwbpConsBase = max(0.0, $elecTodayLwbp - $elecYesterdayLwbp);
 $eWbpConsBase  = max(0.0, $elecTodayWbp  - $elecYesterdayWbp);
 $_fElecPhp = (($eLwbpConsBase + $eWbpConsBase) <= 500.0) ? 8000.0 : 1.0;
@@ -3223,7 +3224,8 @@ HTML;
         const _fWmb = (waterMbDiff <= 300.0) ? 10.0 : 1.0;
         const waterMbCons = waterMbDiff * _fWmb;
         const wPdam       = readF('water_pdam');
-        const waterCons = waterMbCons + wPdam;
+        /* ✅ 2026-09-13 UPDATE: TOTAL AIR = HANYA MAIN BUILDING SAJA! Water PDAM CATATAN AJA, TIDAK MASUK TOTAL */
+        const waterCons = waterMbCons;
         const tw = document.getElementById('totalWater');
         if (tw) tw.value = numFmt2(waterCons);
         const mbSelisih = document.getElementById('mbSelisih');

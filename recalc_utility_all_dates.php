@@ -261,7 +261,7 @@ foreach ($allDates as $dateRow) {
     /* Hitung aggregate utility tanggal ini */
     $sumElectricity = 0.0;  // BEFORE cap
     $sumWaterMb = 0.0;
-    $sumWaterPdam = 0.0;
+    $sumWaterPdam = 0.0; /* ✅ 2026-09-13: CATATAN SAJA, TIDAK MASUK TOTAL! user maunya TOTAL = MB SAJA */
     $sumGas = 0.0;
     $sumFuel = 0.0;
     $engIdList = [];
@@ -306,8 +306,9 @@ foreach ($allDates as $dateRow) {
             $lastWaterMbByEng[$eid] = ['val' => $mbNow, 'date' => $tgl];
         }
 
-        /* ---------- c) WATER PDAM (LANGSUNG tambah, TIDAK × FAKTOR) ---------- */
-        $sumWaterPdam += (float)($r['water_pdam'] ?? 0);
+        /* ---------- c) WATER PDAM (DICATAT SAJA, TIDAK MASUK TOTAL! 2026-09-13 REVISI USER) ---------- */
+        $_tmpPdam = (float)($r['water_pdam'] ?? 0); /* kita simpan sbg variabel lokal only, TIDAK dijumlah ke sumWaterPdam TOTAL */
+        /* $sumWaterPdam += $_tmpPdam; → USER MAU TOTAL AIR = HANYA MB SAJA, PDAM notes aja */
 
         /* ---------- d) GAS (LPG + LNG, per engineer) ---------- */
         $lpgNow = (float)($r['gas_lpg'] ?? 0);
@@ -356,8 +357,10 @@ foreach ($allDates as $dateRow) {
         $sumElectricity = $oldElec;
         if ($sumElectricity <= 500.0) $sumElectricity = $sumElectricity * 8000.0; /* user simpan kecil (selisih), × CT/PT ratio 8000 */
     }
-    if ($sumWaterMb + $sumWaterPdam <= 0.1 && $oldWater > 0.01) {
-        $sumWaterMb = $oldWater - $sumWaterPdam; if ($sumWaterMb < 0) $sumWaterMb = 0;
+    /* ✅ 2026-09-13 REVISI USER: TOTAL AIR = HANYA MB SAJA. sumWaterPdam TIDAK MASUK TOTAL (0 hardcoded) */
+    $sumWaterPdam = 0;
+    if ($sumWaterMb <= 0.1 && $oldWater > 0.01) {
+        $sumWaterMb = $oldWater; /* user lama simpan total = MB saja (sekarang sama), TIDAK KURANG pdam lagi */
     }
     if ($sumGas <= 0.05 && $oldGas > 0.01) {
         $sumGas = $oldGas;
@@ -370,8 +373,10 @@ foreach ($allDates as $dateRow) {
      *    Kalau memang > cap, safety cap nanti auto-scale down pilih divider terbaik.
      * ============================================================================ */
 
-    /* ---------- KALKULASI AIR TOTAL = MB (selisih×faktor) + WATER PDAM SAJA ---------- */
-    $totalWaterBeforeCap = $sumWaterMb + $sumWaterPdam;
+    /* ---------- KALKULASI AIR TOTAL = HANYA MAIN BUILDING SAJA! ---------- */
+    /* ✅ 2026-09-13 (REVISI USER LAGI!): WATER PDAM TIDAK MASUK TOTAL AIR
+       (hanya dicatat sebagai notes di form). Jadi TOTAL AIR = MB (selisih × faktor). */
+    $totalWaterBeforeCap = $sumWaterMb;
 
     /* ---------- APPLY SAFETY CAP per utility ---------- */
     /* SAFETY CAP per hari (DITAIKAN sesuai ukuran hotel user, JANGAN TERLALU KECIL!):

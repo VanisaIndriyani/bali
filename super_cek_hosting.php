@@ -57,11 +57,13 @@ echo "\n";
 
 /* ----------------------------------------------------------------
  * CHECK #2:  RECALC DATA LAMA SUDAH DIJALANKAN?
- *   (Tanggal 01/09/2026 total_water SEHARUSNYA 12.666,60 (MB 377 + PDAM 12289,60)
- *    SEBELUM RECALC: 207.375,80 (termasuk CT 97777 + Bottling + Irrigation)
+ *   ✅ 2026-09-13 REVISI USER LAGI! TOTAL AIR = HANYA MAIN BUILDING SAJA!
+ *   (Tanggal 01/09/2026 total_water SEHARUSNYA = 3.770 (MB 377 × 10). WATER PDAM CATATAN SAJA.)
+ *   SEBELUM RECALC: 207.375,80 (CT 97777 + Bottling + Irrigation + PDAM)
  * ---------------------------------------------------------------- */
 echo "--- CHECK #2: Recalc Data Lama (recalc_utility_all_dates.php) SUDAH DIJALANKAN?\n";
-echo "    (Test tanggal 01/09/2026 → TOTAL WATER BENAR = 12.666,60; SALAH = 207.375,80)\n";
+echo "    (Test tanggal 01/09/2026 → TOTAL WATER BENAR = 3.770,00 m3 (MB 377×10 SAJA, TIDAK + PDAM!)\n";
+echo "    REVISI 13/9: Water PDAM TIDAK MASUK TOTAL AIR, HANYA CATATAN / NOTES)\n";
 $row0109 = $db->fetchOne("
     SELECT DATE(log_date) tgl, total_water, water_main_building, water_pdam,
            water_cooling_tower, water_bottling, water_irrigation,
@@ -88,27 +90,28 @@ if (!$row0109) {
     echo "    -> Raw DB 01/09:\n";
     echo "       • total_water      = $totW\n";
     echo "       • water_mb       = $wMb\n";
-    echo "       • water_pdam     = $wPd\n";
+    echo "       • water_pdam     = $wPd (CATATAN SAJA! TIDAK MASUK TOTAL AIR LAGI!)\n";
     echo "       • cooling_tower  = $wCt\n";
     echo "       • bottling       = $wBo\n";
     echo "       • irrigation   = $wIr\n";
     echo "       • total_listrik  = $elec\n";
     echo "       • total_gas      = $gas\n";
     echo "       • total_fuel     = $fuel\n";
-    echo "       • (HARUSNYA SETELAH RECALC) = \n";
 
-    $totFromFields = ($wMb - 75090.20) * 10.0 + $wPd; // approx
+    /* ✅ 13/9: Target BENAR = 3.500 - 4.000 (range 3.770), BUKAN 12.000-14.000 (versi +PDAM kemarin) */
     $isRecalcAlready = false;
 
-    if ($totW >= 12000 && $totW <= 14000) {
-        echo "  🟢 BERHASIL! RECALC SUDAH JALAN! total_water = $totW (12.666,60)\n";
+    if ($totW >= 3500 && $totW <= 4000) {
+        echo "  🟢 BERHASIL! RECALC TERBARU (v3 13/9) SUDAH JALAN! total_water = $totW (~3.770) [MB ONLY, TIDAK + PDAM ✅]\n";
         $isRecalcAlready = true;
+    } else if ($totW >= 12000 && $totW <= 14000) {
+        echo "  ⚠️ RECALC KEMARIN (VERSI LAMA, MASIH + PDAM 12.289). USER MAU MB SAJA (3.770)!\n";
+        echo "     → Upload recalc_utility_all_dates.php VERSI TERBARU (13/9 v3 patch) → BUKA URLnya, TUNGGU SELESAI!\n";
     } else if ($totW > 200000) {
-        echo "  🔴 GAGAL! RECALC BELUM DIJALANKAN! total_water masih $totW (masih termasuk CT+Bottling+Irrigation)\n";
-        echo "     → SOLUSI: Upload recalc_utility_all_dates.php ke hosting → BUKA URLnya, TUNGGU SELESAI.\n";
+        echo "  🔴 GAGAL! RECALC BELUM DIJALANKAN! total_water masih $totW (masih CT+Bottling+Irrigation)\n";
+        echo "     → SOLUSI: Upload recalc_utility_all_dates.php TERBARU v3 ke hosting → BUKA URLnya, TUNGGU SELESAI.\n";
     } else if ($wCt > 1 || $wBo > 1 || $wIr > 1) {
         echo "  ⚠️ PERINGATAN: CT/Bottling/Irrigation di DB 01/09 masih >0 ($wCt / $wBo / $wIr), tapi total_water = $totW.\n";
-        echo "     → Jalankan recalc untuk clean up!\n";
     } else {
         echo "  ⚠️ Hasil tidak jelas (totW=$totW).\n";
     }
@@ -145,8 +148,8 @@ echo "\n";
 /* ----------------------------------------------------------------
  * CHECK #4: helper_util.php ADA isinya auto-fix v2 + CAP WATER 200.000?
  * ---------------------------------------------------------------- */
-echo "--- CHECK #4: includes/helper_util.php SUDAH ada SHARED HELPER (versi CAP 200.000)?\n";
-echo "    (versi LAMA cap water=800 → akan memotong 12.666,60 → 800 saja!)\n";
+echo "--- CHECK #4: includes/helper_util.php SUDAH ada SHARED HELPER (versi TOTAL AIR = MB ONLY, CAP 200.000)?\n";
+echo "    (versi LAMA: cap water=800 / total = MB+PDAM. BARU: cap 200.000 / total = MB SAJA)\n";
 $hp = __DIR__ . '/includes/helper_util.php';
 if (!file_exists($hp)) {
     echo "  🔴 GAGAL! includes/helper_util.php TIDAK ADA di hosting!\n";
@@ -154,16 +157,20 @@ if (!file_exists($hp)) {
 } else {
     $hc = @file_get_contents($hp);
     $hasFixFunc = (strpos($hc, 'repAutoFixUtilityFormulaLama') !== false);
-    $hasWaterOnly = (strpos($hc, 'COALESCE(water_pdam,0) as others_water') !== false);
+    $hasMbOnly  = (strpos($hc, "0 as others_water") !== false); /* ✅ 13/9: MB SAJA (0 hardcoded) */
     $hasCap200k  = (strpos($hc, '200000.0') !== false || strpos($hc, '200000') !== false || strpos($hc, 'cap air ≤200.000') !== false);
-    if ($hasFixFunc && $hasWaterOnly && $hasCap200k) {
-        echo "  🟢 BERHASIL! helper_util.php = VERSI BARU (total air = MB + PDAM + CAP AIR 200.000).\n";
+    if ($hasFixFunc && $hasMbOnly && $hasCap200k) {
+        echo "  🟢 BERHASIL! helper_util.php = VERSI BARU v3 (TOTAL AIR = MB SAJA, CAP 200.000).\n";
     } else {
+        if (!$hasMbOnly) {
+            echo "  🔴 GAGAL! helper_util.php VERSI LAMA (MASIH total = MB + PDAM, user maunya MB SAJA)\n";
+            echo "     → Upload includes/helper_util.php VERSI TERBARU (total = MB only, others_water = 0)!\n";
+        }
         if (!$hasCap200k) {
-            echo "  🔴 GAGAL! helper_util.php VERSI LAMA (CAP AIR MASIH 800! → nanti water 12.666,60 dipotong jd 800)\n";
-            echo "     → Upload includes/helper_util.php VERSI TERBARU (cap water 200000)!\n";
-        } else {
-            echo "  ⚠️ helper_util.php TIDAK LENGKAP (fungsi auto-fix / water only MB+PDAM tidak ada).\n";
+            echo "  🔴 GAGAL! helper_util.php VERSI LAMA (CAP AIR MASIH 800! → motong 3.770 → 800)\n";
+        }
+        if (!$hasFixFunc) {
+            echo "  ⚠️ helper_util.php TIDAK ADA fungsi repAutoFixUtilityFormulaLama!\n";
         }
     }
 }
@@ -174,7 +181,7 @@ echo "\n";
  *   (BUG BESAR kemarin: Recalc simpan 12.666,60 → Dashboard/print cap 800 → Scale down /100 = 126,67)
  * ---------------------------------------------------------------- */
 echo "--- CHECK #5: index.php & daily_summary.php SAFETY CAP WATER BUKAN 800? (harus 200.000)\n";
-echo "    (CAP 800 = WATER 12.666,60 → /100 = 126,67 ❌ SALAH! CAP 200.000 = BENAR ✅)\n";
+echo "    (CAP 800 = WATER 3.770 → OK, tapi tetap harus dinaikkan biar kedepan jika user MB ×10 besar tidak terpangkas)\n";
 $filesToCheck = [
     [__DIR__ . '/index.php',                 'index.php (DASHBOARD)'],
     [__DIR__ . '/reports/daily_summary.php', 'reports/daily_summary.php (PRINT)'],
@@ -214,8 +221,8 @@ echo "  2. 🔴 (CHECK2 merah) → Upload 'recalc_utility_all_dates.php' → BUK
 echo "  3. 🔴 (CHECK4 merah) → Upload includes/helper_util.php CAP 200.000 VERSI BARU!\n";
 echo "  4. 🔴 (CHECK5 merah) → Upload index.php & reports/daily_summary.php CAP WATER 200.000!\n";
 echo "  5. Setelah SEMUA 🟢 → Buka dashboard tanggal 01/09 → REFRESH (Ctrl+Shift+R) → COBA PRINT → bandingkan Utility Report card ↔ PDF.\n\n";
-echo "     🎯 HASIL YANG DIHARAPKAN 01/09/2026:\n";
+echo "     🎯 HASIL YANG DIHARAPKAN 01/09/2026 (REVISI 13/9: TOTAL AIR = MB SAJA!):\n";
 echo "        • ⚡ Listrik = 26.720 kWh\n";
-echo "        • 💧 Air     = 12.666,60 m3 (MB 377×10 + PDAM 12.289,60)\n";
+echo "        • 💧 Air     = 3.770 m3 (MB 377 × 10 SAJA! Water PDAM 12.289,60 = CATATAN, TIDAK MASUK TOTAL)\n";
 echo "        • 🔥 Gas     = 60,74 kg (atau sesuai user set)\n\n";
 echo "  🔒 PENTING: Setelah semua selesai → HAPUS super_cek_hosting.php + recalc_utility_all_dates.php + cek_kemarin_auto.php dari hosting!\n";
