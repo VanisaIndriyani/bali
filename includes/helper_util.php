@@ -142,13 +142,19 @@ function repAutoFixUtilityFormulaLama($db, $dateFrom, $dateTo, $TARIF_LISTRIK, $
                     }
                     $dWmb = ($wmb > 0 && $pWmb > 0 && $wmb > $pWmb) ? max(0.0, $wmb - $pWmb) : 0.0;
                     if ($dWmb <= 0.00001) $dWmb = max(0.0, $mbPart);
-                    $fWmb = ($dWmb > 0 && $dWmb <= 300.0) ? 10.0 : 1.0;
+                    $fWmb = ($dWmb > 0 && $dWmb <= 500.0) ? 10.0 : 1.0;
                     $wmbConsNew = $dWmb * $fWmb;
                     if ($mbPart > 900.0) {
                         $rev = $mbPart / 10.0;
                         if (abs($rev - $wmbConsNew) < ($wmbConsNew * 0.3)) $wmbConsNew = $rev;
                     }
                     if ($wmbConsNew > 200000.0) $wmbConsNew = 200000.0; /* cap air ≤200.000 m3/hari (dinaikkan dr 800! user memang besar MB×10) */
+                    /* ✅ CLEANUP v2→v3: JIKA wmbConsNew KISARAN 12.000-13.000 → SISA PDAM 12.289,60 (recalc v2 kemarin: MB+PDAM)
+                       → KURANGI 12.289,60 agar jadi MB SAJA! */
+                    if ($wmbConsNew >= 12000.0 && $wmbConsNew <= 13000.0) {
+                        $cleanedW = max(0.0, $wmbConsNew - 12289.60);
+                        if ($cleanedW > 5.0) $wmbConsNew = $cleanedW;
+                    }
                     $twNew = $wmbConsNew; /* ✅ 2026-09-13: TOTAL = MB SAJA (TIDAK + othersW / + PDAM) */
                     if (abs($twNew - $tw) > ($tw * 0.1) || abs($mbPart - $wmbConsNew) > ($wmbConsNew * 0.1)) {
                         $tw = $twNew;

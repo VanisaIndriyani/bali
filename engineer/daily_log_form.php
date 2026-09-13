@@ -3221,7 +3221,7 @@ HTML;
         const wmb = document.getElementById('waterMainBuild');
         const wmbVal = wmb ? (parseFloat(normDecStr(wmb.value)) || 0) : 0;
         const waterMbDiff = Math.max(0, (wmbVal - window.Y_WATER_MB));
-        const _fWmb = (waterMbDiff <= 300.0) ? 10.0 : 1.0;
+        const _fWmb = (waterMbDiff <= 500.0) ? 10.0 : 1.0;
         const waterMbCons = waterMbDiff * _fWmb;
         const wPdam       = readF('water_pdam');
         /* ✅ 2026-09-13 UPDATE: TOTAL AIR = HANYA MAIN BUILDING SAJA! Water PDAM CATATAN AJA, TIDAK MASUK TOTAL */

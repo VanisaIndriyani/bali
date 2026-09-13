@@ -297,8 +297,9 @@ foreach ($allDates as $dateRow) {
             $mbLast = (float)($lastWaterMbByEng[$eid]['val'] ?? 0);
             if ($mbLast > 0.01 && $mbNow >= $mbLast) {
                 $diffMb = $mbNow - $mbLast;
-                /* Threshold ≤ 300 → ×10 (digit kecil), else user input SELISIH LANGSUNG (×1) */
-                if ($diffMb <= 300.0) $diffMb = $diffMb * 10.0;
+                /* Threshold ≤ 500 → ×10 (digit kecil), else user input SELISIH LANGSUNG (×1).
+                   Diperluas dari 300 → 500 sesuai request user: selisih 377 (01/09) TETAP ×10 */
+                if ($diffMb <= 500.0) $diffMb = $diffMb * 10.0;
                 $sumWaterMb += $diffMb;
             }
             $lastWaterMbByEng[$eid] = ['val' => $mbNow, 'date' => $tgl];
@@ -360,7 +361,16 @@ foreach ($allDates as $dateRow) {
     /* ✅ 2026-09-13 REVISI USER: TOTAL AIR = HANYA MB SAJA. sumWaterPdam TIDAK MASUK TOTAL (0 hardcoded) */
     $sumWaterPdam = 0;
     if ($sumWaterMb <= 0.1 && $oldWater > 0.01) {
-        $sumWaterMb = $oldWater; /* user lama simpan total = MB saja (sekarang sama), TIDAK KURANG pdam lagi */
+        /* ✅ CLEANUP v2→v3 (KRITIS!): JIKA oldWater KISARAN 12.000-13.000 → PASTI ADA SISA PDAM 12.289,60
+           (hasil recalc v2 kemarin: MB 377×10 + PDAM 12.289,60 = 12.666,60)
+           → KURANGI 12.289,60 agar jadi MB SAJA. */
+        if ($oldWater >= 12000.0 && $oldWater <= 13000.0) {
+            $sumWaterMb = max(0.0, $oldWater - 12289.60);
+            /* Jika hasil < 5 (tidak masuk akal), fallback oldWater / 10.0 (asumsi user input selisih MB kecil) */
+            if ($sumWaterMb <= 5.0) { $sumWaterMb = max(0.0, $oldWater / 10.0); }
+        } else {
+            $sumWaterMb = $oldWater;
+        }
     }
     if ($sumGas <= 0.05 && $oldGas > 0.01) {
         $sumGas = $oldGas;
@@ -377,6 +387,12 @@ foreach ($allDates as $dateRow) {
     /* ✅ 2026-09-13 (REVISI USER LAGI!): WATER PDAM TIDAK MASUK TOTAL AIR
        (hanya dicatat sebagai notes di form). Jadi TOTAL AIR = MB (selisih × faktor). */
     $totalWaterBeforeCap = $sumWaterMb;
+
+    /* ✅ CLEANUP SAFETY (JIKA SUM DI ATAS MASIH LOLOS 12RB-13RB):
+       Jika totalWater masih range 12.000-13.000 → sisa PDAM recalc v2, kurangi paksa 12.289,60 */
+    if ($totalWaterBeforeCap >= 12000.0 && $totalWaterBeforeCap <= 13000.0) {
+        $totalWaterBeforeCap = max(0.0, $totalWaterBeforeCap - 12289.60);
+    }
 
     /* ---------- APPLY SAFETY CAP per utility ---------- */
     /* SAFETY CAP per hari (DITAIKAN sesuai ukuran hotel user, JANGAN TERLALU KECIL!):

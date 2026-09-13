@@ -223,7 +223,7 @@ function repUtilFetchBoth($db, $approvedWhereDaily, $userId, $userRole, $dateFro
                         $prevMb = $lastMbByEng[$eid] ?? null;
                         if ($prevMb !== null && $tmb > $prevMb) {
                             $c = max(0.0, $tmb - $prevMb);
-                            $f = ($c > 0 && $c <= 300.0) ? 10.0 : 1.0;
+                            $f = ($c > 0 && $c <= 500.0) ? 10.0 : 1.0;
                             $c = $c * $f;
                             $manWater += $c;
                             $manCostWater += $c * $tw;
@@ -536,7 +536,7 @@ function repUtilFetchDetail($db, $approvedWhereDaily, $userId, $userRole, $dateF
                     $prevMb = $lastMbByEng[$eid] ?? null;
                     if ($prevMb !== null && $rwmb > $prevMb && $inRange) {
                         $diff = max(0.0, $rwmb - $prevMb);
-                        $f = ($diff > 0 && $diff <= 300.0) ? 10.0 : 1.0;
+                        $f = ($diff > 0 && $diff <= 500.0) ? 10.0 : 1.0;
                         $manWmb += $diff * $f;
                     }
                     $lastMbByEng[$eid] = $rwmb;

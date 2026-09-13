@@ -201,7 +201,7 @@ function utilFetchBoth_Db($db, $approvedWhereDaily, $userId, $userRole, $dateFro
                         $prevMb = $lastMbByEng[$eid] ?? null;
                         if ($prevMb !== null && $tmb > $prevMb && $inRange) {
                             $c = max(0.0, $tmb - $prevMb);
-                            $_fWmb = ($c > 0 && $c <= 300.0) ? 10.0 : 1.0;
+                            $_fWmb = ($c > 0 && $c <= 500.0) ? 10.0 : 1.0;
                             $c = $c * $_fWmb;
                             $manWater += $c;
                             $manCostWater += $c * $tw;
