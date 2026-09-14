@@ -281,8 +281,47 @@ foreach ($allDates as $dateRow) {
                 if ($diff <= 500.0) $diff = $diff * 8000.0;
                 $sumElectricity += $diff;
             } elseif ($sumElecNow > 1 && $sumLast > 1 && $sumElecNow < $sumLast) {
-                /* Reset meter (roll over) → langsung dipakai sebagai consumption jika wajar ≤40000 */
-                if ($sumElecNow <= 40000) $sumElectricity += $sumElecNow;
+                /* ⚠️ RESET METER ROLLOVER? HANYA JIKA SELISIH ≤ 5000 (normal meter reset).
+                   JIKA SELISIH > 5000 → INI BUKAN ROLLOVER! INI BASELINE Basi (misal baseline 2025 Okt 28.720, now 4.365)
+                   → SOLUSI: Query mini SELECT (SAMA FORMULA DAILY_LOG_FORM ORDER BY water>0 ASC, log_date DESC)
+                     cari row terakhir engineer ini SEBELUM TANGGAL INI yang listrik+water isi → pakai sebagai last BARU.
+                   → HITUNG ULANG SELISIH! */
+                if (($sumLast - $sumElecNow) <= 5000 && $sumElecNow <= 40000) {
+                    /* ROLLOVER normal (<= 5000 diff) → consumption = now */
+                    $sumElectricity += $sumElecNow;
+                } else {
+                    /* ✅ BASELINE BASI! Query mini cari last yang terupdate (sama seperti form) */
+                    $miniPrev = $db->fetchOne("
+                        SELECT electricity_wbp, electricity_lwbp, log_date
+                        FROM daily_logs
+                        WHERE engineer_id = ? AND log_date < ?
+                          AND (COALESCE(electricity_wbp,0)+COALESCE(electricity_lwbp,0) > 0 OR COALESCE(water_main_building,0) > 0)
+                        ORDER BY
+                          (CASE WHEN COALESCE(water_main_building,0) > 0 THEN 0 ELSE 1 END) ASC,
+                          log_date DESC,
+                          COALESCE(water_main_building,0) DESC,
+                          (COALESCE(electricity_wbp,0)+COALESCE(electricity_lwbp,0)) DESC,
+                          id DESC
+                        LIMIT 1", [(int)$eid, (string)$tgl]);
+                    if ($miniPrev && !empty($miniPrev)) {
+                        $_newLastWbp = (float)($miniPrev['electricity_wbp'] ?? 0);
+                        $_newLastLwbp = (float)($miniPrev['electricity_lwbp'] ?? 0);
+                        $_newSumLast = $_newLastWbp + $_newLastLwbp;
+                        if ($_newSumLast > 0.01 && $sumElecNow >= $_newSumLast) {
+                            $_diff = $sumElecNow - $_newSumLast;
+                            if ($_diff <= 500.0) $_diff = $_diff * 8000.0;
+                            $sumElectricity += $_diff;
+                            /* Update lastElecByEng ke query baru */
+                            $lastElecByEng[$eid] = ['wbp'=>$_newLastWbp, 'lwbp'=>$_newLastLwbp, 'date'=>(string)($miniPrev['log_date'] ?? $lastElecByEng[$eid]['date'])];
+                            unset($_newLastWbp, $_newLastLwbp, $_newSumLast, $_diff);
+                        } elseif ($_newSumLast > 1 && $sumElecNow < $_newSumLast && ($_newSumLast - $sumElecNow) <= 5000 && $sumElecNow <= 40000) {
+                            /* Setelah baseline diganti pun masih rollover → normal */
+                            $sumElectricity += $sumElecNow;
+                        }
+                        unset($miniPrev);
+                    }
+                    /* Jika tidak ada hasil miniPrev → TIDAK ADA kemarin valid. Baseline di-update ke now SAJA, consumption tidak ditambah. */
+                }
             }
             $lastElecByEng[$eid] = ['wbp' => $wbpNow, 'lwbp' => $lwbpNow, 'date' => $tgl];
         } elseif ($sumElecNow > 0.01) {
@@ -301,6 +340,35 @@ foreach ($allDates as $dateRow) {
                    Diperluas dari 300 → 500 sesuai request user: selisih 377 (01/09) TETAP ×10 */
                 if ($diffMb <= 500.0) $diffMb = $diffMb * 10.0;
                 $sumWaterMb += $diffMb;
+            } elseif ($mbNow > 1 && $mbLast > 1 && $mbNow < $mbLast && ($mbLast - $mbNow) <= 2000) {
+                /* Rollover normal water (<= 2000), simpan sebagai consumption */
+                if ($mbNow <= 200000.0) $sumWaterMb += $mbNow;
+            } elseif ($mbNow > 1 && $mbLast > 1 && $mbNow < $mbLast && ($mbLast - $mbNow) > 2000) {
+                /* ⚠️ BASELINE WATER BASI (2025 = 61.777, now 74-75rb? No, 75rb > 61rb, biasanya tidak <.
+                   Tapi jika ada, SAMA SEPERTI LISTRIK query mini SELECT. */
+                $miniW = $db->fetchOne("
+                    SELECT water_main_building, log_date
+                    FROM daily_logs
+                    WHERE engineer_id = ? AND log_date < ? AND COALESCE(water_main_building,0) > 0
+                    ORDER BY
+                      (CASE WHEN COALESCE(water_main_building,0) > 0 THEN 0 ELSE 1 END) ASC,
+                      log_date DESC,
+                      COALESCE(water_main_building,0) DESC,
+                      id DESC
+                    LIMIT 1", [(int)$eid, (string)$tgl]);
+                if ($miniW && !empty($miniW)) {
+                    $_newMbLast = (float)($miniW['water_main_building'] ?? 0);
+                    if ($_newMbLast > 0.01 && $mbNow >= $_newMbLast) {
+                        $_dMb = $mbNow - $_newMbLast;
+                        if ($_dMb <= 500.0) $_dMb = $_dMb * 10.0;
+                        $sumWaterMb += $_dMb;
+                        $lastWaterMbByEng[$eid] = ['val'=>$_newMbLast, 'date'=>(string)($miniW['log_date'] ?? $lastWaterMbByEng[$eid]['date'])];
+                        unset($_dMb);
+                    } elseif ($_newMbLast > 1 && $mbNow < $_newMbLast && ($_newMbLast - $mbNow) <= 2000) {
+                        $sumWaterMb += $mbNow;
+                    }
+                    unset($miniW, $_newMbLast);
+                }
             }
             $lastWaterMbByEng[$eid] = ['val' => $mbNow, 'date' => $tgl];
         } elseif ($mbNow > 0.01) {
