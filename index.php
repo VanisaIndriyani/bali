@@ -765,10 +765,20 @@ function buildModalQuery($db, $userRole, $userId, $columns, $dateFrom, $dateTo)
 }
 
 $electricityDetailData = buildModalQuery($db, $userRole, $userId, 'dl.electricity_wbp, dl.electricity_lwbp', $monthStart, $today);
-$waterDetailData = buildModalQuery($db, $userRole, $userId, "dl.water_main_building, 0 as water_pdam,
-    /* ✅ 2026-09-13 UPDATE: TOTAL AIR = MB SAJA! Tambah alias water_mb_cons = selisih yesterday dikali threshold factor, tapi untuk chart simple pakai total_water existing (bukan meteran).
-       Chart nanti pakai kolom ini agar tidak 75rb meteran tapi jumlah konsumsi. */
-    COALESCE(dl.total_water,0) as water_mb_cons", $monthStart, $today);
+/* ✅ 2026-09-13: TOTAL AIR = MAIN BUILDING ONLY.
+   WATER DETAIL QUERY: manual (bukan buildModalQuery) agar TIDAK di-explode(',') → tidak pecah alias.
+   Chart stacked water HAPUS dataset PDAM, cuma 1 dataset Main Building Consumption (pakai water_mb_cons).
+   SQL INI JANGAN MASUKKAN /* KOMENTAR PHP */ KE DALAM STRING SQL! MariaDB tidak ngerti comment PHP. */
+$_wdParams = [$monthStart, $today];
+$_wdWhere = "WHERE dl.status = 'approved' AND dl.log_date BETWEEN ? AND ?";
+if ($userRole === 'engineer') { $_wdWhere .= " AND dl.engineer_id = ?"; $_wdParams[] = $userId; }
+$_wdSql = "SELECT DATE(dl.log_date) as label,
+                  COALESCE(SUM(dl.water_main_building), 0) as water_main_building,
+                  COALESCE(SUM(dl.total_water), 0)         as water_mb_cons
+           FROM daily_logs dl $_wdWhere
+           GROUP BY DATE(dl.log_date) ORDER BY DATE(dl.log_date) ASC";
+$waterDetailData = $db->fetchAll($_wdSql, $_wdParams);
+unset($_wdSql, $_wdWhere, $_wdParams);
 $gasDetailData = buildModalQuery($db, $userRole, $userId, 'dl.gas_lpg, dl.gas_lng', $monthStart, $today);
 $swroDetailData = buildModalQuery($db, $userRole, $userId, 'dl.swro_watermeter, dl.swro_kwh, dl.swro_tds', $monthStart, $today);
 $bottlingDetailData = buildModalQuery($db, $userRole, $userId, 'dl.bottling_kwh, dl.bottling_watermeter', $monthStart, $today);
