@@ -10,10 +10,14 @@
  * (file ini TIDAK BOLEH diakses orang lain, hapus setelah selesai!)
  */
 
-require_once __DIR__ . '/config/config.php';
-require_once __DIR__ . '/includes/Database.php';
-
+/* (SAMA CARA LOAD CONFIG DENGAN recalc_utility_all_dates.php line 41-45) */
+$scriptDir = __DIR__;
+$configPath = $scriptDir . '/config/config.php';
+if (!file_exists($configPath)) { $configPath = $scriptDir . '/../config/config.php'; }
+require_once $configPath;
+if (!class_exists('Database', false)) { die('Class Database tidak ditemukan! Cek config/config.php path benar?'); }
 $db = Database::getInstance();
+if (!$db) { die('Gagal connect DB! Cek username/password database di config/config.php.'); }
 
 echo "<h2 style='color:red'>🔥 DEBUG NILAI ASLI WBP / LWBP / WATER MB (ENG#1)</h2>";
 echo "<h3>Tanggal: 10-12 September 2026</h3>";
