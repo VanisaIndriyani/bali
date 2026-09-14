@@ -765,10 +765,10 @@ function buildModalQuery($db, $userRole, $userId, $columns, $dateFrom, $dateTo)
 }
 
 $electricityDetailData = buildModalQuery($db, $userRole, $userId, 'dl.electricity_wbp, dl.electricity_lwbp', $monthStart, $today);
-/* ✅ 2026-09-13: TOTAL AIR = MAIN BUILDING ONLY.
-   WATER DETAIL QUERY: manual (bukan buildModalQuery) agar TIDAK di-explode(',') → tidak pecah alias.
-   Chart stacked water HAPUS dataset PDAM, cuma 1 dataset Main Building Consumption (pakai water_mb_cons).
-   SQL INI JANGAN MASUKKAN /* KOMENTAR PHP */ KE DALAM STRING SQL! MariaDB tidak ngerti comment PHP. */
+// ✅ 2026-09-13: TOTAL AIR = MAIN BUILDING ONLY.
+//    WATER DETAIL QUERY: manual (bukan buildModalQuery) agar TIDAK di-explode koma -> tidak pecah alias.
+//    Chart stacked water HAPUS dataset PDAM, cuma 1 dataset Main Building Consumption (pakai water_mb_cons).
+//    SQL INI JANGAN MASUKKAN tanda /* komentar */ KE DALAM STRING SQL! MariaDB tidak ngerti.
 $_wdParams = [$monthStart, $today];
 $_wdWhere = "WHERE dl.status = 'approved' AND dl.log_date BETWEEN ? AND ?";
 if ($userRole === 'engineer') { $_wdWhere .= " AND dl.engineer_id = ?"; $_wdParams[] = $userId; }
