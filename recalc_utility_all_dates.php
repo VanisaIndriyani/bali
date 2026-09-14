@@ -453,54 +453,7 @@ foreach ($allDates as $dateRow) {
 
         /* ---------- b) WATER MAIN BUILDING (per engineer) ---------- */
         $mbNow = (float)($r['water_main_building'] ?? 0);
-
-        /* ======================================================
-           🔥 LAYER 0 WATER (BARU v11, PRIORITAS TERTINGGI):
-              GLOBAL YESTERDAY (DATE_SUB 1 HARI) TANPA FILTER ENGINEER_ID!
-           ======================================================
-           SAMA LISTRIK LAYER 0! Engineer beda tiap hari (eng#22→eng#21→eng#32)
-           → lastWaterMbByEng[engineer_id] BEDA tanggalnya (baseline basi).
-           Solusi: Pilih row kemarin tanggal date_sub(1) ORDER Revisi3 LIMIT 1.
-           Contoh: 12/09 eng#22 → baseline 11/09 eng#21 mb=75.179,30 ✅
-           → dMb = 75.219,40 - 75.179,30 = 40,1 → ×10 = 401?
-           TAPI v6 water 12/09 DB=4964 OK (jika tetap pakai baseline lama juga OK).
-           ====================================================== */
-        $MbYest = 0.0; $MbYestFound = false;
-        if ($mbNow > 0.01) {
-            $miniW0 = $db->fetchOne("
-                SELECT water_main_building
-                FROM daily_logs
-                WHERE DATE(log_date) = DATE_SUB(?, INTERVAL 1 DAY)
-                  AND COALESCE(water_main_building,0) > 0
-                ORDER BY
-                  (CASE WHEN COALESCE(water_main_building,0) > 0 THEN 0 ELSE 1 END) ASC,
-                  log_date DESC,
-                  COALESCE(water_main_building,0) DESC,
-                  id DESC
-                LIMIT 1", [(string)$tgl]);
-            if ($miniW0 && !empty($miniW0)) {
-                $_v0 = (float)($miniW0['water_main_building'] ?? 0);
-                if ($_v0 > 0.01 && $mbNow >= $_v0 && ($mbNow - $_v0) <= 10000.0) {
-                    $MbYest = $_v0; $MbYestFound = true;
-                }
-                unset($_v0);
-            }
-            unset($miniW0);
-        }
-
-        if ($MbYestFound && $mbNow > 0.01) {
-            /* ✅ LAYER 0 HITUNG LANGSUNG DENGAN BASELINE GLOBAL KEMARIN! */
-            $diffMb = $mbNow - $MbYest;
-            if ($diffMb > 0.001) {
-                if ($diffMb <= 500.0) $diffMb = $diffMb * 10.0;
-                $sumWaterMb += $diffMb;
-            } elseif ($mbNow > 1 && $MbYest > 1 && $mbNow < $MbYest && ($MbYest - $mbNow) <= 2000) {
-                if ($mbNow <= 200000.0) $sumWaterMb += $mbNow;
-            }
-            /* UPDATE lastWaterMbByEng biar layer dibawah tidak hitung 2x (jika ada fallback) */
-            $lastWaterMbByEng[$eid] = ['val' => $mbNow, 'date' => $tgl];
-            unset($diffMb);
-        } elseif ($mbNow > 0.01 && isset($lastWaterMbByEng[$eid])) {
+        if ($mbNow > 0.01 && isset($lastWaterMbByEng[$eid])) {
             $mbLast = (float)($lastWaterMbByEng[$eid]['val'] ?? 0);
             if ($mbLast > 0.01 && $mbNow >= $mbLast) {
                 $diffMb = $mbNow - $mbLast;
@@ -551,50 +504,7 @@ foreach ($allDates as $dateRow) {
         $lpgNow = (float)($r['gas_lpg'] ?? 0);
         $lngNow = (float)($r['gas_lng'] ?? 0);
         $sumGasNow = $lpgNow + $lngNow;
-
-        /* ======================================================
-           🔥 LAYER 0 GAS (BARU v11, PRIORITAS TERTINGGI):
-              GLOBAL YESTERDAY (DATE_SUB 1 HARI) TANPA FILTER ENGINEER_ID!
-           ======================================================
-           Engineer beda tiap hari → lastGasByEng[eid] bisa basi tanggal lama. */
-        $GasYestLpg = 0.0; $GasYestLng = 0.0; $GasYestFound = false;
-        if ($sumGasNow > 0.001) {
-            $miniG0 = $db->fetchOne("
-                SELECT gas_lpg, gas_lng
-                FROM daily_logs
-                WHERE DATE(log_date) = DATE_SUB(?, INTERVAL 1 DAY)
-                  AND (COALESCE(gas_lpg,0) > 0 OR COALESCE(gas_lng,0) > 0)
-                ORDER BY
-                  (CASE WHEN COALESCE(water_main_building,0) > 0 THEN 0 ELSE 1 END) ASC,
-                  log_date DESC,
-                  (COALESCE(gas_lpg,0)+COALESCE(gas_lng,0)) DESC,
-                  id DESC
-                LIMIT 1", [(string)$tgl]);
-            if ($miniG0 && !empty($miniG0)) {
-                $_lg0 = (float)($miniG0['gas_lpg'] ?? 0);
-                $_ln0 = (float)($miniG0['gas_lng'] ?? 0);
-                $_sg0 = $_lg0 + $_ln0;
-                if ($_sg0 > 0.001 && $sumGasNow >= $_sg0 && abs($sumGasNow - $_sg0) <= 500) {
-                    $GasYestLpg = $_lg0; $GasYestLng = $_ln0; $GasYestFound = true;
-                }
-                unset($_lg0, $_ln0, $_sg0);
-            }
-            unset($miniG0);
-        }
-
-        if ($GasYestFound) {
-            $dLpg = max(0.0, $lpgNow - $GasYestLpg);
-            $dLng = max(0.0, $lngNow - $GasYestLng);
-            $diffGas = $dLpg + $dLng;
-            if ($diffGas > 0.001) {
-                if ($diffGas <= 30.0) $diffGas = $diffGas * 100.0;
-                $sumGas += $diffGas;
-            } elseif ($sumGasNow > 0.1 && ($GasYestLpg + $GasYestLng) > 0.1 && $sumGasNow < ($GasYestLpg + $GasYestLng) && (($GasYestLpg + $GasYestLng) - $sumGasNow) <= 100) {
-                $sumGas += $sumGasNow;
-            }
-            $lastGasByEng[$eid] = ['lpg' => $lpgNow, 'lng' => $lngNow, 'date' => $tgl];
-            unset($dLpg, $dLng, $diffGas);
-        } elseif ($sumGasNow > 0.001 && isset($lastGasByEng[$eid])) {
+        if ($sumGasNow > 0.001 && isset($lastGasByEng[$eid])) {
             $sumGasLast = $lastGasByEng[$eid]['lpg'] + $lastGasByEng[$eid]['lng'];
             if ($sumGasLast > 0.001 && $sumGasNow >= $sumGasLast) {
                 $diffGas = $sumGasNow - $sumGasLast;
