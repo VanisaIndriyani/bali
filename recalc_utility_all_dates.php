@@ -265,9 +265,6 @@ foreach ($allDates as $dateRow) {
     $sumGas = 0.0;
     $sumFuel = 0.0;
     $engIdList = [];
-    /* ✅ v9: Catat total meter listrik SEMUA engineer (wbp+lwbp) tanggal ini.
-       Digunakan nanti di FALLBACK line 425. JIKA total meter ADA ISI → JANGAN fallback ke oldElec! */
-    $totalElecMeterAllEng = 0.0;
 
     foreach ($rowsByEng as $eid => $r) {
         $engIdList[] = $eid;
@@ -276,23 +273,39 @@ foreach ($allDates as $dateRow) {
         $wbpNow = (float)($r['electricity_wbp'] ?? 0);
         $lwbpNow = (float)($r['electricity_lwbp'] ?? 0);
         $sumElecNow = $wbpNow + $lwbpNow;
-        $totalElecMeterAllEng += $sumElecNow; /* v9 aggregate */
 
         if ($sumElecNow > 0.01) {
-            /* ╔═══════════════════════════════════════════════════════════╗
-               ║ 🔥 v9 PRIORITAS URUTAN BASELINE (SAMA DAILY_LOG_FORM!):    ║
-               ║   1. YESTERDAY DATE()-1 SAJA (SAMA PERSIS FORMULA REVISI 3) ║
-               ║      → ORDER BY water>0 ASC, log_date DESC, water DESC       ║
-               ║   2. lastElecByEng (rolling global / Okt 2025)         ║
-               ╠═══════════════════════════════════════════════════════════╣
-               ║ WBP & LWBP DIHITUNG PISAH (BUKAN GABUNG SUM DULU!),      ║
-               ║ karena selisih WBP 2,89 → ×8000 = 23.120 (user 12/09) ║
-               ╚═══════════════════════════════════════════════════════════╝ */
+            /* ╔══════════════════════════════════════════════════════════════╗
+               ║ 🔥 v10 PRIORITAS BASELINE (3 LAYER FILTER ANTI BASELINE BASI!) ║
+               ║                                                                 ║
+               ║  LAYER A (PALING DIUTAMAKAN - SAMA DAILY_LOG_FORM!):           ║
+               ║    → Query TANGGAL KEMARIN DATE_SUB(?, 1 DAY) SAJA             ║
+               ║    → ORDER BY Revisi3 (water>0 ASC, log_date DESC, water DESC) ║
+               ║    → Jika ADA dan METER (wbp+lwbp) wajar (baseline-now ≤ 5000) ║
+               ║      → PAKAI INI PASTI! (case 12/09, 11/09 berurutan OK)       ║
+               ║                                                                 ║
+               ║  LAYER B (JIKA TIDAK ADA YESTERDAY / baseline basi):           ║
+               ║    → Query SEMUA TANGGAL < $tgl                                ║
+               ║    → FILTER RANGE METER (sumElecNow-5000) s/d (sumElecNow+5000)║
+               ║      → INI HINDARI BASELINE 2025 = 28.720 (batas 5rb!)         ║
+               ║    → ORDER BY Revisi3                                          ║
+               ║    → Hasil = METER MIRIP SEKARANG (contoh 01/08 dapat 31/07    ║
+               ║      atau 25/08 dapat row 24/08 terdekat)                      ║
+               ║                                                                 ║
+               ║  LAYER C (TERAKHIR - ROLLING GLOBAL lastElecByEng):            ║
+               ║    → HANYA GUNAKAN JIKA hasil meter wajar (now-last ≤ 5000)    ║
+               ║      ATAU now >= last (selisih normal)                         ║
+               ║    → JIKA last = 28.720 (baseline 2025 basi) dan now = 5175    ║
+               ║      → (28720-5175)=23545 > 5000 → LAYER C DITOLAK!            ║
+               ║      → sumElec = 0 → FALLBACK oldElec (recalc benar v6)!       ║
+               ╚══════════════════════════════════════════════════════════════╝ */
 
             $yestWbp = 0.0; $yestLwbp = 0.0; $yestFound = false;
 
-            /* === PRIORITAS 1: Query YESTERDAY DATE()-1 SAJA per engineer (SAMA FORM!) === */
-            $miniYesterday = $db->fetchOne("
+            /* ======================================================
+               LAYER A: YESTERDAY DATE_SUB(?,1) TEPAT (berurutan)
+               ====================================================== */
+            $miniLyrA = $db->fetchOne("
                 SELECT electricity_wbp, electricity_lwbp
                 FROM daily_logs
                 WHERE engineer_id = ?
@@ -306,35 +319,84 @@ foreach ($allDates as $dateRow) {
                   id DESC
                 LIMIT 1", [(int)$eid, (string)$tgl]);
 
-            if ($miniYesterday && !empty($miniYesterday)) {
-                $yestWbp = (float)($miniYesterday['electricity_wbp'] ?? 0);
-                $yestLwbp = (float)($miniYesterday['electricity_lwbp'] ?? 0);
-                if (($yestWbp + $yestLwbp) > 0.01) { $yestFound = true; }
-                unset($miniYesterday);
+            if ($miniLyrA && !empty($miniLyrA)) {
+                $_lwA = (float)($miniLyrA['electricity_wbp'] ?? 0);
+                $_llA = (float)($miniLyrA['electricity_lwbp'] ?? 0);
+                $_sumA = $_lwA + $_llA;
+                if ($_sumA > 0.01) {
+                    $_diffA = abs($sumElecNow - $_sumA);
+                    if ($_diffA <= 5000.0 || $sumElecNow >= $_sumA) {
+                        $yestWbp = $_lwA; $yestLwbp = $_llA; $yestFound = true;
+                    }
+                    unset($_diffA);
+                }
+                unset($_lwA, $_llA, $_sumA);
+            }
+            unset($miniLyrA);
+
+            /* ======================================================
+               LAYER B: SEMUA < $tgl + RANGE FILTER ±5000 (hindari basi 28720!)
+               ====================================================== */
+            if (!$yestFound) {
+                $_minR = max(0.0, $sumElecNow - 5000.0);
+                $_maxR = $sumElecNow + 5000.0;
+                $miniLyrB = $db->fetchOne("
+                    SELECT electricity_wbp, electricity_lwbp
+                    FROM daily_logs
+                    WHERE engineer_id = ?
+                      AND log_date < ?
+                      AND (COALESCE(electricity_wbp,0) + COALESCE(electricity_lwbp,0)) BETWEEN ? AND ?
+                      AND (COALESCE(electricity_wbp,0) > 0 OR COALESCE(electricity_lwbp,0) > 0 OR COALESCE(water_main_building,0) > 0)
+                    ORDER BY
+                      (CASE WHEN COALESCE(water_main_building,0) > 0 THEN 0 ELSE 1 END) ASC,
+                      log_date DESC,
+                      COALESCE(water_main_building,0) DESC,
+                      (COALESCE(electricity_wbp,0)+COALESCE(electricity_lwbp,0)) DESC,
+                      id DESC
+                    LIMIT 1", [(int)$eid, (string)$tgl, $_minR, $_maxR]);
+                if ($miniLyrB && !empty($miniLyrB)) {
+                    $_lwB = (float)($miniLyrB['electricity_wbp'] ?? 0);
+                    $_llB = (float)($miniLyrB['electricity_lwbp'] ?? 0);
+                    if (($_lwB + $_llB) > 0.01) {
+                        $yestWbp = $_lwB; $yestLwbp = $_llB; $yestFound = true;
+                    }
+                    unset($_lwB, $_llB);
+                }
+                unset($miniLyrB, $_minR, $_maxR);
             }
 
-            /* === PRIORITAS 2: Jika TIDAK ADA yesterday date-1 → pakai rolling global lastElecByEng === */
+            /* ======================================================
+               LAYER C: ROLLING GLOBAL lastElecByEng (ditolak jika basi > 5000)
+               ====================================================== */
             if (!$yestFound && isset($lastElecByEng[$eid])) {
-                $yestWbp = (float)($lastElecByEng[$eid]['wbp'] ?? 0);
-                $yestLwbp = (float)($lastElecByEng[$eid]['lwbp'] ?? 0);
-                if (($yestWbp + $yestLwbp) > 0.01) { $yestFound = true; }
+                $_lwC = (float)($lastElecByEng[$eid]['wbp'] ?? 0);
+                $_llC = (float)($lastElecByEng[$eid]['lwbp'] ?? 0);
+                $_sumC = $_lwC + $_llC;
+                if ($_sumC > 0.01) {
+                    $_diffC = abs($sumElecNow - $_sumC);
+                    if ($sumElecNow >= $_sumC || $_diffC <= 5000.0) {
+                        $yestWbp = $_lwC; $yestLwbp = $_llC; $yestFound = true;
+                    }
+                    unset($_diffC);
+                }
+                unset($_lwC, $_llC, $_sumC);
             }
 
-            /* === HITUNG SELISIH WBP & LWBP PISAH (MIRIP FORM line L485 daily_log_form!) === */
+            /* ======================================================
+               HITUNG SELISIH WBP & LWBP PISAH (formula daily_log_form L485!)
+               ====================================================== */
             if ($yestFound) {
                 $dWbp = max(0.0, $wbpNow - $yestWbp);
                 $dLwbp = max(0.0, $lwbpNow - $yestLwbp);
                 $totalDiffElec = $dWbp + $dLwbp;
                 if ($totalDiffElec > 0.001) {
-                    /* Threshold ≤ 500 → ×8000 (CT/PT ratio).
-                       Contoh user 12/09: dWbp=2,89 → 2,89×8000=23.120 + dLwbp 0,59×8000=4.720 → TOTAL 27.840 ✅ */
+                    /* ✅ CONTOH 12/09 CASE: dWbp = 4367,92 - 4365,03 = 2,89 → ×8000 = 23.120
+                       + dLwbp = 0,59 ×8000 = 4.720 → TOTAL = 27.840 ✅✅✅ */
                     if ($totalDiffElec <= 500.0) { $totalDiffElec = $totalDiffElec * 8000.0; }
                     $sumElectricity += $totalDiffElec;
-                } elseif ($sumElecNow > 1 && $yestWbp > 1 && $wbpNow < $yestWbp) {
-                    /* ROLLOVER WBP SAJA? (lwbp normal) – cek selisih abs ≤ 5000 normal reset meter)
-                       Jika WBP rollover total ≤ 40000 → consumption = WBP now (reset + LWBP selisih normal) */
-                    $dLwbp2 = max(0.0, $lwbpNow - $yestLwbp);
-                    $totalRO = $wbpNow + $dLwbp2;
+                } elseif ($sumElecNow > 1 && $yestWbp > 1 && ($wbpNow < $yestWbp || $lwbpNow < $yestLwbp)) {
+                    /* ROLLOVER METER (reset ≤ 5000 diff total) → consumption = now */
+                    $totalRO = $sumElecNow;
                     if ($totalRO > 0.001 && $totalRO <= 40000) {
                         if ($totalRO <= 500.0) { $totalRO = $totalRO * 8000.0; }
                         $sumElectricity += $totalRO;
@@ -342,7 +404,7 @@ foreach ($allDates as $dateRow) {
                 }
             }
 
-            /* === UPDATE ROLLING BASELINE lastElecByEng ke meter TANGGAL INI === */
+            /* UPDATE ROLLING BASELINE */
             $lastElecByEng[$eid] = ['wbp' => $wbpNow, 'lwbp' => $lwbpNow, 'date' => $tgl];
             unset($yestWbp, $yestLwbp, $yestFound, $dWbp, $dLwbp, $totalDiffElec);
         }
@@ -439,9 +501,10 @@ foreach ($allDates as $dateRow) {
     $oldFuel = $sumFuel; /* sudah dihitung di atas */
 
     /* Jika sum baseline 0 tapi DB total ada, pakai yang DB (TAPI APPLY THRESHOLD FAKTOR JUGA!) */
-    /* ✅ v9: FALLBACK oldElec HANYA JIKA total meter listrik SEMUA engineer 0 (benar-benar tidak ada input meter).
-       JIKA ADA 1 engineer saja punya wbp+lwbp > 0 → JANGAN fallback, biarkan sumElectricity = 0 (atau hasil baseline di atas) */
-    if ($sumElectricity <= 0.1 && $oldElec > 0.01 && ($totalElecMeterAllEng ?? 0) <= 0.01) {
+    /* ✅ v10: KEMBALI FALLBACK oldElec SEPERTI v6 (normal untuk tanggal lama sebelum row tersedia,
+       TAPI HANYA JIKA 3 LAYER DI ATAS (A/B/C) TIDAK ADA HASIL YANG COCOK
+       → sumElectricity = 0 → pakai oldElec v6 yang benar! */
+    if ($sumElectricity <= 0.1 && $oldElec > 0.01) {
         $sumElectricity = $oldElec;
         if ($sumElectricity <= 500.0) $sumElectricity = $sumElectricity * 8000.0; /* user simpan kecil (selisih), × CT/PT ratio 8000 */
     }
