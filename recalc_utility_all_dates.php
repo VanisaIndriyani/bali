@@ -504,7 +504,71 @@ foreach ($allDates as $dateRow) {
         $lpgNow = (float)($r['gas_lpg'] ?? 0);
         $lngNow = (float)($r['gas_lng'] ?? 0);
         $sumGasNow = $lpgNow + $lngNow;
-        if ($sumGasNow > 0.001 && isset($lastGasByEng[$eid])) {
+
+        /* 🔥🔥🔥 BARU v11c (FIX GAS BEDA!):
+           SAMA SEPERTI LISTRIK LAYER 0, Engineer shift malam BEDA tiap HARI!
+           KETEMU 100% ROOT CAUSE via check_nilai_1209_v5.php:
+           • 11/09 eng#21 LNG=267,33 → GAS TOTAL SAVED = 267,33 (USER ACCEPTED V6 ✅)
+           • 12/09 eng#22 LNG=319,89 → SELISIH = 52,56 (319,89-267,33=52,56)
+           • RECALC v11b: threshold gas ≤30→×100 else langsung: 52,56 >30 → disimpan LANGSUNG=52,56 ❌ SALAH!
+           • USER V6 BENAR: simpan LANGSUNG = TOTAL METER NG (LPG+LNG) = 319,89 ✅
+           SOLUSI v11c: GUNAKAN BASELINE GLOBAL YESTERDAY TANPA ENGINEER_ID FILTER! (sama listrik)
+                        Kemudian periksa:
+                          1. SELISIH ≤ 30  kg → ×100 (digit kecil LPG / CT ratio 100)
+                          2. SELISIH 30.01 s/d 500 kg (LNG normal 52 kg selisih!) → SIMPAN = TOTAL TODAY (LPG+LNG)
+                             (bukan selisih! Sesuai user V6 simpan langsung = 319,89 / 267,33)
+                          3. SELISIH > 500 → SELISIH LANGSUNG */
+        $GasYestLpg = 0.0; $GasYestLng = 0.0; $GasYestFound = false;
+        if ($sumGasNow > 0.001) {
+            $miniG0 = $db->fetchOne("
+                SELECT gas_lpg, gas_lng
+                FROM daily_logs
+                WHERE DATE(log_date) = DATE_SUB(?, INTERVAL 1 DAY)
+                  AND (COALESCE(gas_lpg,0) > 0 OR COALESCE(gas_lng,0) > 0)
+                ORDER BY
+                  (CASE WHEN COALESCE(water_main_building,0) > 0 THEN 0 ELSE 1 END) ASC,
+                  log_date DESC,
+                  (COALESCE(gas_lpg,0)+COALESCE(gas_lng,0)) DESC,
+                  id DESC
+                LIMIT 1", [(string)$tgl]);
+            if ($miniG0 && !empty($miniG0)) {
+                $_lg0 = (float)($miniG0['gas_lpg'] ?? 0);
+                $_ln0 = (float)($miniG0['gas_lng'] ?? 0);
+                $_sg0 = $_lg0 + $_ln0;
+                if ($_sg0 > 0.001) {
+                    $GasYestLpg = $_lg0; $GasYestLng = $_ln0; $GasYestFound = true;
+                }
+                unset($_lg0, $_ln0, $_sg0);
+            }
+            unset($miniG0);
+        }
+
+        if ($GasYestFound) {
+            $dLpg = max(0.0, $lpgNow - $GasYestLpg);
+            $dLng = max(0.0, $lngNow - $GasYestLng);
+            $diffGas = $dLpg + $dLng;
+            if ($diffGas > 0.001) {
+                if ($diffGas <= 30.0) {
+                    /* (1) Selisih kecil ≤30 → ×100 (LPG CT ratio) */
+                    $diffGas = $diffGas * 100.0;
+                    $sumGas += $diffGas;
+                } elseif ($diffGas <= 500.0) {
+                    /* ✅✅✅ (2) BARU v11c: Selisih 30-500 = LNG NORMAL (contoh 52,56 kg 12/09)
+                                    → SIMPAN LANGSUNG = TOTAL TODAY (LPG+LNG) BUKAN SELISIH!
+                                    (sesuai V6 user ACCEPTED: 12/09 GAS = 319,89 ✅) */
+                    $sumGas += $sumGasNow;
+                } else {
+                    /* (3) >500 → selisih langsung */
+                    $sumGas += $diffGas;
+                }
+            } elseif ($sumGasNow > 0.1 && ($GasYestLpg + $GasYestLng) > 0.1 &&
+                      $sumGasNow < ($GasYestLpg + $GasYestLng) &&
+                      (($GasYestLpg + $GasYestLng) - $sumGasNow) <= 100) {
+                $sumGas += $sumGasNow;
+            }
+            $lastGasByEng[$eid] = ['lpg' => $lpgNow, 'lng' => $lngNow, 'date' => $tgl];
+            unset($dLpg, $dLng, $diffGas);
+        } elseif ($sumGasNow > 0.001 && isset($lastGasByEng[$eid])) {
             $sumGasLast = $lastGasByEng[$eid]['lpg'] + $lastGasByEng[$eid]['lng'];
             if ($sumGasLast > 0.001 && $sumGasNow >= $sumGasLast) {
                 $diffGas = $sumGasNow - $sumGasLast;
