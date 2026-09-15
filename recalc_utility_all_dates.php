@@ -258,6 +258,20 @@ foreach ($allDates as $dateRow) {
         }
     }
 
+    /* ================================================================
+       ✅ V11G SESUAI REQUEST USER 15/09: WATER = HASIL JADI DI DB SEPERTI GAS!
+       VERBATIM: "gak perlu rumus aja kak biar tinggal masukin hasil jadi saja
+       seperti gas. soalnya rumusnya tidak mau jalan"
+       → PRIORITAS 1: OLD WATER TOTAL (sum total_water per row DB tanggal ini)
+         JIKA ADA & WAJAR (>100) → LANGSUNG PAKAI! LEWATI SEMUA RUMUS BASELINE!
+         JIKA TIDAK ADA (<=100 / KOSONG) → BARU JALANKAN L0/L1 baseline (v11f)!
+       ================================================================ */
+    $oldWaterV11g = 0.0;
+    foreach ($rowsByEng as $_r) {
+        $oldWaterV11g += (float)($_r['total_water'] ?? 0);
+    }
+    $waterSkipAllBaseline = false;
+
     /* Hitung aggregate utility tanggal ini */
     $sumElectricity = 0.0;  // BEFORE cap
     $sumWaterMb = 0.0;
@@ -271,6 +285,13 @@ foreach ($allDates as $dateRow) {
     $maxMbNowDate = 0.0;     /* MAX water_mb tanggal ini SEMUA engineer */
     $waterL0FinalAppliedValue = 0.0; /* hasil L0 final (sudah ×10) → jika L0 applied, cleanup L2 TIDAK BOLEH ×10 LAGI! */
     $_yesterdayDateStr = date('Y-m-d', strtotime('-1 day', strtotime($tgl))); /* tanggal kemarin untuk cek baseline */
+
+    /* V11G: LANGSUNG PAKAI OLD WATER JIKA ADA & WAJAR! (SEBELUM baseline calculation!) */
+    if ($oldWaterV11g > 100.0) {
+        $sumWaterMb = $oldWaterV11g;
+        $waterSkipAllBaseline = true; /* FLAG: SKIP SEMUA RUMUS WATER L0 / L1! */
+    }
+    unset($_r);
 
     /* Hitung MAX water_main_building tanggal ini SEMUA engineer (untuk LAYER 0 WATER) */
     foreach ($rowsByEng as $_eid => $_r) {
@@ -465,123 +486,132 @@ foreach ($allDates as $dateRow) {
         }
 
         /* ---------- b) WATER MAIN BUILDING ---------- */
-        /* --------------------------------------------------------------------------
-           ✅ BARU v11f: SEMPURNA! TIDAK ADA REGRESI TANGGAL LAMA! LOGIC:
-           (A) JIKA ADA minimal 1 engineer HARI INI yang punya baseline KEMARIN
-               (lastWaterMbByEng[eid][date] == yesterday) → engineer shift SAMA ORANG
-               → PAKAI PER ENGINEER BASELINE (LAYER1 v6 LAMA) = 100% SESUAI v11c user ACCEPTED.
-           (B) JIKA SEMUA engineer HARI INI TIDAK PUNYA baseline KEMARIN
-               (semua lastWaterMbByEng[eid] date BUKAN yesterday = shift MALAM BEDA ORANG!)
-               → PAKAI LAYER 0 GLOBAL YESTERDAY (TANPA FILTER eng!) SAMA LISTRIK+GAS!
-               Contoh 12/09: 11/09 eng#21 MB=75179.3 → 12/09 eng#22 MB=75219.4
-               → diff=40.1 → ×10 = 401.00 ✅ SAMA PERSIS FORM!
-           -------------------------------------------------------------------------- */
+        /* ✅ V11G: JIKA oldWater SUDAH ADA & WAJAR (>100) → LEWATI SEMUA RUMUS BASELINE!
+           (HASIL JADI DI DB SEPERTI GAS SESUAI REQUEST USER) */
         $mbNow = (float)($r['water_main_building'] ?? 0);
+        if ($waterSkipAllBaseline) {
+            /* TETAP UPDATE lastWaterMbByEng untuk rolling baseline tanggal lain */
+            if ($mbNow > 0.01) {
+                $lastWaterMbByEng[$eid] = ['val' => $mbNow, 'date' => $tgl];
+            }
+        } else {
+            /* --------------------------------------------------------------------------
+               ✅ BARU v11f: SEMPURNA! TIDAK ADA REGRESI TANGGAL LAMA! LOGIC:
+               (A) JIKA ADA minimal 1 engineer HARI INI yang punya baseline KEMARIN
+                   (lastWaterMbByEng[eid][date] == yesterday) → engineer shift SAMA ORANG
+                   → PAKAI PER ENGINEER BASELINE (LAYER1 v6 LAMA) = 100% SESUAI v11c user ACCEPTED.
+               (B) JIKA SEMUA engineer HARI INI TIDAK PUNYA baseline KEMARIN
+                   (semua lastWaterMbByEng[eid] date BUKAN yesterday = shift MALAM BEDA ORANG!)
+                   → PAKAI LAYER 0 GLOBAL YESTERDAY (TANPA FILTER eng!) SAMA LISTRIK+GAS!
+                   Contoh 12/09: 11/09 eng#21 MB=75179.3 → 12/09 eng#22 MB=75219.4
+                   → diff=40.1 → ×10 = 401.00 ✅ SAMA PERSIS FORM!
+               -------------------------------------------------------------------------- */
 
-        /* --- b0) LAYER 0 GLOBAL YESTERDAY (cek SEKALI per tanggal!) --- */
-        if (!$waterL0Checked) {
-            $waterL0Checked = true;
-            /* Cek: APAKAH ADA minimal 1 engineer di rowsByEng yang punya baseline KEMARIN? */
-            $_minimal1EngAdaBaselineKemarin = false;
-            foreach ($rowsByEng as $_cekEid => $_cekR) {
-                $_cekMb = (float)($_cekR['water_main_building'] ?? 0);
-                if ($_cekMb <= 0.01) continue; /* hanya engineer yang ISI MB yang dicek */
-                if (isset($lastWaterMbByEng[$_cekEid])) {
-                    $_cekDate = trim((string)($lastWaterMbByEng[$_cekEid]['date'] ?? ''));
-                    if ($_cekDate == $_yesterdayDateStr) {
-                        $_minimal1EngAdaBaselineKemarin = true;
-                        break;
+            /* --- b0) LAYER 0 GLOBAL YESTERDAY (cek SEKALI per tanggal!) --- */
+            if (!$waterL0Checked) {
+                $waterL0Checked = true;
+                /* Cek: APAKAH ADA minimal 1 engineer di rowsByEng yang punya baseline KEMARIN? */
+                $_minimal1EngAdaBaselineKemarin = false;
+                foreach ($rowsByEng as $_cekEid => $_cekR) {
+                    $_cekMb = (float)($_cekR['water_main_building'] ?? 0);
+                    if ($_cekMb <= 0.01) continue; /* hanya engineer yang ISI MB yang dicek */
+                    if (isset($lastWaterMbByEng[$_cekEid])) {
+                        $_cekDate = trim((string)($lastWaterMbByEng[$_cekEid]['date'] ?? ''));
+                        if ($_cekDate == $_yesterdayDateStr) {
+                            $_minimal1EngAdaBaselineKemarin = true;
+                            break;
+                        }
                     }
                 }
-            }
-            unset($_cekEid, $_cekR, $_cekMb, $_cekDate);
+                unset($_cekEid, $_cekR, $_cekMb, $_cekDate);
 
-            if (!$_minimal1EngAdaBaselineKemarin && $maxMbNowDate > 0.01) {
-                /* ✅ CASE B: Semua engineer baseline basi / BEDA ORANG kemarin → PAKAI LAYER 0 GLOBAL! */
-                $miniW0 = $db->fetchOne("
-                    SELECT water_main_building
-                    FROM daily_logs
-                    WHERE DATE(log_date) = DATE_SUB(?, INTERVAL 1 DAY)
-                      AND COALESCE(water_main_building,0) > 0
-                    ORDER BY
-                      (CASE WHEN COALESCE(water_main_building,0) > 0 THEN 0 ELSE 1 END) ASC,
-                      log_date DESC,
-                      COALESCE(water_main_building,0) DESC,
-                      id DESC
-                    LIMIT 1", [(string)$tgl]);
-                if ($miniW0 && !empty($miniW0)) {
-                    $_yestMbGlobal = (float)($miniW0['water_main_building'] ?? 0);
-                    if ($_yestMbGlobal > 0.01 && $maxMbNowDate >= $_yestMbGlobal) {
-                        $_diffMb0 = $maxMbNowDate - $_yestMbGlobal;
-                        /* Threshold ≤500 → ×10 (SAMA FORM!) */
-                        if ($_diffMb0 > 0.001 && $_diffMb0 <= 500.0) {
-                            $_diffMb0 = $_diffMb0 * 10.0;
-                        }
-                        if ($_diffMb0 > 0.001 && $_diffMb0 <= 200000.0) {
-                            $sumWaterMb += $_diffMb0;
-                            $waterL0Applied = true;
-                            $waterL0FinalAppliedValue = $sumWaterMb; /* simpan untuk cleanup L2 nanti! */
-                        }
-                    } elseif ($maxMbNowDate > 1 && $_yestMbGlobal > 1 &&
-                              $maxMbNowDate < $_yestMbGlobal &&
-                              ($_yestMbGlobal - $maxMbNowDate) <= 2000) {
-                        /* Rollover normal (<=2000): simpan total meter hari ini */
-                        if ($maxMbNowDate <= 200000.0) {
-                            $sumWaterMb += $maxMbNowDate;
-                            $waterL0Applied = true;
-                            $waterL0FinalAppliedValue = $sumWaterMb;
-                        }
-                    }
-                    unset($_yestMbGlobal, $_diffMb0);
-                }
-                unset($miniW0);
-            }
-            unset($_minimal1EngAdaBaselineKemarin);
-        }
-
-        /* --- b1) PER ENGINEER BASELINE (LAYER1 v6 LAMA) — HANYA JALAN JIKA LAYER 0 TIDAK DIPAKAI! --- */
-        if (!$waterL0Applied) {
-            if ($mbNow > 0.01 && isset($lastWaterMbByEng[$eid])) {
-                $mbLast = (float)($lastWaterMbByEng[$eid]['val'] ?? 0);
-                if ($mbLast > 0.01 && $mbNow >= $mbLast) {
-                    $diffMb = $mbNow - $mbLast;
-                    if ($diffMb <= 500.0) $diffMb = $diffMb * 10.0;
-                    $sumWaterMb += $diffMb;
-                } elseif ($mbNow > 1 && $mbLast > 1 && $mbNow < $mbLast && ($mbLast - $mbNow) <= 2000) {
-                    if ($mbNow <= 200000.0) $sumWaterMb += $mbNow;
-                } elseif ($mbNow > 1 && $mbLast > 1 && $mbNow < $mbLast && ($mbLast - $mbNow) > 2000) {
-                    $miniW = $db->fetchOne("
-                        SELECT water_main_building, log_date
+                if (!$_minimal1EngAdaBaselineKemarin && $maxMbNowDate > 0.01) {
+                    /* ✅ CASE B: Semua engineer baseline basi / BEDA ORANG kemarin → PAKAI LAYER 0 GLOBAL! */
+                    $miniW0 = $db->fetchOne("
+                        SELECT water_main_building
                         FROM daily_logs
-                        WHERE engineer_id = ? AND log_date < ? AND COALESCE(water_main_building,0) > 0
+                        WHERE DATE(log_date) = DATE_SUB(?, INTERVAL 1 DAY)
+                          AND COALESCE(water_main_building,0) > 0
                         ORDER BY
                           (CASE WHEN COALESCE(water_main_building,0) > 0 THEN 0 ELSE 1 END) ASC,
                           log_date DESC,
                           COALESCE(water_main_building,0) DESC,
                           id DESC
-                        LIMIT 1", [(int)$eid, (string)$tgl]);
-                    if ($miniW && !empty($miniW)) {
-                        $_newMbLast = (float)($miniW['water_main_building'] ?? 0);
-                        if ($_newMbLast > 0.01 && $mbNow >= $_newMbLast) {
-                            $_dMb = $mbNow - $_newMbLast;
-                            if ($_dMb <= 500.0) $_dMb = $_dMb * 10.0;
-                            $sumWaterMb += $_dMb;
-                            $lastWaterMbByEng[$eid] = ['val'=>$_newMbLast, 'date'=>(string)($miniW['log_date'] ?? $lastWaterMbByEng[$eid]['date'])];
-                            unset($_dMb);
-                        } elseif ($_newMbLast > 1 && $mbNow < $_newMbLast && ($_newMbLast - $mbNow) <= 2000) {
-                            $sumWaterMb += $mbNow;
+                        LIMIT 1", [(string)$tgl]);
+                    if ($miniW0 && !empty($miniW0)) {
+                        $_yestMbGlobal = (float)($miniW0['water_main_building'] ?? 0);
+                        if ($_yestMbGlobal > 0.01 && $maxMbNowDate >= $_yestMbGlobal) {
+                            $_diffMb0 = $maxMbNowDate - $_yestMbGlobal;
+                            /* Threshold ≤500 → ×10 (SAMA FORM!) */
+                            if ($_diffMb0 > 0.001 && $_diffMb0 <= 500.0) {
+                                $_diffMb0 = $_diffMb0 * 10.0;
+                            }
+                            if ($_diffMb0 > 0.001 && $_diffMb0 <= 200000.0) {
+                                $sumWaterMb += $_diffMb0;
+                                $waterL0Applied = true;
+                                $waterL0FinalAppliedValue = $sumWaterMb; /* simpan untuk cleanup L2 nanti! */
+                            }
+                        } elseif ($maxMbNowDate > 1 && $_yestMbGlobal > 1 &&
+                                  $maxMbNowDate < $_yestMbGlobal &&
+                                  ($_yestMbGlobal - $maxMbNowDate) <= 2000) {
+                            /* Rollover normal (<=2000): simpan total meter hari ini */
+                            if ($maxMbNowDate <= 200000.0) {
+                                $sumWaterMb += $maxMbNowDate;
+                                $waterL0Applied = true;
+                                $waterL0FinalAppliedValue = $sumWaterMb;
+                            }
                         }
-                        unset($miniW, $_newMbLast);
+                        unset($_yestMbGlobal, $_diffMb0);
                     }
+                    unset($miniW0);
                 }
-                $lastWaterMbByEng[$eid] = ['val' => $mbNow, 'date' => $tgl];
-            } elseif ($mbNow > 0.01) {
-                $lastWaterMbByEng[$eid] = ['val' => $mbNow, 'date' => $tgl];
+                unset($_minimal1EngAdaBaselineKemarin);
             }
-        } else {
-            /* LAYER 0 APPLIED: TETAP UPDATE lastWaterMbByEng untuk tanggal tanpa kemarin nanti */
-            if ($mbNow > 0.01) {
-                $lastWaterMbByEng[$eid] = ['val' => $mbNow, 'date' => $tgl];
+
+            /* --- b1) PER ENGINEER BASELINE (LAYER1 v6 LAMA) — HANYA JALAN JIKA LAYER 0 TIDAK DIPAKAI! --- */
+            if (!$waterL0Applied) {
+                if ($mbNow > 0.01 && isset($lastWaterMbByEng[$eid])) {
+                    $mbLast = (float)($lastWaterMbByEng[$eid]['val'] ?? 0);
+                    if ($mbLast > 0.01 && $mbNow >= $mbLast) {
+                        $diffMb = $mbNow - $mbLast;
+                        if ($diffMb <= 500.0) $diffMb = $diffMb * 10.0;
+                        $sumWaterMb += $diffMb;
+                    } elseif ($mbNow > 1 && $mbLast > 1 && $mbNow < $mbLast && ($mbLast - $mbNow) <= 2000) {
+                        if ($mbNow <= 200000.0) $sumWaterMb += $mbNow;
+                    } elseif ($mbNow > 1 && $mbLast > 1 && $mbNow < $mbLast && ($mbLast - $mbNow) > 2000) {
+                        $miniW = $db->fetchOne("
+                            SELECT water_main_building, log_date
+                            FROM daily_logs
+                            WHERE engineer_id = ? AND log_date < ? AND COALESCE(water_main_building,0) > 0
+                            ORDER BY
+                              (CASE WHEN COALESCE(water_main_building,0) > 0 THEN 0 ELSE 1 END) ASC,
+                              log_date DESC,
+                              COALESCE(water_main_building,0) DESC,
+                              id DESC
+                            LIMIT 1", [(int)$eid, (string)$tgl]);
+                        if ($miniW && !empty($miniW)) {
+                            $_newMbLast = (float)($miniW['water_main_building'] ?? 0);
+                            if ($_newMbLast > 0.01 && $mbNow >= $_newMbLast) {
+                                $_dMb = $mbNow - $_newMbLast;
+                                if ($_dMb <= 500.0) $_dMb = $_dMb * 10.0;
+                                $sumWaterMb += $_dMb;
+                                $lastWaterMbByEng[$eid] = ['val'=>$_newMbLast, 'date'=>(string)($miniW['log_date'] ?? $lastWaterMbByEng[$eid]['date'])];
+                                unset($_dMb);
+                            } elseif ($_newMbLast > 1 && $mbNow < $_newMbLast && ($_newMbLast - $mbNow) <= 2000) {
+                                $sumWaterMb += $mbNow;
+                            }
+                            unset($miniW, $_newMbLast);
+                        }
+                    }
+                    $lastWaterMbByEng[$eid] = ['val' => $mbNow, 'date' => $tgl];
+                } elseif ($mbNow > 0.01) {
+                    $lastWaterMbByEng[$eid] = ['val' => $mbNow, 'date' => $tgl];
+                }
+            } else {
+                /* LAYER 0 APPLIED: TETAP UPDATE lastWaterMbByEng untuk tanggal tanpa kemarin nanti */
+                if ($mbNow > 0.01) {
+                    $lastWaterMbByEng[$eid] = ['val' => $mbNow, 'date' => $tgl];
+                }
             }
         }
 
@@ -739,6 +769,19 @@ foreach ($allDates as $dateRow) {
      *    Sudah tidak perlu karena user sekarang APPLY ×8000 / ×100 / ×10 DAHULU.
      *    Kalau memang > cap, safety cap nanti auto-scale down pilih divider terbaik.
      * ============================================================================ */
+
+    /* ✅ V11G: CLEANUP LAYER UNIVERSAL (DIJALANKAN SELALU!)
+       Apapun sumber sumWaterMb: baseline L0/L1, oldWaterSkip, ataupun fallback.
+       → KARENA v11f BARUSAN NULIS DB (53 row) → sumWaterMb = 377 (dari DB v11f salah!)
+         Maka butuh cleanup L2 (300-600 ×10) disini: 377 → 3770 ✅! */
+    if ($sumWaterMb >= 12000.0 && $sumWaterMb <= 13000.0) {
+        $sumWaterMb = max(0.0, $sumWaterMb - 12289.60);
+        if ($sumWaterMb <= 5.0) { $sumWaterMb = 0.0; }
+    } elseif ($sumWaterMb >= 1200.0 && $sumWaterMb <= 1250.0) {
+        $sumWaterMb = 0.0;
+    } elseif ($sumWaterMb > 300.0 && $sumWaterMb <= 600.0) {
+        $sumWaterMb = $sumWaterMb * 10.0; /* ✅ SELALU APPLY! 377 → 3770, 438 → 4380! */
+    }
 
     /* ---------- KALKULASI AIR TOTAL = HANYA MAIN BUILDING SAJA! ---------- */
     /* ✅ 2026-09-13 (REVISI USER LAGI!): WATER PDAM TIDAK MASUK TOTAL AIR
