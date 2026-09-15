@@ -773,14 +773,16 @@ foreach ($allDates as $dateRow) {
     /* ✅ V11G: CLEANUP LAYER UNIVERSAL (DIJALANKAN SELALU!)
        Apapun sumber sumWaterMb: baseline L0/L1, oldWaterSkip, ataupun fallback.
        → KARENA v11f BARUSAN NULIS DB (53 row) → sumWaterMb = 377 (dari DB v11f salah!)
-         Maka butuh cleanup L2 (300-600 ×10) disini: 377 → 3770 ✅! */
+         Maka butuh cleanup L2 (300-600 ×10) disini: 377 → 3770 ✅!
+       V11H: HANYA JALANKAN CLEANUP L2 (300-600×10) JIKA waterL0Applied=FALSE!
+            → JIKA L0 baseline DIPAKAI (kasus 12/09 W=401) → SKIP! 401×10=4010 ❌ SALAH! */
     if ($sumWaterMb >= 12000.0 && $sumWaterMb <= 13000.0) {
         $sumWaterMb = max(0.0, $sumWaterMb - 12289.60);
         if ($sumWaterMb <= 5.0) { $sumWaterMb = 0.0; }
     } elseif ($sumWaterMb >= 1200.0 && $sumWaterMb <= 1250.0) {
         $sumWaterMb = 0.0;
-    } elseif ($sumWaterMb > 300.0 && $sumWaterMb <= 600.0) {
-        $sumWaterMb = $sumWaterMb * 10.0; /* ✅ SELALU APPLY! 377 → 3770, 438 → 4380! */
+    } elseif (!$waterL0Applied && $sumWaterMb > 300.0 && $sumWaterMb <= 600.0) {
+        $sumWaterMb = $sumWaterMb * 10.0; /* ✅ V11H: SKIP JIKA L0 baseline! 401 TIDAK di×10! */
     }
 
     /* ---------- KALKULASI AIR TOTAL = HANYA MAIN BUILDING SAJA! ---------- */
